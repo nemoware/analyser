@@ -3,6 +3,7 @@ import string
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
+from typing import List
 
 nltk.download('punkt')
 
@@ -126,8 +127,6 @@ def dist_cosine_housedorff_undirected(u, v):
     return round((d1 + d2) / 2, 2)
 
 
-
-
 # ----------------------------------------------------------------
 # MISC
 # ----------------------------------------------------------------
@@ -169,3 +168,18 @@ def sentence_similarity_matrix(emb, distance_function):
 
 def untokenize(tokens):
     return "".join([" " + i if not i.startswith("'") and i not in string.punctuation else i for i in tokens]).strip()
+
+
+
+def find_token_before_index(tokens, index, token ):
+  for i in reversed(range(index)):
+    if tokens[i] == token:
+      return i
+  return -1
+
+
+def find_token_after_index(tokens, index, token ):
+  for i in range(index, len(tokens)):
+    if tokens[i] == token:
+      return i
+  return -1
