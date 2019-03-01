@@ -1,7 +1,8 @@
-import nltk
-import scipy.spatial.distance as distance
-import numpy as np
 import string
+
+import nltk
+import numpy as np
+import scipy.spatial.distance as distance
 
 nltk.download('punkt')
 
@@ -70,6 +71,61 @@ def dist_euclidean_min_mean(u, v):
         return distance.cdist(u, v, 'euclidean').min(0).mean()
     else:
         return distance.cdist(v, u, 'euclidean').min(0).mean()
+
+
+"""
+
+Kind of Moving Earth (or Fréchet distance)
+ACHTUNG! This is not WMD
+
+inspired by https://en.wikipedia.org/wiki/Earth_mover%27s_distance https://markroxor.github.io/gensim/static/notebooks/WMD_tutorial.html
+
+Compute matrix of pair-wize distances between words of 2 sentences (each 2 each)
+For each word in sentence U, find the Distance to semantically nearest one in the other sentence V
+The Sum of these minimal distances (or mean) is sort of effort required to transform U sentence to another, V sentence.
+For balance (symmetry) swap U & V and find the effort required to strech V sentence to U.
+
+
+"""
+
+
+def dist_frechet_cosine_directed(u, v):
+    D_ = distance.cdist(u, v, 'cosine')
+    return D_.min(0).sum()
+
+
+def dist_frechet_cosine_undirected(u, v):
+    d1 = dist_frechet_cosine_directed(u, v)
+    d2 = dist_frechet_cosine_directed(v, u)
+    return round((d1 + d2) / 2, 2)
+
+
+def dist_frechet_eucl_directed(u, v):
+    D_ = distance.cdist(u, v, 'euclidean')
+    return D_.min(0).sum()
+
+
+def dist_frechet_eucl_undirected(u, v):
+    d1 = dist_frechet_eucl_directed(u, v)
+    d2 = dist_frechet_eucl_directed(v, u)
+    return round((d1 + d2) / 2, 2)
+
+
+def dist_mean_cosine_frechet(u, v):
+    return dist_frechet_cosine_undirected(u, v) + dist_mean_cosine(u, v)
+
+
+def dist_cosine_housedorff_directed(u, v):
+    D_ = distance.cdist(u, v, 'cosine')
+    return D_.min(0).max()
+
+
+def dist_cosine_housedorff_undirected(u, v):
+    d1 = dist_cosine_housedorff_directed(u, v)
+    d2 = dist_cosine_housedorff_directed(v, u)
+    return round((d1 + d2) / 2, 2)
+
+
 
 
 # ----------------------------------------------------------------
