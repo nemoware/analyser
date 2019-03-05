@@ -1,3 +1,4 @@
+from text_normalize import *
 from text_tools import *
 
 TEXT_PADDING = 10  # maximum pattern len (in words)
@@ -15,10 +16,8 @@ class FuzzyPattern:
         self.name = _name
         self.pattern_text = None
 
-
     def __str__(self):
         return ' '.join(['FuzzyPattern:', str(self.name), str(self.pattern_text)])
-
 
     def _eval_distances(self, _text, _patterns, dist_function=DIST_FUNC, whd_padding=2, wnd_mult=1):
         """
@@ -93,3 +92,91 @@ class CoumpoundFuzzyPattern:
         mean = meaninful_sums.mean()
         confidence = sums[min_i] / mean
         return min_i, sums, confidence
+
+
+class LegalDocument:
+    def __init__(self):
+        self.original_text = None
+        self.filename = None
+        self.tokens = None
+        self.embeddings = None
+
+    def normalize_sentences_bounds(self, text):
+        sents = nltk.sent_tokenize(text)
+        res = ''
+        for s in sents:
+            a = s.replace('\n', ' ')
+            res += a
+            res += '\n'
+
+        return res
+
+    def preprocess_text(self, text):
+        a = text
+        #     a = remove_empty_lines(text)
+        a = normalize_text(a, replacements_regex)
+        a = self.normalize_sentences_bounds(a)
+
+        return a
+
+    def read(self, name):
+        print("reading...", name)
+        self.filename = name
+        txt = ""
+        with open(name, 'r') as f:
+            self.original_text = f.read()
+
+    def tokenize(self, _txt=None):
+        if _txt is None: _txt = self.normal_text
+
+        _words = tokenize_text(_txt)
+
+        sparse_words = []
+        end = len(_words)
+        last_cr_index = 0
+        for i in range(end):
+            if (_words[i] == '\n') or i == end - 1:
+                chunk = _words[last_cr_index:i + 1]
+                chunk.extend([TEXT_PADDING_SYMBOL] * TEXT_PADDING)
+                sparse_words += chunk
+                last_cr_index = i + 1
+
+        return sparse_words
+
+    def parse(self, txt=None):
+        if txt is None: txt = self.original_text
+        self.normal_text = self.preprocess_text(txt)
+        self.tokens = self.tokenize()
+        print('TOKENS:', self.tokens[0:20])
+
+    def embedd(self, pattern_factory):
+        self.embeddings, _wrds = pattern_factory.embedder.embedd_tokenized_text(self.tokens)
+        self.embeddings = self.embeddings[0]
+
+
+class AbstractPatternFactory:
+
+
+    CONFIDENCE_DISTANCE = 0.25 #TODO: must depend on distance function
+
+    def __init__(self, embedder):
+        self.embedder = embedder
+        self.patterns = None
+
+    def _embedd(self, p, embedder):
+        arr = []
+        for k, v in p.items():
+            arr.append([k, v])
+
+        slice = [arr[i][1:2][0] for i in range(len(arr))]
+
+        # =========
+        patterns_emb = embedder.embedd_contextualized_patterns(slice)
+        # =========
+
+        self.patterns = {}
+        for i in range(len(patterns_emb)):
+            name = arr[i][0]
+            fp = FuzzyPattern(patterns_emb, name)
+            fp.pattern_text = arr[i][1]
+            self.patterns[name] = fp
