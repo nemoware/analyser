@@ -100,6 +100,7 @@ class LegalDocument:
         self.filename = None
         self.tokens = None
         self.embeddings = None
+        self.normal_text = None
 
     def normalize_sentences_bounds(self, text):
         sents = nltk.sent_tokenize(text)
@@ -163,7 +164,7 @@ class AbstractPatternFactory:
         self.embedder = embedder
         self.patterns = None
 
-    def _embedd(self, p, embedder):
+    def _embedd(self, p):
         arr = []
         for k, v in p.items():
             arr.append([k, v])
@@ -171,12 +172,14 @@ class AbstractPatternFactory:
         slice = [arr[i][1:2][0] for i in range(len(arr))]
 
         # =========
-        patterns_emb = embedder.embedd_contextualized_patterns(slice)
+        patterns_emb = self.embedder.embedd_contextualized_patterns(slice)
         # =========
 
         self.patterns = {}
         for i in range(len(patterns_emb)):
             name = arr[i][0]
-            fp = FuzzyPattern(patterns_emb, name)
+            fp = FuzzyPattern([patterns_emb[i]], name)
             fp.pattern_text = arr[i][1]
             self.patterns[name] = fp
+
+        return self.patterns
