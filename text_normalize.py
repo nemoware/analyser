@@ -15,9 +15,9 @@ def normalize_text(_t, replacements_regex):
 
 
 spaces_regex = [
+    (r'\t', ' '),
     (r'[ ]{2}', ' '),
-    (r'\n{2}', '\n'),
-    (r'\n\s{2,5}', ' ')
+    (r'\n{2}', '\n')
 ]
 
 abbreviation_regex = [
@@ -33,6 +33,7 @@ abbreviation_regex = [
 
     (r'в\sт\.\s*ч\.', 'в том числе'),
 
+    (r'(?<=\d{4})\s*г\.\s*\n', ' год.\n'),
     (r'(?<=\d{4})\s*г\.', ' год'),
 
     (r'(?<=\s)*ООО(?=\s+)', 'Общество с ограниченной ответственностью'),
@@ -70,7 +71,8 @@ cleanup_regex = [
 
     (r'с одной стороны и\s*\n', 'с одной стороны и '),
 
-    (r'\n(\d{1,2}[\.|)]?\.?\s?)+', '\n — ')  # remove paragraph numbers
+    (r'\n\s*(\d{1,2}[\.|)]?\.?\s?)+', '.\n — '),  # remove paragraph numbers
+    (r'\.\s*\.', '.')
 
 ]
 
@@ -83,5 +85,8 @@ fixtures_regex = [
     (r'(?<=[А-Я])\n', '.\n'),
 ]
 
-replacements_regex = abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex
+formatting_regex = [
+    (r'\n\s{2,5}', ' ')
+]
 
+replacements_regex = abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
