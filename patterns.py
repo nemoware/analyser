@@ -1,23 +1,26 @@
 from text_tools import *
 
-
-TEXT_PADDING = 10 # maximum pattern len (in words)
+TEXT_PADDING = 10  # maximum pattern len (in words)
 TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
-PATTERN_THRESHOLD = 0.75 # 0...1
+PATTERN_THRESHOLD = 0.75  # 0...1
 
 
 class FuzzyPattern:
 
-    def __init__(self, start_tokens_emb: List[List], end_tokens_emb: List[List] = []):
-
+    def __init__(self, start_tokens_emb, _name='undefined'):
         self.start = start_tokens_emb
-        self.end = end_tokens_emb
+        self.name = _name
+        self.pattern_text = None
 
 
-    def _eval_distances(self, _text: List, _patterns: List, dist_function=DIST_FUNC, whd_padding=2, wnd_mult=1):
+    def __str__(self):
+        return ' '.join(['FuzzyPattern:', str(self.name), str(self.pattern_text)])
+
+
+    def _eval_distances(self, _text, _patterns, dist_function=DIST_FUNC, whd_padding=2, wnd_mult=1):
         """
           For each token in the given sentences, it calcultes the semantic distance to
           each and every pattern in _pattens arg.
@@ -49,7 +52,7 @@ class FuzzyPattern:
 
         return sum
 
-    def _find_patterns(self, text_ebd: List, threshold=PATTERN_THRESHOLD):
+    def _find_patterns(self, text_ebd, threshold=PATTERN_THRESHOLD):
         """
           text_ebd:  tensor of embeedings
         """
@@ -58,7 +61,7 @@ class FuzzyPattern:
 
         return sums_starts
 
-    def find(self, text_ebd: List, threshold=PATTERN_THRESHOLD, text_right_padding=TEXT_PADDING):
+    def find(self, text_ebd, threshold=PATTERN_THRESHOLD, text_right_padding=TEXT_PADDING):
         """
           text_ebd:  tensor of embeedings
         """
@@ -74,15 +77,19 @@ class CoumpoundFuzzyPattern:
     def __init__(self):
         self.patterns = {}
 
-    def add_pattern(self, pat: FuzzyPattern, weight=1.0):
+    def add_pattern(self, pat, weight=1.0):
         self.patterns[pat] = weight
 
-    def find(self, text_ebd: List, threshold=PATTERN_THRESHOLD, text_right_padding=TEXT_PADDING):
+    def find(self, text_ebd, threshold=PATTERN_THRESHOLD, text_right_padding=TEXT_PADDING):
         sums = np.zeros(len(text_ebd))
         for p in self.patterns:
             sp = p._find_patterns(text_ebd, threshold)
 
             sums += sp * self.patterns[p]
 
-        min_i = min_index(sums[:-text_right_padding])
-        return min_i, sums
+        sums /= len(self.patterns)
+        meaninful_sums = sums[:-text_right_padding]
+        min_i = min_index(meaninful_sums)
+        mean = meaninful_sums.mean()
+        confidence = sums[min_i] / mean
+        return min_i, sums, confidence
