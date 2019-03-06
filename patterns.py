@@ -162,10 +162,10 @@ class ExclusivePattern(CompoundPattern):
         # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
         ranges = []
         for row in distances_per_pattern:
-            b = np.array(filter(lambda x: not np.isnan(x), row))
+            b = np.array(list(filter(lambda x: not np.isnan(x), row)))
             min = b.min()
             max = b.max()
-            mean = 0 #b.mean()
+            mean = b.mean()
             ranges.append([min, max, mean])
 
         winning_patterns = {}
