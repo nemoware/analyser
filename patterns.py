@@ -1,5 +1,6 @@
 from text_normalize import *
 from text_tools import *
+import matplotlib as mpl
 
 TEXT_PADDING = 10  # maximum pattern len (in words)
 TEXT_PADDING_SYMBOL = ' '
@@ -104,7 +105,7 @@ class ExclusivePattern(CompoundPattern):
     def add_pattern(self, pat):
         self.patterns.append(pat)
 
-    def onehot_column(self, a, mask = -2**32):
+    def onehot_column(self, a, mask=-2 ** 32):
         maximals = np.max(a, 0)
 
         for i in range(a.shape[0]):
@@ -114,24 +115,67 @@ class ExclusivePattern(CompoundPattern):
 
         return a
 
+    # def to_html(self, _tokens, distances, ranges, winning_patterns):
+    #     assert len(distances[0]) == len(_tokens)
+    #
+    #     colormaps = ['Greys', 'Purples', 'Blues', 'Greens', 'Reds']
+    #
+    #     norm = mpl.colors.Normalize(vmin=np.array(ranges)[:, 0:1].min(), vmax=np.array(ranges)[:, 1:2].max())
+    #
+    #     cmaps = []
+    #
+    #     for n in colormaps:
+    #         cmap = mpl.cm.get_cmap(n)
+    #         cmaps.append(cmap)
+    #
+    #     html = ""
+    #
+    #     for d in range(0, len(_tokens)):
+    #         winning_pattern_i = winning_patterns[d][0]
+    #         colormap = cmaps[winning_pattern_i]
+    #
+    #         color = mpl.colors.to_hex(cmap(colormap(   norm(winning_patterns[d][1])   )))
+    #
+    #         html += '<span style="background-color:' + color + '">' + str(
+    #             _tokens[d]) + " </span>"
+    #         if _tokens[d] == '\n':
+    #             html += "<br>"
+    #
+    #     return html
 
-    def find(self, text_ebd, text_right_padding):
+    def calc_exclusive_distances(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
 
-        distances_per_pattern = np.zeros(len(self.patterns), (len(text_ebd)-text_right_padding))
+        distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd) - text_right_padding))
 
         for pattern_index in range(len(self.patterns)):
             pattern = self.patterns[pattern_index]
             distances_sum = pattern._find_patterns(text_ebd)
-            distances_per_pattern[pattern_index](distances_sum)
+            distances_per_pattern[pattern_index] = distances_sum
 
-        #invert
+        # invert
         distances_per_pattern *= -1
-        distances_per_pattern = self.onehot_column(distances_per_pattern)
+        distances_per_pattern = self.onehot_column(distances_per_pattern, None)
         distances_per_pattern *= -1
 
-        # return distances_per_pattern
+        # p1 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
+        # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
+        ranges = []
+        for row in distances_per_pattern:
+            b = np.array(filter(lambda x: not np.isnan(x), row))
+            min = b.min()
+            max = b.max()
+            mean = b.mean()
+            ranges.append([min, max, mean])
 
+        winning_patterns = {}
+        for row_index in range(len(distances_per_pattern)):
+            row = distances_per_pattern[row_index]
+            for col_i in range(len(row)):
+                if not np.isnan(row[col_i]):
+                    winning_patterns[col_i] = (row_index, row[col_i])
+
+        return distances_per_pattern, ranges, winning_patterns
 
 
 class CoumpoundFuzzyPattern(CompoundPattern):

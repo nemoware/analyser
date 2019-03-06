@@ -14,6 +14,60 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         print(m)
         self.assertTrue(np.allclose(m, np.array([[3, mask, mask], [mask, 3, 5]])))
 
+
+    def test_exclusive_find(self):
+        point1 = [1, 3]
+        point2 = [1, 7]
+        point3 = [1, 6]
+
+        fp1 = FuzzyPattern(np.array([[point2]]))
+        fp2 = FuzzyPattern(np.array([[point3]]))
+
+        cp = ExclusivePattern()
+        cp.add_pattern(fp1)
+        cp.add_pattern(fp2)
+
+        text_emb = np.array([point1, point2, point3, point3, point1])
+        distances_per_pattern, ranges, winning_patterns = cp.calc_exclusive_distances(text_emb, text_right_padding=0)
+
+        print("distances_per_pattern")
+        print(distances_per_pattern[0])
+        print(distances_per_pattern[1])
+
+        print("winning_patterns")
+        print(winning_patterns)
+
+        print("ranges")
+        print(ranges)
+
+    # def test_exclusive_find_html(self):
+    #     point1 = [1, 3]
+    #     point2 = [1, 7]
+    #     point3 = [1, 6]
+    #
+    #     fp1 = FuzzyPattern(np.array([[point2]]))
+    #     fp2 = FuzzyPattern(np.array([[point3]]))
+    #
+    #     cp = ExclusivePattern()
+    #     cp.add_pattern(fp1)
+    #     cp.add_pattern(fp2)
+    #
+    #     text_emb = np.array([point1, point2, point3, point3, point1])
+    #     distances_per_pattern, ranges, winning_patterns = cp.calc_exclusive_distances(text_emb, text_right_padding=0)
+    #
+    #     html = cp.to_html(['wwwwwww','wwwwwww','wwwwwww','wwwwwww','wwwwwww'], distances_per_pattern, ranges, winning_patterns)
+    #     print(html)
+        # print(distances_per_pattern[0])
+        # print(distances_per_pattern[1])
+        #
+        # print("winning_patterns")
+        # print(winning_patterns)
+        #
+        # print("ranges")
+        # print(ranges)
+
+
+
     def test_tokenize_doc(self):
         doc = LegalDocument()
         tokens = doc.tokenize('aa bb cc')
