@@ -165,7 +165,7 @@ class ExclusivePattern(CompoundPattern):
             b = np.array(filter(lambda x: not np.isnan(x), row))
             min = b.min()
             max = b.max()
-            mean = b.mean()
+            mean = 0 #b.mean()
             ranges.append([min, max, mean])
 
         winning_patterns = {}
