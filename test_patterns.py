@@ -6,6 +6,57 @@ import numpy as np
 
 class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
+    def test_tokenize_doc(self):
+        doc = LegalDocument()
+        tokens = doc.tokenize('aa bb cc')
+        print (tokens)
+        self.assertEqual(3+TEXT_PADDING+1,len(tokens))
+
+    def test_tokenize_doc_custom_padding(self):
+        doc = LegalDocument()
+        padding = 0
+        tokens = doc.tokenize('aa bb cc', padding)
+        print (tokens)
+        self.assertEqual(3+padding+1,len(tokens))
+
+    def test_eval_distances_soft_pattern(self):
+        point1 = [1, 3]
+        point2 = [1, 7]
+
+        point3 = [1, 6]
+        point35 = [1, 6.5]
+
+        fp1 = FuzzyPattern(np.array([[point3], [point35]]))
+
+        text_emb = np.array([point1, point2, point3])
+        sums = fp1._eval_distances(text_emb)
+        self.assertEqual(len (text_emb), len(sums))
+
+        line0 = sums[:,0]
+
+        self.assertGreater(line0[1], line0[2])
+        self.assertGreater(line0[0], line0[2])
+
+    def test_eval_distances_soft_pattern2(self):
+        point1 = [1, 3]
+        point2 = [1, 7]
+
+        point3 = [1, 6]
+        point35 = [1, 6.5]
+
+        fp1 = FuzzyPattern(np.array([[point3],[point35]]))
+
+        text_emb = np.array([point1, point3, point2, point2])
+        sums = fp1._eval_distances(text_emb)
+        self.assertEqual(len(text_emb), len(sums))
+
+        line0 = sums[:, 0]
+        print(line0)
+
+        self.assertGreater(line0[2], line0[1])
+        self.assertGreater(line0[0], line0[1])
+        self.assertGreater(line0[3], line0[1])
+
     def test_eval_distances(self):
         point1 = [1, 3]
         point2 = [1, 7]

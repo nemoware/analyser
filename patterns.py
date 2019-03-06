@@ -102,6 +102,7 @@ class CoumpoundFuzzyPattern:
     def add_pattern(self, pat, weight=1.0):
         self.patterns[pat] = weight
 
+
     def find(self, text_ebd,  text_right_padding):
         assert len(text_ebd) > text_right_padding
         sums = np.zeros(len(text_ebd))
@@ -161,7 +162,7 @@ class LegalDocument:
         with open(name, 'r') as f:
             self.original_text = f.read()
 
-    def tokenize(self, _txt=None):
+    def tokenize(self, _txt=None, padding = TEXT_PADDING):
         if _txt is None: _txt = self.normal_text
 
         _words = tokenize_text(_txt)
@@ -172,17 +173,19 @@ class LegalDocument:
         for i in range(end):
             if (_words[i] == '\n') or i == end - 1:
                 chunk = _words[last_cr_index:i + 1]
-                chunk.extend([TEXT_PADDING_SYMBOL] * TEXT_PADDING)
+                chunk.extend([TEXT_PADDING_SYMBOL] * padding)
                 sparse_words += chunk
                 last_cr_index = i + 1
 
         return sparse_words
 
-    def parse(self, txt=None):
+    def parse(self, txt=None, padding = TEXT_PADDING):
         if txt is None: txt = self.original_text
         self.normal_text = self.preprocess_text(txt)
-        self.tokens = self.tokenize()
-        print('TOKENS:', self.tokens[0:20])
+
+        self.tokens = self.tokenize(padding = padding)
+        return self.tokens
+        # print('TOKENS:', self.tokens[0:20])
 
     def embedd(self, pattern_factory):
         self.embeddings, _wrds = pattern_factory.embedder.embedd_tokenized_text(self.tokens)
