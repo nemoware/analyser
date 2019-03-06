@@ -52,11 +52,9 @@ class FuzzyPattern:
         distances = []
         distances.append(self._eval_distances(_text, dist_function, whd_padding=0, wnd_mult=1))
         if self.soft_sliding_window_borders:
-            distances.append (self._eval_distances(_text, dist_function, whd_padding=2, wnd_mult=1))
+            distances.append(self._eval_distances(_text, dist_function, whd_padding=2, wnd_mult=1))
             distances.append(self._eval_distances(_text, dist_function, whd_padding=1, wnd_mult=2))
             distances.append(self._eval_distances(_text, dist_function, whd_padding=7, wnd_mult=0))
-
-
 
         sum = None
         cnt = 0
@@ -64,10 +62,9 @@ class FuzzyPattern:
             if d is not None:
                 cnt = cnt + 1
                 if sum is None:
-                    sum=np.array(d)
+                    sum = np.array(d)
                 else:
                     sum += d
-
 
         assert cnt > 0
         sum = sum / cnt
@@ -78,10 +75,10 @@ class FuzzyPattern:
         """
           text_ebd:  tensor of embeedings
         """
-        w_starts = self._eval_distances_multi_window(text_ebd)
-        sums_starts = w_starts.sum(1)  # XXX: 'sum' is the AND case, implement also OR -- use 'max'
+        distances = self._eval_distances_multi_window(text_ebd)
+        distances_sum = distances.sum(1)  # XXX: 'sum' is the AND case, implement also OR -- use 'max'
 
-        return sums_starts
+        return distances_sum
 
     def find(self, text_ebd, text_right_padding):
         """
@@ -94,7 +91,53 @@ class FuzzyPattern:
         return min_i, sums
 
 
-class CoumpoundFuzzyPattern:
+class CompoundPattern:
+    def __init__(self):
+        pass
+
+
+class ExclusivePattern(CompoundPattern):
+
+    def __init__(self):
+        self.patterns = []
+
+    def add_pattern(self, pat):
+        self.patterns.append(pat)
+
+    def onehot_column(self, a, mask = -2**32):
+        maximals = np.max(a, 0)
+
+        for i in range(a.shape[0]):
+            for j in range(a.shape[1]):
+                if a[i, j] < maximals[j]:
+                    a[i, j] = mask
+
+        return a
+
+
+    def find(self, text_ebd, text_right_padding):
+        assert len(text_ebd) > text_right_padding
+
+        distances_per_pattern = np.zeros(len(self.patterns), (len(text_ebd)-text_right_padding))
+
+        for pattern_index in range(len(self.patterns)):
+            pattern = self.patterns[pattern_index]
+            distances_sum = pattern._find_patterns(text_ebd)
+            distances_per_pattern[pattern_index](distances_sum)
+
+        #invert
+        distances_per_pattern *= -1
+        distances_per_pattern = self.onehot_column(distances_per_pattern)
+        distances_per_pattern *= -1
+
+        # return distances_per_pattern
+
+
+
+class CoumpoundFuzzyPattern(CompoundPattern):
+    """
+    finds average
+    """
 
     def __init__(self):
         self.patterns = {}
@@ -102,8 +145,7 @@ class CoumpoundFuzzyPattern:
     def add_pattern(self, pat, weight=1.0):
         self.patterns[pat] = weight
 
-
-    def find(self, text_ebd,  text_right_padding):
+    def find(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
         sums = np.zeros(len(text_ebd))
 
@@ -124,7 +166,7 @@ class CoumpoundFuzzyPattern:
         mean = meaninful_sums.mean()
         # confidence = sums[min_i] / mean
         sandard_deviation = np.std(meaninful_sums)
-        deviation_from_mean = abs(min-mean)
+        deviation_from_mean = abs(min - mean)
         confidence = sandard_deviation / deviation_from_mean
         return min_i, sums, confidence
 
@@ -162,7 +204,7 @@ class LegalDocument:
         with open(name, 'r') as f:
             self.original_text = f.read()
 
-    def tokenize(self, _txt=None, padding = TEXT_PADDING):
+    def tokenize(self, _txt=None, padding=TEXT_PADDING):
         if _txt is None: _txt = self.normal_text
 
         _words = tokenize_text(_txt)
@@ -179,11 +221,11 @@ class LegalDocument:
 
         return sparse_words
 
-    def parse(self, txt=None, padding = TEXT_PADDING):
+    def parse(self, txt=None, padding=TEXT_PADDING):
         if txt is None: txt = self.original_text
         self.normal_text = self.preprocess_text(txt)
 
-        self.tokens = self.tokenize(padding = padding)
+        self.tokens = self.tokenize(padding=padding)
         return self.tokens
         # print('TOKENS:', self.tokens[0:20])
 
