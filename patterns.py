@@ -11,61 +11,84 @@ PATTERN_THRESHOLD = 0.75  # 0...1
 
 class FuzzyPattern:
 
-    def __init__(self, start_tokens_emb, _name='undefined'):
-        self.start = start_tokens_emb
+    def __init__(self, patterns_embeddings_list, _name='undefined'):
+        assert patterns_embeddings_list[0][0][0]
+        self.patterns_embeddings_list = patterns_embeddings_list
         self.name = _name
         self.pattern_text = None
+        self.soft_sliding_window_borders = False
 
     def __str__(self):
         return ' '.join(['FuzzyPattern:', str(self.name), str(self.pattern_text)])
 
-    def _eval_distances(self, _text, _patterns, dist_function=DIST_FUNC, whd_padding=2, wnd_mult=1):
+    def _eval_distances(self, _text, dist_function=DIST_FUNC, whd_padding=0, wnd_mult=1):
         """
-          For each token in the given sentences, it calcultes the semantic distance to
+          For each token in the given sentences, it calculates the semantic distance to
           each and every pattern in _pattens arg.
+
+          WARNING: may return None!
 
           TODO: adjust sliding window size
         """
 
-        _distances = np.zeros((len(_text), len(_patterns)))
+        _distances = np.zeros((len(_text), len(self.patterns_embeddings_list)))
 
-        for j in range(0, len(_patterns)):
+        for pattern_index in range(len(self.patterns_embeddings_list)):
 
-            _pat = _patterns[j]
+            _pat = self.patterns_embeddings_list[pattern_index]
 
             window_size = wnd_mult * len(_pat) + whd_padding
+            if window_size > len(_text):
+                print('ERROR: window_size > len(_text)', window_size, '>', len(_text))
+                return None
 
-            for i in range(0, len(_text) - TEXT_PADDING):
-                _fragment = _text[i: i + window_size]
-                _distances[i, j] = dist_function(_fragment, _pat)
+            for word_index in range(0, len(_text) - window_size + 1):
+                _fragment = _text[word_index: word_index + window_size]
+                _distances[word_index, pattern_index] = dist_function(_fragment, _pat)
 
         return _distances
 
-    def _eval_distances_multi_window(self, _text, _patterns, dist_function=DIST_FUNC):
-        d1 = self._eval_distances(_text, _patterns, dist_function, whd_padding=2, wnd_mult=1)
-        d2 = self._eval_distances(_text, _patterns, dist_function, whd_padding=1, wnd_mult=2)
-        d3 = self._eval_distances(_text, _patterns, dist_function, whd_padding=7, wnd_mult=0)
-        d4 = self._eval_distances(_text, _patterns, dist_function, whd_padding=0, wnd_mult=1)
+    def _eval_distances_multi_window(self, _text, dist_function=DIST_FUNC):
+        distances = []
+        distances.append(self._eval_distances(_text, dist_function, whd_padding=0, wnd_mult=1))
+        if self.soft_sliding_window_borders:
+            distances.append (self._eval_distances(_text, dist_function, whd_padding=2, wnd_mult=1))
+            distances.append(self._eval_distances(_text, dist_function, whd_padding=1, wnd_mult=2))
+            distances.append(self._eval_distances(_text, dist_function, whd_padding=7, wnd_mult=0))
 
-        sum = (d1 + d2 + d3 + d4) / 4
+
+
+        sum = None
+        cnt = 0
+        for d in distances:
+            if d is not None:
+                cnt = cnt + 1
+                if sum is None:
+                    sum=np.array(d)
+                else:
+                    sum += d
+
+
+        assert cnt > 0
+        sum = sum / cnt
 
         return sum
 
-    def _find_patterns(self, text_ebd, threshold=PATTERN_THRESHOLD):
+    def _find_patterns(self, text_ebd):
         """
           text_ebd:  tensor of embeedings
         """
-        w_starts = self._eval_distances_multi_window(text_ebd, self.start)
+        w_starts = self._eval_distances_multi_window(text_ebd)
         sums_starts = w_starts.sum(1)  # XXX: 'sum' is the AND case, implement also OR -- use 'max'
 
         return sums_starts
 
-    def find(self, text_ebd, threshold=PATTERN_THRESHOLD, text_right_padding=TEXT_PADDING):
+    def find(self, text_ebd, text_right_padding):
         """
           text_ebd:  tensor of embeedings
         """
 
-        sums = self._find_patterns(text_ebd, threshold)
+        sums = self._find_patterns(text_ebd)
         min_i = min_index(sums[:-text_right_padding])  # index of the word with minimum distance to the pattern
 
         return min_i, sums
@@ -79,18 +102,29 @@ class CoumpoundFuzzyPattern:
     def add_pattern(self, pat, weight=1.0):
         self.patterns[pat] = weight
 
-    def find(self, text_ebd, threshold=PATTERN_THRESHOLD, text_right_padding=TEXT_PADDING):
+    def find(self, text_ebd,  text_right_padding):
+        assert len(text_ebd) > text_right_padding
         sums = np.zeros(len(text_ebd))
+
         for p in self.patterns:
-            sp = p._find_patterns(text_ebd, threshold)
+            weight = self.patterns[p]
+            sp = p._find_patterns(text_ebd)
 
-            sums += sp * self.patterns[p]
+            sums += sp * weight
 
+        # norm
         sums /= len(self.patterns)
-        meaninful_sums = sums[:-text_right_padding]
+        meaninful_sums = sums
+        if text_right_padding > 0:
+            meaninful_sums = sums[:-text_right_padding]
+
         min_i = min_index(meaninful_sums)
+        min = sums[min_i]
         mean = meaninful_sums.mean()
-        confidence = sums[min_i] / mean
+        # confidence = sums[min_i] / mean
+        sandard_deviation = np.std(meaninful_sums)
+        deviation_from_mean = abs(min-mean)
+        confidence = sandard_deviation / deviation_from_mean
         return min_i, sums, confidence
 
 
@@ -156,9 +190,7 @@ class LegalDocument:
 
 
 class AbstractPatternFactory:
-
-
-    CONFIDENCE_DISTANCE = 0.25 #TODO: must depend on distance function
+    CONFIDENCE_DISTANCE = 0.25  # TODO: must depend on distance function
 
     def __init__(self, embedder):
         self.embedder = embedder

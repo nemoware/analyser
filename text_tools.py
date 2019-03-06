@@ -1,9 +1,13 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
+
 import string
 
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
-from typing import List
 
 nltk.download('punkt')
 
