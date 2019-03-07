@@ -4,7 +4,7 @@ from text_tools import *
 class AbstractEmbedder:
 
     # @abstractmethod
-    def get_embedding_tensor(self, str):
+    def get_embedding_tensor(self, tokenized_sentences_list):
         pass
 
     def embedd_tokenized_text(self, words):
@@ -16,23 +16,29 @@ class AbstractEmbedder:
         return self.embedd_tokenized_text(words)
 
     def embedd_contextualized_patterns(self, patterns):
-        sentences = []
+        tokenized_sentences_list = []
         regions = {}
         i = 0
         for (ctx_prefix, pattern, ctx_postfix) in patterns:
             sentence = " "
             sentence = sentence.join((ctx_prefix, pattern, ctx_postfix))
 
-            start = len(tokenize_text(ctx_prefix))
-            end = start + len(tokenize_text(pattern))
+            prefix_tokens = tokenize_text(ctx_prefix)
+            pattern_tokens = tokenize_text(pattern)
+            suffix_tokens = tokenize_text(ctx_postfix)
 
-            print ((sentence, start, end))
+            start = len(prefix_tokens)
+            end = start + len(pattern_tokens)
+
+            sentence_tokens = prefix_tokens+pattern_tokens+suffix_tokens
+
+            print ('embedd_contextualized_patterns', (sentence, start, end))
 
             regions[i] = (start, end)
-            sentences.append(sentence)
+            tokenized_sentences_list.append(sentence_tokens)
             i = i + 1
 
-        sentences_emb = self.get_embedding_tensor(sentences)
+        sentences_emb = self.get_embedding_tensor(tokenized_sentences_list)
 
         # print(sentences_emb.shape)
 
@@ -47,4 +53,4 @@ class AbstractEmbedder:
 
             patterns_emb.append(pattern_emb)
 
-        return patterns_emb
+        return np.array(patterns_emb)

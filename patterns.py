@@ -12,15 +12,28 @@ PATTERN_THRESHOLD = 0.75  # 0...1
 
 class FuzzyPattern:
 
-    def __init__(self, patterns_embeddings_list, _name='undefined'):
-        assert patterns_embeddings_list[0][0][0]
-        self.patterns_embeddings_list = patterns_embeddings_list
+    def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
+
+        self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
         self.name = _name
-        self.pattern_text = None
         self.soft_sliding_window_borders = False
+        self.pattern_embedding = None
+
+    def set_embeddings(self, patterns_embeddings_list):
+        assert patterns_embeddings_list[0][0]
+        self.pattern_embedding = patterns_embeddings_list
+
+    #
+    #
+    # def __init__(self, patterns_embeddings_list, _name='undefined'):
+    #     assert patterns_embeddings_list[0][0][0]
+    #     self.patterns_embeddings_list = patterns_embeddings_list
+    #     self.name = _name
+    #     self.pattern_text = None
+    #     self.soft_sliding_window_borders = False
 
     def __str__(self):
-        return ' '.join(['FuzzyPattern:', str(self.name), str(self.pattern_text)])
+        return ' '.join(['FuzzyPattern:', str(self.name), str(self.prefix_pattern_suffix_tuple)])
 
     def _eval_distances(self, _text, dist_function=DIST_FUNC, whd_padding=0, wnd_mult=1):
         """
@@ -32,26 +45,25 @@ class FuzzyPattern:
           TODO: adjust sliding window size
         """
 
-        _distances = np.zeros((len(_text), len(self.patterns_embeddings_list)))
+        _distances = np.zeros(len(_text))
 
-        for pattern_index in range(len(self.patterns_embeddings_list)):
+        _pat = self.pattern_embedding
 
-            _pat = self.patterns_embeddings_list[pattern_index]
+        window_size = wnd_mult * len(_pat) + whd_padding
+        if window_size > len(_text):
+            print('ERROR: window_size > len(_text)', window_size, '>', len(_text))
+            return None
 
-            window_size = wnd_mult * len(_pat) + whd_padding
-            if window_size > len(_text):
-                print('ERROR: window_size > len(_text)', window_size, '>', len(_text))
-                return None
-
-            for word_index in range(0, len(_text) - window_size + 1):
-                _fragment = _text[word_index: word_index + window_size]
-                _distances[word_index, pattern_index] = dist_function(_fragment, _pat)
+        for word_index in range(0, len(_text) - window_size + 1):
+            _fragment = _text[word_index: word_index + window_size]
+            _distances[word_index] = dist_function(_fragment, _pat)
 
         return _distances
 
     def _eval_distances_multi_window(self, _text, dist_function=DIST_FUNC):
         distances = []
         distances.append(self._eval_distances(_text, dist_function, whd_padding=0, wnd_mult=1))
+
         if self.soft_sliding_window_borders:
             distances.append(self._eval_distances(_text, dist_function, whd_padding=2, wnd_mult=1))
             distances.append(self._eval_distances(_text, dist_function, whd_padding=1, wnd_mult=2))
@@ -77,9 +89,7 @@ class FuzzyPattern:
           text_ebd:  tensor of embeedings
         """
         distances = self._eval_distances_multi_window(text_ebd)
-        distances_sum = distances.sum(1)  # XXX: 'sum' is the AND case, implement also OR -- use 'max'
-
-        return distances_sum
+        return distances
 
     def find(self, text_ebd, text_right_padding):
         """
@@ -187,20 +197,16 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         self.patterns = {}
 
     def add_pattern(self, pat, weight=1.0):
+        assert pat is not None
         self.patterns[pat] = weight
+
+
 
     def find(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
-        sums = np.zeros(len(text_ebd))
 
-        for p in self.patterns:
-            weight = self.patterns[p]
-            sp = p._find_patterns(text_ebd)
+        sums = self._eval_distances(text_ebd)
 
-            sums += sp * weight
-
-        # norm
-        sums /= len(self.patterns)
         meaninful_sums = sums
         if text_right_padding > 0:
             meaninful_sums = sums[:-text_right_padding]
@@ -208,11 +214,27 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         min_i = min_index(meaninful_sums)
         min = sums[min_i]
         mean = meaninful_sums.mean()
+
         # confidence = sums[min_i] / mean
         sandard_deviation = np.std(meaninful_sums)
         deviation_from_mean = abs(min - mean)
         confidence = sandard_deviation / deviation_from_mean
         return min_i, sums, confidence
+
+    def _eval_distances(self, text_ebd):
+
+        sums = np.zeros(len(text_ebd))
+        total_weight=0
+        for p in self.patterns:
+            print('CoumpoundFuzzyPattern, finding', str(p))
+            weight = self.patterns[p]
+            sp = p._find_patterns(text_ebd)
+
+            sums += sp * weight
+            total_weight+=weight
+        # norm
+        sums /= total_weight
+        return sums
 
 
 class LegalDocument:
@@ -283,24 +305,26 @@ class AbstractPatternFactory:
 
     def __init__(self, embedder):
         self.embedder = embedder
-        self.patterns = None
+        self.patterns = []
+        self._patterns_indexes = {}
 
-    def _embedd(self, p):
+    def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
+        fp = FuzzyPattern(prefix_pattern_suffix_tuples, pattern_name)
+        self.patterns.append(fp)
+        self._patterns_indexes[pattern_name] = len(self.patterns) - 1
+        return fp
+
+    def embedd(self):
+
+        # collect patterns texts
         arr = []
-        for k, v in p.items():
-            arr.append([k, v])
-
-        slice = [arr[i][1:2][0] for i in range(len(arr))]
+        for p in self.patterns:
+            arr.append(p.prefix_pattern_suffix_tuple)
 
         # =========
-        patterns_emb = self.embedder.embedd_contextualized_patterns(slice)
+        patterns_emb = self.embedder.embedd_contextualized_patterns(arr)
+        assert len(patterns_emb) == len(self.patterns)
         # =========
 
-        self.patterns = {}
         for i in range(len(patterns_emb)):
-            name = arr[i][0]
-            fp = FuzzyPattern([patterns_emb[i]], name)
-            fp.pattern_text = arr[i][1]
-            self.patterns[name] = fp
-
-        return self.patterns
+            self.patterns[i].set_embeddings(patterns_emb[i])
