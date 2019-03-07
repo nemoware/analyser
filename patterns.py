@@ -200,8 +200,6 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         assert pat is not None
         self.patterns[pat] = weight
 
-
-
     def find(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
 
@@ -224,14 +222,14 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     def _eval_distances(self, text_ebd):
 
         sums = np.zeros(len(text_ebd))
-        total_weight=0
+        total_weight = 0
         for p in self.patterns:
             print('CoumpoundFuzzyPattern, finding', str(p))
             weight = self.patterns[p]
             sp = p._find_patterns(text_ebd)
 
             sums += sp * weight
-            total_weight+=weight
+            total_weight += weight
         # norm
         sums /= total_weight
         return sums

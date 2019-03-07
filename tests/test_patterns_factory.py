@@ -7,7 +7,7 @@ import numpy as np
 
 class FakeEmbedder(AbstractEmbedder):
     def __init__(self, default_point):
-        self.default_point=default_point
+        self.default_point = default_point
 
     def get_embedding_tensor(self, tokenized_sentences_list):
         tensor = []
@@ -34,7 +34,6 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     def test_embedder(self):
         point1 = [1, 6, 4]
 
-
         PF = AbstractPatternFactory(FakeEmbedder(point1))
 
         fp1 = PF.create_pattern('p1', ('prefix', 'pat 2', 'suffix'))
@@ -43,24 +42,19 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
         # self.assertEqual(3, len(PF.patterns))
 
-
         PF.embedd()
 
         self.assertEqual(2, len(fp1.pattern_embedding))
         self.assertEqual(1, len(fp2.pattern_embedding))
         self.assertEqual(3, len(fp3.pattern_embedding))
 
-
     def test_coumpound_find(self):
         point1 = [1, 3, 7]
         point2 = [1, 7, 4]
         point3 = [1, 6, 4]
 
-
         embedder = FakeEmbedder(point2)
         PF = AbstractPatternFactory(embedder)
-
-
 
         fp1 = PF.create_pattern('p1', ('prefix', 'pat', 'suffix 1'))
         fp2 = PF.create_pattern('p2', ('prefix', 'pat', 'suffix 2'))

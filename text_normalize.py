@@ -5,15 +5,6 @@
 
 import re
 
-
-def normalize_text(_t, replacements_regex):
-    t = _t
-    for (reg, to) in replacements_regex:
-        t = re.sub(reg, to, t)
-
-    return t
-
-
 spaces_regex = [
     (r'\t', ' '),
     (r'[ ]{2}', ' '),
@@ -37,12 +28,15 @@ abbreviation_regex = [
     (r'(?<=\d{4})\s*г\.', ' год'),
 
     (r'(?<=\s)*ООО(?=\s+)', 'Общество с ограниченной ответственностью'),
-    (r'(?<=\s)*АО(?=\s+)', 'Акционерное Общество'),
+    (r'^АО(?=\s+)', 'Акционерное Общество'),
+    (r'(?<=\s)АО(?=\s+)', 'Акционерное Общество'),
     (r'(?<=\s)*ИП(?=\s+)', 'Индивидуальный предприниматель'),
     (r'(?<=\s)*ЗАО(?=\s+)', 'Закрытое Акционерное Общество'),
 ]
 
 syntax_regex = [
+    (r'(?<=[а-яА-Я])\.(?=[а-яА-Я])', '. '),
+
     (r'(?<=[а-яА-Я])(?=\d)', ' '),
 
     (r'(?<=[^0-9 ])\.(?=[\w])', '. '),
@@ -63,12 +57,6 @@ cleanup_regex = [
     (r'[«|\"|\']Стороны[»|\"|\']', 'Стороны'),
     (r'[«|\"|\']Сторона[»|\"|\']', 'Сторона'),
 
-    (r', именуемые в дальнейшем совместно\s*?\s*Стороны,', ','),
-    (r',\s*а\s*по\s*отдельности\s*.{1,2}\s*Сторона,', ','),
-
-    (r'именуем\S{1,3}\s+в\s+дальнейшем\s+', 'именуемое '),
-    (r'именуем\S{1,3}\s+далее\s+', 'именуемое '),
-
     (r'с одной стороны и\s*\n', 'с одной стороны и '),
 
     (r'\n\s*(\d{1,2}[\.|)]?\.?\s?)+', '.\n — '),  # remove paragraph numbers
@@ -78,6 +66,7 @@ cleanup_regex = [
 
 numbers_regex = [
     (r'(?<=\d)+[. ](?=\d{3}\s*[(].{3,40}\sтысяч?)', ''),  # 3.000 (Три тысячи)
+    (r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})', ''),  # 3.000 (Три тысячи)
 ]
 
 fixtures_regex = [
@@ -90,3 +79,11 @@ formatting_regex = [
 ]
 
 replacements_regex = abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
+
+
+def normalize_text(_t, replacements_regex):
+    t = _t
+    for (reg, to) in replacements_regex:
+        t = re.sub(reg, to, t)
+
+    return t

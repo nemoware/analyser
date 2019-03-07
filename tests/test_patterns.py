@@ -55,15 +55,12 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         print (tokens)
         self.assertEqual(3 + padding, len(tokens))
 
-
-
     def test_eval_distances_soft_pattern2(self):
         point1 = [1, 3]
         point2 = [1, 7]
 
         point3 = [1, 6]
         point35 = [1, 6.5]
-
 
         fp1 = FuzzyPattern(None)
         fp1.set_embeddings(np.array([point3]))
@@ -74,7 +71,6 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         cp = CoumpoundFuzzyPattern()
         cp.add_pattern(fp2)
         cp.add_pattern(fp1)
-
 
         text_emb = np.array([point1, point3, point2, point2])
         sums = cp._eval_distances(text_emb)

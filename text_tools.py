@@ -31,7 +31,7 @@ def tokenize_text(text):
     for i in range(len(sentences)):
         sentence = sentences[i]
         result += nltk.word_tokenize(sentence)
-        if i < len(sentences)-1:
+        if i < len(sentences) - 1:
             result += ['\n']
 
     return result
