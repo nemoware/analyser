@@ -44,9 +44,9 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
         PF.embedd()
 
-        self.assertEqual(2, len(fp1.pattern_embedding))
-        self.assertEqual(1, len(fp2.pattern_embedding))
-        self.assertEqual(3, len(fp3.pattern_embedding))
+        self.assertEqual(2, len(fp1.embeddings))
+        self.assertEqual(1, len(fp2.embeddings))
+        self.assertEqual(3, len(fp3.embeddings))
 
     def test_coumpound_find(self):
         point1 = [1, 3, 7]

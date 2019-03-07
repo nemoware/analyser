@@ -1,6 +1,5 @@
 from text_normalize import *
 from text_tools import *
-import matplotlib as mpl
 
 TEXT_PADDING = 10  # maximum pattern len (in words)
 TEXT_PADDING_SYMBOL = ' '
@@ -10,27 +9,24 @@ DIST_FUNC = dist_mean_cosine
 PATTERN_THRESHOLD = 0.75  # 0...1
 
 
-class FuzzyPattern:
+class EmbeddableText:
+    def __init__(self):
+        self.tokens = None
+        self.embeddings = None
+
+
+class FuzzyPattern(EmbeddableText):
 
     def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
 
         self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
         self.name = _name
         self.soft_sliding_window_borders = False
-        self.pattern_embedding = None
+        self.embeddings = None
 
-    def set_embeddings(self, patterns_embeddings_list):
-        assert patterns_embeddings_list[0][0]
-        self.pattern_embedding = patterns_embeddings_list
-
-    #
-    #
-    # def __init__(self, patterns_embeddings_list, _name='undefined'):
-    #     assert patterns_embeddings_list[0][0][0]
-    #     self.patterns_embeddings_list = patterns_embeddings_list
-    #     self.name = _name
-    #     self.pattern_text = None
-    #     self.soft_sliding_window_borders = False
+    def set_embeddings(self, pattern_embedding):
+        assert pattern_embedding[0][0]
+        self.embeddings = pattern_embedding
 
     def __str__(self):
         return ' '.join(['FuzzyPattern:', str(self.name), str(self.prefix_pattern_suffix_tuple)])
@@ -47,7 +43,7 @@ class FuzzyPattern:
 
         _distances = np.zeros(len(_text))
 
-        _pat = self.pattern_embedding
+        _pat = self.embeddings
 
         window_size = wnd_mult * len(_pat) + whd_padding
         if window_size > len(_text):
@@ -124,34 +120,6 @@ class ExclusivePattern(CompoundPattern):
                     a[i, j] = mask
 
         return a
-
-    # def to_html(self, _tokens, distances, ranges, winning_patterns):
-    #     assert len(distances[0]) == len(_tokens)
-    #
-    #     colormaps = ['Greys', 'Purples', 'Blues', 'Greens', 'Reds']
-    #
-    #     norm = mpl.colors.Normalize(vmin=np.array(ranges)[:, 0:1].min(), vmax=np.array(ranges)[:, 1:2].max())
-    #
-    #     cmaps = []
-    #
-    #     for n in colormaps:
-    #         cmap = mpl.cm.get_cmap(n)
-    #         cmaps.append(cmap)
-    #
-    #     html = ""
-    #
-    #     for d in range(0, len(_tokens)):
-    #         winning_pattern_i = winning_patterns[d][0]
-    #         colormap = cmaps[winning_pattern_i]
-    #
-    #         color = mpl.colors.to_hex(cmap(colormap(   norm(winning_patterns[d][1])   )))
-    #
-    #         html += '<span style="background-color:' + color + '">' + str(
-    #             _tokens[d]) + " </span>"
-    #         if _tokens[d] == '\n':
-    #             html += "<br>"
-    #
-    #     return html
 
     def calc_exclusive_distances(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
@@ -235,9 +203,10 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         return sums
 
 
-class LegalDocument:
-    def __init__(self):
-        self.original_text = None
+class LegalDocument(EmbeddableText):
+
+    def __init__(self, original_text=None):
+        self.original_text = original_text
         self.filename = None
         self.tokens = None
         self.embeddings = None
@@ -245,13 +214,10 @@ class LegalDocument:
 
     def normalize_sentences_bounds(self, text):
         sents = nltk.sent_tokenize(text)
-        res = ''
         for s in sents:
-            a = s.replace('\n', ' ')
-            res += a
-            res += '\n'
+            s.replace('\n', ' ')
 
-        return res
+        return '\n'.join(sents)
 
     def preprocess_text(self, text):
         a = text
@@ -266,7 +232,13 @@ class LegalDocument:
         self.filename = name
         txt = ""
         with open(name, 'r') as f:
-            self.original_text = f.read()
+            self.set_original_text(f.read())
+
+    def set_original_text(self, txt):
+        self.original_text = txt
+        self.tokens = None
+        self.embeddings = None
+        self.normal_text = None
 
     def tokenize(self, _txt=None, padding=TEXT_PADDING):
         if _txt is None: _txt = self.normal_text
@@ -294,7 +266,7 @@ class LegalDocument:
         # print('TOKENS:', self.tokens[0:20])
 
     def embedd(self, pattern_factory):
-        self.embeddings, _wrds = pattern_factory.embedder.embedd_tokenized_text(self.tokens)
+        self.embeddings, self.tokens = pattern_factory.embedder.embedd_tokenized_text(self.tokens)
         self.embeddings = self.embeddings[0]
 
 
@@ -302,14 +274,12 @@ class AbstractPatternFactory:
     CONFIDENCE_DISTANCE = 0.25  # TODO: must depend on distance function
 
     def __init__(self, embedder):
-        self.embedder = embedder
+        self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
         self.patterns = []
-        self._patterns_indexes = {}
 
     def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
         fp = FuzzyPattern(prefix_pattern_suffix_tuples, pattern_name)
         self.patterns.append(fp)
-        self._patterns_indexes[pattern_name] = len(self.patterns) - 1
         return fp
 
     def embedd(self):
