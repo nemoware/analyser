@@ -65,9 +65,9 @@ class PriceExtractTestCase(unittest.TestCase):
         # ex = re.compile(r'[^|\s+][0-9]+[., ]?[0-9]{0,2}')
 
 
-        rubles1 = re.compile(r'([^|\s+]\d+[., ]?\d+)(\s*[(].{0,100}[)]\s*руб)')
-        rubles2 = re.compile(r'([^|\s+]\d+[., ]?\d+)(\s*руб)')
-        euros = re.compile(r'([^|\s+][0-9]+[., ]?[0-9]{0,2})(.{0,100}евро)')
+        rubles1 = re.compile(r'((^|\s+)(\d+[., ]?)*\d+)(\s*[(].{0,100}[)]\s*руб)')
+        rubles2 = re.compile(r'((^|\s+)(\d+[., ]?)*\d+)(\s*руб)')
+        euros =   re.compile(r'((^|\s+)(\d+[., ]?)*\d{0,2})(.{0,100}евро)')
         # rubles = re.compile(r'([0-9]+,[0-9]+)')
 
         for (price, currency, text) in data:
