@@ -62,7 +62,7 @@ numerics="""
 class PriceExtractTestCase(unittest.TestCase):
 
     def test_extract(self):
-        currency =   re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб))')
+        currency_re =   re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб))')
         # rubles = re.compile(r'([0-9]+,[0-9]+)')
 
         for (price, currency, text) in data:
@@ -72,7 +72,7 @@ class PriceExtractTestCase(unittest.TestCase):
             normal_text = text.lower()
 
 
-            r = currency.findall(normal_text)
+            r = currency_re.findall(normal_text)
 
             f = None
             try:
