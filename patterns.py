@@ -13,6 +13,7 @@ DIST_FUNC = dist_mean_cosine
 PATTERN_THRESHOLD = 0.75  # 0...1
 
 
+
 class EmbeddableText:
     def __init__(self):
         self.tokens = None
@@ -217,7 +218,7 @@ class LegalDocument(EmbeddableText):
         self.normal_text = None
 
     def normalize_sentences_bounds(self, text):
-        sents = nltk.sent_tokenize(text) #TODO: , language='russian'
+        sents = nltk.sent_tokenize(text  , language='russian')
         for s in sents:
             s.replace('\n', ' ')
 
