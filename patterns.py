@@ -270,7 +270,7 @@ class LegalDocument(EmbeddableText):
         # print('TOKENS:', self.tokens[0:20])
 
     def embedd(self, pattern_factory):
-        self.embeddings, self.tokens = pattern_factory.embedder.embedd_tokenized_text([self.tokens], [len(self.tokens)])
+        self.embeddings, _g = pattern_factory.embedder.embedd_tokenized_text([self.tokens], [len(self.tokens)])
         self.embeddings = self.embeddings[0]
 
 
