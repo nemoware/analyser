@@ -9,25 +9,7 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
-import sys
-russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
-if sys.version_info[0] < 3:
-    russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
 
-import urllib
-
-print('EEEEEE',russian_punkt_url)
-# urllib.urlretrieve (russian_punkt_url, "nltk_data/russian.pickle")
-
-import urllib2
-import os
-save_nltk_dir='/Users/artem/nltk_data/tokenizers/punkt/'
-if not os.path.exists(save_nltk_dir):
-    os.makedirs(save_nltk_dir)
-
-mp3file = urllib2.urlopen(russian_punkt_url)
-with open(save_nltk_dir+'/russian.pickle','wb') as output:
-  output.write(mp3file.read())
 
 # nltk.download('punkt')
 

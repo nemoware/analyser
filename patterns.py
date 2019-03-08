@@ -12,6 +12,26 @@ DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
 PATTERN_THRESHOLD = 0.75  # 0...1
 
+import sys
+
+russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
+save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
+if sys.version_info[0] < 3:
+    russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
+    save_nltk_dir = 'nltk_data_download/tokenizers/punkt'
+
+import urllib.request
+import os
+
+if not os.path.exists(save_nltk_dir):
+    os.makedirs(save_nltk_dir)
+
+russian_punkt = urllib.request.urlopen(russian_punkt_url)
+with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
+    output.write(russian_punkt.read())
+
+ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
+print(ru_tokenizer)
 
 
 class EmbeddableText:
@@ -218,7 +238,7 @@ class LegalDocument(EmbeddableText):
         self.normal_text = None
 
     def normalize_sentences_bounds(self, text):
-        sents = nltk.sent_tokenize(text  , language='russian')
+        sents = ru_tokenizer.tokenize(text)
         for s in sents:
             s.replace('\n', ' ')
 

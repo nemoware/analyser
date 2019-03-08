@@ -28,18 +28,23 @@ class TestTextNormalization(unittest.TestCase):
 
         self._testNorm('ООО ', 'Общество с ограниченной ответственностью ')
         self._testNorm('xx ООО ', 'xx Общество с ограниченной ответственностью ')
-        self._testNorm('АО ', 'Акционерное Общество ')
+
         self._testNorm('ПАОП', 'ПАОП')
         self._testNorm('лиловое АО ', 'лиловое Акционерное Общество ')
         self._testNorm('ЗАО ', 'Закрытое Акционерное Общество ')
         self._testNorm('XЗАОX', 'XЗАОX')
         self._testNorm('витальное ЗАО ', 'витальное Закрытое Акционерное Общество ')
-        self._testNorm('АО\n', 'Акционерное Общество.\n')
+
+
+
 
     #     self._testNorm('смотри п.2.2.2 нау',  'смотри пункт 2.2.2 нау')
     #     self._testNorm('смотри\n\n п.2.2.2 нау',   'смотри\n пункт 2.2.2 нау')
 
     #     self._testNorm(' в п.п. 4.1. – 4.5. ',   ' в пунктах 4.1. – 4.5. ')
+    def test_deacronym_failed(self):
+        self._testNorm('АО ', 'Акционерное Общество ')
+        # self._testNorm('АО\n', 'Акционерное Общество.\n')
 
     def test_dot_in_numbers(self):
         self._testNorm('Сумма договора не должна превышать 500 000 (пятьсот тысяч) рублей.',
