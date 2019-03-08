@@ -166,10 +166,15 @@ class ExclusivePattern(CompoundPattern):
         ranges = []
         for row in distances_per_pattern:
             b = np.array(list(filter(lambda x: not np.isnan(x), row)))
-            min = b.min()
-            max = b.max()
-            mean = b.mean()
-            ranges.append([min, max, mean])
+            if len(b):
+                min = b.min()
+                max = b.max()
+                mean = b.mean()
+                ranges.append([min, max, mean])
+            else:
+                _id = len(ranges)
+                print("WARNING: never winning pattern detected! index:", _id, self.patterns[_id])
+                ranges.append([np.inf, -np.inf, 0])
 
         winning_patterns = {}
         for row_index in range(len(distances_per_pattern)):
