@@ -11,7 +11,7 @@ import scipy.spatial.distance as distance
 
 
 
-# nltk.download('punkt')
+nltk.download('punkt')
 
 
 def replace_with_map(txt, replacements):
