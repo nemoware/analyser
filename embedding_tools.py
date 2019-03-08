@@ -10,7 +10,6 @@ class AbstractEmbedder:
     def embedd_tokenized_text(self, words):
         pass
 
-
     def embedd_sentence(self, str):
         words = tokenize_text(str)
         return self.embedd_tokenized_text(words)
@@ -30,7 +29,7 @@ class AbstractEmbedder:
             start = len(prefix_tokens)
             end = start + len(pattern_tokens)
 
-            sentence_tokens = prefix_tokens+pattern_tokens+suffix_tokens
+            sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
             print ('embedd_contextualized_patterns', (sentence, start, end))
 
@@ -38,9 +37,15 @@ class AbstractEmbedder:
             tokenized_sentences_list.append(sentence_tokens)
             i = i + 1
 
-        sentences_emb = self.get_embedding_tensor(tokenized_sentences_list)
+        _strings = []
+        for s in tokenized_sentences_list:
+            joined = ' '.join(s)
+            _strings.append(joined)
+            print (joined)
 
-        # print(sentences_emb.shape)
+        ## ======== call TENSORFLOW -----==================
+        sentences_emb = self.get_embedding_tensor(_strings)
+        ## ================================================
 
         patterns_emb = []
 
