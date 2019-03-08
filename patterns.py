@@ -196,7 +196,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     def find(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
 
-        sums = self._eval_distances(text_ebd)
+        sums = self._find_patterns(text_ebd)
 
         meaninful_sums = sums
         if text_right_padding > 0:
@@ -212,7 +212,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         confidence = sandard_deviation / deviation_from_mean
         return min_i, sums, confidence
 
-    def _eval_distances(self, text_ebd):
+    def _find_patterns(self, text_ebd):
 
         sums = np.zeros(len(text_ebd))
         total_weight = 0
