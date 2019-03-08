@@ -28,9 +28,11 @@ def remove_empty_lines(original_text):
 def tokenize_text(text):
     sentences = text.split('\n')
     result = []
-    for sentence in sentences:
+    for i in range(len(sentences)):
+        sentence = sentences[i]
         result += nltk.word_tokenize(sentence)
-        result += ['\n']
+        if i < len(sentences) - 1:
+            result += ['\n']
 
     return result
 
@@ -174,16 +176,15 @@ def untokenize(tokens):
     return "".join([" " + i if not i.startswith("'") and i not in string.punctuation else i for i in tokens]).strip()
 
 
+def find_token_before_index(tokens, index, token):
+    for i in reversed(range(index)):
+        if tokens[i] == token:
+            return i
+    return -1
 
-def find_token_before_index(tokens, index, token ):
-  for i in reversed(range(index)):
-    if tokens[i] == token:
-      return i
-  return -1
 
-
-def find_token_after_index(tokens, index, token ):
-  for i in range(index, len(tokens)):
-    if tokens[i] == token:
-      return i
-  return -1
+def find_token_after_index(tokens, index, token):
+    for i in range(index, len(tokens)):
+        if tokens[i] == token:
+            return i
+    return -1
