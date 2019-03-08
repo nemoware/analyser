@@ -40,7 +40,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         fp2 = PF.create_pattern('p2', ('prefix', 'pat', 'suffix 2'))
         fp3 = PF.create_pattern('p3', ('', 'a b c', ''))
 
-        # self.assertEqual(3, len(PF.patterns))
+        self.assertEqual(3, len(PF.patterns))
 
         PF.embedd()
 

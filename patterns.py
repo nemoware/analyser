@@ -1,3 +1,7 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
 from text_normalize import *
 from text_tools import *
 
@@ -38,7 +42,7 @@ class FuzzyPattern(EmbeddableText):
 
           WARNING: may return None!
 
-          TODO: adjust sliding window size
+          TODO: tune sliding window size
         """
 
         _distances = np.zeros(len(_text))
@@ -213,7 +217,7 @@ class LegalDocument(EmbeddableText):
         self.normal_text = None
 
     def normalize_sentences_bounds(self, text):
-        sents = nltk.sent_tokenize(text)
+        sents = nltk.sent_tokenize(text) #TODO: , language='russian'
         for s in sents:
             s.replace('\n', ' ')
 
