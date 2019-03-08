@@ -222,7 +222,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         sums = np.zeros(len(text_ebd))
         total_weight = 0
         for p in self.patterns:
-            print('CoumpoundFuzzyPattern, finding', str(p))
+            # print('CoumpoundFuzzyPattern, finding', str(p))
             weight = self.patterns[p]
             sp = p._find_patterns(text_ebd)
 
