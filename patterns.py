@@ -227,7 +227,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
             sp = p._find_patterns(text_ebd)
 
             sums += sp * weight
-            total_weight += weight
+            total_weight += abs(weight)
         # norm
         sums /= total_weight
         return sums
