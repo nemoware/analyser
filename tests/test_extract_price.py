@@ -62,42 +62,26 @@ numerics="""
 class PriceExtractTestCase(unittest.TestCase):
 
     def test_extract(self):
-        # ex = re.compile(r'[^|\s+][0-9]+[., ]?[0-9]{0,2}')
-
-
-        rubles1 = re.compile(r'((^|\s+)(\d+[., ]?)*\d+)(\s*[(].{0,100}[)]\s*руб)')
-        rubles2 = re.compile(r'((^|\s+)(\d+[., ]?)*\d+)(\s*руб)')
-        euros =   re.compile(r'((^|\s+)(\d+[., ]?)*\d{0,2})(.{0,100}евро)')
+        currency_re =   re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб))')
         # rubles = re.compile(r'([0-9]+,[0-9]+)')
 
         for (price, currency, text) in data:
             # print (price, currency, text)
-            d = LegalDocument(text)
-            normal_text = normalize_text(d.original_text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
-            normal_text=normal_text.lower()
+            # d = LegalDocument(text)
+            normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
+            normal_text = text.lower()
 
 
-            r = rubles2.findall(normal_text)
+            r = currency_re.findall(normal_text)
 
-            f=None
+            f = None
             try:
-                f = (float(r[0][0]),'RUB')
+                f = (float(r[0][0].replace(" ", "").replace(",", ".")), r[0][5])
             except:
                 pass
 
-            if f is None:
-                r = rubles1.findall(normal_text)
-                try:
-                    f = (float(r[0][0]), 'RUB')
-                except:
-                    pass
-
-            if f is None:
-                e = euros.findall(normal_text)
-                if len(e): f = (float(e[0][0]), 'EUR')
-            # print (normal_text)
+            #print (normal_text)
             print('expected:', price, 'found:', f)
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,10 +6,12 @@ import numpy as np
 
 
 class FakeEmbedder(AbstractEmbedder):
+
     def __init__(self, default_point):
         self.default_point = default_point
 
-    def get_embedding_tensor(self, tokenized_sentences_list):
+    def embedd_tokenized_text(self, tokenized_sentences_list, lens):
+    # def get_embedding_tensor(self, tokenized_sentences_list):
         tensor = []
         for sent in tokenized_sentences_list:
             sentense_emb = []
@@ -18,7 +20,7 @@ class FakeEmbedder(AbstractEmbedder):
                 sentense_emb.append(token_emb)
             tensor.append(sentense_emb)
 
-        return np.array(tensor)
+        return np.array(tensor), tokenized_sentences_list
 
 
 class FakePatternFactory(AbstractPatternFactory):
