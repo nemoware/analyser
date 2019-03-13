@@ -4,7 +4,6 @@ from patterns import *
 def get_sentence_bounds_at_index():
     pass
 
- 
 
 import numpy.ma as ma
 
@@ -20,8 +19,6 @@ class ContractDocument(LegalDocument):
 
         return a.lower()
 
-
-
     def split_text_into_sections(self, pattern_factory: AbstractPatternFactory):
 
         distances_per_section_pattern, __ranges, __winning_patterns = \
@@ -30,14 +27,10 @@ class ContractDocument(LegalDocument):
         # finding pattern positions
         x = distances_per_section_pattern[:, :-TEXT_PADDING]
         print("distances_per_section_pattern", x.shape)
-        #         for row in x:
-        #           print(row[0:10])
-        #           print(len(row), np.argmin(row))
+
         best_indexes = [[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)]
         print("best_indexes", best_indexes, len(best_indexes))
         indexes = self.find_sentence_beginnings(best_indexes)
-
-        print("indexes", indexes)
 
         # remove "duplicated" indexes
 
@@ -52,8 +45,6 @@ class ContractDocument(LegalDocument):
 
         self._render_section(indexes_zipped, distances_per_section_pattern, __ranges, __winning_patterns)
         self.section_indexes = indexes_zipped
-
-        print("indexes_zipped", indexes_zipped)
 
     def find_sentence_beginnings(self, best_indexes):
 
@@ -70,7 +61,6 @@ class ContractDocument(LegalDocument):
         self.split_text_into_sections(PF)
         indexes_zipped = self.section_indexes
 
-        #     print (indexes_zipped)
         subj_range = None
         head_range = None
 
@@ -79,9 +69,6 @@ class ContractDocument(LegalDocument):
                 subj_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
             if indexes_zipped[i][0] == 0:
                 head_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-
-        #     assert subj_range is not None
-        #     assert head_range is not None
 
         if head_range is None:
             print("WARNING: Contract type might be not known!!")
@@ -124,20 +111,12 @@ class ContractDocument(LegalDocument):
             _mean = l[1] / l[0]
             l[2] = _mean
 
-        # print(min_mean)
-        # print (weight_per_pat)
-        # print (weight_per_pat[0:5,2:3], weight_per_pat[0:5,2:3].min())
-
         chariy_slice = weight_per_pat[0:5, 2:3]
         commerce_slice = weight_per_pat[6:6 + 7, 2:3]
         min_charity_index = min_index(chariy_slice)
         min_commerce_index = min_index(commerce_slice)
 
-        #         print(min_charity_index, chariy_slice[min_charity_index])
-        #         print(min_commerce_index, commerce_slice[min_commerce_index])
-
         self.per_subject_distances = [chariy_slice[min_charity_index][0], chariy_slice[min_commerce_index][0]]
-        print("per_subject_distances", self.per_subject_distances)
 
         self.subj_range = subj_range
         self.head_range = head_range
