@@ -5,8 +5,6 @@
 from text_normalize import *
 from text_tools import *
 
-import numpy.ma as ma
-
 TEXT_PADDING = 10  # maximum pattern len (in words)
 TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
@@ -176,7 +174,7 @@ class ExclusivePattern(CompoundPattern):
         # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
         ranges = []
         for row in distances_per_pattern:
-            b =  row
+            b = row
 
             if len(b):
                 min = np.nanmin(b)

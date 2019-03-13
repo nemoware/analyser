@@ -9,8 +9,6 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
-
-
 nltk.download('punkt')
 
 
@@ -190,3 +188,11 @@ def find_token_after_index(tokens, index, token, default_ret=-1):
         if tokens[i] == token:
             return i
     return default_ret
+
+
+def min_index_per_row(rows):
+    indexes = []
+    for row in rows:
+        indexes.append(np.argmin(row))
+
+    return indexes
