@@ -5,6 +5,8 @@
 from text_normalize import *
 from text_tools import *
 
+import numpy.ma as ma
+
 TEXT_PADDING = 10  # maximum pattern len (in words)
 TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
@@ -137,6 +139,14 @@ class ExclusivePattern(CompoundPattern):
         self.patterns.append(pat)
 
     def onehot_column(self, a, mask=-2 ** 32):
+        """
+
+        keeps only maximum in every column. Other elements are replaced with mask
+
+        :param a:
+        :param mask:
+        :return:
+        """
         maximals = np.max(a, 0)
 
         for i in range(a.shape[0]):
@@ -147,6 +157,7 @@ class ExclusivePattern(CompoundPattern):
         return a
 
     def calc_exclusive_distances(self, text_ebd, text_right_padding):
+
         assert len(text_ebd) > text_right_padding
 
         distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd) - text_right_padding))
@@ -165,11 +176,12 @@ class ExclusivePattern(CompoundPattern):
         # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
         ranges = []
         for row in distances_per_pattern:
-            b = np.array(list(filter(lambda x: not np.isnan(x), row)))
+            b =  row
+
             if len(b):
-                min = b.min()
-                max = b.max()
-                mean = b.mean()
+                min = np.nanmin(b)
+                max = np.nanmax(b)
+                mean = np.nanmean(b)
                 ranges.append([min, max, mean])
             else:
                 _id = len(ranges)
