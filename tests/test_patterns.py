@@ -73,7 +73,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         cp.add_pattern(fp1)
 
         text_emb = np.array([point1, point3, point2, point2])
-        sums = cp._eval_distances(text_emb)
+        sums = cp._find_patterns(text_emb)
         self.assertEqual(len(text_emb), len(sums))
 
         line0 = sums

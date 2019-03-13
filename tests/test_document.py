@@ -1,3 +1,9 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
+
+
 import unittest
 
 from patterns import *
@@ -16,8 +22,8 @@ class LegalDocumentTestCase(unittest.TestCase):
         text = "A."
         self.assertEqual(text, d.normalize_sentences_bounds(text))
 
-        text = "A. B."
-        self.assertEqual("A.\nB.", d.normalize_sentences_bounds(text))
+        text = "Ай да А.С. Пушкин! Ай да сукин сын!"
+        print ( d.normalize_sentences_bounds(text))
 
 
 

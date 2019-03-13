@@ -9,6 +9,8 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
+
+
 nltk.download('punkt')
 
 

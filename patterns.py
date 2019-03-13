@@ -12,6 +12,27 @@ DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
 PATTERN_THRESHOLD = 0.75  # 0...1
 
+import sys
+
+russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
+save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
+if sys.version_info[0] < 3:
+    russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
+    save_nltk_dir = 'nltk_data_download/tokenizers/punkt'
+
+import urllib.request
+import os
+
+if not os.path.exists(save_nltk_dir):
+    os.makedirs(save_nltk_dir)
+
+russian_punkt = urllib.request.urlopen(russian_punkt_url)
+with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
+    output.write(russian_punkt.read())
+
+ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
+print(ru_tokenizer)
+
 
 class EmbeddableText:
     def __init__(self):
@@ -145,10 +166,15 @@ class ExclusivePattern(CompoundPattern):
         ranges = []
         for row in distances_per_pattern:
             b = np.array(list(filter(lambda x: not np.isnan(x), row)))
-            min = b.min()
-            max = b.max()
-            mean = b.mean()
-            ranges.append([min, max, mean])
+            if len(b):
+                min = b.min()
+                max = b.max()
+                mean = b.mean()
+                ranges.append([min, max, mean])
+            else:
+                _id = len(ranges)
+                print("WARNING: never winning pattern detected! index:", _id, self.patterns[_id])
+                ranges.append([np.inf, -np.inf, 0])
 
         winning_patterns = {}
         for row_index in range(len(distances_per_pattern)):
@@ -175,7 +201,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     def find(self, text_ebd, text_right_padding):
         assert len(text_ebd) > text_right_padding
 
-        sums = self._eval_distances(text_ebd)
+        sums = self._find_patterns(text_ebd)
 
         meaninful_sums = sums
         if text_right_padding > 0:
@@ -191,17 +217,17 @@ class CoumpoundFuzzyPattern(CompoundPattern):
         confidence = sandard_deviation / deviation_from_mean
         return min_i, sums, confidence
 
-    def _eval_distances(self, text_ebd):
+    def _find_patterns(self, text_ebd):
 
         sums = np.zeros(len(text_ebd))
         total_weight = 0
         for p in self.patterns:
-            print('CoumpoundFuzzyPattern, finding', str(p))
+            # print('CoumpoundFuzzyPattern, finding', str(p))
             weight = self.patterns[p]
             sp = p._find_patterns(text_ebd)
 
             sums += sp * weight
-            total_weight += weight
+            total_weight += abs(weight)
         # norm
         sums /= total_weight
         return sums
@@ -217,7 +243,7 @@ class LegalDocument(EmbeddableText):
         self.normal_text = None
 
     def normalize_sentences_bounds(self, text):
-        sents = nltk.sent_tokenize(text) #TODO: , language='russian'
+        sents = ru_tokenizer.tokenize(text)
         for s in sents:
             s.replace('\n', ' ')
 
