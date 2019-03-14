@@ -26,33 +26,49 @@ class ContractDocument(LegalDocument):
 
         # finding pattern positions
         x = distances_per_section_pattern[:, :-TEXT_PADDING]
-        print("distances_per_section_pattern", x.shape)
-
-        best_indexes = [[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)]
-        print("best_indexes", best_indexes, len(best_indexes))
-        indexes = self.find_sentence_beginnings(best_indexes)
-
-        # remove "duplicated" indexes
-
-        MIN_PARAGRAPH_WORDS = 20
-
-        indexes_zipped = []
-        indexes_zipped.append(indexes[0])
-        for i in range(1, len(indexes)):
-            if indexes[i][1] - indexes[i - 1][1] > MIN_PARAGRAPH_WORDS:
-                pattern_to_token = indexes[i]
-                indexes_zipped.append(pattern_to_token)
+        indexes_zipped = self.find_sections_indexes(x)
 
         self._render_section(indexes_zipped, distances_per_section_pattern, __ranges, __winning_patterns)
         self.section_indexes = indexes_zipped
 
+    def find_sections_indexes(self, distances_per_section_pattern, min_section_size=20):
+        x = distances_per_section_pattern
+        pattern_to_best_index = np.array([[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)])
+        print("pattern_to_best_index\n", pattern_to_best_index, len(pattern_to_best_index))
+
+        # replace best indices with sentence starts
+        pattern_to_best_index[:, 1] = self.find_sentence_beginnings(pattern_to_best_index[:, 1])
+
+        print("pattern_to_best_index\n", pattern_to_best_index, len(pattern_to_best_index))
+
+        # sort by sentence start
+        pattern_to_best_index = np.sort(pattern_to_best_index.view('i8,i8'), order=['f1'], axis=0).view(np.int)
+
+        print("pattern_to_best_index sorted\n", pattern_to_best_index, len(pattern_to_best_index))
+        # remove "duplicated" indexes
+        return self.remove_similar_indexes(pattern_to_best_index, 1, min_section_size)
+
+    def remove_similar_indexes(self, indexes, column, min_section_size=20):
+        indexes_zipped = []
+        indexes_zipped.append(indexes[0])
+
+        for i in range(1, len(indexes)):
+            if indexes[i][column] - indexes[i - 1][column] > min_section_size:
+                pattern_to_token = indexes[i]
+                indexes_zipped.append(pattern_to_token)
+        return np.squeeze(indexes_zipped)
+
     def find_sentence_beginnings(self, best_indexes):
+        return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
+
+    def _find_sentence_beginnings(self, best_indexes):
 
         sentence_starts = {}
         for i in best_indexes:
             start = find_token_before_index(self.tokens, i[1], '\n')
             if start == -1: start = 0
             sentence_starts[i[0]] = start
+
         sentence_starts = [[st, sentence_starts[st]] for st in sorted(sentence_starts.keys())]
         return sentence_starts
 
