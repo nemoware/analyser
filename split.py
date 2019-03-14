@@ -116,6 +116,7 @@ class ContractDocument(LegalDocument):
                 print("WARNING: never winning pattern detected! index:", _id)
                 ranges.append([np.inf, -np.inf, 0])
 
+        # TODO: remove bullshit and magic numbers
         weight_per_pat = np.zeros((13, 3))
         for token_key in winning_patterns:
             (pattern_id, weight) = winning_patterns[token_key]
@@ -127,12 +128,16 @@ class ContractDocument(LegalDocument):
             _mean = l[1] / l[0]
             l[2] = _mean
 
+        # TODO: remove bullshit and magic numbers
         chariy_slice = weight_per_pat[0:5, 2:3]
+        # TODO: remove bullshit and magic numbers
         commerce_slice = weight_per_pat[6:6 + 7, 2:3]
         min_charity_index = min_index(chariy_slice)
         min_commerce_index = min_index(commerce_slice)
 
-        self.per_subject_distances = [chariy_slice[min_charity_index][0], chariy_slice[min_commerce_index][0]]
+        self.per_subject_distances = [
+            chariy_slice[min_charity_index][0],
+            commerce_slice[min_commerce_index][0]]
 
         self.subj_range = subj_range
         self.head_range = head_range
