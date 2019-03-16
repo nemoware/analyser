@@ -1,10 +1,6 @@
 from patterns import *
 
 
-def get_sentence_bounds_at_index():
-    pass
-
-
 import numpy.ma as ma
 
 
