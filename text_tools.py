@@ -9,8 +9,6 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
-
-
 nltk.download('punkt')
 
 
@@ -178,15 +176,23 @@ def untokenize(tokens):
     return "".join([" " + i if not i.startswith("'") and i not in string.punctuation else i for i in tokens]).strip()
 
 
-def find_token_before_index(tokens, index, token):
+def find_token_before_index(tokens, index, token, default_ret=-1):
     for i in reversed(range(index)):
         if tokens[i] == token:
             return i
-    return -1
+    return default_ret
 
 
-def find_token_after_index(tokens, index, token):
+def find_token_after_index(tokens, index, token, default_ret=-1):
     for i in range(index, len(tokens)):
         if tokens[i] == token:
             return i
-    return -1
+    return default_ret
+
+
+def min_index_per_row(rows):
+    indexes = []
+    for row in rows:
+        indexes.append(np.argmin(row))
+
+    return indexes
