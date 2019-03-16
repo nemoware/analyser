@@ -28,23 +28,19 @@ class ContractDocument(LegalDocument):
         x = distances_per_section_pattern[:, :-TEXT_PADDING]
         indexes_zipped = self.find_sections_indexes(x)
 
-        self._render_section(indexes_zipped, distances_per_section_pattern, __ranges, __winning_patterns)
+        # self._render_section(indexes_zipped, distances_per_section_pattern, __ranges, __winning_patterns)
         self.section_indexes = indexes_zipped
 
     def find_sections_indexes(self, distances_per_section_pattern, min_section_size=20):
         x = distances_per_section_pattern
         pattern_to_best_index = np.array([[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)])
-        print("pattern_to_best_index\n", pattern_to_best_index, len(pattern_to_best_index))
 
         # replace best indices with sentence starts
         pattern_to_best_index[:, 1] = self.find_sentence_beginnings(pattern_to_best_index[:, 1])
 
-        print("pattern_to_best_index\n", pattern_to_best_index, len(pattern_to_best_index))
-
         # sort by sentence start
         pattern_to_best_index = np.sort(pattern_to_best_index.view('i8,i8'), order=['f1'], axis=0).view(np.int)
 
-        print("pattern_to_best_index sorted\n", pattern_to_best_index, len(pattern_to_best_index))
         # remove "duplicated" indexes
         return self.remove_similar_indexes(pattern_to_best_index, 1, min_section_size)
 
@@ -61,35 +57,17 @@ class ContractDocument(LegalDocument):
     def find_sentence_beginnings(self, best_indexes):
         return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
 
-    def _find_sentence_beginnings(self, best_indexes):
-
-        sentence_starts = {}
-        for i in best_indexes:
-            start = find_token_before_index(self.tokens, i[1], '\n')
-            if start == -1: start = 0
-            sentence_starts[i[0]] = start
-
-        sentence_starts = [[st, sentence_starts[st]] for st in sorted(sentence_starts.keys())]
-        return sentence_starts
-
-    def find_subject_section(self, PF: AbstractPatternFactory, number_of_charity_patterns):
-
-        self.split_text_into_sections(PF)
-        indexes_zipped = self.section_indexes
-
+    def get_subject_ranges(self, indexes_zipped):
         subj_range = None
         head_range = None
-
         for i in range(len(indexes_zipped) - 1):
             if indexes_zipped[i][0] == 1:
                 subj_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
             if indexes_zipped[i][0] == 0:
                 head_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-
         if head_range is None:
             print("WARNING: Contract type might be not known!!")
             head_range = range(0, 0)
-
         if subj_range is None:
             print("WARNING: Contract subject might be not known!!")
             if len(self.tokens) < 80:
@@ -97,47 +75,40 @@ class ContractDocument(LegalDocument):
             else:
                 _end = 80
             subj_range = range(0, _end)
+        return head_range, subj_range
 
-        distances_per_subj_pattern, ranges_, winning_patterns = PF.subject_patterns.calc_exclusive_distances(
+    def find_subject_section(self, PF: AbstractPatternFactory, number_of_charity_patterns):
+
+        self.split_text_into_sections(PF)
+        indexes_zipped = self.section_indexes
+
+        head_range, subj_range = self.get_subject_ranges(indexes_zipped)
+
+        distances_per_subj_pattern_, ranges_, winning_patterns = PF.subject_patterns.calc_exclusive_distances(
             self.embeddings,
             text_right_padding=0)
-        distances_per_pattern_t = distances_per_subj_pattern[:, subj_range.start:subj_range.stop]
+        distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
-        ranges = []
+        ranges = [np.nanmin(distances_per_subj_pattern_[:-TEXT_PADDING]),
+                  np.nanmax(distances_per_subj_pattern_[:-TEXT_PADDING])]
+
+        weight_per_pat = []
         for row in distances_per_pattern_t:
-            b = np.array(list(filter(lambda x: not np.isnan(x), row)))
-            if len(b):
-                min = b.min()
-                max = b.max()
-                mean = b.mean()
-                ranges.append([min, max, mean])
-            else:
-                _id = len(ranges)
-                print("WARNING: never winning pattern detected! index:", _id)
-                ranges.append([np.inf, -np.inf, 0])
+            weight_per_pat.append(np.nanmin(row))
+
+        print("weight_per_pat", weight_per_pat)
 
         # TODO: remove bullshit and magic numbers
-        weight_per_pat = np.zeros((13, 3))
-        for token_key in winning_patterns:
-            (pattern_id, weight) = winning_patterns[token_key]
-
-            weight_per_pat[pattern_id][0] += weight
-            weight_per_pat[pattern_id][1] += 1
-
-        for l in weight_per_pat:
-            _mean = l[1] / l[0]
-            l[2] = _mean
-
+        chariy_slice = weight_per_pat[0:5]
         # TODO: remove bullshit and magic numbers
-        chariy_slice = weight_per_pat[0:5, 2:3]
-        # TODO: remove bullshit and magic numbers
-        commerce_slice = weight_per_pat[6:6 + 7, 2:3]
+        commerce_slice = weight_per_pat[6:6 + 7]
         min_charity_index = min_index(chariy_slice)
         min_commerce_index = min_index(commerce_slice)
 
+        print("min_charity_index, min_commerce_index", min_charity_index, min_commerce_index)
         self.per_subject_distances = [
-            chariy_slice[min_charity_index][0],
-            commerce_slice[min_commerce_index][0]]
+            np.nanmin(chariy_slice),
+            np.nanmin(commerce_slice)]
 
         self.subj_range = subj_range
         self.head_range = head_range
@@ -189,3 +160,28 @@ class ContractDocument(LegalDocument):
 
         self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
             pattern_factory, number_of_charity_patterns=5)
+
+    def _render_section(self, indexes_zipped, distances_per_pattern, ranges, winning_patterns):
+        for i in range(1, len(indexes_zipped)):
+            #   print(i)
+            i_s = indexes_zipped[i - 1][1]
+            i_e = indexes_zipped[i][1]
+
+            win_patternIndex = indexes_zipped[i - 1][0]
+            fragment_len = i_e - i_s
+            if fragment_len > 3: fragment_len = 3
+
+            print(">>")
+            html = "<hr>"
+            html += "<h3>" + str(PF.paragraph_split_pattern.patterns[win_patternIndex]) + "</h3>"
+
+            html += "<h4>" + str(
+                DIST_FUNC(doc.embeddings[i_s:i_s + fragment_len], PF.subject_pattern.embeddings)) + "</h4>"
+            html += winning_patterns_to_html(self.tokens, ranges, winning_patterns,
+                                             range(i_s, i_e))
+
+            # html = winning_patterns_to_html(doc.tokens, distances_per_pattern, ranges, winning_patterns)
+            display(HTML(html))
+
+
+
