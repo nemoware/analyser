@@ -8,7 +8,7 @@ def get_sentence_bounds_at_index():
 import numpy.ma as ma
 
 
-class ContractDocument(LegalDocument):
+class BasicContractDocument(LegalDocument):
 
     #   //XXXX:
     def preprocess_text(self, text):
@@ -77,14 +77,14 @@ class ContractDocument(LegalDocument):
             subj_range = range(0, _end)
         return head_range, subj_range
 
-    def find_subject_section(self, PF: AbstractPatternFactory, number_of_charity_patterns):
+    def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
 
-        self.split_text_into_sections(PF)
+        self.split_text_into_sections(pattern_fctry)
         indexes_zipped = self.section_indexes
 
         head_range, subj_range = self.get_subject_ranges(indexes_zipped)
 
-        distances_per_subj_pattern_, ranges_, winning_patterns = PF.subject_patterns.calc_exclusive_distances(
+        distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
             self.embeddings,
             text_right_padding=0)
         distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
@@ -98,10 +98,12 @@ class ContractDocument(LegalDocument):
 
         print("weight_per_pat", weight_per_pat)
 
-        # TODO: remove bullshit and magic numbers
-        chariy_slice = weight_per_pat[0:5]
-        # TODO: remove bullshit and magic numbers
-        commerce_slice = weight_per_pat[6:6 + 7]
+        _ch_r = numbers_of_patterns['charity']
+        _co_r = numbers_of_patterns['commerce']
+
+        chariy_slice = weight_per_pat[_ch_r[0]:_ch_r[1]]
+        commerce_slice = weight_per_pat[_co_r[0]:_co_r[1]]
+
         min_charity_index = min_index(chariy_slice)
         min_commerce_index = min_index(commerce_slice)
 
@@ -159,29 +161,4 @@ class ContractDocument(LegalDocument):
         self._find_sum(pattern_factory)
 
         self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
-            pattern_factory, number_of_charity_patterns=5)
-
-    def _render_section(self, indexes_zipped, distances_per_pattern, ranges, winning_patterns):
-        for i in range(1, len(indexes_zipped)):
-            #   print(i)
-            i_s = indexes_zipped[i - 1][1]
-            i_e = indexes_zipped[i][1]
-
-            win_patternIndex = indexes_zipped[i - 1][0]
-            fragment_len = i_e - i_s
-            if fragment_len > 3: fragment_len = 3
-
-            print(">>")
-            html = "<hr>"
-            html += "<h3>" + str(PF.paragraph_split_pattern.patterns[win_patternIndex]) + "</h3>"
-
-            html += "<h4>" + str(
-                DIST_FUNC(doc.embeddings[i_s:i_s + fragment_len], PF.subject_pattern.embeddings)) + "</h4>"
-            html += winning_patterns_to_html(self.tokens, ranges, winning_patterns,
-                                             range(i_s, i_e))
-
-            # html = winning_patterns_to_html(doc.tokens, distances_per_pattern, ranges, winning_patterns)
-            display(HTML(html))
-
-
-
+            pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
