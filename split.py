@@ -12,7 +12,7 @@ def extract_sum(sentence):
     currency_re_mil = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+млн.\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
 
     r = currency_re.findall(sentence)
-
+    f = None
     try:
         number = to_float(r[0][0])
         f = (number, r[0][5])
