@@ -1,7 +1,36 @@
+from typing import List
+
+import numpy.ma as ma
+
 from patterns import *
 
 
-import numpy.ma as ma
+def extract_sum(sentence):
+    currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+    currency_re_th = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+тыс.\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+
+    r = currency_re.findall(sentence)
+
+    try:
+        number = to_float(r[0][0])
+        f = (number, r[0][5])
+    except:
+        r = currency_re_th.findall(sentence)
+
+        try:
+            number = to_float(r[0][0]) * 1000
+            f = (number, r[0][5])
+        except:
+            pass
+
+    return f
+
+
+def extract_sum_from_tokens(sentence_tokens):
+    sentence = untokenize(sentence_tokens).lower().strip()
+    f = extract_sum(sentence)
+
+    return f, sentence
 
 
 class BasicContractDocument(LegalDocument):
@@ -15,10 +44,10 @@ class BasicContractDocument(LegalDocument):
 
         return a.lower()
 
-    def split_text_into_sections(self, pattern_factory: AbstractPatternFactory):
+    def split_text_into_sections(self, paragraph_split_pattern: ExclusivePattern):
 
         distances_per_section_pattern, __ranges, __winning_patterns = \
-            pattern_factory.paragraph_split_pattern.calc_exclusive_distances(self.embeddings, text_right_padding=0)
+            paragraph_split_pattern.calc_exclusive_distances(self.embeddings, text_right_padding=0)
 
         # finding pattern positions
         x = distances_per_section_pattern[:, :-TEXT_PADDING]
@@ -53,7 +82,20 @@ class BasicContractDocument(LegalDocument):
     def find_sentence_beginnings(self, best_indexes):
         return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
 
-    def get_subject_ranges(self, indexes_zipped):
+    def get_subject_ranges(self, indexes_zipped, section_indexes: List):
+
+        # res = [None] * len(section_indexes)
+        # for sec in section_indexes:
+        #     for i in range(len(indexes_zipped) - 1):
+        #         if indexes_zipped[i][0] == sec:
+        #             range1 = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
+        #             res[sec] = range1
+        #
+        #     if res[sec] is None:
+        #         print("WARNING: Section #{} not found!".format(sec))
+        #
+        # return res
+
         subj_range = None
         head_range = None
         for i in range(len(indexes_zipped) - 1):
@@ -75,10 +117,10 @@ class BasicContractDocument(LegalDocument):
 
     def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
 
-        self.split_text_into_sections(pattern_fctry)
+        self.split_text_into_sections(pattern_fctry.paragraph_split_pattern)
         indexes_zipped = self.section_indexes
 
-        head_range, subj_range = self.get_subject_ranges(indexes_zipped)
+        head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
 
         distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
             self.embeddings,
@@ -135,18 +177,7 @@ class BasicContractDocument(LegalDocument):
         start, end = get_sentence_bounds_at_index(min_i, self.tokens)
         sentence_tokens = self.tokens[start + 1:end]
 
-        currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб))')
-
-        sentence = untokenize(sentence_tokens).lower().strip()
-
-        r = currency_re.findall(sentence)
-
-        f = None
-        try:
-            result = r[0][5]
-            f = (float(r[0][0].replace(" ", "").replace(",", ".")), r[0][5])
-        except:
-            pass
+        f, sentence = extract_sum_from_tokens(sentence_tokens)
 
         self.found_sum = (f, (start, end), sentence, meta)
 

@@ -11,6 +11,13 @@ import scipy.spatial.distance as distance
 
 nltk.download('punkt')
 
+def to_float(str):
+    try:
+        return float(str.replace(" ", "").replace(",", "."))
+    except:
+        return np.nan
+
+
 
 def replace_with_map(txt, replacements):
     a = txt
