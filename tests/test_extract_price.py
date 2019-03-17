@@ -46,7 +46,8 @@ data = [
     (50950000.0, 'RUB', 'сумму  50 950 000 (пятьдесят миллионов девятьсот пятьдесят тысяч) руб. 00 коп. '
                         'без НДС, НДС не облагается на основании п.2 статьи 346.11.'),
 
-    (1661293757.0, 'RUB', 'составит - не более 1661 293,757 тыс . рублей ( с учетом ндс ) ( 0,93 % балансовой стоимости активов'),
+    (1661293757.0, 'RUB',
+     'составит - не более 1661 293,757 тыс . рублей ( с учетом ндс ) ( 0,93 % балансовой стоимости активов'),
 
     (490000.0, 'RUB',
      'с лимитом 490 000 (четыреста девяносто тысяч) рублей на ДТ, топливо АИ-92 и АИ-95 сроком до 31.12.2018 года  '),
@@ -54,6 +55,7 @@ data = [
     # (999.44, 'RUB', 'Стоимость 999 рублей 44 копейки'),
     (1999.44, 'RUB', 'Стоимость 1 999 (тысяча девятьсот) руб 44 (сорок четыре) коп'),
     (1999.44, 'RUB', '1 999 (тысяча девятьсот) руб. 44 (сорок четыре) коп. и что-то 34'),
+    (25000000.0, 'USD', 'в размере более 25 млн . долларов сша'),
 
 ]
 
@@ -66,17 +68,17 @@ numerics = """
 
 class PriceExtractTestCase(unittest.TestCase):
 
-    def extract_price(self, text, currency_re):
-        normal_text = text.lower()
-        r = currency_re.findall(normal_text)
-
-        f = None
-        try:
-            f = (float(r[0][0].replace(" ", "").replace(",", ".")), r[0][5])
-        except:
-            pass
-
-        return f
+    # def extract_price(self, text, currency_re):
+    #     normal_text = text.lower()
+    #     r = currency_re.findall(normal_text)
+    #
+    #     f = None
+    #     try:
+    #         f = (float(r[0][0].replace(" ", "").replace(",", ".")), r[0][5])
+    #     except:
+    #         pass
+    #
+    #     return f
 
     def test_extract(self):
 
@@ -92,7 +94,7 @@ class PriceExtractTestCase(unittest.TestCase):
                 # print (f)
                 self.assertEqual(price, f[0])
             except:
-                print ("FAILED:", price, currency, normal_text, 'f=',f)
+                print("FAILED:", price, currency, normal_text, 'f=', f)
 
             # #print (normal_text)
             # print('expected:', price, 'found:', f)

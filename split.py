@@ -9,6 +9,8 @@ def extract_sum(sentence):
     currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
     currency_re_th = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+тыс.\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
 
+    currency_re_mil = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+млн.\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+
     r = currency_re.findall(sentence)
 
     try:
@@ -21,7 +23,12 @@ def extract_sum(sentence):
             number = to_float(r[0][0]) * 1000
             f = (number, r[0][5])
         except:
-            pass
+            r = currency_re_mil.findall(sentence)
+            try:
+                number = to_float(r[0][0]) * 1000000
+                f = (number, r[0][5])
+            except:
+                pass
 
     return f
 
