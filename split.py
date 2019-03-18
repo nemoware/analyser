@@ -7,9 +7,8 @@ from patterns import *
 
 def extract_sum(sentence):
     currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-    currency_re_th = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+тыс.\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-
-    currency_re_mil = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+млн.\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+    currency_re_th = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+(тыс\.|тысяч.{0,2})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+    currency_re_mil = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s+(млн\.|миллион.{0,3})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
 
     r = currency_re.findall(sentence)
     f = None
@@ -196,3 +195,6 @@ class BasicContractDocument(LegalDocument):
 
         self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
             pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
+
+
+

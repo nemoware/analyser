@@ -56,6 +56,8 @@ data = [
     (1999.44, 'RUB', 'Стоимость 1 999 (тысяча девятьсот) руб 44 (сорок четыре) коп'),
     (1999.44, 'RUB', '1 999 (тысяча девятьсот) руб. 44 (сорок четыре) коп. и что-то 34'),
     (25000000.0, 'USD', 'в размере более 25 млн . долларов сша'),
+    (25000000.0, 'USD', 'эквивалентной 25 миллионам долларов сша'),
+
 
 ]
 
@@ -91,7 +93,7 @@ class PriceExtractTestCase(unittest.TestCase):
             f = None
             try:
                 f = extract_sum(normal_text)
-                # print (f)
+                print (f)
                 self.assertEqual(price, f[0])
             except:
                 print("FAILED:", price, currency, normal_text, 'f=', f)
