@@ -93,6 +93,10 @@ class LegalDocument(EmbeddableText):
 
         self.right_padding = 10
 
+        # subdocs
+        self.start = None
+        self.end = None
+
     def find_sum_in_section(self):
         raise Exception('not implemented')
 
@@ -134,16 +138,16 @@ class LegalDocument(EmbeddableText):
         sub.tokens = self.tokens[start:end]
         return sub
 
-    def split_into_sections(self, caption_pattern_prefix='p_cap_'):
+    def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
         tokens = self.tokens
         if (self.right_padding > 0):
             tokens = self.tokens[:-self.right_padding]
         # l = len(tokens)
 
-        captions = mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th=0.5)
+        captions = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
 
         captions = normalize(captions)
-        captions = smooth(captions, window_len=22)
+        captions = smooth(captions, window_len=soothing_wind_size)
 
         sections = extremums(captions)
         # print(sections)
@@ -163,7 +167,7 @@ class LegalDocument(EmbeddableText):
             # print('-' * 20)
             # render_color_text(subdoc.tokens, captions[s:e])
 
-        return self.subdocs
+        return self.subdocs, captions
 
     def normalize_sentences_bounds(self, text):
         sents = ru_tokenizer.tokenize(text)
@@ -258,8 +262,16 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=
     return sum, c
 
 
-def mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
+def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
+    print('mean_by_pattern_prefix', prefix, relu_th)
     sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0)
+    return normalize(sum)
+
+
+def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
+    print('mean_by_pattern_prefix', prefix, relu_th)
+    sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
+    sum /= c
     return normalize(sum)
 
 
@@ -322,7 +334,7 @@ class BasicContractDocument(LegalDocumentLowCase):
 
     def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
 
-        self.split_text_into_sections(pattern_fctry.paragraph_split_pattern)
+        self.split_into_sections(pattern_fctry.paragraph_split_pattern)
         indexes_zipped = self.section_indexes
 
         head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
@@ -443,8 +455,8 @@ def _extract_sum_from_distances(doc, sums_no_padding):
 
 
 def extract_sum_from_doc(doc: LegalDocument):
-    sum_pos = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max')
-    sum_neg = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
+    sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max')
+    sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
 
     sum_pos -= sum_neg
 
