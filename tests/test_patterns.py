@@ -1,5 +1,6 @@
 import unittest
 
+from legal_docs import LegalDocument
 from patterns import *
 import numpy as np
 
@@ -50,10 +51,10 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
     def test_tokenize_doc_custom_padding(self):
         doc = LegalDocument()
-        padding = 0
-        tokens = doc.tokenize('aa bb cc', padding)
+
+        tokens = doc.tokenize('aa bb cc')
         print (tokens)
-        self.assertEqual(3 + padding, len(tokens))
+        self.assertEqual(3 + doc.right_padding, len(tokens))
 
     def test_eval_distances_soft_pattern2(self):
         point1 = [1, 3]

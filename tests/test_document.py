@@ -6,6 +6,7 @@
 
 import unittest
 
+from legal_docs import LegalDocument
 from patterns import *
 
 

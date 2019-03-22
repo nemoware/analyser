@@ -64,6 +64,11 @@ cleanup_regex = [
 
 ]
 
+
+dates_regex = [
+    (r'(\d{2})\.(\d{2})\.(\d{4})', r'\1-\2-\3')
+]
+
 numbers_regex = [
     (r'(?<=\d)+[. ](?=\d{3}\s*[(].{3,40}\sтысяч?)', ''),  # 3.000 (Три тысячи)
     (r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})', ''),  # 3.000 (Три тысячи)
@@ -78,7 +83,11 @@ formatting_regex = [
     (r'\n\s{2,5}', ' ')
 ]
 
-replacements_regex = abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
+tables_regex = [
+#     (r'\|', ' '),
+]
+
+replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
 
 
 def normalize_text(_t, replacements_regex):
