@@ -238,6 +238,11 @@ class ContractDocument(LegalDocumentLowCase):
         LegalDocumentLowCase.__init__(self, original_text)
 
 
+def relu(x, relu_th=0):
+    relu = x * (x > relu_th)
+    return relu
+
+
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
     c = 0
     sum = None
@@ -248,8 +253,8 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=
             x = distances_per_pattern_dict[p]
             if sum is None:
                 sum = np.zeros(len(x))
-            relu = x * (x > relu_th)
-            sum += relu
+
+            sum += relu(x, relu_th)
             c += 1
     #   deal/=c
     return sum, c
@@ -441,7 +446,29 @@ def extract_sum_from_tokens(sentence_tokens: List):
     return f, sentence
 
 
-def _extract_sum_from_distances(doc, sums_no_padding):
+def _extract_sums_from_distances(doc, x):
+    maximas = extremums(x)
+
+    results = []
+    for max_i in maximas:
+        start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+        sentence_tokens = doc.tokens[start + 1:end]
+
+        f, sentence = extract_sum_from_tokens(sentence_tokens)
+
+        if f is not None:
+            result = {
+                'sum': f,
+                'region': (start, end),
+                'sentence': sentence,
+                'confidence': x[max_i]
+            }
+            results.append(result)
+
+    return results
+
+
+def _extract_sum_from_distances____(doc, sums_no_padding):
     max_i = np.argmax(sums_no_padding)
     start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
     sentence_tokens = doc.tokens[start + 1:end]
@@ -451,23 +478,21 @@ def _extract_sum_from_distances(doc, sums_no_padding):
     return (f, (start, end), sentence)
 
 
-def extract_sum_from_doc(doc: LegalDocument, mask=None):
-    sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max')
-    sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
+def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
+    sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max', relu_th=relu_th)
+    sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg', relu_th=relu_th)
 
     sum_pos -= sum_neg
 
-    if mask is not None:
-        sum_pos *= mask
+    sum_pos = smooth(sum_pos, window_len=8)
+    #     sum_pos = relu(sum_pos, 0.65)
 
-    #   sum_ctx = smooth(sum_ctx, window_len=10)
+    if attention_mask is not None:
+        sum_pos *= attention_mask
 
-    sum_dist = normalize(sum_pos)
+    sum_pos = normalize(sum_pos)
 
-    # render_color_text(doc.tokens, sum_dist, print_debug=True)
-
-    x = _extract_sum_from_distances(doc, sum_dist)
-    return x
+    return _extract_sums_from_distances(doc, sum_pos), sum_pos
 
 
 class ProtocolDocument(LegalDocumentLowCase):
@@ -480,7 +505,7 @@ class ProtocolDocument(LegalDocumentLowCase):
         section_name_to_weight_dict = {}
         for i in range(1, 5):
             cap = 'p_cap_solution{}'.format(i)
-            section_name_to_weight_dict[cap] = 0.35
+            section_name_to_weight_dict[cap] = 0.5
 
         mask = mask_sections(section_name_to_weight_dict, self)
         mask += 0.5
@@ -490,7 +515,7 @@ class ProtocolDocument(LegalDocumentLowCase):
         mask = smooth(mask, window_len=12)
         return mask
 
-    def find_sum_in_section(self):
+    def find_sum_in_section____(self):
         assert self.subdocs is not None
 
         sols = {}
@@ -503,7 +528,7 @@ class ProtocolDocument(LegalDocumentLowCase):
         results = []
         for solution_section in sols:
             cap = sols[solution_section]
-            print(cap)
+            #             print(cap)
             # TODO:
             # render_color_text(solution_section.tokens, solution_section.distances_per_pattern_dict[cap])
 
@@ -513,7 +538,7 @@ class ProtocolDocument(LegalDocumentLowCase):
         return results
 
 
-# Support maskming ==================
+# Support masking ==================
 
 def find_section_by_caption(cap, subdocs):
     solution_section = None
@@ -532,6 +557,14 @@ def mask_sections(section_name_to_weight_dict, doc):
 
     for name in section_name_to_weight_dict:
         section = find_section_by_caption(name, doc.subdocs)
-        print([section.start, section.end])
+        #         print([section.start, section.end])
         mask[section.start:section.end] = section_name_to_weight_dict[name]
     return mask
+
+
+# Charter Docs
+
+
+class CharterDocument(LegalDocumentLowCase):
+    def __init__(self, original_text):
+        LegalDocumentLowCase.__init__(self, original_text)
