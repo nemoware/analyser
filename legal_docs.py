@@ -5,6 +5,16 @@ from text_normalize import *
 from text_tools import *
 
 
+def mask_sections(section_name_to_weight_dict, doc):
+    mask = np.zeros(len(doc.tokens))
+
+    for name in section_name_to_weight_dict:
+        section = find_section_by_caption(name, doc.subdocs)
+        print([section.start, section.end])
+        mask[section.start:section.end] = section_name_to_weight_dict[name]
+    return mask
+
+
 def normalize(x, out_range=(0, 1)):
     domain = np.min(x), np.max(x)
     y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
@@ -245,6 +255,11 @@ class LegalDocumentLowCase(LegalDocument):
         return a.lower()
 
 
+class ContractDocument(LegalDocumentLowCase):
+    def __init__(self, original_text):
+        LegalDocumentLowCase.__init__(self, original_text)
+
+
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
     c = 0
     sum = None
@@ -263,16 +278,20 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=
 
 
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
-    print('mean_by_pattern_prefix', prefix, relu_th)
+    #     print('mean_by_pattern_prefix', prefix, relu_th)
     sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0)
     return normalize(sum)
 
 
+def rectifyed_normalized_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
+    return normalize(rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th))
+
+
 def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
-    print('mean_by_pattern_prefix', prefix, relu_th)
+    #     print('mean_by_pattern_prefix', prefix, relu_th)
     sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
     sum /= c
-    return normalize(sum)
+    return sum
 
 
 def remove_similar_indexes(indexes, min_section_size=20):
@@ -466,7 +485,8 @@ def extract_sum_from_doc(doc: LegalDocument):
 
     # render_color_text(doc.tokens, sum_dist, print_debug=True)
 
-    return _extract_sum_from_distances(doc, sum_dist)
+    x = _extract_sum_from_distances(doc, sum_dist)
+    return x
 
 
 class ProtocolDocument(LegalDocumentLowCase):
@@ -491,6 +511,7 @@ class ProtocolDocument(LegalDocumentLowCase):
             # TODO:
             # render_color_text(solution_section.tokens, solution_section.distances_per_pattern_dict[cap])
 
-            results.append(extract_sum_from_doc(solution_section))
+            x = extract_sum_from_doc(solution_section)
+            results.append(x)
 
         return results
