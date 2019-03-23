@@ -5,16 +5,6 @@ from text_normalize import *
 from text_tools import *
 
 
-def mask_sections(section_name_to_weight_dict, doc):
-    mask = np.zeros(len(doc.tokens))
-
-    for name in section_name_to_weight_dict:
-        section = find_section_by_caption(name, doc.subdocs)
-        print([section.start, section.end])
-        mask[section.start:section.end] = section_name_to_weight_dict[name]
-    return mask
-
-
 def normalize(x, out_range=(0, 1)):
     domain = np.min(x), np.max(x)
     y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
@@ -77,18 +67,6 @@ def smooth(x, window_len=11, window='hanning'):
     halflen = int(window_len / 2)
     #     return y[0:len(x)]
     return y[(halflen - 1):-halflen]
-
-
-def find_section_by_caption(cap, subdocs):
-    solution_section = None
-    mx = 0;
-    for subdoc in subdocs:
-        d = subdoc.distances_per_pattern_dict[cap]
-        _mx = d.max()
-        if _mx > mx:
-            solution_section = subdoc
-            mx = _mx
-    return solution_section
 
 
 class LegalDocument(EmbeddableText):
@@ -533,3 +511,27 @@ class ProtocolDocument(LegalDocumentLowCase):
             results.append(x)
 
         return results
+
+
+# Support maskming ==================
+
+def find_section_by_caption(cap, subdocs):
+    solution_section = None
+    mx = 0;
+    for subdoc in subdocs:
+        d = subdoc.distances_per_pattern_dict[cap]
+        _mx = d.max()
+        if _mx > mx:
+            solution_section = subdoc
+            mx = _mx
+    return solution_section
+
+
+def mask_sections(section_name_to_weight_dict, doc):
+    mask = np.zeros(len(doc.tokens))
+
+    for name in section_name_to_weight_dict:
+        section = find_section_by_caption(name, doc.subdocs)
+        print([section.start, section.end])
+        mask[section.start:section.end] = section_name_to_weight_dict[name]
+    return mask
