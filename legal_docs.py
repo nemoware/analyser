@@ -473,11 +473,14 @@ def _extract_sum_from_distances(doc, sums_no_padding):
     return (f, (start, end), sentence)
 
 
-def extract_sum_from_doc(doc: LegalDocument):
+def extract_sum_from_doc(doc: LegalDocument, mask=None):
     sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max')
     sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
 
     sum_pos -= sum_neg
+
+    if mask is not None:
+        sum_pos *= mask
 
     #   sum_ctx = smooth(sum_ctx, window_len=10)
 
@@ -493,6 +496,21 @@ class ProtocolDocument(LegalDocumentLowCase):
 
     def __init__(self, original_text=None):
         LegalDocumentLowCase.__init__(self, original_text)
+
+    def make_solutions_mask(self):
+
+        section_name_to_weight_dict = {}
+        for i in range(1, 5):
+            cap = 'p_cap_solution{}'.format(i)
+            section_name_to_weight_dict[cap] = 0.35
+
+        mask = mask_sections(section_name_to_weight_dict, self)
+        mask += 0.5
+        if self.right_padding > 0:
+            mask = mask[0:-self.right_padding]
+
+        mask = smooth(mask, window_len=12)
+        return mask
 
     def find_sum_in_section(self):
         assert self.subdocs is not None
