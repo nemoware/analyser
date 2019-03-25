@@ -11,7 +11,7 @@ def normalize(x, out_range=(0, 1)):
     return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
 
 
-def smooth(x, window_len=11, window='hanning'):
+def smooth(x, window_len=12, window='hanning'):
     """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
@@ -127,20 +127,29 @@ class LegalDocument(EmbeddableText):
         return sub
 
     def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
+        """
+        this works only for documents where captions are not unique
+
+        :param caption_pattern_prefix: pattern name prefix
+        :param relu_th: ReLu threshold
+        :param soothing_wind_size: smoothing coefficient (like average window size) TODO: rename
+        :return:
+        """
         tokens = self.tokens
         if (self.right_padding > 0):
             tokens = self.tokens[:-self.right_padding]
         # l = len(tokens)
 
-        captions = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
+        distances_to_pattern = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
 
-        captions = normalize(captions)
-        captions = smooth(captions, window_len=soothing_wind_size)
+        distances_to_pattern = normalize(distances_to_pattern)
+        distances_to_pattern = smooth(distances_to_pattern, window_len=soothing_wind_size)
 
-        sections = extremums(captions)
-        # print(sections)
+        # TODO: this might be an incorret hypotize
+        sections = extremums(distances_to_pattern)
+        # finding sentence beginnings
         sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
-        # print(sections_starts)
+
         sections_starts = remove_similar_indexes(sections_starts)
         sections_starts.append(len(tokens))
         # print(sections_starts)
@@ -155,9 +164,14 @@ class LegalDocument(EmbeddableText):
             # print('-' * 20)
             # render_color_text(subdoc.tokens, captions[s:e])
 
-        return self.subdocs, captions
+        return self.subdocs, distances_to_pattern
 
     def normalize_sentences_bounds(self, text):
+        """
+        splits text into sentences, join sentences with \n
+        :param text:
+        :return:
+        """
         sents = ru_tokenizer.tokenize(text)
         for s in sents:
             s.replace('\n', ' ')
@@ -568,3 +582,41 @@ def mask_sections(section_name_to_weight_dict, doc):
 class CharterDocument(LegalDocumentLowCase):
     def __init__(self, original_text):
         LegalDocumentLowCase.__init__(self, original_text)
+
+
+def max_by_pattern_prefix(distances_per_pattern_dict, prefix):
+    ret = {}
+
+    for p in distances_per_pattern_dict:
+        if p.startswith(prefix):
+            x = distances_per_pattern_dict[p]
+            max = x.argmax()
+            ret[p] = max
+
+    return ret
+
+
+def split_into_sections(doc, caption_indexes):
+    sorted_keys = sorted(caption_indexes, key=lambda s: caption_indexes[s])
+
+    doc.subdocs = []
+    for i in range(1, len(sorted_keys)):
+        key = sorted_keys[i - 1]
+        next_key = sorted_keys[i]
+        start = caption_indexes[key]
+        end = caption_indexes[next_key]
+        print(key, [start, end])
+
+        subdoc = doc.subdoc(start, end)
+        subdoc.filename = key
+        doc.subdocs.append(subdoc)
+
+
+def split_doc(doc, caption_prefix):
+    caption_indexes = max_by_pattern_prefix(doc.distances_per_pattern_dict, caption_prefix)
+    for k in caption_indexes:
+        caption_indexes[k] = find_token_before_index(doc.tokens, caption_indexes[k], '\n', 0)
+    caption_indexes['__start'] = 0
+    caption_indexes['__end'] = len(doc.tokens)
+
+    split_into_sections(doc, caption_indexes)
