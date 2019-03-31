@@ -289,5 +289,16 @@ class AbstractPatternFactory:
 
 
 
+        assert cnt>0
+
         av_emb /= cnt
+
         return np.reshape(av_emb, (1, embedding_vector_len))
+
+    def make_average_pattern(self, pattern_prefix):
+        emb = self.average_embedding_pattern(self, pattern_prefix)
+
+        pat = FuzzyPattern((), pattern_prefix)
+        pat.embeddings = emb
+
+        return pat
