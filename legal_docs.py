@@ -10,45 +10,45 @@ PROF_DATA = {}
 
 
 def profile(fn):
-    @wraps(fn)
-    def with_profiling(*args, **kwargs):
-        start_time = time.time()
+  @wraps(fn)
+  def with_profiling(*args, **kwargs):
+    start_time = time.time()
 
-        ret = fn(*args, **kwargs)
+    ret = fn(*args, **kwargs)
 
-        elapsed_time = time.time() - start_time
+    elapsed_time = time.time() - start_time
 
-        if fn.__name__ not in PROF_DATA:
-            PROF_DATA[fn.__name__] = [0, []]
-        PROF_DATA[fn.__name__][0] += 1
-        PROF_DATA[fn.__name__][1].append(elapsed_time)
+    if fn.__name__ not in PROF_DATA:
+      PROF_DATA[fn.__name__] = [0, []]
+    PROF_DATA[fn.__name__][0] += 1
+    PROF_DATA[fn.__name__][1].append(elapsed_time)
 
-        return ret
+    return ret
 
-    return with_profiling
+  return with_profiling
 
 
 def print_prof_data():
-    for fname, data in PROF_DATA.items():
-        max_time = max(data[1])
-        avg_time = sum(data[1]) / len(data[1])
-        print("Function {} called {} times. ".format(fname, data[0]))
-        print('Execution time max: {:.4f}, average: {:.4f}'.format(max_time, avg_time))
+  for fname, data in PROF_DATA.items():
+    max_time = max(data[1])
+    avg_time = sum(data[1]) / len(data[1])
+    print("Function {} called {} times. ".format(fname, data[0]))
+    print('Execution time max: {:.4f}, average: {:.4f}'.format(max_time, avg_time))
 
 
 def clear_prof_data():
-    global PROF_DATA
-    PROF_DATA = {}
+  global PROF_DATA
+  PROF_DATA = {}
 
 
 def normalize(x, out_range=(0, 1)):
-    domain = np.min(x), np.max(x)
-    y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
-    return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
+  domain = np.min(x), np.max(x)
+  y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
+  return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
 
 
 def smooth(x, window_len=11, window='hanning'):
-    """smooth the data using a window with requested size.
+  """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
     The signal is prepared by introducing reflected copies of the signal
@@ -79,94 +79,96 @@ def smooth(x, window_len=11, window='hanning'):
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
     """
 
-    if x.ndim != 1:
-        raise ValueError("smooth only accepts 1 dimension arrays.")
+  if x.ndim != 1:
+    raise ValueError("smooth only accepts 1 dimension arrays.")
 
-    if x.size < window_len:
-        raise ValueError("Input vector needs to be bigger than window size.")
+  if x.size < window_len:
+    raise ValueError("Input vector needs to be bigger than window size.")
 
-    if window_len < 3:
-        return x
+  if window_len < 3:
+    return x
 
-    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+  if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+    raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
-    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-    # print(len(s))
-    if window == 'flat':  # moving average
-        w = np.ones(window_len, 'd')
-    else:
-        w = eval('np.' + window + '(window_len)')
+  s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+  # print(len(s))
+  if window == 'flat':  # moving average
+    w = np.ones(window_len, 'd')
+  else:
+    w = eval('np.' + window + '(window_len)')
 
-    y = np.convolve(w / w.sum(), s, mode='valid')
-    #     return y
-    halflen = int(window_len / 2)
-    #     return y[0:len(x)]
-    return y[(halflen - 1):-halflen]
+  y = np.convolve(w / w.sum(), s, mode='valid')
+  #     return y
+  halflen = int(window_len / 2)
+  #     return y[0:len(x)]
+  return y[(halflen - 1):-halflen]
 
 
 class LegalDocument(EmbeddableText):
 
-    def __init__(self, original_text=None):
-        self.original_text = original_text
-        self.filename = None
-        self.tokens = None
-        self.embeddings = None
-        self.normal_text = None
-        self.distances_per_pattern_dict = None
+  def __init__(self, original_text=None):
+    self.original_text = original_text
+    self.filename = None
+    self.tokens = None
+    self.embeddings = None
+    self.normal_text = None
+    self.distances_per_pattern_dict = None
 
-        self.right_padding = 10
+    self.right_padding = 10
 
-        # subdocs
-        self.start = None
-        self.end = None
+    # subdocs
+    self.start = None
+    self.end = None
 
-    def find_sum_in_section(self):
-        raise Exception('not implemented')
+  def find_sum_in_section(self):
+    raise Exception('not implemented')
 
-    def find_sentence_beginnings(self, best_indexes):
-        return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
+  def find_sentence_beginnings(self, best_indexes):
+    return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
 
-    def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC):
-        distances_per_pattern_dict = {}
-        for pat in pattern_factory.patterns:
-            dists = pat._eval_distances_multi_window(self.embeddings, dist_function)
-            if self.right_padding > 0:
-                dists = dists[:-self.right_padding]
-            # TODO: this inversion must be a part of a dist_function
-            dists = 1.0 - dists
-            distances_per_pattern_dict[pat.name] = dists
-            dists.flags.writeable = False
+  @profile
+  def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC):
+    distances_per_pattern_dict = {}
+    for pat in pattern_factory.patterns:
+      dists = pat._eval_distances_multi_window(self.embeddings, dist_function)
+      if self.right_padding > 0:
+        dists = dists[:-self.right_padding]
+      # TODO: this inversion must be a part of a dist_function
+      dists = 1.0 - dists
+      distances_per_pattern_dict[pat.name] = dists
+      dists.flags.writeable = False
 
-            # print(pat.name)
+      # print(pat.name)
 
-        self.distances_per_pattern_dict = distances_per_pattern_dict
-        return self.distances_per_pattern_dict
+    self.distances_per_pattern_dict = distances_per_pattern_dict
+    return self.distances_per_pattern_dict
 
-    def subdoc(self, start, end):
+  def subdoc(self, start, end):
 
-        assert self.tokens is not None
-        assert self.embeddings is not None
-        assert self.distances_per_pattern_dict is not None
+    assert self.tokens is not None
+    #         assert self.embeddings is not None
+    #         assert self.distances_per_pattern_dict is not None
 
-        klazz = self.__class__
-        sub = klazz("REF")
-        sub.start = start
-        sub.end = end
-        sub.right_padding = 0
+    klazz = self.__class__
+    sub = klazz("REF")
+    sub.start = start
+    sub.end = end
+    sub.right_padding = 0
 
-        #         if self.embeddings is not None:
-        sub.embeddings = self.embeddings[start:end]
+    if self.embeddings is not None:
+      sub.embeddings = self.embeddings[start:end]
 
-        sub.distances_per_pattern_dict = {}
-        for d in self.distances_per_pattern_dict:
-            sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][start:end]
+    if self.distances_per_pattern_dict is not None:
+      sub.distances_per_pattern_dict = {}
+      for d in self.distances_per_pattern_dict:
+        sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][start:end]
 
-        sub.tokens = self.tokens[start:end]
-        return sub
+    sub.tokens = self.tokens[start:end]
+    return sub
 
-    def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
-        """
+  def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
+    """
         this works only for documents where captions are not unique
 
         :param caption_pattern_prefix: pattern name prefix
@@ -175,597 +177,597 @@ class LegalDocument(EmbeddableText):
         :return:
         """
 
-        print("WARNING: split_into_sections method is deprecated")
+    print("WARNING: split_into_sections method is deprecated")
 
-        tokens = self.tokens
-        if (self.right_padding > 0):
-            tokens = self.tokens[:-self.right_padding]
-        # l = len(tokens)
+    tokens = self.tokens
+    if (self.right_padding > 0):
+      tokens = self.tokens[:-self.right_padding]
+    # l = len(tokens)
 
-        distances_to_pattern = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix,
-                                                                relu_th)
+    distances_to_pattern = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix,
+                                                            relu_th)
 
-        distances_to_pattern = normalize(distances_to_pattern)
+    distances_to_pattern = normalize(distances_to_pattern)
 
-        distances_to_pattern = smooth(distances_to_pattern, window_len=soothing_wind_size)
+    distances_to_pattern = smooth(distances_to_pattern, window_len=soothing_wind_size)
 
-        sections = extremums(distances_to_pattern)
-        # print(sections)
-        sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
-        # print(sections_starts)
-        sections_starts = remove_similar_indexes(sections_starts)
-        sections_starts.append(len(tokens))
-        # print(sections_starts)
+    sections = extremums(distances_to_pattern)
+    # print(sections)
+    sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
+    # print(sections_starts)
+    sections_starts = remove_similar_indexes(sections_starts)
+    sections_starts.append(len(tokens))
+    # print(sections_starts)
 
-        # RENDER sections
-        self.subdocs = []
-        for i in range(1, len(sections_starts)):
-            s = sections_starts[i - 1]
-            e = sections_starts[i]
-            subdoc = self.subdoc(s, e)
-            self.subdocs.append(subdoc)
-            # print('-' * 20)
-            # render_color_text(subdoc.tokens, captions[s:e])
+    # RENDER sections
+    self.subdocs = []
+    for i in range(1, len(sections_starts)):
+      s = sections_starts[i - 1]
+      e = sections_starts[i]
+      subdoc = self.subdoc(s, e)
+      self.subdocs.append(subdoc)
+      # print('-' * 20)
+      # render_color_text(subdoc.tokens, captions[s:e])
 
-        return self.subdocs, distances_to_pattern
+    return self.subdocs, distances_to_pattern
 
-    def normalize_sentences_bounds(self, text):
-        """
+  def normalize_sentences_bounds(self, text):
+    """
         splits text into sentences, join sentences with \n
         :param text:
         :return:
         """
-        sents = ru_tokenizer.tokenize(text)
-        for s in sents:
-            s.replace('\n', ' ')
+    sents = ru_tokenizer.tokenize(text)
+    for s in sents:
+      s.replace('\n', ' ')
 
-        return '\n'.join(sents)
+    return '\n'.join(sents)
 
-    def preprocess_text(self, text):
-        a = text
-        #     a = remove_empty_lines(text)
-        a = normalize_text(a, replacements_regex)
-        a = self.normalize_sentences_bounds(a)
+  def preprocess_text(self, text):
+    a = text
+    #     a = remove_empty_lines(text)
+    a = normalize_text(a, replacements_regex)
+    a = self.normalize_sentences_bounds(a)
 
-        return a
+    return a
 
-    def read(self, name):
-        print("reading...", name)
-        self.filename = name
-        txt = ""
-        with open(name, 'r') as f:
-            self.set_original_text(f.read())
+  def read(self, name):
+    print("reading...", name)
+    self.filename = name
+    txt = ""
+    with open(name, 'r') as f:
+      self.set_original_text(f.read())
 
-    def set_original_text(self, txt):
-        self.original_text = txt
-        self.tokens = None
-        self.embeddings = None
-        self.normal_text = None
+  def set_original_text(self, txt):
+    self.original_text = txt
+    self.tokens = None
+    self.embeddings = None
+    self.normal_text = None
 
-    def tokenize(self, _txt=None):
-        if _txt is None: _txt = self.normal_text
+  def tokenize(self, _txt=None):
+    if _txt is None: _txt = self.normal_text
 
-        _words = tokenize_text(_txt)
+    _words = tokenize_text(_txt)
 
-        sparse_words = []
-        end = len(_words)
-        last_cr_index = 0
-        for i in range(end):
-            if (_words[i] == '\n') or i == end - 1:
-                chunk = _words[last_cr_index:i + 1]
-                chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
-                sparse_words += chunk
-                last_cr_index = i + 1
+    sparse_words = []
+    end = len(_words)
+    last_cr_index = 0
+    for i in range(end):
+      if (_words[i] == '\n') or i == end - 1:
+        chunk = _words[last_cr_index:i + 1]
+        chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
+        sparse_words += chunk
+        last_cr_index = i + 1
 
-        return sparse_words
+    return sparse_words
 
-    def parse(self, txt=None):
-        if txt is None: txt = self.original_text
-        self.normal_text = self.preprocess_text(txt)
+  def parse(self, txt=None):
+    if txt is None: txt = self.original_text
+    self.normal_text = self.preprocess_text(txt)
 
-        self.tokens = self.tokenize()
-        return self.tokens
-        # print('TOKENS:', self.tokens[0:20])
+    self.tokens = self.tokenize()
+    return self.tokens
+    # print('TOKENS:', self.tokens[0:20])
 
-    def embedd(self, pattern_factory):
-        max_tokens = 8000
-        if len(self.tokens) > max_tokens:
-            self._embedd_large(pattern_factory.embedder, max_tokens)
-        else:
-            self.embeddings = self._emb(self.tokens, pattern_factory.embedder)
+  def embedd(self, pattern_factory):
+    max_tokens = 8000
+    if len(self.tokens) > max_tokens:
+      self._embedd_large(pattern_factory.embedder, max_tokens)
+    else:
+      self.embeddings = self._emb(self.tokens, pattern_factory.embedder)
 
-        print_prof_data()
+    print_prof_data()
 
-    @profile
-    def _emb(self, tokens, embedder):
-        embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
-        embeddings = embeddings[0]
-        return embeddings
+  @profile
+  def _emb(self, tokens, embedder):
+    embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
+    embeddings = embeddings[0]
+    return embeddings
 
-    @profile
-    def _embedd_large(self, embedder, max_tokens=8000):
+  @profile
+  def _embedd_large(self, embedder, max_tokens=8000):
 
-        overlap = int(max_tokens / 5)  # 20%
+    overlap = int(max_tokens / 5)  # 20%
 
-        number_of_windows = 1 + int(len(self.tokens) / max_tokens)
-        window = max_tokens
+    number_of_windows = 1 + int(len(self.tokens) / max_tokens)
+    window = max_tokens
 
-        print(
-            "WARNING: Document is too large for embedding. Splitting into {} windows overlapping with {} tokens ".format(
-                number_of_windows, overlap))
-        start = 0
-        embeddings = None
-        tokens = []
-        while start < len(self.tokens):
-            #             start_time = time.time()
-            subtokens = self.tokens[start:start + window + overlap]
-            print("Embedding region:", start, len(subtokens))
+    print(
+      "WARNING: Document is too large for embedding. Splitting into {} windows overlapping with {} tokens ".format(
+        number_of_windows, overlap))
+    start = 0
+    embeddings = None
+    tokens = []
+    while start < len(self.tokens):
+      #             start_time = time.time()
+      subtokens = self.tokens[start:start + window + overlap]
+      print("Embedding region:", start, len(subtokens))
 
-            sub_embeddings = self._emb(subtokens, embedder)
+      sub_embeddings = self._emb(subtokens, embedder)
 
-            sub_embeddings = sub_embeddings[0:window]
-            subtokens = subtokens[0:window]
+      sub_embeddings = sub_embeddings[0:window]
+      subtokens = subtokens[0:window]
 
-            if embeddings is None:
-                embeddings = sub_embeddings
-            else:
-                embeddings = np.concatenate([embeddings, sub_embeddings])
-            tokens += subtokens
+      if embeddings is None:
+        embeddings = sub_embeddings
+      else:
+        embeddings = np.concatenate([embeddings, sub_embeddings])
+      tokens += subtokens
 
-            start += window
-            #             elapsed_time = time.time() - start_time
-            #             print ("Elapsed time %d".format(t))
-            print_prof_data()
+      start += window
+      #             elapsed_time = time.time() - start_time
+      #             print ("Elapsed time %d".format(t))
+      print_prof_data()
 
-        self.embeddings = embeddings
-        self.tokens = tokens
+    self.embeddings = embeddings
+    self.tokens = tokens
 
 
 class LegalDocumentLowCase(LegalDocument):
 
-    def __init__(self, original_text):
-        LegalDocument.__init__(self, original_text)
+  def __init__(self, original_text):
+    LegalDocument.__init__(self, original_text)
 
-    def preprocess_text(self, text):
-        a = text
-        #     a = remove_empty_lines(text)
-        a = normalize_text(a,
-                           dates_regex + abbreviation_regex + fixtures_regex +
-                           spaces_regex + syntax_regex + numbers_regex +
-                           formatting_regex + tables_regex)
+  def preprocess_text(self, text):
+    a = text
+    #     a = remove_empty_lines(text)
+    a = normalize_text(a,
+                       dates_regex + abbreviation_regex + fixtures_regex +
+                       spaces_regex + syntax_regex + numbers_regex +
+                       formatting_regex + tables_regex)
 
-        a = self.normalize_sentences_bounds(a)
+    a = self.normalize_sentences_bounds(a)
 
-        return a.lower()
+    return a.lower()
 
 
 class ContractDocument(LegalDocumentLowCase):
-    def __init__(self, original_text):
-        LegalDocumentLowCase.__init__(self, original_text)
+  def __init__(self, original_text):
+    LegalDocumentLowCase.__init__(self, original_text)
 
 
 def relu(x, relu_th=0):
-    relu = x * (x > relu_th)
-    return relu
+  relu = x * (x > relu_th)
+  return relu
 
 
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
-    c = 0
-    sum = None
+  c = 0
+  sum = None
 
-    for p in distances_per_pattern_dict:
-        if p.startswith(prefix):
-            x = distances_per_pattern_dict[p]
-            if sum is None:
-                sum = np.zeros(len(x))
+  for p in distances_per_pattern_dict:
+    if p.startswith(prefix):
+      x = distances_per_pattern_dict[p]
+      if sum is None:
+        sum = np.zeros(len(x))
 
-            sum += relu(x, relu_th)
-            c += 1
-    #   deal/=c
-    return sum, c
+      sum += relu(x, relu_th)
+      c += 1
+  #   deal/=c
+  return sum, c
 
 
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
-    #     print('mean_by_pattern_prefix', prefix, relu_th)
-    sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0)
-    return normalize(sum)
+  #     print('mean_by_pattern_prefix', prefix, relu_th)
+  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0)
+  return normalize(sum)
 
 
 def rectifyed_normalized_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
-    return normalize(rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th))
+  return normalize(rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th))
 
 
 def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
-    #     print('mean_by_pattern_prefix', prefix, relu_th)
-    sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
-    sum /= c
-    return sum
+  #     print('mean_by_pattern_prefix', prefix, relu_th)
+  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
+  sum /= c
+  return sum
 
 
 def remove_similar_indexes(indexes, min_section_size=20):
-    indexes_zipped = []
-    indexes_zipped.append(indexes[0])
+  if len(indexes) < 2:
+    return indexes
 
-    for i in range(1, len(indexes)):
-        if indexes[i] - indexes[i - 1] > min_section_size:
-            indexes_zipped.append(indexes[i])
-    return indexes_zipped
+  indexes_zipped = []
+  indexes_zipped.append(indexes[0])
+
+  for i in range(1, len(indexes)):
+    if indexes[i] - indexes[i - 1] > min_section_size:
+      indexes_zipped.append(indexes[i])
+  return indexes_zipped
 
 
 def extremums(x):
-    extremums = []
-    extremums.append(0)
-    for i in range(1, len(x) - 1):
-        if x[i - 1] < x[i] > x[i + 1]:
-            extremums.append(i)
-    return extremums
+  extremums = []
+  extremums.append(0)
+  for i in range(1, len(x) - 1):
+    if x[i - 1] < x[i] > x[i + 1]:
+      extremums.append(i)
+  return extremums
 
 
 class BasicContractDocument(LegalDocumentLowCase):
 
-    def __init__(self, original_text=None):
-        LegalDocumentLowCase.__init__(self, original_text)
+  def __init__(self, original_text=None):
+    LegalDocumentLowCase.__init__(self, original_text)
 
-    def get_subject_ranges(self, indexes_zipped, section_indexes: List):
+  def get_subject_ranges(self, indexes_zipped, section_indexes: List):
 
-        # res = [None] * len(section_indexes)
-        # for sec in section_indexes:
-        #     for i in range(len(indexes_zipped) - 1):
-        #         if indexes_zipped[i][0] == sec:
-        #             range1 = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-        #             res[sec] = range1
-        #
-        #     if res[sec] is None:
-        #         print("WARNING: Section #{} not found!".format(sec))
-        #
-        # return res
+    # res = [None] * len(section_indexes)
+    # for sec in section_indexes:
+    #     for i in range(len(indexes_zipped) - 1):
+    #         if indexes_zipped[i][0] == sec:
+    #             range1 = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
+    #             res[sec] = range1
+    #
+    #     if res[sec] is None:
+    #         print("WARNING: Section #{} not found!".format(sec))
+    #
+    # return res
 
-        subj_range = None
-        head_range = None
-        for i in range(len(indexes_zipped) - 1):
-            if indexes_zipped[i][0] == 1:
-                subj_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-            if indexes_zipped[i][0] == 0:
-                head_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-        if head_range is None:
-            print("WARNING: Contract type might be not known!!")
-            head_range = range(0, 0)
-        if subj_range is None:
-            print("WARNING: Contract subject might be not known!!")
-            if len(self.tokens) < 80:
-                _end = len(self.tokens)
-            else:
-                _end = 80
-            subj_range = range(0, _end)
-        return head_range, subj_range
+    subj_range = None
+    head_range = None
+    for i in range(len(indexes_zipped) - 1):
+      if indexes_zipped[i][0] == 1:
+        subj_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
+      if indexes_zipped[i][0] == 0:
+        head_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
+    if head_range is None:
+      print("WARNING: Contract type might be not known!!")
+      head_range = range(0, 0)
+    if subj_range is None:
+      print("WARNING: Contract subject might be not known!!")
+      if len(self.tokens) < 80:
+        _end = len(self.tokens)
+      else:
+        _end = 80
+      subj_range = range(0, _end)
+    return head_range, subj_range
 
-    def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
+  def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
 
-        self.split_into_sections(pattern_fctry.paragraph_split_pattern)
-        indexes_zipped = self.section_indexes
+    self.split_into_sections(pattern_fctry.paragraph_split_pattern)
+    indexes_zipped = self.section_indexes
 
-        head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
+    head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
 
-        distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
-            self.embeddings,
-            text_right_padding=0)
-        distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
+    distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
+      self.embeddings,
+      text_right_padding=0)
+    distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
-        ranges = [np.nanmin(distances_per_subj_pattern_[:-TEXT_PADDING]),
-                  np.nanmax(distances_per_subj_pattern_[:-TEXT_PADDING])]
+    ranges = [np.nanmin(distances_per_subj_pattern_[:-TEXT_PADDING]),
+              np.nanmax(distances_per_subj_pattern_[:-TEXT_PADDING])]
 
-        weight_per_pat = []
-        for row in distances_per_pattern_t:
-            weight_per_pat.append(np.nanmin(row))
+    weight_per_pat = []
+    for row in distances_per_pattern_t:
+      weight_per_pat.append(np.nanmin(row))
 
-        print("weight_per_pat", weight_per_pat)
+    print("weight_per_pat", weight_per_pat)
 
-        _ch_r = numbers_of_patterns['charity']
-        _co_r = numbers_of_patterns['commerce']
+    _ch_r = numbers_of_patterns['charity']
+    _co_r = numbers_of_patterns['commerce']
 
-        chariy_slice = weight_per_pat[_ch_r[0]:_ch_r[1]]
-        commerce_slice = weight_per_pat[_co_r[0]:_co_r[1]]
+    chariy_slice = weight_per_pat[_ch_r[0]:_ch_r[1]]
+    commerce_slice = weight_per_pat[_co_r[0]:_co_r[1]]
 
-        min_charity_index = min_index(chariy_slice)
-        min_commerce_index = min_index(commerce_slice)
+    min_charity_index = min_index(chariy_slice)
+    min_commerce_index = min_index(commerce_slice)
 
-        print("min_charity_index, min_commerce_index", min_charity_index, min_commerce_index)
-        self.per_subject_distances = [
-            np.nanmin(chariy_slice),
-            np.nanmin(commerce_slice)]
+    print("min_charity_index, min_commerce_index", min_charity_index, min_commerce_index)
+    self.per_subject_distances = [
+      np.nanmin(chariy_slice),
+      np.nanmin(commerce_slice)]
 
-        self.subj_range = subj_range
-        self.head_range = head_range
+    self.subj_range = subj_range
+    self.head_range = head_range
 
-        return ranges, winning_patterns
+    return ranges, winning_patterns
 
-    # TODO: remove
-    def __find_sum(self, pattern_factory):
+  # TODO: remove
+  def __find_sum(self, pattern_factory):
 
-        min_i, sums_no_padding, confidence = pattern_factory.sum_pattern.find(self.embeddings, self.right_padding)
+    min_i, sums_no_padding, confidence = pattern_factory.sum_pattern.find(self.embeddings, self.right_padding)
 
-        self.sums = sums_no_padding
-        sums = sums_no_padding[:-TEXT_PADDING]
+    self.sums = sums_no_padding
+    sums = sums_no_padding[:-TEXT_PADDING]
 
-        meta = {
-            'tokens': len(sums),
-            'index found': min_i,
-            'd-range': (sums.min(), sums.max()),
-            'confidence': confidence,
-            'mean': sums.mean(),
-            'std': np.std(sums),
-            'min': sums[min_i],
-        }
+    meta = {
+      'tokens': len(sums),
+      'index found': min_i,
+      'd-range': (sums.min(), sums.max()),
+      'confidence': confidence,
+      'mean': sums.mean(),
+      'std': np.std(sums),
+      'min': sums[min_i],
+    }
 
-        start, end = get_sentence_bounds_at_index(min_i, self.tokens)
-        sentence_tokens = self.tokens[start + 1:end]
+    start, end = get_sentence_bounds_at_index(min_i, self.tokens)
+    sentence_tokens = self.tokens[start + 1:end]
 
-        f, sentence = extract_sum_from_tokens(sentence_tokens)
+    f, sentence = extract_sum_from_tokens(sentence_tokens)
 
-        self.found_sum = (f, (start, end), sentence, meta)
+    self.found_sum = (f, (start, end), sentence, meta)
 
-    #     return
+  #     return
 
-    def analyze(self, pattern_factory):
-        self.embedd(pattern_factory)
-        self._find_sum(pattern_factory)
+  def analyze(self, pattern_factory):
+    self.embedd(pattern_factory)
+    self._find_sum(pattern_factory)
 
-        self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
-            pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
+    self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
+      pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
 
 
 # SUMS -----------------------------
 
 def extract_sum(sentence: str):
-    currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-    currency_re_th = re.compile(
-        r'((^|\s+)(\d+[., ])*\d+)(\s+(тыс\.|тысяч.{0,2})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-    currency_re_mil = re.compile(
-        r'((^|\s+)(\d+[., ])*\d+)(\s+(млн\.|миллион.{0,3})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+  currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+  currency_re_th = re.compile(
+    r'((^|\s+)(\d+[., ])*\d+)(\s+(тыс\.|тысяч.{0,2})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+  currency_re_mil = re.compile(
+    r'((^|\s+)(\d+[., ])*\d+)(\s+(млн\.|миллион.{0,3})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
 
-    r = currency_re.findall(sentence)
-    f = None
+  r = currency_re.findall(sentence)
+  f = None
+  try:
+    number = to_float(r[0][0])
+    f = (number, r[0][5])
+  except:
+    r = currency_re_th.findall(sentence)
+
     try:
-        number = to_float(r[0][0])
-        f = (number, r[0][5])
+      number = to_float(r[0][0]) * 1000
+      f = (number, r[0][5])
     except:
-        r = currency_re_th.findall(sentence)
+      r = currency_re_mil.findall(sentence)
+      try:
+        number = to_float(r[0][0]) * 1000000
+        f = (number, r[0][5])
+      except:
+        pass
 
-        try:
-            number = to_float(r[0][0]) * 1000
-            f = (number, r[0][5])
-        except:
-            r = currency_re_mil.findall(sentence)
-            try:
-                number = to_float(r[0][0]) * 1000000
-                f = (number, r[0][5])
-            except:
-                pass
-
-    return f
+  return f
 
 
 def extract_sum_from_tokens(sentence_tokens: List):
-    sentence = untokenize(sentence_tokens).lower().strip()
-    f = extract_sum(sentence)
-    return f, sentence
+  sentence = untokenize(sentence_tokens).lower().strip()
+  f = extract_sum(sentence)
+  return f, sentence
 
 
 def _extract_sums_from_distances(doc, x):
-    maximas = extremums(x)
+  maximas = extremums(x)
 
-    results = []
-    for max_i in maximas:
-        start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
-        sentence_tokens = doc.tokens[start + 1:end]
-
-        f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-        if f is not None:
-            result = {
-                'sum': f,
-                'region': (start, end),
-                'sentence': sentence,
-                'confidence': x[max_i]
-            }
-            results.append(result)
-
-    return results
-
-
-def _extract_sum_from_distances____(doc, sums_no_padding):
-    max_i = np.argmax(sums_no_padding)
+  results = []
+  for max_i in maximas:
     start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
     sentence_tokens = doc.tokens[start + 1:end]
 
     f, sentence = extract_sum_from_tokens(sentence_tokens)
 
-    return (f, (start, end), sentence)
+    if f is not None:
+      result = {
+        'sum': f,
+        'region': (start, end),
+        'sentence': sentence,
+        'confidence': x[max_i]
+      }
+      results.append(result)
+
+  return results
+
+
+def _extract_sum_from_distances____(doc, sums_no_padding):
+  max_i = np.argmax(sums_no_padding)
+  start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+  sentence_tokens = doc.tokens[start + 1:end]
+
+  f, sentence = extract_sum_from_tokens(sentence_tokens)
+
+  return (f, (start, end), sentence)
 
 
 def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
-    sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max', relu_th=relu_th)
-    sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg', relu_th=relu_th)
+  sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max', relu_th=relu_th)
+  sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg', relu_th=relu_th)
 
-    sum_pos -= sum_neg
+  sum_pos -= sum_neg
 
-    sum_pos = smooth(sum_pos, window_len=8)
-    #     sum_pos = relu(sum_pos, 0.65)
+  sum_pos = smooth(sum_pos, window_len=8)
+  #     sum_pos = relu(sum_pos, 0.65)
 
-    if attention_mask is not None:
-        sum_pos *= attention_mask
+  if attention_mask is not None:
+    sum_pos *= attention_mask
 
-    sum_pos = normalize(sum_pos)
+  sum_pos = normalize(sum_pos)
 
-    return _extract_sums_from_distances(doc, sum_pos), sum_pos
+  return _extract_sums_from_distances(doc, sum_pos), sum_pos
 
 
 class ProtocolDocument(LegalDocumentLowCase):
 
-    def __init__(self, original_text=None):
-        LegalDocumentLowCase.__init__(self, original_text)
+  def __init__(self, original_text=None):
+    LegalDocumentLowCase.__init__(self, original_text)
 
-    def make_solutions_mask(self):
+  def make_solutions_mask(self):
 
-        section_name_to_weight_dict = {}
-        for i in range(1, 5):
-            cap = 'p_cap_solution{}'.format(i)
-            section_name_to_weight_dict[cap] = 0.5
+    section_name_to_weight_dict = {}
+    for i in range(1, 5):
+      cap = 'p_cap_solution{}'.format(i)
+      section_name_to_weight_dict[cap] = 0.5
 
-        mask = mask_sections(section_name_to_weight_dict, self)
-        mask += 0.5
-        if self.right_padding > 0:
-            mask = mask[0:-self.right_padding]
+    mask = mask_sections(section_name_to_weight_dict, self)
+    mask += 0.5
+    if self.right_padding > 0:
+      mask = mask[0:-self.right_padding]
 
-        mask = smooth(mask, window_len=12)
-        return mask
+    mask = smooth(mask, window_len=12)
+    return mask
 
-    def find_sum_in_section____(self):
-        assert self.subdocs is not None
+  def find_sum_in_section____(self):
+    assert self.subdocs is not None
 
-        sols = {}
-        for i in range(1, 5):
-            cap = 'p_cap_solution{}'.format(i)
+    sols = {}
+    for i in range(1, 5):
+      cap = 'p_cap_solution{}'.format(i)
 
-            solution_section = find_section_by_caption(cap, self.subdocs)
-            sols[solution_section] = cap
+      solution_section = find_section_by_caption(cap, self.subdocs)
+      sols[solution_section] = cap
 
-        results = []
-        for solution_section in sols:
-            cap = sols[solution_section]
-            #             print(cap)
-            # TODO:
-            # render_color_text(solution_section.tokens, solution_section.distances_per_pattern_dict[cap])
+    results = []
+    for solution_section in sols:
+      cap = sols[solution_section]
+      #             print(cap)
+      # TODO:
+      # render_color_text(solution_section.tokens, solution_section.distances_per_pattern_dict[cap])
 
-            x = extract_sum_from_doc(solution_section)
-            results.append(x)
+      x = extract_sum_from_doc(solution_section)
+      results.append(x)
 
-        return results
+    return results
 
 
 # Support masking ==================
 
 def find_section_by_caption(cap, subdocs):
-    solution_section = None
-    mx = 0;
-    for subdoc in subdocs:
-        d = subdoc.distances_per_pattern_dict[cap]
-        _mx = d.max()
-        if _mx > mx:
-            solution_section = subdoc
-            mx = _mx
-    return solution_section
+  solution_section = None
+  mx = 0;
+  for subdoc in subdocs:
+    d = subdoc.distances_per_pattern_dict[cap]
+    _mx = d.max()
+    if _mx > mx:
+      solution_section = subdoc
+      mx = _mx
+  return solution_section
 
 
 def mask_sections(section_name_to_weight_dict, doc):
-    mask = np.zeros(len(doc.tokens))
+  mask = np.zeros(len(doc.tokens))
 
-    for name in section_name_to_weight_dict:
-        section = find_section_by_caption(name, doc.subdocs)
-        #         print([section.start, section.end])
-        mask[section.start:section.end] = section_name_to_weight_dict[name]
-    return mask
+  for name in section_name_to_weight_dict:
+    section = find_section_by_caption(name, doc.subdocs)
+    #         print([section.start, section.end])
+    mask[section.start:section.end] = section_name_to_weight_dict[name]
+  return mask
 
 
 # Charter Docs
 
 
 class CharterDocument(LegalDocumentLowCase):
-    def __init__(self, original_text):
-        LegalDocumentLowCase.__init__(self, original_text)
-        self.right_padding = 15
+  def __init__(self, original_text):
+    LegalDocumentLowCase.__init__(self, original_text)
+    self.right_padding = 15
 
-    def preprocess_text(self, text):
-        a = text
-        #     a = remove_empty_lines(text)
-        a = normalize_text(a,
-                           dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex)
-        a = self.normalize_sentences_bounds(a)
+  def preprocess_text(self, text):
+    a = text
+    #     a = remove_empty_lines(text)
+    a = normalize_text(a,
+                       dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex)
+    a = self.normalize_sentences_bounds(a)
 
-        return a.lower()
+    return a.lower()
 
-    def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
+  def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
 
-        print("WARNING: split_into_sections method is deprecated")
+    print("WARNING: split_into_sections method is deprecated")
 
-        tokens = self.tokens
-        if (self.right_padding > 0):
-            tokens = self.tokens[:-self.right_padding]
-        # l = len(tokens)
+    tokens = self.tokens
+    if (self.right_padding > 0):
+      tokens = self.tokens[:-self.right_padding]
+    # l = len(tokens)
 
-        captions = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
+    captions = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
 
-        captions = normalize(captions)
+    captions = normalize(captions)
 
-        captions = smooth(captions, window_len=soothing_wind_size)
-        captions = normalize(captions)
-        captions = relu(captions, relu_th=0.5)
+    captions = smooth(captions, window_len=soothing_wind_size)
+    captions = normalize(captions)
+    captions = relu(captions, relu_th=0.5)
 
-        captions = smooth(captions, window_len=soothing_wind_size)
-        captions = normalize(captions)
+    captions = smooth(captions, window_len=soothing_wind_size)
+    captions = normalize(captions)
 
-        sections = extremums(captions)
-        # print(sections)
-        sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
-        # print(sections_starts)
-        sections_starts = remove_similar_indexes(sections_starts)
-        sections_starts.append(len(tokens))
-        # print(sections_starts)
+    sections = extremums(captions)
+    # print(sections)
+    sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
+    # print(sections_starts)
+    sections_starts = remove_similar_indexes(sections_starts)
+    sections_starts.append(len(tokens))
+    # print(sections_starts)
 
-        # RENDER sections
-        self.subdocs = []
-        for i in range(1, len(sections_starts)):
-            s = sections_starts[i - 1]
-            e = sections_starts[i]
-            subdoc = self.subdoc(s, e)
-            self.subdocs.append(subdoc)
-            # print('-' * 20)
-            # render_color_text(subdoc.tokens, captions[s:e])
+    # RENDER sections
+    self.subdocs = []
+    for i in range(1, len(sections_starts)):
+      s = sections_starts[i - 1]
+      e = sections_starts[i]
+      subdoc = self.subdoc(s, e)
+      self.subdocs.append(subdoc)
+      # print('-' * 20)
+      # render_color_text(subdoc.tokens, captions[s:e])
 
-        return self.subdocs, captions
+    return self.subdocs, captions
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
-    ret = {}
+  ret = {}
 
-    for p in distances_per_pattern_dict:
-        if p.startswith(prefix):
-            x = distances_per_pattern_dict[p]
+  for p in distances_per_pattern_dict:
+    if p.startswith(prefix):
+      x = distances_per_pattern_dict[p]
 
-            if attention_vector is not None:
-                x = np.array(x)
-                x += attention_vector
+      if attention_vector is not None:
+        x = np.array(x)
+        x += attention_vector
 
-            max = x.argmax()
-            ret[p] = max
+      max = x.argmax()
+      ret[p] = max
 
-    return ret
+  return ret
 
 
 def split_into_sections(doc, caption_indexes):
-    sorted_keys = sorted(caption_indexes, key=lambda s: caption_indexes[s])
+  sorted_keys = sorted(caption_indexes, key=lambda s: caption_indexes[s])
 
-    doc.subdocs = []
-    for i in range(1, len(sorted_keys)):
-        key = sorted_keys[i - 1]
-        next_key = sorted_keys[i]
-        start = caption_indexes[key]
-        end = caption_indexes[next_key]
-        print(key, [start, end])
+  doc.subdocs = []
+  for i in range(1, len(sorted_keys)):
+    key = sorted_keys[i - 1]
+    next_key = sorted_keys[i]
+    start = caption_indexes[key]
+    end = caption_indexes[next_key]
+    print(key, [start, end])
 
-        subdoc = doc.subdoc(start, end)
-        subdoc.filename = key
-        doc.subdocs.append(subdoc)
+    subdoc = doc.subdoc(start, end)
+    subdoc.filename = key
+    doc.subdocs.append(subdoc)
 
 
 def split_doc(doc, caption_prefix, attention_vector=None):
-    caption_indexes = max_by_pattern_prefix(doc.distances_per_pattern_dict, caption_prefix, attention_vector)
-    for k in caption_indexes:
-        caption_indexes[k] = find_token_before_index(doc.tokens, caption_indexes[k], '\n', 0)
-    caption_indexes['__start'] = 0
-    caption_indexes['__end'] = len(doc.tokens)
+  caption_indexes = max_by_pattern_prefix(doc.distances_per_pattern_dict, caption_prefix, attention_vector)
+  for k in caption_indexes:
+    caption_indexes[k] = find_token_before_index(doc.tokens, caption_indexes[k], '\n', 0)
+  caption_indexes['__start'] = 0
+  caption_indexes['__end'] = len(doc.tokens)
 
-    split_into_sections(doc, caption_indexes)
-
-
-
+  split_into_sections(doc, caption_indexes)
