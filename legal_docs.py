@@ -2,14 +2,17 @@ import time
 from functools import wraps
 from typing import List
 
+from ml_tools import normalize, smooth, relu, extremums
 from patterns import *
 from text_normalize import *
 from text_tools import *
+from transaction_values import extract_sum_from_tokens, extract_sum_from_doc
 
 PROF_DATA = {}
 
 
 def profile(fn):
+  @wraps(fn)
   @wraps(fn)
   def with_profiling(*args, **kwargs):
     start_time = time.time()
@@ -39,70 +42,6 @@ def print_prof_data():
 def clear_prof_data():
   global PROF_DATA
   PROF_DATA = {}
-
-
-def normalize(x, out_range=(0, 1)):
-  domain = np.min(x), np.max(x)
-  y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
-  return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
-
-
-def smooth(x, window_len=11, window='hanning'):
-  """smooth the data using a window with requested size.
-
-    This method is based on the convolution of a scaled window with the signal.
-    The signal is prepared by introducing reflected copies of the signal
-    (with the window size) in both ends so that transient parts are minimized
-    in the begining and end part of the output signal.
-
-    input:
-        x: the input signal
-        window_len: the dimension of the smoothing window; should be an odd integer
-        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-            flat window will produce a moving average smoothing.
-
-    output:
-        the smoothed signal
-
-    example:
-
-    t=linspace(-2,2,0.1)
-    x=sin(t)+randn(len(t))*0.1
-    y=smooth(x)
-
-    see also:
-
-    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
-    scipy.signal.lfilter
-
-    TODO: the window parameter could be the window itself if an array instead of a string
-    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
-    """
-
-  if x.ndim != 1:
-    raise ValueError("smooth only accepts 1 dimension arrays.")
-
-  if x.size < window_len:
-    raise ValueError("Input vector needs to be bigger than window size.")
-
-  if window_len < 3:
-    return x
-
-  if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-    raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
-
-  s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-  # print(len(s))
-  if window == 'flat':  # moving average
-    w = np.ones(window_len, 'd')
-  else:
-    w = eval('np.' + window + '(window_len)')
-
-  y = np.convolve(w / w.sum(), s, mode='valid')
-  #     return y
-  halflen = int(window_len / 2)
-  #     return y[0:len(x)]
-  return y[(halflen - 1):-halflen]
 
 
 class LegalDocument(EmbeddableText):
@@ -346,11 +285,6 @@ class ContractDocument(LegalDocumentLowCase):
     LegalDocumentLowCase.__init__(self, original_text)
 
 
-def relu(x, relu_th=0):
-  relu = x * (x > relu_th)
-  return relu
-
-
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
   c = 0
   sum = None
@@ -395,15 +329,6 @@ def remove_similar_indexes(indexes, min_section_size=20):
     if indexes[i] - indexes[i - 1] > min_section_size:
       indexes_zipped.append(indexes[i])
   return indexes_zipped
-
-
-def extremums(x):
-  extremums = []
-  extremums.append(0)
-  for i in range(1, len(x) - 1):
-    if x[i - 1] < x[i] > x[i + 1]:
-      extremums.append(i)
-  return extremums
 
 
 class BasicContractDocument(LegalDocumentLowCase):
@@ -520,89 +445,6 @@ class BasicContractDocument(LegalDocumentLowCase):
 
 
 # SUMS -----------------------------
-
-def extract_sum(sentence: str):
-  currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-  currency_re_th = re.compile(
-    r'((^|\s+)(\d+[., ])*\d+)(\s+(тыс\.|тысяч.{0,2})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-  currency_re_mil = re.compile(
-    r'((^|\s+)(\d+[., ])*\d+)(\s+(млн\.|миллион.{0,3})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-
-  r = currency_re.findall(sentence)
-  f = None
-  try:
-    number = to_float(r[0][0])
-    f = (number, r[0][5])
-  except:
-    r = currency_re_th.findall(sentence)
-
-    try:
-      number = to_float(r[0][0]) * 1000
-      f = (number, r[0][5])
-    except:
-      r = currency_re_mil.findall(sentence)
-      try:
-        number = to_float(r[0][0]) * 1000000
-        f = (number, r[0][5])
-      except:
-        pass
-
-  return f
-
-
-def extract_sum_from_tokens(sentence_tokens: List):
-  sentence = untokenize(sentence_tokens).lower().strip()
-  f = extract_sum(sentence)
-  return f, sentence
-
-
-def _extract_sums_from_distances(doc, x):
-  maximas = extremums(x)
-
-  results = []
-  for max_i in maximas:
-    start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
-    sentence_tokens = doc.tokens[start + 1:end]
-
-    f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-    if f is not None:
-      result = {
-        'sum': f,
-        'region': (start, end),
-        'sentence': sentence,
-        'confidence': x[max_i]
-      }
-      results.append(result)
-
-  return results
-
-
-def _extract_sum_from_distances____(doc, sums_no_padding):
-  max_i = np.argmax(sums_no_padding)
-  start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
-  sentence_tokens = doc.tokens[start + 1:end]
-
-  f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-  return (f, (start, end), sentence)
-
-
-def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
-  sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max', relu_th=relu_th)
-  sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg', relu_th=relu_th)
-
-  sum_pos -= sum_neg
-
-  sum_pos = smooth(sum_pos, window_len=8)
-  #     sum_pos = relu(sum_pos, 0.65)
-
-  if attention_mask is not None:
-    sum_pos *= attention_mask
-
-  sum_pos = normalize(sum_pos)
-
-  return _extract_sums_from_distances(doc, sum_pos), sum_pos
 
 
 class ProtocolDocument(LegalDocumentLowCase):

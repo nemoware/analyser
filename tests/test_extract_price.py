@@ -4,7 +4,7 @@
 
 import unittest
 
-from legal_docs import extract_sum
+from transaction_values import extract_sum
 from text_normalize import *
 
 data = [
