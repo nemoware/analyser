@@ -1,6 +1,7 @@
 import unittest
 
 from patterns import *
+from legal_docs import *
 from embedding_tools import AbstractEmbedder
 import numpy as np
 
@@ -49,6 +50,9 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         self.assertEqual(2, len(fp1.embeddings))
         self.assertEqual(1, len(fp2.embeddings))
         self.assertEqual(3, len(fp3.embeddings))
+
+
+
 
     def test_coumpound_find(self):
         point1 = [1, 3, 7]

@@ -50,6 +50,7 @@ class FuzzyPattern(EmbeddableText):
         self.embeddings = None
 
     def set_embeddings(self, pattern_embedding):
+        #TODO: check dimensions
         assert pattern_embedding[0][0]
         self.embeddings = pattern_embedding
 
@@ -249,10 +250,12 @@ class AbstractPatternFactory:
     def __init__(self, embedder):
         self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
         self.patterns = []
+        self.patterns_dict={}
 
     def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
         fp = FuzzyPattern(prefix_pattern_suffix_tuples, pattern_name)
         self.patterns.append(fp)
+        self.patterns_dict[pattern_name] = fp
         return fp
 
     def embedd(self):
@@ -268,3 +271,23 @@ class AbstractPatternFactory:
 
         for i in range(len(patterns_emb)):
             self.patterns[i].set_embeddings(patterns_emb[i])
+
+    def average_embedding_pattern(self, pattern_prefix):
+        av_emb = None
+        cnt = 0
+        embedding_vector_len = None
+        for p in self.patterns:
+
+            if p.name[0: len(pattern_prefix)] == pattern_prefix:
+                embedding_vector_len=p.embeddings.shape[1]
+                cnt += 1
+                p_av_emb = np.mean(p.embeddings, axis=0)
+                if av_emb is None:
+                    av_emb = np.array(p_av_emb)
+                else:
+                    av_emb += p_av_emb
+
+
+
+        av_emb /= cnt
+        return np.reshape(av_emb, (1, embedding_vector_len))

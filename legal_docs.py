@@ -1,8 +1,44 @@
+import time
+from functools import wraps
 from typing import List
 
 from patterns import *
 from text_normalize import *
 from text_tools import *
+
+PROF_DATA = {}
+
+
+def profile(fn):
+    @wraps(fn)
+    def with_profiling(*args, **kwargs):
+        start_time = time.time()
+
+        ret = fn(*args, **kwargs)
+
+        elapsed_time = time.time() - start_time
+
+        if fn.__name__ not in PROF_DATA:
+            PROF_DATA[fn.__name__] = [0, []]
+        PROF_DATA[fn.__name__][0] += 1
+        PROF_DATA[fn.__name__][1].append(elapsed_time)
+
+        return ret
+
+    return with_profiling
+
+
+def print_prof_data():
+    for fname, data in PROF_DATA.items():
+        max_time = max(data[1])
+        avg_time = sum(data[1]) / len(data[1])
+        print("Function {} called {} times. ".format(fname, data[0]))
+        print('Execution time max: {:.4f}, average: {:.4f}'.format(max_time, avg_time))
+
+
+def clear_prof_data():
+    global PROF_DATA
+    PROF_DATA = {}
 
 
 def normalize(x, out_range=(0, 1)):
@@ -11,7 +47,7 @@ def normalize(x, out_range=(0, 1)):
     return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
 
 
-def smooth(x, window_len=12, window='hanning'):
+def smooth(x, window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
@@ -100,6 +136,8 @@ class LegalDocument(EmbeddableText):
             # TODO: this inversion must be a part of a dist_function
             dists = 1.0 - dists
             distances_per_pattern_dict[pat.name] = dists
+            dists.flags.writeable = False
+
             # print(pat.name)
 
         self.distances_per_pattern_dict = distances_per_pattern_dict
@@ -117,6 +155,7 @@ class LegalDocument(EmbeddableText):
         sub.end = end
         sub.right_padding = 0
 
+        #         if self.embeddings is not None:
         sub.embeddings = self.embeddings[start:end]
 
         sub.distances_per_pattern_dict = {}
@@ -135,21 +174,25 @@ class LegalDocument(EmbeddableText):
         :param soothing_wind_size: smoothing coefficient (like average window size) TODO: rename
         :return:
         """
+
+        print("WARNING: split_into_sections method is deprecated")
+
         tokens = self.tokens
         if (self.right_padding > 0):
             tokens = self.tokens[:-self.right_padding]
         # l = len(tokens)
 
-        distances_to_pattern = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
+        distances_to_pattern = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix,
+                                                                relu_th)
 
         distances_to_pattern = normalize(distances_to_pattern)
+
         distances_to_pattern = smooth(distances_to_pattern, window_len=soothing_wind_size)
 
-        # TODO: this might be an incorret hypotize
         sections = extremums(distances_to_pattern)
-        # finding sentence beginnings
+        # print(sections)
         sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
-
+        # print(sections_starts)
         sections_starts = remove_similar_indexes(sections_starts)
         sections_starts.append(len(tokens))
         # print(sections_starts)
@@ -225,8 +268,57 @@ class LegalDocument(EmbeddableText):
         # print('TOKENS:', self.tokens[0:20])
 
     def embedd(self, pattern_factory):
-        self.embeddings, _g = pattern_factory.embedder.embedd_tokenized_text([self.tokens], [len(self.tokens)])
-        self.embeddings = self.embeddings[0]
+        max_tokens = 8000
+        if len(self.tokens) > max_tokens:
+            self._embedd_large(pattern_factory.embedder, max_tokens)
+        else:
+            self.embeddings = self._emb(self.tokens, pattern_factory.embedder)
+
+        print_prof_data()
+
+    @profile
+    def _emb(self, tokens, embedder):
+        embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
+        embeddings = embeddings[0]
+        return embeddings
+
+    @profile
+    def _embedd_large(self, embedder, max_tokens=8000):
+
+        overlap = int(max_tokens / 5)  # 20%
+
+        number_of_windows = 1 + int(len(self.tokens) / max_tokens)
+        window = max_tokens
+
+        print(
+            "WARNING: Document is too large for embedding. Splitting into {} windows overlapping with {} tokens ".format(
+                number_of_windows, overlap))
+        start = 0
+        embeddings = None
+        tokens = []
+        while start < len(self.tokens):
+            #             start_time = time.time()
+            subtokens = self.tokens[start:start + window + overlap]
+            print("Embedding region:", start, len(subtokens))
+
+            sub_embeddings = self._emb(subtokens, embedder)
+
+            sub_embeddings = sub_embeddings[0:window]
+            subtokens = subtokens[0:window]
+
+            if embeddings is None:
+                embeddings = sub_embeddings
+            else:
+                embeddings = np.concatenate([embeddings, sub_embeddings])
+            tokens += subtokens
+
+            start += window
+            #             elapsed_time = time.time() - start_time
+            #             print ("Elapsed time %d".format(t))
+            print_prof_data()
+
+        self.embeddings = embeddings
+        self.tokens = tokens
 
 
 class LegalDocumentLowCase(LegalDocument):
@@ -263,7 +355,6 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=
 
     for p in distances_per_pattern_dict:
         if p.startswith(prefix):
-            # print(p)
             x = distances_per_pattern_dict[p]
             if sum is None:
                 sum = np.zeros(len(x))
@@ -582,14 +673,69 @@ def mask_sections(section_name_to_weight_dict, doc):
 class CharterDocument(LegalDocumentLowCase):
     def __init__(self, original_text):
         LegalDocumentLowCase.__init__(self, original_text)
+        self.right_padding = 15
+
+    def preprocess_text(self, text):
+        a = text
+        #     a = remove_empty_lines(text)
+        a = normalize_text(a,
+                           dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex)
+        a = self.normalize_sentences_bounds(a)
+
+        return a.lower()
+
+    def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
+
+        print("WARNING: split_into_sections method is deprecated")
+
+        tokens = self.tokens
+        if (self.right_padding > 0):
+            tokens = self.tokens[:-self.right_padding]
+        # l = len(tokens)
+
+        captions = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
+
+        captions = normalize(captions)
+
+        captions = smooth(captions, window_len=soothing_wind_size)
+        captions = normalize(captions)
+        captions = relu(captions, relu_th=0.5)
+
+        captions = smooth(captions, window_len=soothing_wind_size)
+        captions = normalize(captions)
+
+        sections = extremums(captions)
+        # print(sections)
+        sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
+        # print(sections_starts)
+        sections_starts = remove_similar_indexes(sections_starts)
+        sections_starts.append(len(tokens))
+        # print(sections_starts)
+
+        # RENDER sections
+        self.subdocs = []
+        for i in range(1, len(sections_starts)):
+            s = sections_starts[i - 1]
+            e = sections_starts[i]
+            subdoc = self.subdoc(s, e)
+            self.subdocs.append(subdoc)
+            # print('-' * 20)
+            # render_color_text(subdoc.tokens, captions[s:e])
+
+        return self.subdocs, captions
 
 
-def max_by_pattern_prefix(distances_per_pattern_dict, prefix):
+def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
     ret = {}
 
     for p in distances_per_pattern_dict:
         if p.startswith(prefix):
             x = distances_per_pattern_dict[p]
+
+            if attention_vector is not None:
+                x = np.array(x)
+                x += attention_vector
+
             max = x.argmax()
             ret[p] = max
 
@@ -612,11 +758,14 @@ def split_into_sections(doc, caption_indexes):
         doc.subdocs.append(subdoc)
 
 
-def split_doc(doc, caption_prefix):
-    caption_indexes = max_by_pattern_prefix(doc.distances_per_pattern_dict, caption_prefix)
+def split_doc(doc, caption_prefix, attention_vector=None):
+    caption_indexes = max_by_pattern_prefix(doc.distances_per_pattern_dict, caption_prefix, attention_vector)
     for k in caption_indexes:
         caption_indexes[k] = find_token_before_index(doc.tokens, caption_indexes[k], '\n', 0)
     caption_indexes['__start'] = 0
     caption_indexes['__end'] = len(doc.tokens)
 
     split_into_sections(doc, caption_indexes)
+
+
+
