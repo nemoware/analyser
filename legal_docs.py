@@ -209,7 +209,7 @@ class LegalDocument(EmbeddableText):
     # print('TOKENS:', self.tokens[0:20])
 
   def embedd(self, pattern_factory):
-    max_tokens = 8000
+    max_tokens = 6000
     if len(self.tokens) > max_tokens:
       self._embedd_large(pattern_factory.embedder, max_tokens)
     else:
@@ -224,7 +224,7 @@ class LegalDocument(EmbeddableText):
     return embeddings
 
   @profile
-  def _embedd_large(self, embedder, max_tokens=8000):
+  def _embedd_large(self, embedder, max_tokens=6000):
 
     overlap = int(max_tokens / 5)  # 20%
 
@@ -232,8 +232,8 @@ class LegalDocument(EmbeddableText):
     window = max_tokens
 
     print(
-      "WARNING: Document is too large for embedding. Splitting into {} windows overlapping with {} tokens ".format(
-        number_of_windows, overlap))
+      "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
+        len(self.tokens), number_of_windows, overlap))
     start = 0
     embeddings = None
     tokens = []
