@@ -1667,13 +1667,13 @@ def process_find_org_name(txt):
   return orginfo
 
 
-def _populate_rz(rz, the_row, worksheet):
+def _populate_rz(rz, the_row, worksheet, col):
   for head_type in rz:
-    worksheet.update_cell( the_row, 3, '')
-    worksheet.update_cell( the_row, 4, '')
-    worksheet.update_cell( the_row, 5, '')
-    worksheet.update_cell( the_row, 6, '')
-    worksheet.update_cell( the_row, 7, head_type)
+    worksheet.update_cell( the_row, col+3, '')
+    worksheet.update_cell( the_row, col+4, '')
+    worksheet.update_cell( the_row, col+5, '')
+    worksheet.update_cell( the_row, col+6, '')
+    worksheet.update_cell( the_row, col+7, head_types_dict[head_type])
 
     r_by_head_type = rz[head_type]
 
@@ -1686,36 +1686,44 @@ def _populate_rz(rz, the_row, worksheet):
       constraints = sentence['constraints']
       
       if len(constraints) > 0:
-        worksheet.update_cell( the_row, 10, sentence['quote'])
+        worksheet.update_cell( the_row, col+10, sentence['quote'])
         
         
         for c in constraints:          
-          worksheet.update_cell( the_row, 8, c[0])
-          worksheet.update_cell( the_row, 9, currencly_map [c[1]] )
+          worksheet.update_cell( the_row, col+8, c[0])
+          worksheet.update_cell( the_row, col+9, currencly_map [c[1]] )
     #     if len(constraints)>0:
           the_row +=1 
 
     the_row +=1 
     
-  return the_row  
-
+  return the_row
 
 #----------------------
 
 
 
-start_from_row = 2  #@param {type: "integer"}
+start_from_row = 8  #@param {type: "integer"}
 
   
 # _row=3    
 
 the_row=start_from_row
 clear_prof_data
+col=1
 for _row in range(start_from_row, 2+len(charters)):
   
   
   print("-"*120)
   short_fn = worksheet.cell( _row, 1).value
+  
+  try:
+    the_row = int (worksheet.cell( _row, 2).value)
+  except:
+    worksheet.update_cell( _row, 2, the_row)
+
+       
+  
   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + short_fn
   print(_row, filename)
   
@@ -1723,12 +1731,12 @@ for _row in range(start_from_row, 2+len(charters)):
   orginfo = process_find_org_name(txt)
   
    
-  worksheet.update_cell( the_row, 2, short_fn)
-  worksheet.update_cell( the_row, 3, time.strftime("%Y-%m-%d %H:%M"))
+  worksheet.update_cell( the_row, col+2, short_fn)
+  worksheet.update_cell( the_row, col+3, time.strftime("%Y-%m-%d %H:%M"))
   
-  worksheet.update_cell( the_row, 4, orginfo['name'])
-  worksheet.update_cell( the_row, 5, orginfo['type_name'])
-  worksheet.update_cell( the_row, 6, orginfo['type'])
+  worksheet.update_cell( the_row, col+4, orginfo['name'])
+  worksheet.update_cell( the_row, col+5, orginfo['type_name'])
+  worksheet.update_cell( the_row, col+6, orginfo['type'])
   
   the_row+=1
   charter = CharterDocument(txt)
@@ -1742,171 +1750,8 @@ for _row in range(start_from_row, 2+len(charters)):
   
   rz = extract_constraint_values_from_bounding_boxes(_bounds, _doc)
   
-  the_row = 1 + _populate_rz(rz, the_row, worksheet)
+  the_row = 1 + _populate_rz(rz, the_row, worksheet, col)
   
   
   the_row+=1
-
-"""# -- Debug (private)"""
-
-# rz = extract_constraint_values_from_bounding_boxes(bounds, charter)
-
-# render_charter_parsing_results(org, rz)
-
-
-# _doc1 = charter.subdoc(20, len(charter.tokens))
-_bounds, weights = find_charter_head_sections(charter)
-  
-rz = extract_constraint_values_from_bounding_boxes(_bounds, charter)
-
-"""## Render sections"""
-
-charter.calculate_distances_per_pattern(CharterPF)
-
-bounds, weights = find_charter_head_sections(charter, verbose=True)
-
-
-for head_type in bounds.keys(): 
-  print("-"*120)
-  print (head_types_dict[head_type])
-  b = bounds[head_type]
-  a = weights[head_type]
-  
-  html=""
-  html+='<h2 style="color:{}; padding:0">{}</h2>'.format(
-      head_types_colors[head_type],
-      head_types_dict[head_type])
-  display(HTML(html))
-  
-  
-  render_color_text(charter.tokens[b[0]:b[1]], a[b[0]:b[1]])
-
-# html = render_constraint_values (rz)
-
-# display(HTML(html))
-
-render_charter_parsing_results(org, rz)
-
-"""## Fine-tuned Margin Value extractor"""
-
-sample = """
-принятие решений о совершении сделок ( в том числе нескольких взаимосвязанных сделок ) на сумму свыше 50 000 000 ( пятьдесят миллионов ) рублей без учета ндс ( или эквивалента указанной суммы в любой другой валюте ) , но не превышающую 100000000 ( сто миллионов ) рублей без учета ндс ( или эквивалент указанной суммы в любой другой валюте ) , а также о совершении сделок ( в том числе нескольких взаимосвязанных сделок ) с имуществом общества , стоимость которого на основании данных бухгалтерской отчетности общества за последний отчетный период , предшествующий дню принятия решения о совершении таких сделок , превышает 50 000 000 ( пятьдесят миллионов ) рублей без учета ндс ( или эквивалент указанной суммы в любой другой валюте ) , но не превышает 100 000 000 ( сто миллионов ) рублей без учета ндс ( или эквивалент указанной суммы в любой другой валюте ) , за исключением сделок , совершаемых в процессе обычной хозяйственной деятельности общества , а также , за исключением сделок с пао « газпром нефть » и обществами , входящими в группу лиц с ним 
-"""
-
-
-
-class ValuesPatternFactory(AbstractPatternFactory):
-  
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp  
-  
-  def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
-    
-    self.patterns_dict={}
-    
-    self._build_sum_margin_extraction_patterns()
-    self.embedd()
-    
-    
-    self.sum__lt = None
-    self.sum__gt = self.make_average_pattern('sum__gt_')
-    
-    try:
-      self.sum__lt = self.make_average_pattern('sum__lt')
-    except:
-      print('NerPatternFactory: error')
-    
-    
-  def _build_sum_margin_extraction_patterns(self):
-    suffix = 'сто тысяч миллион долларов рублей евро'
-    suffix2 = '0'
-    prefix = 'сделка имеет стоимость '
- 
-    self.create_pattern('sum__lt_1',  (prefix, 'меньше', suffix))
-    #less than
-#     self.create_pattern('sum__lt_1',  (prefix + 'стоимость', 'не более 0', suffix))
-#     self.create_pattern('sum__lt_2',  (prefix + 'цена', 'не больше 0', suffix))
-
-#     self.create_pattern('sum__lt_3',  (prefix + 'стоимость', '<', suffix))
-#     self.create_pattern('sum__lt_4',  (prefix + 'цена', 'менее', suffix))
-#     self.create_pattern('sum__lt_4.1',(prefix + 'цена', 'ниже', suffix))
-# #     self.create_pattern('sum__lt_5',  (prefix + 'стоимость', 'не может превышать 0', suffix))
-# #     self.create_pattern('sum__lt_6',  (prefix + 'лимит соглашения', '0', suffix))
-# #     self.create_pattern('sum__lt_7',  (prefix + 'верхний лимит стоимости', '0', suffix))
-#     self.create_pattern('sum__lt_8',  (prefix,  'максимум', suffix))
-#     self.create_pattern('sum__lt_9',  (prefix,  'до', suffix))
-# #     self.create_pattern('sum__lt_10', (prefix,  'но не превышающую 0', suffix))
-#     self.create_pattern('sum__lt_11', (prefix,  'пороговое значение', suffix))
-    
-    
-
-    #greather than
-#     self.create_pattern('sum__gt_1', (prefix + 'составляет', 'более', suffix))
-    self.create_pattern('sum__gt_2', (prefix + '', 'превышает', suffix))
-    self.create_pattern('sum__gt_6', (prefix + '', 'превышает совокупное пороговое значение', suffix))
-
-    self.create_pattern('sum__gt_3', (prefix , 'больше', suffix))
-    
-#     self.create_pattern('sum__gt_4', (prefix + '', 'сделка имеет стоимость, равную или превышающую 0', suffix))
-    
-    
-    
-     
-
-ValuesPF = ValuesPatternFactory(embedder) 
-
-
-
-_subdoc = CharterDocument(sample)
-_subdoc.parse()
-_subdoc.embedd(ValuesPF)
-_subdoc.calculate_distances_per_pattern(ValuesPF)
-
-def x(section):
-
-  relu_th=0.4
-  v_lt = make_soft_attention_vector(section, 'sum__lt', relu_th=relu_th, blur=8)  
-  v_lt = relu(v_lt, relu_th)
-
-  v_gt = make_soft_attention_vector(section, 'sum__gt', relu_th=relu_th, blur=8)  
-  v_gt = relu(v_gt, relu_th)
-
-  v = make_soft_attention_vector(section, 'sum__', relu_th=relu_th, blur=8)  
-  v = relu(v_gt, relu_th)
-
-  
-  tokens = section.tokens[0:len(v_gt)]
-  
-  print("GREATER")
-  render_color_text(tokens, v_gt)
-
-  print("LESS")
-  render_color_text(tokens, v_lt)
-  
-  render_color_text(tokens, v)
-  
-  
-  fig = plt.figure(figsize=(20, 6))
-  ax = plt.axes()
-
-  ax.plot(v_lt  , alpha=0.4, color='green');
-  ax.plot(v_gt  , alpha=0.4, color='magenta');
-  ax.plot( v  , alpha=0.9, color='red');
-  
-  
-  att_v = v_gt
-  
-  results, points = extract_sums_from_tokens(tokens, att_v, verbose=True)
-  print(points)
-  print(extremums(att_v))
-  for r in results:
-    print(r['sum'], r['sentence'])
-
-  
-  
-x(_subdoc)
+  worksheet.update_cell( _row+1, 2, the_row)
