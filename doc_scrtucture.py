@@ -238,7 +238,7 @@ class DocumentStructure:
         if s.level == 0:
           s.level == 2
 
-    for level in range(0, 1):
+    for level in range(0, 4):
       print('W' * 40, level)
       self._fix_numbered_structure(numbered, level)
 
@@ -304,7 +304,7 @@ class DocumentStructure:
           cont_index = self.find_continuation(structure[i:], last_in_sequence.minor_number + 1, last_in_sequence.level)
           if cont_index > 0:
             for k in range(i, i + cont_index):
-              structure[k].add_possible_level(max(level + 1, 1 + structure[k].level))
+              structure[k].add_possible_level(max(level + 1, structure[k].level))
             sequence_on_level.append(last_index_of_seq)
             i += cont_index
             # sequence_on_level.append(i)
