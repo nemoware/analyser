@@ -3,3 +3,4 @@ venv/
 .idea/
 tests/nltk_data*
 tests/~
+*.pyc
