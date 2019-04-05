@@ -96,11 +96,54 @@ def get_tokenized_line_number(tokens: List, last_level):
       # x = re.search(r'^\s*[\-|•]\s*', tokens[token_index], flags=re.MULTILINE)
       x = re.search(r'^[\-|•]', tokens[token_index], flags=re.MULTILINE)
       if x is not None:
-        return None, (0, 1), last_level
+        return [-1], (0, 1), last_level
       else:
         pass
 
   return None, (0, 0), last_level
+
+
+class StructureLine():
+
+  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1 ) -> None:
+    super().__init__()
+    self.number = number
+    self.level = level
+    self.bullet = bullet
+    self.span = span
+    self.text_offset = text_offset
+
+  def print(self, tokens_cc, suffix=''):
+
+    offset = ' . ' * self.level
+
+    number_str = '.'.join([str(x) for x in self.number])
+    if self.bullet:
+      number_str = '• '
+    if self.numbered:
+      number_str += '.'
+    #         print(offset, number_str, (self.tokens_cc[span[0] + number_tokens:span[1]]))
+    values = "not text so far"
+    if tokens_cc is not None:
+      values = untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
+
+    print('ds>\t', offset, number_str, values, suffix)
+
+  def get_numbered(self) -> bool:
+    return len(self.number) > 0
+
+  def get_minor_number(self) -> int:
+    return self.number[-1]
+
+  numbered = property(get_numbered)
+  minor_number = property(get_minor_number)
+
+  # level: int  # 0
+  # number: List  # 1
+  # bullet: bool  # 3
+  # span: tuple
+  # text_offset: int
+  # pl: List[int]
 
 
 class DocumentStructure:
@@ -145,25 +188,29 @@ class DocumentStructure:
           number = []
         else:
           last_level_known = _level
+          if number[-1] < 0:
+            bullet = True
+            number = []
 
         if min_level is None or _level < min_level:
           min_level = _level
 
+
         # level , section number, is it a bullet, span : (start, end)
-        section_meta = {
-          'level': _level,  # 0
-          'number': number,  # 1
-          'bullet': bullet,  # 3
-          'span': (index, index + len(line_tokens)),
-          'text_offset': span[1]
-        }
+        section_meta = StructureLine(
+          level=_level,  # 0
+          number=number,  # 1
+          bullet=bullet,  # 3
+          span=(index, index + len(line_tokens)),
+          text_offset = span[1]
+        )
 
         structure.append(section_meta)
 
         index = len(tokens)
 
     for s in structure:
-      s['level'] -= min_level
+      s.level -= min_level
 
     self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
 
@@ -175,38 +222,38 @@ class DocumentStructure:
   def fix_structure(self, structure):
     numbered = []
     for s in structure:
-      if len(s['number']) > 0:
+      if s.numbered:
         # numbered
         numbered.append(s)
-        s['PL'] = []
+        s.pl = []
       else:
-        if s['level'] == 0:
-          s['level'] == 2
+        if s.level == 0:
+          s.level == 2
 
     for level in range(0, 4):
       print('W' * 40, level)
-      self.fix_numbered_structure(numbered, level)
+      self._fix_numbered_structure(numbered, level)
 
     # DEBUG
     for i in range(len(numbered)):
       line = numbered[i]
-      print(line['PL'])
-      if len(line['PL']) > 0:
+      # print(line.pl)
+      if len(line.pl) > 0:
         # fixing:
-        line['level'] = int(np.median(line['PL']))
-        print(line['level'])
-      self._print_line(line, str(line['level']) + '--->' + str(line['PL']) + ' i:' + str(i))
+        line.level = int(np.median(line.pl))
+        # print(line.level)
+        line.print(self.tokens_cc, str(line.level) + '--->' + str(line.pl) + ' i:' + str(i))
 
     for s in structure:
 
       last_level = None
-      if len(s['number']) > 0:
-        last_level = s['level']
+      if s.numbered:
+        last_level = s.level
       else:
         # non numbered
         if last_level is not None:
-          if s['level'] < last_level + 1:
-            s['level'] = last_level + 1
+          if s.level < last_level + 1:
+            s.level = last_level + 1
 
     return structure
 
@@ -217,11 +264,11 @@ class DocumentStructure:
 
       prev = structure[last_index_of_seq]
       curr = structure[index]
-      if curr['number'][-1] - 1 == prev['number'][-1]:
+      if curr.minor_number - 1 == prev.minor_number:
         if ignore_level:
           return True
         else:
-          return curr['level'] == prev['level']
+          return curr.level == prev.level
 
       return False
 
@@ -232,16 +279,19 @@ class DocumentStructure:
 
     sequence_on_level = []
     last_index_of_seq = -1
+    last_in_sequence=None
     for i in range(len(structure)):
       line = structure[i]
-      if line['level'] == level:
+      if line.level == level:
         if sequence_continues(i, last_index_of_seq):
           sequence_on_level.append(i)
           last_index_of_seq = i
+          last_in_sequence = line
         else:
-          line['PL'].append(level + 1)
+          # if line.minor_number >= last_in_sequence.level
+          line.pl.append(level + 1)
 
-    print('sequence_on_level', level, sequence_on_level, [structure[x]['number'] for x in sequence_on_level])
+    print('sequence_on_level', level, sequence_on_level, [structure[x].number for x in sequence_on_level])
     # ----------------
     # first segement:
     if len(sequence_on_level) > 0:
@@ -256,20 +306,4 @@ class DocumentStructure:
 
   def print_structured(self, doc):
     for s in self.structure:
-      self._print_line(s, doc.tokens_cc)
-
-  def _print_line(self, s, tokens_cc, suffix=''):
-    span = s['span']
-    number = s['number']
-    offset = ' . ' * s['level']
-    number_tokens = s['text_offset']
-    number_str = '.'.join([str(x) for x in number])
-    if s['bullet']:  # Not a blullet
-      number_str = '• '
-    if len(number) > 0:
-      number_str += '.'
-    #         print(offset, number_str, (self.tokens_cc[span[0] + number_tokens:span[1]]))
-    values = "not text so far"
-    if tokens_cc is not None:
-      values = untokenize(tokens_cc[span[0] + number_tokens:span[1]])
-    print(offset, number_str, values, suffix)
+      s.print(doc.tokens_cc)
