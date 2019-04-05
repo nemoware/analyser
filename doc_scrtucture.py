@@ -238,7 +238,7 @@ class DocumentStructure:
         if s.level == 0:
           s.level == 2
 
-    for level in range(0, 4):
+    for level in range(0, 1):
       print('W' * 40, level)
       self._fix_numbered_structure(numbered, level)
 
@@ -265,20 +265,20 @@ class DocumentStructure:
 
     return structure
 
-  def _fix_numbered_structure(self, structure, level=0):
-    def sequence_continues(index, last_index_of_seq, ignore_level=False):
-      if last_index_of_seq < 0:
+  def _sequence_continues(self, structure, index, prev, ignore_level=False):
+    if prev is None:
+      return True
+
+    curr = structure[index]
+    if curr.minor_number - 1 == prev.minor_number:
+      if ignore_level:
         return True
+      else:
+        return curr.level == prev.level
 
-      prev = structure[last_index_of_seq]
-      curr = structure[index]
-      if curr.minor_number - 1 == prev.minor_number:
-        if ignore_level:
-          return True
-        else:
-          return curr.level == prev.level
+    return False
 
-      return False
+  def _fix_numbered_structure(self, structure, level=0):
 
     def process_substructure(s, e):
       substructure = structure[s:e]
@@ -288,16 +288,33 @@ class DocumentStructure:
     sequence_on_level = []
     last_index_of_seq = -1
     last_in_sequence = None
+
     for i in range(len(structure)):
       line = structure[i]
       if line.level == level:
-        if sequence_continues(i, last_index_of_seq):
+
+        if self._sequence_continues(structure, i, last_in_sequence):
           sequence_on_level.append(i)
           last_index_of_seq = i
           last_in_sequence = line
         else:
-          # if line.minor_number >= last_in_sequence.level
-          line.add_possible_level(level + 1)
+
+          # find_continuation:
+
+          cont_index = self.find_continuation(structure[i:], last_in_sequence.minor_number + 1, last_in_sequence.level)
+          if cont_index > 0:
+            for k in range(i, i + cont_index):
+              structure[k].add_possible_level(max(level + 1, 1 + structure[k].level))
+            sequence_on_level.append(last_index_of_seq)
+            i += cont_index
+            # sequence_on_level.append(i)
+            # last_in_sequence = structure[i]
+            # i+=1
+            print('sequence_on_level=', sequence_on_level)
+          else:
+            # TODO: add all
+            # line.add_possible_level(max(level+1, line.level) )
+            pass
 
     print('sequence_on_level', level, sequence_on_level, [structure[x].number for x in sequence_on_level])
     # ----------------
@@ -311,6 +328,28 @@ class DocumentStructure:
 
       # last segement:
       process_substructure(sequence_on_level[-1], None)
+
+  def find_continuation(self, sub_str, search_for_number, level):
+
+    prev = None
+    for j in range(len(sub_str)):
+      line = sub_str[j]
+
+      if self._sequence_continues(sub_str, j, prev, ignore_level=True):
+        prev = line
+
+        if j == len(sub_str) - 1:
+          return j
+      else:
+        if search_for_number == line.minor_number and line.level == level:
+          # TODO: check  level also
+          return j
+        else:
+          cnt = self.find_continuation(sub_str[j:], line.minor_number + 1, line.level)
+          if (cnt > 0):
+            return j + cnt
+
+    return -1
 
   def print_structured(self, doc):
     for s in self.structure:
