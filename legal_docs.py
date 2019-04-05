@@ -6,7 +6,7 @@ from ml_tools import normalize, smooth, relu, extremums
 from patterns import *
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, extract_sum_from_doc
+from transaction_values import extract_sum_from_tokens
 
 PROF_DATA = {}
 
@@ -50,6 +50,7 @@ class LegalDocument(EmbeddableText):
     self.original_text = original_text
     self.filename = None
     self.tokens = None
+    self.tokens_cc = None
     self.embeddings = None
     self.normal_text = None
     self.distances_per_pattern_dict = None
@@ -104,6 +105,7 @@ class LegalDocument(EmbeddableText):
         sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][start:end]
 
     sub.tokens = self.tokens[start:end]
+    sub.tokens_cc = self.tokens_cc[start:end]
     return sub
 
   def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
@@ -183,8 +185,7 @@ class LegalDocument(EmbeddableText):
     self.embeddings = None
     self.normal_text = None
 
-  def tokenize(self, _txt=None):
-    if _txt is None: _txt = self.normal_text
+  def tokenize(self, _txt):
 
     _words = tokenize_text(_txt)
 
@@ -194,7 +195,8 @@ class LegalDocument(EmbeddableText):
     for i in range(end):
       if (_words[i] == '\n') or i == end - 1:
         chunk = _words[last_cr_index:i + 1]
-        chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
+        if (self.right_padding > 0):
+          chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
         sparse_words += chunk
         last_cr_index = i + 1
 
@@ -204,7 +206,9 @@ class LegalDocument(EmbeddableText):
     if txt is None: txt = self.original_text
     self.normal_text = self.preprocess_text(txt)
 
-    self.tokens = self.tokenize()
+    self.tokens = self.tokenize(self.normal_text)
+    self.tokens_cc = np.array(self.tokens)
+
     return self.tokens
     # print('TOKENS:', self.tokens[0:20])
 
@@ -267,17 +271,17 @@ class LegalDocumentLowCase(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-  def preprocess_text(self, text):
-    a = text
-    #     a = remove_empty_lines(text)
-    a = normalize_text(a,
-                       dates_regex + abbreviation_regex + fixtures_regex +
-                       spaces_regex + syntax_regex + numbers_regex +
-                       formatting_regex + tables_regex)
+  def parse(self, txt=None):
+    if txt is None: txt = self.original_text
+    self.normal_text = self.preprocess_text(txt)
 
-    a = self.normalize_sentences_bounds(a)
+    self.tokens_cc = self.tokenize(self.normal_text)
 
-    return a.lower()
+    self.normal_text = self.normal_text.lower()
+
+    self.tokens = self.tokenize(self.normal_text)
+
+    return self.tokens
 
 
 class ContractDocument(LegalDocumentLowCase):
@@ -520,16 +524,7 @@ def mask_sections(section_name_to_weight_dict, doc):
 class CharterDocument(LegalDocumentLowCase):
   def __init__(self, original_text):
     LegalDocumentLowCase.__init__(self, original_text)
-    self.right_padding = 15
-
-  def preprocess_text(self, text):
-    a = text
-    #     a = remove_empty_lines(text)
-    a = normalize_text(a,
-                       dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex)
-    a = self.normalize_sentences_bounds(a)
-
-    return a.lower()
+    self.right_padding = 10
 
   def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
 
@@ -613,3 +608,53 @@ def split_doc(doc, caption_prefix, attention_vector=None):
   caption_indexes['__end'] = len(doc.tokens)
 
   split_into_sections(doc, caption_indexes)
+
+
+
+def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
+  sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max', relu_th=relu_th)
+  sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg', relu_th=relu_th)
+
+  sum_pos -= sum_neg
+
+  sum_pos = smooth(sum_pos, window_len=8)
+  #     sum_pos = relu(sum_pos, 0.65)
+
+  if attention_mask is not None:
+    sum_pos *= attention_mask
+
+  sum_pos = normalize(sum_pos)
+
+  return _extract_sums_from_distances(doc, sum_pos), sum_pos
+
+
+def _extract_sum_from_distances____(doc: LegalDocument, sums_no_padding):
+  max_i = np.argmax(sums_no_padding)
+  start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+  sentence_tokens = doc.tokens[start + 1:end]
+
+  f, sentence = extract_sum_from_tokens(sentence_tokens)
+
+  return (f, (start, end), sentence)
+
+
+def _extract_sums_from_distances(doc: LegalDocument, x):
+  maximas = extremums(x)
+
+  results = []
+  for max_i in maximas:
+    start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+    sentence_tokens = doc.tokens[start + 1:end]
+
+    f, sentence = extract_sum_from_tokens(sentence_tokens)
+
+    if f is not None:
+      result = {
+        'sum': f,
+        'region': (start, end),
+        'sentence': sentence,
+        'confidence': x[max_i]
+      }
+      results.append(result)
+
+  return results

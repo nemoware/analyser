@@ -76,3 +76,86 @@ def extremums(x):
     if x[i - 1] < x[i] > x[i + 1]:
       extremums.append(i)
   return extremums
+
+
+def softmax(v):
+  x = normalize(v)
+  x /= len(x)
+  return x
+
+
+def make_echo(av, k=0.5):
+  innertia = np.zeros(len(av))
+  sum = 0
+
+  for i in range(len(av)):
+    if av[i] > k:
+      sum = av[i]
+    innertia[i] = sum
+  #     sum-=0.0005
+  return innertia
+
+
+# def momentum(av, decay=0.9):
+#   innertia = np.zeros(len(av))
+#   m = 0
+#   for i in range(len(innertia)):
+#     m += av[i]
+#     if m > 2:
+#       m=2
+#     innertia[i] = m
+
+#     m *= decay
+
+#   return innertia
+
+
+# def momentum(av, decay=0.9):
+#   m = np.zeros(len(av))
+#   m[0]=av[0]
+#   for i in range(len(av)):
+#     m[i] = max(av[i], m[i-1]*decay)
+#   return m
+
+def momentum_(x, decay=0.99):
+  innertia = np.zeros(len(x))
+  m = 0
+  for i in range(len(x)):
+    m += x[i]
+    innertia[i] = m
+    m *= decay
+
+  return innertia
+
+
+def momentum(x, decay=0.999):
+  innertia = np.zeros(len(x))
+  m = 0
+  for i in range(len(x)):
+    m = max(m, x[i])
+    innertia[i] = m
+    m *= decay
+
+  return innertia
+
+def onehot_column(a, mask=-2 ** 32, replacement=None):
+    """
+
+    Searches for maximum in every column.
+    Other elements are replaced with mask
+
+    :param a:
+    :param mask:
+    :return:
+    """
+    maximals = np.max(a, 0)
+
+    for i in range(a.shape[0]):
+      for j in range(a.shape[1]):
+        if a[i, j] < maximals[j]:
+          a[i, j] = mask
+        else:
+          if replacement is not None:
+            a[i, j] = replacement
+
+    return a
