@@ -105,13 +105,23 @@ def get_tokenized_line_number(tokens: List, last_level):
 
 class StructureLine():
 
-  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1 ) -> None:
+  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1) -> None:
     super().__init__()
     self.number = number
     self.level = level
     self.bullet = bullet
     self.span = span
     self.text_offset = text_offset
+    self._possible_levels = []
+
+  def get_median_possible_level(self):
+    if len(self._possible_levels) == 0:
+      return self.level
+
+    return int(np.median(self._possible_levels))
+
+  def add_possible_level(self, l):
+    self._possible_levels.append(l)
 
   def print(self, tokens_cc, suffix=''):
 
@@ -195,14 +205,13 @@ class DocumentStructure:
         if min_level is None or _level < min_level:
           min_level = _level
 
-
         # level , section number, is it a bullet, span : (start, end)
         section_meta = StructureLine(
           level=_level,  # 0
           number=number,  # 1
           bullet=bullet,  # 3
           span=(index, index + len(line_tokens)),
-          text_offset = span[1]
+          text_offset=span[1]
         )
 
         structure.append(section_meta)
@@ -225,7 +234,6 @@ class DocumentStructure:
       if s.numbered:
         # numbered
         numbered.append(s)
-        s.pl = []
       else:
         if s.level == 0:
           s.level == 2
@@ -237,12 +245,12 @@ class DocumentStructure:
     # DEBUG
     for i in range(len(numbered)):
       line = numbered[i]
-      # print(line.pl)
-      if len(line.pl) > 0:
+
+      if len(line._possible_levels) > 0:
         # fixing:
-        line.level = int(np.median(line.pl))
+        line.level = line.get_median_possible_level()
         # print(line.level)
-        line.print(self.tokens_cc, str(line.level) + '--->' + str(line.pl) + ' i:' + str(i))
+        line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
 
     for s in structure:
 
@@ -279,7 +287,7 @@ class DocumentStructure:
 
     sequence_on_level = []
     last_index_of_seq = -1
-    last_in_sequence=None
+    last_in_sequence = None
     for i in range(len(structure)):
       line = structure[i]
       if line.level == level:
@@ -289,7 +297,7 @@ class DocumentStructure:
           last_in_sequence = line
         else:
           # if line.minor_number >= last_in_sequence.level
-          line.pl.append(level + 1)
+          line.add_possible_level(level + 1)
 
     print('sequence_on_level', level, sequence_on_level, [structure[x].number for x in sequence_on_level])
     # ----------------
