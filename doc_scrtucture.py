@@ -105,7 +105,7 @@ def get_tokenized_line_number(tokens: List, last_level):
 
 class StructureLine():
 
-  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1) -> None:
+  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1, line_number=-1) -> None:
     super().__init__()
     self.number = number
     self.level = level
@@ -113,19 +113,24 @@ class StructureLine():
     self.span = span
     self.text_offset = text_offset
     self._possible_levels = []
+    self.line_number = line_number
+
+  def __str__(self) -> str:
+    return ('#{}  N:{}  L:{} -> PL:{}, '.format(self.minor_number, self.number, self.level, self._possible_levels))
 
   def get_median_possible_level(self):
     if len(self._possible_levels) == 0:
       return self.level
 
-    return int(np.median(self._possible_levels))
+    counts = np.bincount(self._possible_levels)
+    return np.argmax(counts)
 
   def add_possible_level(self, l):
     self._possible_levels.append(l)
 
   def print(self, tokens_cc, suffix=''):
 
-    offset = ' . ' * self.level
+    offset = '  .  ' * self.level
 
     number_str = '.'.join([str(x) for x in self.number])
     if self.bullet:
@@ -137,7 +142,7 @@ class StructureLine():
     if tokens_cc is not None:
       values = untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
-    print('ds>\t', offset, number_str, values, suffix)
+    print('ds> {}\t'.format(self.line_number), offset, number_str, values, suffix)
 
   def get_numbered(self) -> bool:
     return len(self.number) > 0
@@ -147,13 +152,6 @@ class StructureLine():
 
   numbered = property(get_numbered)
   minor_number = property(get_minor_number)
-
-  # level: int  # 0
-  # number: List  # 1
-  # bullet: bool  # 3
-  # span: tuple
-  # text_offset: int
-  # pl: List[int]
 
 
 class DocumentStructure:
@@ -171,8 +169,6 @@ class DocumentStructure:
     line_number = 0
 
     last_level_known = 0
-
-    min_level = None
 
     structure = []
 
@@ -196,14 +192,16 @@ class DocumentStructure:
 
         if number is None:
           number = []
+
+        #           if row.upper() == row: #HEADLINE?
+        #             _level = -1
+        #             last_level_known = _level
+
         else:
           last_level_known = _level
           if number[-1] < 0:
             bullet = True
             number = []
-
-        if min_level is None or _level < min_level:
-          min_level = _level
 
         # level , section number, is it a bullet, span : (start, end)
         section_meta = StructureLine(
@@ -211,15 +209,13 @@ class DocumentStructure:
           number=number,  # 1
           bullet=bullet,  # 3
           span=(index, index + len(line_tokens)),
-          text_offset=span[1]
+          text_offset=span[1],
+          line_number=line_number - 1
         )
 
         structure.append(section_meta)
 
         index = len(tokens)
-
-    for s in structure:
-      s.level -= min_level
 
     self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
 
@@ -228,48 +224,69 @@ class DocumentStructure:
     self.structure = structure
     return tokens, tokens_cc
 
-  def fix_structure(self, structure):
+  def fix_structure(self, structure, verbose=False):
+
+    numbered = self._get_numbered_lines(structure)
+
+    for s in numbered:
+      s.add_possible_level(s.level)
+
+    for s in numbered:
+      if (len(s.number) >= 2):
+        s.add_possible_level(s.level)
+
+    for level in range(0, 3):
+      print('W' * 40, level)
+      self._fix_numbered_structure(numbered, level, verbose)
+
+    self._update_levels(numbered, verbose)
+    self._level_non_numbered(structure)
+
+    minlevel = structure[0].level
+    for s in structure:
+      if s.level < minlevel:
+        minlevel = s.level
+
+    for s in structure:
+      s.level -= minlevel
+
+    return structure
+
+  def _get_numbered_lines(self, structure):
     numbered = []
     for s in structure:
       if s.numbered:
         # numbered
         numbered.append(s)
-      else:
-        if s.level == 0:
-          s.level == 2
+    return numbered
 
-    for level in range(0, 4):
-      print('W' * 40, level)
-      self._fix_numbered_structure(numbered, level)
-
+  def _update_levels(self, numbered, verbose):
     # DEBUG
     for i in range(len(numbered)):
       line = numbered[i]
 
-      if len(line._possible_levels) > 0:
-        # fixing:
-        line.level = line.get_median_possible_level()
-        # print(line.level)
+      # fixing:
+      line.level = line.get_median_possible_level()
+      # print(line.level)
+      if verbose:
         line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
 
+  def _level_non_numbered(self, structure):
     for s in structure:
-
-      last_level = None
+      last_level = 1
       if s.numbered:
         last_level = s.level
       else:
         # non numbered
-        if last_level is not None:
-          if s.level < last_level + 1:
-            s.level = last_level + 1
+        if s.level < last_level + 1:
+          s.level = last_level + 1
 
-    return structure
-
-  def _sequence_continues(self, structure, index, prev, ignore_level=False):
-    if prev is None:
+  def _sequence_continues(self, structure, index, index_prev, ignore_level=False):
+    if index_prev < 0:
       return True
 
     curr = structure[index]
+    prev = structure[index_prev]
     if curr.minor_number - 1 == prev.minor_number:
       if ignore_level:
         return True
@@ -278,7 +295,7 @@ class DocumentStructure:
 
     return False
 
-  def _fix_numbered_structure(self, structure, level=0):
+  def _fix_numbered_structure(self, structure, level=0, verbose=False):
 
     def process_substructure(s, e):
       substructure = structure[s:e]
@@ -287,36 +304,57 @@ class DocumentStructure:
 
     sequence_on_level = []
     last_index_of_seq = -1
-    last_in_sequence = None
 
-    for i in range(len(structure)):
+    i = 0
+    while i < len(structure):
+      # for i in range(len(structure)):
       line = structure[i]
+
       if line.level == level:
 
-        if self._sequence_continues(structure, i, last_in_sequence):
+        if self._sequence_continues(structure, i, last_index_of_seq):
           sequence_on_level.append(i)
           last_index_of_seq = i
-          last_in_sequence = line
-        else:
 
+          i += 1
+        else:
           # find_continuation:
 
-          cont_index = self.find_continuation(structure[i:], last_in_sequence.minor_number + 1, last_in_sequence.level)
-          if cont_index > 0:
-            for k in range(i, i + cont_index):
-              structure[k].add_possible_level(max(level + 1, structure[k].level))
+          cont_index_min = self.find_continuation(structure[i:],
+                                                  structure[last_index_of_seq].minor_number + 1,
+                                                  structure[last_index_of_seq].level,
+                                                  ignore_level=False)
+
+          cont_index_max = self.find_continuation(structure[i:],
+                                                  structure[last_index_of_seq].minor_number + 1,
+                                                  structure[last_index_of_seq].level,
+                                                  ignore_level=True)
+
+          if cont_index_max > 0:
+            for k in range(i, i + cont_index_max):
+              structure[k].add_possible_level(max(structure[last_index_of_seq].level + 1, structure[k].level))
+
+          if cont_index_min > 0:
+            for k in range(i, i + cont_index_min):
+              structure[k].add_possible_level(max(structure[last_index_of_seq].level + 1, structure[k].level))
+
             sequence_on_level.append(last_index_of_seq)
-            i += cont_index
+
+            i += cont_index_min
             # sequence_on_level.append(i)
             # last_in_sequence = structure[i]
             # i+=1
-            print('sequence_on_level=', sequence_on_level)
+            if verbose:
+              print('sequence_on_level=', sequence_on_level)
           else:
             # TODO: add all
-            # line.add_possible_level(max(level+1, line.level) )
-            pass
+            line.add_possible_level(max(level + 1, line.level))
+            i += 1
+      else:
+        i += 1
 
-    print('sequence_on_level', level, sequence_on_level, [structure[x].number for x in sequence_on_level])
+    if verbose:
+      print('sequence_on_level', level, sequence_on_level, [structure[x].number for x in sequence_on_level])
     # ----------------
     # first segement:
     if len(sequence_on_level) > 0:
@@ -329,14 +367,14 @@ class DocumentStructure:
       # last segement:
       process_substructure(sequence_on_level[-1], None)
 
-  def find_continuation(self, sub_str, search_for_number, level):
+  def find_continuation(self, sub_str, search_for_number, level, ignore_level):
 
-    prev = None
+    prev = -1
     for j in range(len(sub_str)):
       line = sub_str[j]
 
-      if self._sequence_continues(sub_str, j, prev, ignore_level=True):
-        prev = line
+      if self._sequence_continues(sub_str, j, prev, ignore_level=ignore_level):
+        prev = j
 
         if j == len(sub_str) - 1:
           return j
@@ -345,12 +383,13 @@ class DocumentStructure:
           # TODO: check  level also
           return j
         else:
-          cnt = self.find_continuation(sub_str[j:], line.minor_number + 1, line.level)
+          cnt = self.find_continuation(sub_str[j:], line.minor_number + 1, line.level, ignore_level)
           if (cnt > 0):
             return j + cnt
 
     return -1
 
-  def print_structured(self, doc):
+  def print_structured(self, doc, numbered_only=False):
     for s in self.structure:
-      s.print(doc.tokens_cc)
+      if s.numbered or not numbered_only:
+        s.print(doc.tokens_cc, str(s._possible_levels))
