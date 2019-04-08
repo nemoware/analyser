@@ -1,7 +1,13 @@
 import numpy as np
 
+
 def normalize(x, out_range=(0, 1)):
   domain = np.min(x), np.max(x)
+  if (domain[1] - domain[0]) == 0:
+    # all same
+    print('normalize WARNING!!, cannot normalize:', x)
+    return np.ones(len(x)) * domain[1]
+
   y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
   return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
 
@@ -138,24 +144,33 @@ def momentum(x, decay=0.999):
 
   return innertia
 
+
 def onehot_column(a, mask=-2 ** 32, replacement=None):
-    """
+  """
 
-    Searches for maximum in every column.
-    Other elements are replaced with mask
+  Searches for maximum in every column.
+  Other elements are replaced with mask
 
-    :param a:
-    :param mask:
-    :return:
-    """
-    maximals = np.max(a, 0)
+  :param a:
+  :param mask:
+  :return:
+  """
+  maximals = np.max(a, 0)
 
-    for i in range(a.shape[0]):
-      for j in range(a.shape[1]):
-        if a[i, j] < maximals[j]:
-          a[i, j] = mask
-        else:
-          if replacement is not None:
-            a[i, j] = replacement
+  for i in range(a.shape[0]):
+    for j in range(a.shape[1]):
+      if a[i, j] < maximals[j]:
+        a[i, j] = mask
+      else:
+        if replacement is not None:
+          a[i, j] = replacement
 
-    return a
+  return a
+
+
+def most_popular_in(arr):
+  if len(arr) == 0:
+    return None
+
+  counts = np.bincount(arr)
+  return np.argmax(counts)

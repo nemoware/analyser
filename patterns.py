@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
+
+load_punkt=False
+
+
 from text_tools import *
 
 TEXT_PADDING = 10  # maximum pattern len (in words)
@@ -25,12 +29,13 @@ import os
 if not os.path.exists(save_nltk_dir):
   os.makedirs(save_nltk_dir)
 
-russian_punkt = urllib.request.urlopen(russian_punkt_url)
-with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
-  output.write(russian_punkt.read())
+if load_punkt:
+  russian_punkt = urllib.request.urlopen(russian_punkt_url)
+  with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
+    output.write(russian_punkt.read())
 
-ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
-print(ru_tokenizer)
+  ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
+  print(ru_tokenizer)
 
 
 class EmbeddableText:
