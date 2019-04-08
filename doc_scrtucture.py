@@ -126,8 +126,8 @@ class StructureLine():
     counts = np.bincount(self._possible_levels)
     return np.argmax(counts)
 
-  def get_parent_number (self):
-    if len(self.number) >1:
+  def get_parent_number(self):
+    if len(self.number) > 1:
       return self.number[-2]
 
     return None
@@ -239,29 +239,85 @@ class DocumentStructure:
 
     numbered = self._get_numbered_lines(structure)
 
-    # for s in numbered:
-    #   s.add_possible_level(s.level)
+    # for level in range(0, 1):
+    #   print('W' * 40, level)
+    #   self._fix_numbered_structure(numbered, level=level, verbose=verbose)
+    #   self._update_levels(numbered, verbose)
 
-    for s in numbered:
-      if (len(s.number) >= 2):
-        s.add_possible_level(s.level)
+    for a in range(1):
+      self._level_non_numbered(structure)
+      self._normalize_levels(structure)
 
-    for level in range(0, 1):
-      print('W' * 40, level)
-      self._fix_numbered_structure(numbered, level=level, verbose=verbose)
+      self._fix_top_level_lines(numbered)
       self._update_levels(numbered, verbose)
 
-    self._level_non_numbered(structure)
-
-    # minlevel = structure[0].level
-    # for s in structure:
-    #   if s.level < minlevel:
-    #     minlevel = s.level
-    #
-    # for s in structure:
-    #   s.level -= minlevel
+      self._level_non_numbered(structure)
+      self._normalize_levels(structure)
 
     return structure
+
+  def _fix_top_level_lines(self, structure, start=0, level_delta=0, max_hole=0):
+    for allowed_level_delta in [0, 1]:
+      for check_parent in [True, False]:
+        for max_hole in [0, 0, 1, 2]:
+          self._correct_sequence(structure, 0,
+                                 level=0,
+                                 level_delta=allowed_level_delta,
+                                 max_hole=max_hole,
+                                 check_parent=check_parent)
+
+  def _correct_sequence(self, structure, start=0, level=0, level_delta=0, max_hole=0, check_parent=True):
+    if len(structure) < 1:
+      return
+
+    last = -1
+    i = start
+    while i < len(structure):
+
+      if self._sequence_continues(structure, i, last):
+        structure[i].add_possible_level(max(level, structure[i].level))
+        if last > 0:
+          structure[i].add_possible_level(max(level, structure[last].level))
+          structure[last].add_possible_level(max(level, structure[i].level))
+
+        last = i
+        i += 1
+        pass
+      else:
+        # Subsequence? or end of sequence?
+        if structure[i].minor_number == 1:
+          i = self._correct_sequence(structure, start=i, level=level + 1, level_delta=level_delta, max_hole=max_hole,
+                                     check_parent=check_parent)
+        else:
+          return i + 1
+
+    return i
+    
+  def _find_probable_sequences_on_level(self, structure, level):
+    sequences = []
+    for i in range(len(structure)):
+      if structure[i].level == level:
+        sequence = np.zeros(len(structure))
+        sequences.append(sequence)
+
+        for allowed_level_delta in [0, 1]:
+          for check_parent in [True, False]:
+            for max_hole in [0, 0, 1, 2]:
+              self._search_possibilities(structure, [i], sequence, 1.1,
+                                         check_parent=check_parent,
+                                         allowed_level_delta=allowed_level_delta,
+                                         max_hole=max_hole)
+
+        return sequences
+    return sequences
+
+  def _normalize_levels(self, structure):
+    minlevel = structure[0].level
+    for s in structure:
+      if s.level < minlevel:
+        minlevel = s.level
+    for s in structure:
+      s.level -= minlevel
 
   def _get_numbered_lines(self, structure):
     numbered = []
@@ -277,7 +333,8 @@ class DocumentStructure:
       line = numbered[i]
 
       # fixing:
-      line.level = line.get_median_possible_level()
+      if len(line.number) < 2:
+        line.level = line.get_median_possible_level()
       # print(line.level)
       if verbose:
         line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
@@ -324,78 +381,9 @@ class DocumentStructure:
 
     return False
 
-  def _find_parent(self, structure, from_index):
-    line = structure[from_index]
-    if len(line.number) > 1:
-      for j in reversed(range(0, from_index)):
-        parent_line = structure[j]
 
-        if line.number[-2] == parent_line.minor_number:
-          return parent_line
-    return None
 
-  def _find_possible_parent(self, structure, from_index):
-    for_line = structure[from_index]
-    if for_line.minor_number == 1 and from_index > 0:
-      return structure[from_index - 1]
 
-  def _fix_parents(self, structure):
-    for i in reversed(range(len(structure))):
-      line = structure[i]
-
-      parent_line = self._find_parent(structure, i)
-      if parent_line is None:
-        parent_line = self._find_possible_parent(structure, i)
-
-      if parent_line is not None:
-        # parent_line.add_possible_level(line.level - 1)
-        line.add_possible_level(parent_line.level + 1)
-
-  def _fix_numbered_structure(self, structure, level=0, verbose=False, slevel=0):
-    # self._fix_parents(structure)
-    self._find_tails(structure)
-    # self._fix_sequence(structure, level, slevel)
-    # # # previouse_line = None
-    #
-    # prev = structure[0]
-    # for i in range(1, len(structure)):
-    #   if structure[i].minor_number == prev.minor_number + 1:
-
-    if False:
-      prev = structure[0]
-      for i in range(1, len(structure)):
-        line = structure[i]
-        if line.minor_number != prev.minor_number + 1:
-          s1 = self._find_subsequence(structure, start_from_index=i, level_delta=0, check_parent=True, max_hole=0)
-          # s2 = self._find_subsequence(structure, start_from_index=i, level_delta=1, check_parent=True, max_hole=0)
-          s3 = self._find_subsequence(structure, start_from_index=i, level_delta=0, check_parent=True, max_hole=1)
-
-          for j in s1:
-            l = structure[j]
-            l.add_possible_level(max(line.level + 1, l.level))
-          # for j in s2:
-          #   l = structure[j]
-          #   l.add_possible_level(max(line.level + 1, l.level))
-          for j in s3:
-            l = structure[j]
-            l.add_possible_level(max(line.level + 1, l.level))
-
-          print('----')
-    # insequence
-    pass
-
-  def _find_subsequence(self, structure, start_from_index, level_delta=0, check_parent=True, max_hole=0):
-    sequence = []
-    sequence.append(start_from_index)
-    for i in range(start_from_index + 1, len(structure)):
-      prev = i - 1
-      if self._sequence_continues(structure, i, prev, allowed_level_delta=level_delta, check_parent=check_parent,
-                                  max_hole=max_hole):
-        sequence.append(i)
-      else:
-        return sequence
-
-    return sequence
 
   def find_by_number_on_level(self, start_index, structure, allowed_level_delta=0, check_parent=True, max_hole=0):
     continuations = []
@@ -444,7 +432,7 @@ class DocumentStructure:
         sequence = np.zeros(len(structure))
         # lev = structure[i].level
         self._search_possibilities(structure, [i], sequence, 2.1, check_parent=True, allowed_level_delta=0)
-        self.__process_sequence(sequence, structure, level)
+        self.__uplevel_sequence_holes(sequence, structure, level)
 
         # self._search_possibilities(structure, [i], sequence, 1.2, check_parent=False, allowed_level_delta=0)
         # self.__process_sequence(sequence, structure, level)
@@ -503,39 +491,51 @@ class DocumentStructure:
     #   print(i, '\t', '\t'.join([str(int(x)) for x in sequence]), '\t\t', _mean_level)
     #   structure[i].add_possible_level(_mean_level)
 
-  def __process_sequence(self, sequence, structure, level):
-    sequence = normalize(sequence)
-    sequence *= 10
-    sequence = relu(sequence, 5)
+  def __uplevel_sequence_holes(self, sequence, structure, min_level):
 
-    #get non-zero indexex
-    indices =  np.nonzero(sequence)
+    try:
+      sequence_norm = normalize(sequence)
+      sequence_norm *= 10
 
-     # find best LEVEL for the sequence
-    ss_col = StructureLine()
-    for k in indices:
-      probabilty = sequence[k]
-      for x in range(int(probabilty)):
-        ss_col.add_possible_level(structure[k].level)
+      # get non-zero indexex
+      indices = np.nonzero(relu(sequence_norm, 1))[0]
+      # process sequences between points
+      self._uplevel_lines_between_indexes(structure, indices, min_level)
 
-    # find best PARENT for the sequence
-    mean_level = ss_col.get_median_possible_level()
-    mean_level = max(level, mean_level)
-    # update level
-    parents=[]
-    for k in indices:
-      pn = structure[k].parent_number
-      if pn is not None:
-        parents.append(pn)
+      # get non-zero indexex
+      indices = np.nonzero(relu(sequence_norm, 2))[0]
+      # process sequences between points
+      self._uplevel_lines_between_indexes(structure, indices, min_level)
 
-    for k in indices:
-      structure[k].add_possible_level(mean_level)
-    # process sequences between points
+      # get non-zero indexex
+      indices = np.nonzero(relu(sequence_norm, 3))[0]
+      # process sequences between points
+      self._uplevel_lines_between_indexes(structure, indices, min_level)
+
+      # indices = np.nonzero(relu(sequence_norm, 7))[0]
+      # # process sequences between points
+      # self._uplevel_lines_between_indexes(structure, indices, min_level)
+
+
+    except:
+      return
+
+  def _uplevel_lines_between_indexes(self, structure, indices, min_level):
+    def set_min_level(struct, min_level):
+      for subline in struct:
+        subline.add_possible_level(max(min_level, subline.level))
+
     prev = 0
     for k in indices:
+      structure[k].add_possible_level(min_level - 1)
+
       substr = structure[prev:k]
-      self._find_tails(substr, level=level + 1)
+      set_min_level(substr, min_level)
+      self._fix_top_level_lines(substr, min_level)
       prev = k + 1
+    # last segement
+    substr = structure[prev:]
+    set_min_level(substr, min_level)
 
   def _search_possibilities(self, structure, indexes, sequence, probability, check_parent=True, allowed_level_delta=0,
                             max_hole=0):
@@ -552,52 +552,7 @@ class DocumentStructure:
                                  check_parent=check_parent,
                                  max_hole=max_hole)
 
-  def _fix_sequence(self, structure, level, slevel):
-    seq_len = 0
-    for i in range(len(structure)):
 
-      line = structure[i]
-      # if prev_line is not None:
-      #   if line.minor_number == prev_line.minor_number+1 :
-      #     # consequent
-      #     if line.level != prev_line.level:
-      #       prev_line.add_possible_level(line.level)
-      #       line.add_possible_level(prev_line.level)
-
-      if line.level == slevel:
-
-        possible_nexts = self.find_by_number_on_level(i, structure, allowed_level_delta=0, check_parent=True,
-                                                      max_hole=0)
-
-        for c_index in possible_nexts:
-          l = structure[c_index]
-          l.add_possible_level(line.level)
-          line.add_possible_level(l.level)
-          #
-          for j in range(i + 1, c_index):
-            sub_line = structure[j]
-            sub_line.add_possible_level(max(sub_line.level, line.level + 1))
-          #
-          self._fix_numbered_structure(structure[i:c_index], level=level + 1, slevel=slevel + 1)
-
-    if seq_len == 0 and slevel < 4:
-      self._fix_numbered_structure(structure, level=level + 1, slevel=slevel + 1)
-
-      # more forgiving search, level +/- 1
-      # possible_nexts = self.find_by_number_on_level(i, structure, line.minor_number + 1, line.level,
-      #                                               allowed_level_delta=1)
-      # for c_index in possible_nexts:
-      #   l = structure[c_index]
-      #   l.add_possible_level(line.level)
-      #
-      #   for j in range(i, c_index):
-      #     sl = structure[j]
-      #     sl.add_possible_level(sl.level+1)
-      #
-      #   self._fix_numbered_structure(structure[i:c_index], level=level+1, slevel=slevel+1)
-
-      # previouse_line = line
-      # for every line mark continuations (next)
 
   def print_structured(self, doc, numbered_only=False):
     ln = 0
