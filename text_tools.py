@@ -11,6 +11,27 @@ import scipy.spatial.distance as distance
 
 nltk.download('punkt')
 
+
+def find_ner_end(tokens, start):
+  for i in range(start, len(tokens)):
+    if tokens[i] == '"':
+      return i
+
+    if tokens[i] == '»':
+      return i
+
+    if tokens[i] == '\n':
+      return i
+
+    if tokens[i] == '.':
+      return i
+
+    if tokens[i] == ';':
+      return i
+
+  return min(len(tokens), start + 20)
+
+
 def to_float(str):
     try:
         return float(str.replace(" ", "").replace(",", "."))
