@@ -5,7 +5,8 @@ from functools import wraps
 from typing import List
 
 from doc_structure import DocumentStructure
-from ml_tools import normalize, smooth, relu, extremums
+from embedding_tools import embedd_tokenized_sentences_list
+from ml_tools import normalize, smooth, relu, extremums, smooth_safe
 from patterns import *
 from text_normalize import *
 from text_tools import *
@@ -579,14 +580,16 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
   return results
 
 
+
+
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
   attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
                                                          relu_th=relu_th)
   attention_vector = relu(attention_vector, relu_th=relu_th)
 
-  attention_vector = smooth(attention_vector, window_len=blur)
-  attention_vector = smooth(attention_vector, window_len=blur)
+  attention_vector = smooth_safe(attention_vector, window_len=blur)
+  attention_vector = smooth_safe(attention_vector, window_len=blur)
   try:
     if norm:
       attention_vector = normalize(attention_vector)
@@ -606,8 +609,8 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert c > 0
   attention_vector = relu(attention_vector, relu_th=relu_th)
 
-  attention_vector = smooth(attention_vector, window_len=blur)
-  attention_vector = smooth(attention_vector, window_len=blur)
+  attention_vector = smooth_safe(attention_vector, window_len=blur)
+  attention_vector = smooth_safe(attention_vector, window_len=blur)
   attention_vector /= c
   try:
     if norm:
@@ -617,3 +620,37 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
       pattern_prefix, len(attention_vector)))
     attention_vector = np.zeros(len(attention_vector))
   return attention_vector
+
+
+
+
+
+def embedd_headlines(doc, factory) -> List:
+  _str = doc.structure.structure
+  headline_indexes = doc.structure.get_lines_by_level(_str, 0)
+
+  embedded_headlines = []
+
+  tokenized_sentences_list = []
+  for i in headline_indexes:
+    line = _str[i]
+
+    _len = line.span[1] - line.span[0]
+    print(line.span, _len)
+    _len = min(40, _len)
+
+    subdoc = doc.subdoc(line.span[0], line.span[0] + _len)
+    subdoc.right_padding = 0
+
+    tokenized_sentences_list.append(subdoc.tokens)
+    #     subdoc.embedd(factory)
+    embedded_headlines.append(subdoc)
+
+  sentences_emb, wrds = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
+  print(sentences_emb.shape)
+
+  for i in range(len(headline_indexes)):
+    embedded_headlines[i].embeddings = sentences_emb[i]
+    embedded_headlines[i].calculate_distances_per_pattern(factory)
+
+  return embedded_headlines

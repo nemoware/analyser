@@ -331,7 +331,7 @@ class DocumentStructure:
       sequence[next] += w
 
   def detect_top_level_sequence(self, structure):
-    candidates = self.get_lines_by_level(structure, self.find_min_level(structure))
+    candidates = self.get_lines_by_level(self.find_min_level(structure), structure)
     sequence = np.zeros(len(structure))
     for i in candidates:
       sequence[i] += 1
@@ -355,7 +355,9 @@ class DocumentStructure:
     _extremums = extremums_soft(v)  # TODO: find a better solution
     return np.nonzero(_extremums)[0]
 
-  def get_lines_by_level(self, structure, min_level):
+  def get_lines_by_level(self, min_level, structure=None):
+    if structure is None:
+      structure=self.structure
 
     candidates = []
     for s in range(len(structure)):
@@ -365,7 +367,7 @@ class DocumentStructure:
 
   def detect_full_top_level_sequence(self, structure):
 
-    candidates = self.get_lines_by_level(structure, self.find_min_level(structure))
+    candidates = self.get_lines_by_level(self.find_min_level(structure), structure)
 
     max_number = 0
     for i in candidates:

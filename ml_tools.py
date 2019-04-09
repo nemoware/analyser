@@ -11,6 +11,12 @@ def normalize(x, out_range=(0, 1)):
   return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
 
 
+def smooth_safe(x, window_len=10, window='hanning'):
+  _blur = int(min(60, 2 + len(x) / 3.0))
+  _blur = int(_blur / 2) * 2
+  return smooth(x, window_len=_blur, window=window)
+
+
 def smooth(x, window_len=11, window='hanning'):
   """smooth the data using a window with requested size.
 
