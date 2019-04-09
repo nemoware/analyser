@@ -1,3 +1,5 @@
+# legal_docs.py
+
 import time
 from functools import wraps
 from typing import List
@@ -108,8 +110,6 @@ class LegalDocument(EmbeddableText):
     sub.tokens = self.tokens[start:end]
     sub.tokens_cc = self.tokens_cc[start:end]
     return sub
-
-
 
   def normalize_sentences_bounds(self, text):
     """
@@ -496,46 +496,6 @@ class CharterDocument(LegalDocumentLowCase):
     LegalDocumentLowCase.__init__(self, original_text)
     self.right_padding = 10
 
-  def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
-
-    print("WARNING: split_into_sections method is deprecated")
-
-    tokens = self.tokens
-    if (self.right_padding > 0):
-      tokens = self.tokens[:-self.right_padding]
-    # l = len(tokens)
-
-    captions = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix, relu_th)
-
-    captions = normalize(captions)
-
-    captions = smooth(captions, window_len=soothing_wind_size)
-    captions = normalize(captions)
-    captions = relu(captions, relu_th=0.5)
-
-    captions = smooth(captions, window_len=soothing_wind_size)
-    captions = normalize(captions)
-
-    sections = extremums(captions)
-    # print(sections)
-    sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
-    # print(sections_starts)
-    sections_starts = remove_similar_indexes(sections_starts)
-    sections_starts.append(len(tokens))
-    # print(sections_starts)
-
-    # RENDER sections
-    self.subdocs = []
-    for i in range(1, len(sections_starts)):
-      s = sections_starts[i - 1]
-      e = sections_starts[i]
-      subdoc = self.subdoc(s, e)
-      self.subdocs.append(subdoc)
-      # print('-' * 20)
-      # render_color_text(subdoc.tokens, captions[s:e])
-
-    return self.subdocs, captions
-
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
   ret = {}
@@ -568,17 +528,6 @@ def split_into_sections(doc, caption_indexes):
     subdoc = doc.subdoc(start, end)
     subdoc.filename = key
     doc.subdocs.append(subdoc)
-
-
-def split_doc(doc, caption_prefix, attention_vector=None):
-  caption_indexes = max_by_pattern_prefix(doc.distances_per_pattern_dict, caption_prefix, attention_vector)
-  for k in caption_indexes:
-    caption_indexes[k] = find_token_before_index(doc.tokens, caption_indexes[k], '\n', 0)
-  caption_indexes['__start'] = 0
-  caption_indexes['__end'] = len(doc.tokens)
-
-  split_into_sections(doc, caption_indexes)
-
 
 
 def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
@@ -628,3 +577,43 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
       results.append(result)
 
   return results
+
+
+def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  assert doc.distances_per_pattern_dict is not None
+  attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
+                                                         relu_th=relu_th)
+  attention_vector = relu(attention_vector, relu_th=relu_th)
+
+  attention_vector = smooth(attention_vector, window_len=blur)
+  attention_vector = smooth(attention_vector, window_len=blur)
+  try:
+    if norm:
+      attention_vector = normalize(attention_vector)
+  except:
+    print(
+      "----ERROR: make_soft_attention_vector: attention_vector for pattern prefix {} is not contrast, len = {}".format(
+        pattern_prefix, len(attention_vector)))
+    attention_vector = np.zeros(len(attention_vector))
+
+  return attention_vector
+
+
+def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  assert doc.distances_per_pattern_dict is not None
+  attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
+  #   print('soft_attention_vector', c)
+  assert c > 0
+  attention_vector = relu(attention_vector, relu_th=relu_th)
+
+  attention_vector = smooth(attention_vector, window_len=blur)
+  attention_vector = smooth(attention_vector, window_len=blur)
+  attention_vector /= c
+  try:
+    if norm:
+      attention_vector = normalize(attention_vector)
+  except:
+    print("----ERROR: soft_attention_vector: attention_vector for pattern prefix {} is not contrast, len = {}".format(
+      pattern_prefix, len(attention_vector)))
+    attention_vector = np.zeros(len(attention_vector))
+  return attention_vector
