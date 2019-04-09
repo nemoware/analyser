@@ -286,18 +286,8 @@ class DocumentStructure:
       s.add_possible_level(max(min_level, s.level))
 
   def _fix_top_level_lines(self, structure):
-    v = self.detect_top_level_sequence(structure)
+    lines = self.detect_full_top_level_sequence(structure)
 
-    v = normalize(relu(v, 0))
-    v = relu(v, 0.01)
-
-    # v=extremums(v)
-    # v = normalize(v)
-    # v = relu(v,0.02)
-    _extremums = extremums_soft(v)
-    lines = np.nonzero(_extremums)[0]
-    # lines = np.nonzero(v)[0]
-    # lines_to_print = [structure[x].line_number for x in lines]
     for i in range(len(structure)):
       if i in lines:
         structure[i].add_possible_level(0)
@@ -332,7 +322,7 @@ class DocumentStructure:
     for next, w in nexts:
       sequence[next] += w
 
-  def detect_top_level_sequence(self, structure):
+  def detect_full_top_level_sequence(self, structure):
 
     min_level = self.find_min_level(structure)
     candidates = []
@@ -340,28 +330,61 @@ class DocumentStructure:
       if structure[s].level == min_level:
         candidates.append(s)
 
-    sequence = np.zeros(len(structure))
-
-    #   for i in range(len(structure)):
+    max_number = 0
     for i in candidates:
-      sequence[i] += 1
-      self._detect_sequence(structure, i, sequence)
+      if structure[i].minor_number > max_number:
+        max_number = structure[i].minor_number
 
-      if i < len(structure) - 1:
-        _k = 0.3
-        if structure[i + 1].minor_number == 1:
-          _k = 0.9
-          self._mark_subsequence(structure, i + 1, sequence, confidence=0.2, mult=-sequence[i] * _k)
+    def search_by_number(n, start_from=0, level=0):
+      found = []
+      for i in range(start_from, len(structure)):
+        if structure[i].minor_number == n and level == structure[i].level:
+          found.append(i)
+      return found
 
-        children = self.find_children_for(i, structure)
-        if len(children) > 0:
-          last_child_index = max(children)
-          for k in range(i + 1, last_child_index + 1):
-            sequence[k] -= sequence[i] * 0.8
+    indices_of_numbered_lines = {}
+    last_found = None
 
-    #   for i in range(len(structure)):
-    #     sequence[i]/= math.log(i+1)
-    return sequence
+    for n in range(1, max_number + 1):
+      start_from = 0
+      if last_found is not None and len(last_found) > 0:
+        start_from = min(last_found)
+
+      found = search_by_number(n, start_from)
+      indices_of_numbered_lines[n] = found
+      last_found = found
+
+    # filter indexes
+    def filter_indexes():
+      for n in indices_of_numbered_lines:
+        if n > 1:
+          pv = indices_of_numbered_lines[n - 1]
+          cr = indices_of_numbered_lines[n]
+
+          if len(cr) * len(pv) > 0:
+            new_cr = []
+            new_pv = []
+
+            for c in cr:
+              for p in pv:
+                if c > p and c not in new_cr:
+                  new_cr.append(c)
+
+                if p < c and p not in new_pv:
+                  new_pv.append(p)
+
+            indices_of_numbered_lines[n] = new_cr
+            indices_of_numbered_lines[n - 1] = new_pv
+
+    for a in range(len(indices_of_numbered_lines)):
+      filter_indexes()
+
+    # Now flatten
+    top_sequence_indices = []
+    for n in indices_of_numbered_lines:
+      top_sequence_indices += indices_of_numbered_lines[n]
+
+    return top_sequence_indices
 
   def find_children_for(self, parent_index, structure):
     if parent_index < 0:
