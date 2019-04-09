@@ -1,7 +1,25 @@
 import re
 from typing import List
 
+from ml_tools import relu, normalize
 from text_tools import tokenize_text, np, untokenize
+
+
+def extremums_soft(x):
+  extremums = np.zeros(len(x))
+
+  if len(x) > 2:
+    if x[0] >= x[1]:
+      extremums[0] = x[0]
+
+    if x[-1] >= x[-2]:
+      extremums[-1] = x[-1]
+
+  for i in range(1, len(x) - 1):
+    if x[i - 1] <= x[i] >= x[i + 1]:
+      extremums[i] = x[i]
+
+  return extremums
 
 
 def _strip_left(tokens):
@@ -268,38 +286,87 @@ class DocumentStructure:
       s.add_possible_level(max(min_level, s.level))
 
   def _fix_top_level_lines(self, structure):
+    v = self.detect_top_level_sequence(structure)
 
+    v = normalize(relu(v, 0))
+    v = relu(v, 0.01)
+
+    # v=extremums(v)
+    # v = normalize(v)
+    # v = relu(v,0.02)
+    _extremums = extremums_soft(v)
+    lines = np.nonzero(_extremums)[0]
+    # lines = np.nonzero(v)[0]
+    # lines_to_print = [structure[x].line_number for x in lines]
     for i in range(len(structure)):
-      probably_continues = self._sequence_continues_fuzzy(structure, i + 1, i)
-      if probably_continues > 0.9:
-        pass
+      if i in lines:
+        structure[i].add_possible_level(0)
       else:
-        subseq = self._find_subsequence(structure, start=i + 1, confidence=0.4)
-        if len(subseq) > 0:
-          last_child_index = max(subseq)
-          #           print( min(subseq), 'children=',subseq, 'last_child_index=',last_child_index)
-          structure[i].add_possible_level(structure[i].level)
-          sub_structure = structure[i + 1:last_child_index + 1]
-          self.fix_substructure(sub_structure, structure[i].level + 1)
-        #           self._fix_top_level_lines(sub_structure)
+        structure[i].add_possible_level(max(1, structure[i].level))
+
+  def _find_nexts_fuzzy(self, structure, start, threshold=0.3):
+    if len(structure) < 1:
+      return
+    nexts = []
+    for i in range(start + 1, len(structure)):
+      confidence = self._sequence_continues_fuzzy(structure, i, start)
+      if confidence > threshold:
+        nexts.append((i, confidence))
+    return nexts
+
+  def _find_prevs_fuzzy(self, structure, end, threshold=0.3):
+    if len(structure) < 1:
+      return
+
+    nexts = []
+    for i in reversed(range(0, end)):
+      confidence = self._sequence_continues_fuzzy(structure, end, i)
+      if confidence > threshold:
+        nexts.append((i, confidence))
+    return nexts
+
+  def _detect_sequence(self, structure, i, sequence, depth=0):
+    nexts = self._find_nexts_fuzzy(structure, i, threshold=0.7)
+    nexts += self._find_prevs_fuzzy(structure, i, threshold=0.7)
+
+    for next, w in nexts:
+      sequence[next] += w
+
+  def detect_top_level_sequence(self, structure):
+
+    min_level = self.find_min_level(structure)
+    candidates = []
+    for s in range(len(structure)):
+      if structure[s].level == min_level:
+        candidates.append(s)
+
+    sequence = np.zeros(len(structure))
+
+    #   for i in range(len(structure)):
+    for i in candidates:
+      sequence[i] += 1
+      self._detect_sequence(structure, i, sequence)
+
+      if i < len(structure) - 1:
+        _k = 0.3
+        if structure[i + 1].minor_number == 1:
+          _k = 0.9
+          self._mark_subsequence(structure, i + 1, sequence, confidence=0.2, mult=-sequence[i] * _k)
 
         children = self.find_children_for(i, structure)
-
         if len(children) > 0:
-          structure[i].add_possible_level(structure[i].level)
-
           last_child_index = max(children)
-          print('children=', children, 'last_child_index=', last_child_index)
+          for k in range(i + 1, last_child_index + 1):
+            sequence[k] -= sequence[i] * 0.8
 
-          sub_structure = structure[i + 1:last_child_index + 1]
-          self.fix_substructure(sub_structure, structure[i].level + 1)
-          self._fix_top_level_lines(sub_structure)
-
-  #         else:
-  #           # probably EOS
-  #           pass
+    #   for i in range(len(structure)):
+    #     sequence[i]/= math.log(i+1)
+    return sequence
 
   def find_children_for(self, parent_index, structure):
+    if parent_index < 0:
+      return []
+
     children = []
     p = structure[parent_index]
     for i in range(parent_index + 1, len(structure)):
@@ -313,15 +380,18 @@ class DocumentStructure:
 
     return children
 
-  def _find_subsequence(self, structure, start, confidence=0.99):
-    sequence = []
-    sequence.append(start)
+  def _mark_subsequence(self, structure, start, sequence, confidence=0.99, mult=1):
+    if start >= len(structure):
+      return
+
+    sequence[start] += mult
     for i in range(start + 1, len(structure)):
-      if self._sequence_continues_fuzzy(structure, i, i - 1) > confidence:
-        sequence.append(i)
+      probably_continues = self._sequence_continues_fuzzy(structure, i, i - 1)
+
+      if probably_continues > confidence:
+        sequence[i] += (probably_continues * mult)
       else:
-        return sequence
-    return sequence
+        return
 
   def _find_all_possible_nexts(self, structure, start):
     nexts = {}
@@ -349,11 +419,16 @@ class DocumentStructure:
       i += 1
     return nexts
 
-  def _normalize_levels(self, structure):
-    minlevel = structure[0].level
+  def find_min_level(self, structure):
+    min_level = structure[0].level
     for s in structure:
-      if s.level < minlevel:
-        minlevel = s.level
+      if s.level < min_level:
+        min_level = s.level
+    return min_level
+
+  def _normalize_levels(self, structure):
+    minlevel = self.find_min_level(structure)
+
     for s in structure:
       s.level -= minlevel
 
@@ -402,19 +477,21 @@ class DocumentStructure:
     yes = 0.0
 
     if curr.parent_number == prev.parent_number:
-      yes += 1
-    if curr.parent_number is None:
-      yes += 1
-    if prev.parent_number is None:
-      yes += 1
-    if prev.level == curr.level:
-      yes += 1
+      yes += 4
     if curr.minor_number == prev.minor_number + 1:
       yes += 2
+    if prev.level == curr.level:
+      yes += 3
+
+    if curr.parent_number is None and prev.parent_number is not None:
+      yes += 1
+    if curr.parent_number is not None and prev.parent_number is None:
+      yes += 1
+
     if curr.minor_number == prev.minor_number + 2:  # hole
       yes += 1
 
-    return yes / 7.0
+    return yes / 9.0
 
   def _sequence_continues(self, structure: List, index: int, index_prev: int, level_delta=0, check_parent=True,
                           max_hole=0):
