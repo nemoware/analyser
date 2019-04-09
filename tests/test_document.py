@@ -87,7 +87,7 @@ class LegalDocumentTestCase(unittest.TestCase):
         d = LegalDocument("a")
         d.parse()
         print(d.tokens)
-        self.assertEqual(1 + TEXT_PADDING, len(d.tokens))
+        self.assertEqual(1, len(d.tokens))
 
 
 if __name__ == '__main__':

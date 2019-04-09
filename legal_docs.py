@@ -2,6 +2,7 @@ import time
 from functools import wraps
 from typing import List
 
+from doc_scrtucture import DocumentStructure
 from ml_tools import normalize, smooth, relu, extremums
 from patterns import *
 from text_normalize import *
@@ -108,49 +109,7 @@ class LegalDocument(EmbeddableText):
     sub.tokens_cc = self.tokens_cc[start:end]
     return sub
 
-  def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
-    """
-        this works only for documents where captions are not unique
 
-        :param caption_pattern_prefix: pattern name prefix
-        :param relu_th: ReLu threshold
-        :param soothing_wind_size: smoothing coefficient (like average window size) TODO: rename
-        :return:
-        """
-
-    print("WARNING: split_into_sections method is deprecated")
-
-    tokens = self.tokens
-    if (self.right_padding > 0):
-      tokens = self.tokens[:-self.right_padding]
-    # l = len(tokens)
-
-    distances_to_pattern = rectifyed_mean_by_pattern_prefix(self.distances_per_pattern_dict, caption_pattern_prefix,
-                                                            relu_th)
-
-    distances_to_pattern = normalize(distances_to_pattern)
-
-    distances_to_pattern = smooth(distances_to_pattern, window_len=soothing_wind_size)
-
-    sections = extremums(distances_to_pattern)
-    # print(sections)
-    sections_starts = [find_token_before_index(self.tokens, i, '\n', 0) for i in sections]
-    # print(sections_starts)
-    sections_starts = remove_similar_indexes(sections_starts)
-    sections_starts.append(len(tokens))
-    # print(sections_starts)
-
-    # RENDER sections
-    self.subdocs = []
-    for i in range(1, len(sections_starts)):
-      s = sections_starts[i - 1]
-      e = sections_starts[i]
-      subdoc = self.subdoc(s, e)
-      self.subdocs.append(subdoc)
-      # print('-' * 20)
-      # render_color_text(subdoc.tokens, captions[s:e])
-
-    return self.subdocs, distances_to_pattern
 
   def normalize_sentences_bounds(self, text):
     """
@@ -202,15 +161,26 @@ class LegalDocument(EmbeddableText):
 
     return sparse_words
 
+  # def parse(self, txt=None):
+  #   if txt is None: txt = self.original_text
+  #   self.normal_text = self.preprocess_text(txt)
+  #
+  #   self.tokens = self.tokenize(self.normal_text)
+  #   self.tokens_cc = np.array(self.tokens)
+  #
+  #   return self.tokens
+
   def parse(self, txt=None):
     if txt is None: txt = self.original_text
     self.normal_text = self.preprocess_text(txt)
 
-    self.tokens = self.tokenize(self.normal_text)
-    self.tokens_cc = np.array(self.tokens)
+    self.structure = DocumentStructure()
+    self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
+
+    # self.tokens = self.tokenize(self.normal_text)
+    # self.tokens_cc = np.array(self.tokens)
 
     return self.tokens
-    # print('TOKENS:', self.tokens[0:20])
 
   def embedd(self, pattern_factory):
     max_tokens = 6000

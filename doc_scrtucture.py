@@ -260,6 +260,8 @@ class DocumentStructure:
   def fix_structure(self, structure, verbose=False):
 
     numbered = self._get_numbered_lines(structure)
+    if len(numbered)==0:
+      return
 
     for a in range(1):
       self._uplevel_non_numbered(structure)

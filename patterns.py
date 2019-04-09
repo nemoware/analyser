@@ -3,7 +3,7 @@
 # coding=utf-8
 
 
-load_punkt=False
+load_punkt=True
 
 
 from text_tools import *
