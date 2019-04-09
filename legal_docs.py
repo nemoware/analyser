@@ -2,7 +2,7 @@ import time
 from functools import wraps
 from typing import List
 
-from doc_scrtucture import DocumentStructure
+from doc_structure import DocumentStructure
 from ml_tools import normalize, smooth, relu, extremums
 from patterns import *
 from text_normalize import *
