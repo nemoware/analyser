@@ -226,10 +226,6 @@ class DocumentStructure:
         if number is None:
           number = []
 
-        #           if row.upper() == row: #HEADLINE?
-        #             _level = -1
-        #             last_level_known = _level
-
         else:
           last_level_known = _level
           if number[-1] < 0:
@@ -245,6 +241,10 @@ class DocumentStructure:
           text_offset=span[1],
           line_number=len(structure)
         )
+
+        # HEADLINE?
+        if row[:15].upper() == row[:15]:
+          section_meta.add_possible_level(0)
 
         structure.append(section_meta)
 
@@ -266,7 +266,7 @@ class DocumentStructure:
       self._normalize_levels(structure)
 
       self._fix_top_level_lines(numbered)
-      self._update_levels(numbered, verbose)
+      self._update_levels(structure, verbose)
 
       self._uplevel_non_numbered(structure)
       self._normalize_levels(structure)
@@ -286,10 +286,16 @@ class DocumentStructure:
       s.add_possible_level(max(min_level, s.level))
 
   def _fix_top_level_lines(self, structure):
-    lines = self.detect_full_top_level_sequence(structure)
+    lines_a = self.detect_top_level_sequence(structure)
+    lines_b = self.detect_full_top_level_sequence(structure)
 
     for i in range(len(structure)):
-      if i in lines:
+      if i in lines_a:
+        structure[i].add_possible_level(0)
+      else:
+        structure[i].add_possible_level(max(1, structure[i].level))
+
+      if i in lines_b:
         structure[i].add_possible_level(0)
       else:
         structure[i].add_possible_level(max(1, structure[i].level))
@@ -322,13 +328,42 @@ class DocumentStructure:
     for next, w in nexts:
       sequence[next] += w
 
-  def detect_full_top_level_sequence(self, structure):
+  def detect_top_level_sequence(self, structure):
+    candidates = self.get_lines_by_level(structure, self.find_min_level(structure))
+    sequence = np.zeros(len(structure))
+    for i in candidates:
+      sequence[i] += 1
+      self._detect_sequence(structure, i, sequence)
 
-    min_level = self.find_min_level(structure)
+      if i < len(structure) - 1:
+        _k = 0.3
+        if structure[i + 1].minor_number == 1:
+          _k = 0.9
+          self._mark_subsequence(structure, i + 1, sequence, confidence=0.2, mult=-sequence[i] * _k)
+
+        children = self.find_children_for(i, structure)
+        if len(children) > 0:
+          last_child_index = max(children)
+          for k in range(i + 1, last_child_index + 1):
+            sequence[k] -= sequence[i] * 0.8
+
+    v = normalize(relu(sequence, 0))
+    v = relu(v, 0.01)
+
+    _extremums = extremums_soft(v)  # TODO: find a better solution
+    return np.nonzero(_extremums)[0]
+
+  def get_lines_by_level(self, structure, min_level):
+
     candidates = []
     for s in range(len(structure)):
       if structure[s].level == min_level:
         candidates.append(s)
+    return candidates
+
+  def detect_full_top_level_sequence(self, structure):
+
+    candidates = self.get_lines_by_level(structure, self.find_min_level(structure))
 
     max_number = 0
     for i in candidates:
@@ -463,10 +498,10 @@ class DocumentStructure:
         numbered.append(s)
     return numbered
 
-  def _update_levels(self, numbered, verbose):
+  def _update_levels(self, seq, verbose):
     # DEBUG
-    for i in range(len(numbered)):
-      line = numbered[i]
+    for i in range(len(seq)):
+      line = seq[i]
 
       # fixing:
       if len(line.number) < 2:
@@ -475,15 +510,17 @@ class DocumentStructure:
       if verbose:
         line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
 
-  def _uplevel_non_numbered(self, structure):
+  def _uplevel_non_numbered(self, structure: List[StructureLine]):
     for s in structure:
-      last_level = 1
+      _last_level = 1
       if s.numbered:
-        last_level = s.level
+        _last_level = s.level
       else:
         # non numbered
-        if s.level < last_level + 1:
-          s.level = last_level + 1
+        if len(s._possible_levels)>0:
+          s.level = s.get_median_possible_level()
+        elif s.level < _last_level + 1:
+          s.level = _last_level + 1
 
   def _sequence_continues_fuzzy(self, structure: List, index: int, index_prev: int) -> float:
 
