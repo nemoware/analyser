@@ -243,7 +243,7 @@ class DocumentStructure:
           bullet=bullet,  # 3
           span=(index, index + len(line_tokens)),
           text_offset=span[1],
-          line_number=line_number - 1
+          line_number=len(structure)
         )
 
         structure.append(section_meta)
