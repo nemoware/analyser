@@ -499,10 +499,26 @@ def mask_sections(section_name_to_weight_dict, doc):
 # Charter Docs
 
 
-class CharterDocument(LegalDocumentLowCase):
+class CharterDocument(LegalDocument):
   def __init__(self, original_text):
-    LegalDocumentLowCase.__init__(self, original_text)
+    LegalDocument.__init__(self, original_text)
     self.right_padding = 10
+
+  def preprocess_text(self, text):
+    a = text
+    a = normalize_text(a,
+                       dates_regex + abbreviation_regex + fixtures_regex +
+                       spaces_regex + syntax_regex + numbers_regex +
+                       tables_regex)
+
+    # a = self.normalize_sentences_bounds(a)
+    return a
+
+  def tokenize(self, _txt):
+    return tokenize_text(_txt)
+
+  def print_structured(self, numbered_only=False):
+    self.structure.print_structured(self, numbered_only)
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
