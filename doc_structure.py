@@ -214,8 +214,8 @@ class DocumentStructure:
 
       line_tokens_cc = self.tokenize(row)
       line_tokens = [s.lower() for s in line_tokens_cc]
-      tokens_cc += line_tokens_cc
-      tokens += line_tokens
+      tokens_cc += line_tokens_cc + ['\n']
+      tokens += line_tokens + ['\n']
 
       bullet = False
 
