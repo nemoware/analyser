@@ -212,14 +212,14 @@ class DocumentStructure:
     for row in lines:
       line_number += 1
 
-      line_tokens_cc = self.tokenize(row)
+      line_tokens_cc = self.tokenize(row)+ ['\n']
       line_tokens = [s.lower() for s in line_tokens_cc]
-      tokens_cc += line_tokens_cc + ['\n']
-      tokens += line_tokens + ['\n']
+      tokens_cc += line_tokens_cc
+      tokens += line_tokens
 
       bullet = False
 
-      if len(line_tokens) > 0:
+      if len(line_tokens) > 1:
         # not empty
         number, span, _level = get_tokenized_line_number(line_tokens, last_level_known)
 
