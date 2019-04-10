@@ -355,9 +355,9 @@ class DocumentStructure:
     _extremums = extremums_soft(v)  # TODO: find a better solution
     return np.nonzero(_extremums)[0]
 
-  def get_lines_by_level(self, min_level, structure=None):
+  def get_lines_by_level(self, min_level: int, structure: List = None) -> List:
     if structure is None:
-      structure=self.structure
+      structure = self.structure
 
     candidates = []
     for s in range(len(structure)):

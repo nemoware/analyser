@@ -644,9 +644,9 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   return attention_vector
 
 
-def embedd_headlines(doc, factory) -> List:
+def embedd_headlines(doc: LegalDocument, factory: AbstractPatternFactory) -> List:
   _str = doc.structure.structure
-  headline_indexes = doc.structure.get_lines_by_level(_str, 0)
+  headline_indexes = doc.structure.get_lines_by_level(0)
 
   embedded_headlines = []
 
