@@ -88,15 +88,16 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         point1 = [1, 3]
         point2 = [1, 7]
 
-        point3 = [1, 6]
+        embedding_point = [1, 6]
 
         # fp1 = FuzzyPattern(np.array([[point3], [point2]]))
 
         fp1 = FuzzyPattern(None)
-        fp1.set_embeddings(np.array([point3]))
+        fp1.set_embeddings(np.array([embedding_point]))
 
-        text_emb = np.array([point1, point2, point3])
+        text_emb = np.array([point1, point2, embedding_point])
         sums = fp1._eval_distances(text_emb)
+        print('sums=', sums)
         print ('sums.shape=', sums.shape, 'len of shape=', len(sums.shape))
         self.assertEqual(1, len(sums.shape))
         self.assertEqual(len(text_emb), len(sums))
@@ -110,6 +111,35 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         self.assertGreater(line0[0], line0[1])
         self.assertGreater(line0[1], line0[2])
         self.assertGreater(line0[0], line0[2])
+
+    def test_eval_distances_2(self):
+        point1 = [1, 3]
+        point2 = [1, 7]
+
+        embedding_point = [1, 6]
+        embedding_point2 = [1, 6.01]
+
+        # fp1 = FuzzyPattern(np.array([[point3], [point2]]))
+
+        pattern = FuzzyPattern(None)
+        pattern.set_embeddings(np.array([embedding_point, embedding_point2]))
+
+        text_emb = np.array([point1, point2, embedding_point, embedding_point, point2])
+        #----------------
+        distances = pattern._eval_distances(text_emb)
+        # ----------------
+        print('sums=', distances)
+        print ('sums.shape=', distances.shape, 'len of shape=', len(distances.shape))
+        self.assertEqual(1, len(distances.shape))
+        self.assertEqual(len(text_emb), len(distances))
+
+        self.assertAlmostEqual(distances[2], 0)
+
+        self.assertGreater(distances[0], distances[1])
+        self.assertGreater(distances[1], distances[2])
+        self.assertGreater(distances[0], distances[2])
+
+        self.assertEqual(2, np.argmin(distances))
 
     def test_coumpound_find(self):
         point1 = [1, 3]

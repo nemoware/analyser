@@ -69,7 +69,7 @@ class FuzzyPattern(EmbeddableText):
       TODO: tune sliding window size
     """
 
-    _distances = np.zeros(len(_text))
+    _distances = np.ones(len(_text))
 
     _pat = self.embeddings
 
@@ -78,7 +78,7 @@ class FuzzyPattern(EmbeddableText):
       print('---ERROR: window_size > len(_text)', window_size, '>', len(_text))
       return None
 
-    for word_index in range(0, len(_text) - window_size + 1):
+    for word_index in range(0, len(_text) ):
       _fragment = _text[word_index: word_index + window_size]
       _distances[word_index] = dist_function(_fragment, _pat)
 
