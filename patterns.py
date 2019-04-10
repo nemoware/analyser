@@ -75,7 +75,7 @@ class FuzzyPattern(EmbeddableText):
 
     window_size = wnd_mult * len(_pat) + whd_padding
     if window_size > len(_text):
-      print('ERROR: window_size > len(_text)', window_size, '>', len(_text))
+      print('---ERROR: window_size > len(_text)', window_size, '>', len(_text))
       return None
 
     for word_index in range(0, len(_text) - window_size + 1):

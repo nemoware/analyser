@@ -75,13 +75,20 @@ class LegalDocument(EmbeddableText):
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC):
     distances_per_pattern_dict = {}
     for pat in pattern_factory.patterns:
-      dists = pat._eval_distances_multi_window(self.embeddings, dist_function)
-      if self.right_padding > 0:
-        dists = dists[:-self.right_padding]
-      # TODO: this inversion must be a part of a dist_function
-      dists = 1.0 - dists
-      distances_per_pattern_dict[pat.name] = dists
-      dists.flags.writeable = False
+      try:
+        dists = pat._eval_distances_multi_window(self.embeddings, dist_function)
+        if self.right_padding > 0:
+          dists = dists[:-self.right_padding]
+        # TODO: this inversion must be a part of a dist_function
+        dists = 1.0 - dists
+        distances_per_pattern_dict[pat.name] = dists
+        dists.flags.writeable = False
+      except Exception as e:
+        print('ERROR: calculate_distances_per_pattern ', e)
+        dists = np.zeros(len(self.embeddings))
+        if self.right_padding > 0:
+          dists = dists[:-self.right_padding]
+        distances_per_pattern_dict[pat.name] = dists
 
       # print(pat.name)
 
@@ -580,8 +587,6 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
   return results
 
 
-
-
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
   attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
@@ -597,7 +602,7 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
     print(
       "----ERROR: make_soft_attention_vector: attention_vector for pattern prefix {} is not contrast, len = {}".format(
         pattern_prefix, len(attention_vector)))
-    attention_vector = np.zeros(len(attention_vector))
+    attention_vector = np.full(len(attention_vector), attention_vector[0])
 
   return attention_vector
 
@@ -618,11 +623,9 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   except:
     print("----ERROR: soft_attention_vector: attention_vector for pattern prefix {} is not contrast, len = {}".format(
       pattern_prefix, len(attention_vector)))
-    attention_vector = np.zeros(len(attention_vector))
+
+    attention_vector = np.full(len(attention_vector), attention_vector[0])
   return attention_vector
-
-
-
 
 
 def embedd_headlines(doc, factory) -> List:
