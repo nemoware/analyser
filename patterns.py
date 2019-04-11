@@ -74,9 +74,9 @@ class FuzzyPattern(EmbeddableText):
     _pat = self.embeddings
 
     window_size = wnd_mult * len(_pat) + whd_padding
-    if window_size > len(_text):
-      print('---ERROR: window_size > len(_text)', window_size, '>', len(_text))
-      return None
+    # if window_size > len(_text):
+    #   print('---ERROR: pattern: "{}" window:{} > len(_text):{} (padding={} mult={})'.format(self.name, window_size, len(_text), whd_padding, wnd_mult)  )
+    #   return None
 
     for word_index in range(0, len(_text) ):
       _fragment = _text[word_index: word_index + window_size]
