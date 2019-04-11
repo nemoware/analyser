@@ -14,6 +14,8 @@ def normalize(x, out_range=(0, 1)):
 def smooth_safe(x, window_len=10, window='hanning'):
   _blur = int(min(window_len, 2 + len(x) / 3.0))
   _blur = int(_blur / 2) * 2
+  if(_blur>(len(x))):
+    return x
   return smooth(x, window_len=_blur, window=window)
 
 
