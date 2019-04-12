@@ -603,8 +603,17 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
   return results
 
 
+MIN_DOC_LEN = 5
+
+
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+
   assert doc.distances_per_pattern_dict is not None
+
+  if len(doc.tokens) < MIN_DOC_LEN:
+    print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
+    return np.full(len(doc.tokens), 0.0001)
+
   attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
                                                          relu_th=relu_th)
   attention_vector = relu(attention_vector, relu_th=relu_th)
@@ -625,8 +634,12 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
 
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
+
+  if len(doc.tokens) < MIN_DOC_LEN:
+    print("----ERROR: soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
+    return np.full(len(doc.tokens), 0.0001)
+
   attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
-  #   print('soft_attention_vector', c)
   assert c > 0
   attention_vector = relu(attention_vector, relu_th=relu_th)
 
@@ -645,7 +658,7 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
 
 
 def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: AbstractPatternFactory, max_len=40) -> \
-List[LegalDocument]:
+        List[LegalDocument]:
   _str = doc.structure.structure
 
   embedded_headlines = []

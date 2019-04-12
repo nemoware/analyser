@@ -12,7 +12,7 @@ import scipy.spatial.distance as distance
 nltk.download('punkt')
 
 
-def find_ner_end(tokens, start):
+def find_ner_end(tokens, start, max_len=20):
   for i in range(start, len(tokens)):
     if tokens[i] == '"':
       return i
@@ -29,7 +29,7 @@ def find_ner_end(tokens, start):
     if tokens[i] == ';':
       return i
 
-  return min(len(tokens), start + 20)
+  return min(len(tokens), start + max_len)
 
 
 def to_float(str):
