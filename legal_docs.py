@@ -59,7 +59,7 @@ class LegalDocument(EmbeddableText):
     self.normal_text = None
     self.distances_per_pattern_dict = None
 
-    self.right_padding = 10
+    self.right_padding = 0
 
     # subdocs
     self.start = None
@@ -134,13 +134,19 @@ class LegalDocument(EmbeddableText):
 
     return '\n'.join(sents)
 
+
+
   def preprocess_text(self, text):
     a = text
-    #     a = remove_empty_lines(text)
-    a = normalize_text(a, replacements_regex)
-    a = self.normalize_sentences_bounds(a)
+    a = normalize_text(a,
+                       dates_regex + abbreviation_regex + fixtures_regex +
+                       spaces_regex + syntax_regex + numbers_regex +
+                       tables_regex)
 
+    # a = self.normalize_sentences_bounds(a)
     return a
+
+
 
   def read(self, name):
     print("reading...", name)
@@ -507,15 +513,7 @@ class CharterDocument(LegalDocument):
     LegalDocument.__init__(self, original_text)
     self.right_padding = 0
 
-  def preprocess_text(self, text):
-    a = text
-    a = normalize_text(a,
-                       dates_regex + abbreviation_regex + fixtures_regex +
-                       spaces_regex + syntax_regex + numbers_regex +
-                       tables_regex)
 
-    # a = self.normalize_sentences_bounds(a)
-    return a
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)

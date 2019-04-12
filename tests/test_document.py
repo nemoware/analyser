@@ -84,7 +84,7 @@ class LegalDocumentTestCase(unittest.TestCase):
 
 
   def test_parse_2(self):
-    d = CharterDocument("a\nb")
+    d = LegalDocument("a\nb")
     d.parse()
     print(d.tokens)
     self.assertEqual(4, len(d.tokens))
