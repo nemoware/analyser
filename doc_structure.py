@@ -153,6 +153,7 @@ class StructureLine():
   def add_possible_level(self, l):
     self._possible_levels.append(l)
 
+
   def print(self, tokens_cc, suffix='', line_number=None):
 
     offset = '  .  ' * self.level
@@ -165,7 +166,7 @@ class StructureLine():
     #         print(offset, number_str, (self.tokens_cc[span[0] + number_tokens:span[1]]))
     values = "not text so far"
     if tokens_cc is not None:
-      values = untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
+      values = self.to_string(tokens_cc)
 
     ln = self.line_number
     if line_number is not None:
@@ -175,6 +176,9 @@ class StructureLine():
     #     if self.sequence_end>0:
     #       se=str(self.sequence_end)
     print('ds>{}\t {}\t'.format(ln, se), offset, number_str, values, suffix)
+
+  def to_string(self, tokens_cc):
+    return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
   def get_numbered(self) -> bool:
     return len(self.number) > 0
@@ -190,14 +194,14 @@ class StructureLine():
 class DocumentStructure:
 
   def __init__(self):
-    self.structure = None
+    self.structure:List[StructureLine] = None
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
 
   def detect_document_structure(self, text):
-    lines = text.split('\n')
+    lines:List[str] = text.split('\n')
 
     line_number = 0
 
@@ -209,13 +213,11 @@ class DocumentStructure:
     tokens_cc = []
 
     index = 0
-    for row in lines:
+    for __row in lines:
       line_number += 1
 
-      line_tokens_cc = self.tokenize(row)
-      if True:
-        # TODO: do not add \n in the end!!
-        line_tokens_cc += ['\n']
+      line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
+
 
       line_tokens = [s.lower() for s in line_tokens_cc]
       tokens_cc += line_tokens_cc
@@ -247,7 +249,7 @@ class DocumentStructure:
         )
 
         # HEADLINE?
-        if row[:15].upper() == row[:15]:
+        if __row[:15].upper() == __row[:15]:
           section_meta.add_possible_level(0)
 
         structure.append(section_meta)

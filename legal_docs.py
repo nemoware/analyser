@@ -95,6 +95,9 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict = distances_per_pattern_dict
     return self.distances_per_pattern_dict
 
+  def print_structured(self, numbered_only=False):
+    self.structure.print_structured(self, numbered_only)
+
   def subdoc(self, start, end):
 
     assert self.tokens is not None
@@ -502,7 +505,7 @@ def mask_sections(section_name_to_weight_dict, doc):
 class CharterDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
-    self.right_padding = 10
+    self.right_padding = 0
 
   def preprocess_text(self, text):
     a = text
@@ -517,8 +520,6 @@ class CharterDocument(LegalDocument):
   def tokenize(self, _txt):
     return tokenize_text(_txt)
 
-  def print_structured(self, numbered_only=False):
-    self.structure.print_structured(self, numbered_only)
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
