@@ -6,7 +6,7 @@
 import unittest
 
 from embedding_tools import AbstractEmbedder
-from legal_docs import LegalDocument, print_prof_data
+from legal_docs import *
 from patterns import *
 
 
@@ -81,6 +81,29 @@ class LegalDocumentTestCase(unittest.TestCase):
     d.parse()
     print(d.tokens)
     self.assertEqual(2, len(d.tokens))
+
+
+  def test_parse_2(self):
+    d = CharterDocument("a\nb")
+    d.parse()
+    print(d.tokens)
+    self.assertEqual(4, len(d.tokens))
+
+
+    self.assertEqual(2, len(d.structure.structure))
+
+    l0 = d.structure.structure[0]
+    lll = d.tokens_cc[l0.span[0]: l0.span[1]]
+
+    print(lll)
+
+    l1 = d.structure.structure[1]
+
+    self.assertEqual('a', l0.to_string(d.tokens_cc))
+    self.assertEqual('b', l1.to_string(d.tokens_cc))
+    lll = d.tokens_cc[l1.span[0]: l1.span[1]]
+
+    print(lll)
 
 
 if __name__ == '__main__':

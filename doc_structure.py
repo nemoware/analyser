@@ -153,7 +153,6 @@ class StructureLine():
   def add_possible_level(self, l):
     self._possible_levels.append(l)
 
-
   def print(self, tokens_cc, suffix='', line_number=None):
 
     offset = '  .  ' * self.level
@@ -166,7 +165,7 @@ class StructureLine():
     #         print(offset, number_str, (self.tokens_cc[span[0] + number_tokens:span[1]]))
     values = "not text so far"
     if tokens_cc is not None:
-      values = self.to_string(tokens_cc)
+      values = self.to_string_no_number(tokens_cc)
 
     ln = self.line_number
     if line_number is not None:
@@ -177,14 +176,18 @@ class StructureLine():
     #       se=str(self.sequence_end)
     print('ds>{}\t {}\t'.format(ln, se), offset, number_str, values, suffix)
 
-  def to_string(self, tokens_cc):
+  def to_string_no_number(self, tokens_cc):
     return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
+
+  def to_string(self, tokens):
+    return untokenize(tokens[self.span[0]: self.span[1]])
 
   def get_numbered(self) -> bool:
     return len(self.number) > 0
 
   def get_minor_number(self) -> int:
-    return self.number[-1]
+    if (self.numbered):
+      return self.number[-1]
 
   numbered = property(get_numbered)
   minor_number = property(get_minor_number)
@@ -194,14 +197,14 @@ class StructureLine():
 class DocumentStructure:
 
   def __init__(self):
-    self.structure:List[StructureLine] = None
+    self.structure: List[StructureLine] = None
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
 
   def detect_document_structure(self, text):
-    lines:List[str] = text.split('\n')
+    lines: List[str] = text.split('\n')
 
     line_number = 0
 
@@ -217,7 +220,6 @@ class DocumentStructure:
       line_number += 1
 
       line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
-
 
       line_tokens = [s.lower() for s in line_tokens_cc]
       tokens_cc += line_tokens_cc
@@ -267,7 +269,7 @@ class DocumentStructure:
 
     numbered = self._get_numbered_lines(structure)
     if len(numbered) == 0:
-      return
+      return structure
 
     for a in range(1):
       self._uplevel_non_numbered(structure)
