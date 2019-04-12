@@ -644,9 +644,9 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   return attention_vector
 
 
-def embedd_headlines(doc: LegalDocument, factory: AbstractPatternFactory) -> List:
+def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: AbstractPatternFactory, max_len=40) -> \
+List[LegalDocument]:
   _str = doc.structure.structure
-  headline_indexes = doc.structure.get_lines_by_level(0)
 
   embedded_headlines = []
 
@@ -655,21 +655,18 @@ def embedd_headlines(doc: LegalDocument, factory: AbstractPatternFactory) -> Lis
     line = _str[i]
 
     _len = line.span[1] - line.span[0]
-    print(line.span, _len)
-    _len = min(40, _len)
+    _len = min(max_len, _len)
 
     subdoc = doc.subdoc(line.span[0], line.span[0] + _len)
     subdoc.right_padding = 0
 
     tokenized_sentences_list.append(subdoc.tokens)
-    #     subdoc.embedd(factory)
     embedded_headlines.append(subdoc)
 
-  sentences_emb, wrds = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-  print(sentences_emb.shape)
+  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
 
   for i in range(len(headline_indexes)):
-    embedded_headlines[i].embeddings = sentences_emb[i]
+    embedded_headlines[i].embeddings = sentences_emb[i][0:lens[i]]
     embedded_headlines[i].calculate_distances_per_pattern(factory)
 
   return embedded_headlines

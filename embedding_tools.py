@@ -15,14 +15,13 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
     s = tokenized_sentences_list[i]
     s.extend([' '] * (maxlen - len(s)))
     _strings.append(s)
-    print(len(s), lens[i], s)
 
   _strings = np.array(_strings)
 
   ## ======== call TENSORFLOW -----==================
   sentences_emb, wrds = embedder.embedd_tokenized_text(_strings, lens)
   ## ================================================
-  return sentences_emb, wrds
+  return sentences_emb, wrds, lens
 
 
 class AbstractEmbedder:
