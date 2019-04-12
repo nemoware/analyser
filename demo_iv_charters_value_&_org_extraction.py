@@ -428,15 +428,7 @@ def render_sections(doc, weights):
 
 import math
 
-@at_github
-def smooth_safe(x, window_len=10, window='hanning'):
-  _blur = int(min(window_len, 2 + len(x) / 3.0))
-  _blur = int(_blur / 2) * 2
-  if(_blur>(len(x))):
-    return x
-  return smooth(x, window_len=_blur, window=window)
-
-
+ 
 
 def subdoc_between_lines(line_a: int, line_b: int, doc):
   _str = doc.structure.structure
@@ -446,59 +438,6 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
   else:
     end = len(doc.tokens)
   return doc.subdoc(start, end)
-
-
-@at_github
-def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
-  maxlen = 0
-  lens = []
-
-  for s in tokenized_sentences_list:
-    lens.append(len(s))
-    if len(s) > maxlen:
-      maxlen = len(s)
-
-  _strings = []
-  for i in range(len(tokenized_sentences_list)):
-    s = tokenized_sentences_list[i]
-    s.extend([' '] * (maxlen - len(s)))
-    _strings.append(s)
-
-  _strings = np.array(_strings)
-
-  ## ======== call TENSORFLOW -----==================
-  sentences_emb, wrds = embedder.embedd_tokenized_text(_strings, lens)
-  ## ================================================
-  return sentences_emb, wrds, lens
-
-
-@at_github
-def embedd_headlines(headline_indexes, doc, factory) -> List:
-  _str = doc.structure.structure
-
-
-  embedded_headlines = []
-
-  tokenized_sentences_list = []
-  for i in headline_indexes:
-    line = _str[i]
-
-    _len = line.span[1] - line.span[0]
-    _len = min(40, _len)
-
-    subdoc = doc.subdoc(line.span[0], line.span[0] + _len)
-    subdoc.right_padding = 0
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_headlines.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-  for i in range(len(headline_indexes)):
-    embedded_headlines[i].embeddings = sentences_emb[i][0:lens[i]]
-    embedded_headlines[i].calculate_distances_per_pattern(factory)
-
-  return embedded_headlines
 
 
 
@@ -749,102 +688,7 @@ org_types={
 
 """## Tools"""
 
-MIN_DOC_LEN=5
-@at_github
-def smooth_safe(x, window_len=10, window='hanning'):
-  _blur = int( min ( 60, 2+len(x)/3.0) )
-  _blur = int(_blur/2)*2
-  try:
-    return smooth(x, window_len=_blur, window=window)
-  except Exception as e:
-    print('----smooth_safe ERROR {}'.format(e), '_blur size is {}, desired blur is {}, bu vector size is {}'.format(_blur, window_len, len(x)))
-    return np.array(x)
-  
-@at_github
-def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
-  assert doc.distances_per_pattern_dict is not None
-  if len(doc.tokens)<MIN_DOC_LEN:
-    print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
-    return np.full(len(doc.tokens), 0.0001)
-  
-  attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
-                                                         relu_th=relu_th)
-  attention_vector = relu(attention_vector, relu_th=relu_th)
-
-  attention_vector = smooth_safe(attention_vector, window_len=blur)
-  attention_vector = smooth_safe(attention_vector, window_len=blur)
-  try:
-    if norm:
-      attention_vector = normalize(attention_vector)
-  except:
-    print("----ERROR: make_soft_attention_vector: attention_vector for pattern prefix {} is not contrast, len = {}".format(pattern_prefix, len(attention_vector)))
-#     attention_vector = np.zeros(len(attention_vector))
-    attention_vector = np.full(len(attention_vector), attention_vector[0])
-  
-  return attention_vector
-
-@at_github
-def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
-  
-  assert doc.distances_per_pattern_dict is not None
-  
-  if len(doc.tokens)<MIN_DOC_LEN:
-    print("----ERROR: soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
-    return np.full(len(doc.tokens), 0.0001)
-  
-  
-  attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
-#   print('soft_attention_vector', c)
-  assert c > 0
-  attention_vector = relu(attention_vector, relu_th=relu_th)
-
-  attention_vector = smooth_safe(attention_vector, window_len=blur)
-  attention_vector = smooth_safe(attention_vector, window_len=blur)
-  attention_vector/=c
-  try:
-    if norm:
-      attention_vector = normalize(attention_vector)
-  except:
-    print("----ERROR: soft_attention_vector: attention_vector for pattern prefix {} is not contrast, len = {}".format(pattern_prefix, len(attention_vector)))
-#     attention_vector = np.zeros(len(attention_vector))
-    attention_vector = np.full(len(attention_vector), attention_vector[0])
-  return attention_vector
-
-@at_github
-def find_ner_end(tokens, start):
-  for i in range(start, len(tokens)):
-    if tokens[i] == '"':
-      return i
-
-    if tokens[i] == '»':
-      return i
-
-    if tokens[i] == '\n':
-      return i
-
-    if tokens[i] == '.':
-      return i
-
-    if tokens[i] == ';':
-      return i
-
-  return min(len(tokens), start + 20)
-
-
-
-def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
-  attention_vector=relu(_attention_vector)
-  maxes = extremums(attention_vector)[1:]
-  maxes = doc.find_sentence_beginnings(maxes)
-  maxes = remove_similar_indexes(maxes, 6)
-
-  res = {}
-  for i in maxes:
-    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
-    if e - s > 0:
-      res[s] = e
-
-  return res, attention_vector, maxes
+##
 
 """## 1.  Patterns Factory 1"""
 
