@@ -105,6 +105,8 @@ from ml_tools import *
 from legal_docs import *
 from doc_structure import *
 
+import legal_docs as ld
+
 """# Code (common)"""
 
 REPORTED_MOVED={}
@@ -137,6 +139,8 @@ def deprecated(fn):
 
   return with_reporting
 
+"""## FS utils"""
+
 import glob, os
 
 
@@ -163,11 +167,7 @@ def read_doc(fn):
   return text
 
 
-
-
 #-------
- 
-
 def interactive_upload():
   print('select .docx files:')
   uploaded = files.upload()
@@ -195,13 +195,10 @@ def interactive_upload():
 #     print(text)
     docs.append(text)
     return docs
+  
 
-"""### TEST DATA"""
-
-import glob
-
-# TEST DATA
-# ----------------
+  
+  
 def read_charters():
   texts = {}
   for file in glob.glob("/content/gdrive/My Drive/GazpromOil/Charters/*.doc"):
@@ -222,9 +219,29 @@ def read_charters():
       
   return texts
 
+"""### TEST DATA"""
+
+import glob
+
+# TEST DATA
 #-------------------
-if read_docs_from_google_drive:
+if read_docs_from_google_drive or dev_mode:
   charters = read_charters()
+  
+  print ( [ os.path.split(filename)[1] for filename in charters.keys()] )
+
+#@title ## Select charter to test with { run: "auto", vertical-output: true, form-width: "750px", display-mode: "form" }
+
+
+TEST_CHARTER_FILENAME = "\u0423\u0441\u0442\u0430\u0432 - \u0413\u041F\u041D-\u0422\u0440\u0430\u043D\u0441\u043F\u043E\u0440\u0442_\u0413\u041E\u0421\u0410-2018.docx" #@param ['Устав ГПН-Новосибирск (НБ)_с СД.doc', 'Устав ГПН-КП_ГОСУ-2018_сентябрь end.doc', 'Новая редакция Устава.doc', 'Устав_ООО ЮП ГПЗ_ред 5.doc', 'Устав ООО.doc', 'Устав - ГПН-Транспорт_ГОСА-2018.docx', 'Устав_Рег. продажи авг 2018.docx', '6.1.1(a) Project Tri-Neft - Sunrise Charter.docx', 'Устав 2.docx']
+
+if dev_mode:
+  _filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + TEST_CHARTER_FILENAME
+#   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав ООО.doc'    
+#   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав ГПН-КП_ГОСУ-2018_сентябрь end.doc'    
+#   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав_ООО ЮП ГПЗ_ред 5.doc'    
+  TEST_CHARTER_TEXT = charters[_filename] 
+  print (TEST_CHARTER_TEXT[:300], '...',TEST_CHARTER_TEXT[2000:2500],'...')
 
 """### Embedder"""
 
@@ -424,12 +441,15 @@ def render_sections(doc, weights):
     print(subdoc.filename, '-' * 20)
     render_color_text(subdoc.tokens, weights[subdoc.start:subdoc.end], _range=[0, 1])
 
-"""## Legal Doc Classes"""
+"""## Legal Doc Classes
+
+### Document Structure
+"""
 
 import math
 
  
-
+#------------------------------
 def subdoc_between_lines(line_a: int, line_b: int, doc):
   _str = doc.structure.structure
   start = _str[line_a].span[1]
@@ -442,7 +462,7 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 
 
 
-
+#------------------------------
 def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, pat_refix, threshold, render=False):
   distance_by_headline = []
   if render:
@@ -482,7 +502,7 @@ def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, p
 
   return bi, distance_by_headline, attention_vs[bi]
 
-
+#------------------------------
 def map_headline_index_to_headline_type(headline_indexes, embedded_headlines, threshold):
   best_indexes={}
   for head_type in head_types:
@@ -555,7 +575,7 @@ def _detect_section_by_headline(_doc, pattern_prefix, headline_indices, embedded
     
   return subdoc, best_headline_subdoc
 
-
+#------------------------------
 def _doc_section_under_headline(_doc, hl_struct, headline_indices, embedd_factory=None, render=False):
   if render:
     print('_doc_section_under_headline:searching for section:',hl_struct['type'])
@@ -621,45 +641,268 @@ def find_sections_by_headlines(best_indexes, _doc, headline_indexes, embedd_fact
       
   return sections
 
+"""### Experiment: headlines attention vector"""
+
+def ascents(x, delta=1.0):
+  if x==[]:
+    return []
+  
+  v = np.zeros(len(x))
+  v[0]=x[0]
+  for i in range(1, len(x)):
+    if x[i] - x[i-1] > delta:
+      v[i]=x[i]
+  return v
+
+
+@at_github
+def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
+  attention_vector = relu(_attention_vector, relu_th)
+  maxes = extremums(attention_vector)[1:]
+  maxes = doc.find_sentence_beginnings(maxes)
+  maxes = remove_similar_indexes(maxes, 6)
+
+  res = {}
+  for i in maxes:
+    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
+    if e - s > 0:
+      res[s] = e
+
+  return res, attention_vector, maxes
+
+
+@at_github
+def to_string(l:StructureLine, tokens_cc):
+  return untokenize(tokens_cc[l.span[0]: l.span[1]])
+
+import numpy as np
+
+from doc_structure import get_tokenized_line_number
+from legal_docs import CharterDocument
+from ml_tools import relu, normalize, smooth
+from text_tools import untokenize
+
+
+def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> float:
+  """
+  _cc == original case
+  """
+
+  NEG = -1
+  value = 0
+
+  if sentence == ['\n']:
+    return NEG
+
+  if len(sentence) < 2:
+    return NEG
+
+  if len(sentence) > 30:
+    return NEG
+
+  # headline may not go after another headline
+  if prev_value > 0:
+    value -= prev_value
+
+  number, span, _level = get_tokenized_line_number(sentence, None)
+  row = untokenize(sentence_cc[span[1]:])[:40]
+  row = row.lstrip()
+
+#   if len(row) < 2:
+#     return NEG
+
+  #       print(number, span, _level, untokenize(sentence_cc))
+
+  if number is not None:
+
+    # headline starts from 'статья'
+    if sentence[0] == 'статья':
+      value += 3
+
+    if len(number) > 0:
+      # headline is numbered
+
+      minor_num = number[-1]
+
+      if minor_num > 0:
+        value += 1
+
+      # headline number is NOT too big
+      if minor_num > 40:
+        value -= 1
+
+      # headline is NOT a bullet
+      if minor_num < 0:
+        return 0
+    # ----
+    if _level is not None:
+      if _level == 0:
+        value += 1
+
+      if _level > 1:
+        # headline is NOT a 1.2 - like-numbered
+        return -_level
+
+  # ------- any number
+  # headline DOES not starts lowercase
+  if len(row) > 1:
+    if row.lower()[0] == row[0]:
+      value -= 1
+
+  # headline is short
+  if len(sentence) < 15:
+    value += 1
+
+  # headline is UPPERCASE
+  if row.upper() == row:
+    value += 2
+
+  if prev_sentence == ['\n'] and sentence != ['\n']:
+    value += 1
+
+  #   if value>2:
+  # print(f'{value}\t {number}\t {span}\t {_level} \t', untokenize(sentence_cc))
+  #   if value>0:
+  #     print(f'{len(sentence)}\t {value} \t {untokenize(sentence_cc)} \t')
+  return value
+
+
+def hl_structure(txt):
+  def number_of_leading_spaces(_tokens):
+    c_ = 0
+    while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
+      c_ += 1
+    return c_
+
+  TCD = CharterDocument(txt)
+  TCD.parse()
+
+  lines = np.zeros(len(TCD.structure.structure))
+
+  prev_sentence = []
+  prev_value = 0
+
+  _struct = TCD.structure.structure
+  for i in range(len(_struct)):
+    line = _struct[i]
+
+    sentence = TCD.tokens[line.span[0]: line.span[1]]
+    sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
+
+    if len(sentence_cc) > 1:
+      tr = number_of_leading_spaces(sentence)
+      if tr > 0:
+        sentence = sentence[tr:]
+        sentence_cc = sentence_cc[tr:]
+
+    p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
+
+    #     if line.level == 0:
+    #       p += 1
+
+    prev_sentence = sentence
+    lines[i] = p
+    prev_value = p
+
+  return TCD, lines
+
+
+def highlight_doc_structure(txt):
+  _doc, p_per_line = hl_structure(txt)
+
+  def local_contrast(x):
+    blur = 2 * int(len(x) / 20.0)
+    blured = smooth(x, window_len=blur, window='blackman')
+    delta = relu(x - blured, 0)
+    r = normalize(delta)
+    return r, blured
+
+  max = np.max(p_per_line)
+  result = relu(p_per_line, max / 3.0)
+  result, smoothed = local_contrast(result)
+  
+  r = {
+    'line_probability': p_per_line,
+    'line_probability relu': relu(p_per_line),
+    'accents_smooth': smoothed,
+    'result': result
+  }
+
+  return r, _doc
+
+
+if dev_mode:
+  TCD = None
+
+
+  def __test_highlight_doc_structure():
+    r, _doc = highlight_doc_structure(TEST_CHARTER_TEXT)
+
+    sentences = [to_string(line, _doc.tokens_cc) + '<br>' for line in _doc.structure.structure]
+
+    render_color_text(sentences, r['line_probability'], colormap='coolwarm', print_debug=False, _range=None)
+
+    fig = plt.figure(figsize=(20, 10))
+    ax = plt.axes()
+    off = 0
+    for k in r:
+      ax.plot(normalize(r[k]) + off, label=k, alpha=0.5)
+      off += 1
+
+    ax.plot(normalize(r['result']) + 1, label=k, alpha=0.5)
+
+    plt.title('detecting captions')
+    plt.legend(loc='upper left')
+
+
+  __test_highlight_doc_structure()
+
+if dev_mode:
+
+  r, _doc = highlight_doc_structure(TEST_CHARTER_TEXT)
+  lines_indexes = np.nonzero(r['result'])[0]
+  
+
+  for l in lines_indexes:
+    print(to_string(_doc.structure.structure[l], _doc.tokens_cc))
+
+print(TEST_CHARTER_TEXT)
+
+"""#### all docs"""
+
+if dev_mode or True:
+  
+  html=""
+  i=1
+  
+  for fn in charters:
+    r, _doc = highlight_doc_structure(charters[fn])
+    lines_indexes = np.nonzero(r['result'])[0]
+    lines_indexes = remove_similar_indexes(lines_indexes,2)
+    
+    html=f'<h3>{i}. {fn}</h3><ul>'
+    i+=1
+ 
+    prev_n=0
+    for l in lines_indexes:      
+      line = _doc.structure.structure[l]
+      color='black'
+      if  line.numbered and line.minor_number!=prev_n+1:
+        color='red'
+      html+=f'<li style="color:{color}">{ to_string(line,_doc.tokens_cc ) }</li>'
+      if  line.numbered:
+        prev_n = line.minor_number
+    
+    html+='</ul>'
+    
+    display(HTML(html))
+
 """# Charter parsing-related code
 
 ### classes
 """
 
-class CharterDocument_x(LegalDocument):
-  def __init__(self, original_text):
-    LegalDocument.__init__(self, original_text)
-    self.right_padding = 0
 
-  def preprocess_text(self, text):
-    a = text
-    a = normalize_text(a,
-                       dates_regex + abbreviation_regex + fixtures_regex +
-                       spaces_regex + syntax_regex + numbers_regex +
-                       tables_regex)
-
-    # a = self.normalize_sentences_bounds(a)
-    return a
-
-  def tokenize(self, _txt):
-
-    _words = tokenize_text(_txt)
-
-    sparse_words = []
-    end = len(_words)
-    last_cr_index = 0
-    for i in range(end):
-      if (_words[i] == '\n') or i == end - 1:
-        chunk = _words[last_cr_index:i + 1]
-        if (self.right_padding > 0):
-          chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
-        sparse_words += chunk
-        last_cr_index = i + 1
-
-    return sparse_words
-
-  def print_structured(self, numbered_only=False):
-    self.structure.print_structured(self, numbered_only)
 
 """### Constants"""
 
@@ -2232,34 +2475,9 @@ def _make_vectors_contrast(charter):
     vectors2[head_type1] = smooth(vectors2[head_type1], window_len=260)
   return vectors2
 
-
-
-def momentum(x, decay=0.999):
-  innertia = np.zeros(len(x))
-  m = 0
-  for i in range(len(x)):
-    m = max(m, x[i])
-    innertia[i] = m
-    m *= decay
-
-  return innertia
-
-
-# fig = plt.figure(figsize=(20, 6))
-# ax = plt.axes()
-
-
-  
-# vectors2 = _make_vectors_contrast(charter)
-
-# for head_type in vectors2: 
-#   ax.plot(vectors2[head_type] , alpha=0.4, color=head_types_colors[head_type]);
-#   off+=1
-  
-# render_color_text(charter.tokens[0:len(vectors2['all'])], vectors2['all'])
-
 """### Find constraint values"""
 
+@at_github
 def estimate_threshold(a, min_th=0.3):
   return max(min_th, np.max(a) * 0.7)
 
@@ -2303,8 +2521,6 @@ def highlight_margin_numbers(_doc, ctx=None, relu_threshold=0.5):
   attention_vector_r = relu(attention_vector, relu_th=estimated_threshold)
 
   return attention_vector_r, attention_vector
-
-
 
 
 
@@ -2417,6 +2633,7 @@ def _render_sentence(sentence):
   return html
 
 
+
 def render_constraint_values(rz):
   html = ''
   for head_type in rz.keys():
@@ -2452,14 +2669,9 @@ def render_constraint_values(rz):
 # raise Exception('STOP')
 
 
-#TEST HEADLINES
-if dev_mode:
-  filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав - ГПН-Транспорт_ГОСА-2018.docx'    
-#   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав ООО.doc'    
-#   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав ГПН-КП_ГОСУ-2018_сентябрь end.doc'    
-#   filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав_ООО ЮП ГПЗ_ред 5.doc'    
  
-  TEST_CHARTER_TEXT = charters[filename]
+if dev_mode:
+
   TCD = CharterDocument(TEST_CHARTER_TEXT)
   TCD.right_padding=0
   TCD.parse()

@@ -6,7 +6,7 @@ from typing import List
 
 from doc_structure import DocumentStructure
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, relu, extremums, smooth_safe
+from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes
 from patterns import *
 from text_normalize import *
 from text_tools import *
@@ -307,19 +307,6 @@ def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th
   sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
   sum /= c
   return sum
-
-
-def remove_similar_indexes(indexes, min_section_size=20):
-  if len(indexes) < 2:
-    return indexes
-
-  indexes_zipped = []
-  indexes_zipped.append(indexes[0])
-
-  for i in range(1, len(indexes)):
-    if indexes[i] - indexes[i - 1] > min_section_size:
-      indexes_zipped.append(indexes[i])
-  return indexes_zipped
 
 
 class BasicContractDocument(LegalDocumentLowCase):

@@ -20,6 +20,7 @@ def smooth_safe(x, window_len=10, window='hanning'):
 
 
 def smooth(x, window_len=11, window='hanning'):
+
   """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
@@ -181,3 +182,16 @@ def most_popular_in(arr):
 
   counts = np.bincount(arr)
   return np.argmax(counts)
+
+
+def remove_similar_indexes(indexes, min_section_size=20):
+  if len(indexes) < 2:
+    return indexes
+
+  indexes_zipped = []
+  indexes_zipped.append(indexes[0])
+
+  for i in range(1, len(indexes)):
+    if indexes[i] - indexes[i - 1] > min_section_size:
+      indexes_zipped.append(indexes[i])
+  return indexes_zipped

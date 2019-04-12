@@ -7,7 +7,8 @@ import unittest
 
 import numpy as np
 
-from legal_docs import BasicContractDocument, remove_similar_indexes
+from legal_docs import BasicContractDocument
+from ml_tools import remove_similar_indexes
 
 
 # from patterns import *
