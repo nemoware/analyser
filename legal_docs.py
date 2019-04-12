@@ -607,7 +607,6 @@ MIN_DOC_LEN = 5
 
 
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
-
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
@@ -655,6 +654,21 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
 
     attention_vector = np.full(len(attention_vector), attention_vector[0])
   return attention_vector
+
+
+def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
+  attention_vector = relu(_attention_vector, relu_th)
+  maxes = extremums(attention_vector)[1:]
+  maxes = doc.find_sentence_beginnings(maxes)
+  maxes = remove_similar_indexes(maxes, 6)
+
+  res = {}
+  for i in maxes:
+    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
+    if e - s > 0:
+      res[s] = e
+
+  return res, attention_vector, maxes
 
 
 def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: AbstractPatternFactory, max_len=40) -> \
