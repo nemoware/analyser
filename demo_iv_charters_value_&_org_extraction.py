@@ -85,9 +85,9 @@ elmo.__dict__
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/text_tools.py
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/embedding_tools.py
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/ml_tools.py
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/text_normalize.py
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/patterns.py
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/transaction_values.py
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/text_normalize.py  
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/patterns.py 
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/transaction_values.py  
 
 from transaction_values import *
 from patterns import *
@@ -570,6 +570,7 @@ def map_headline_index_to_headline_type(headline_indexes, embedded_headlines, th
     
   return best_indexes
 
+
 #------------------------------------------------------------------------------
 @deprecated
 def _detect_section_by_headline(_doc, pattern_prefix, headline_indices, embedded_headlines, factory, render):
@@ -577,12 +578,12 @@ def _detect_section_by_headline(_doc, pattern_prefix, headline_indices, embedded
     print('_detect_section_by_headline:searching for section:',pattern_prefix)
     
     
-  bi, distance_by_headline, att_ = find_best_headline_by_pattern_prefix(headline_indices,
+  bi, distance_by_headline, att_ = find_best_headline_by_pattern_prefix(headline_indices, 
                                                                   embedded_headlines, 
                                                                   pattern_prefix,
                                                                   1.5,
                                                                   render=render)
-
+  
   
   bi_next = bi + 1  
   best_headline = headline_indices[bi]
@@ -623,7 +624,7 @@ def _doc_section_under_headline(_doc, hl_struct, headline_indices, embedd_factor
     
   bi = hl_struct['index']
   
-
+   
   bi_next = bi + 1  
   best_headline = headline_indices[bi]
   
@@ -831,20 +832,18 @@ def find_ner_end(tokens, start):
 
 
 
-def _find_sentences_by_attention_vector(doc, attention_vector):
-
-  maxes = extremums(attention_vector)[1:]   
-#   print('_find_sentences_by_attention_vector',maxes)
-  maxes = doc.find_sentence_beginnings(maxes) 
+def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
+  attention_vector=relu(_attention_vector)
+  maxes = extremums(attention_vector)[1:]
+  maxes = doc.find_sentence_beginnings(maxes)
   maxes = remove_similar_indexes(maxes, 6)
-    
-  res=[]
-  for i in maxes:  
-    s,e = get_sentence_bounds_at_index(i+1, doc.tokens)
-    if e-s > 0:
-      res.append((s,e))
 
-#   print('_find_sentences_by_attention_vector', res)
+  res = {}
+  for i in maxes:
+    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
+    if e - s > 0:
+      res[s] = e
+
   return res, attention_vector, maxes
 
 """## 1.  Patterns Factory 1"""
@@ -2101,8 +2100,8 @@ NerPF = NerPatternFactory(embedder)
 for the case headline is not found
 """
 
-def _build_org_type_attention_vector(head: CharterDocument):
-  attention_vector_neg = make_soft_attention_vector(head, 'nerneg_1', blur=80)
+def _build_org_type_attention_vector(subdoc: CharterDocument):
+  attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
   attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
   return attention_vector_neg
 
@@ -2159,10 +2158,10 @@ def _detect_org_name_section(head: CharterDocument, render=False):
 
     fig = plt.figure(figsize=(20, 4))
     ax = plt.axes()
-    ax.plot(names[0:-_tail] - 1, alpha=0.6, color='blue', label='names');
-    ax.plot(distances[0:-_tail], alpha=0.6, color='black', label='distances');
-    ax.plot(attention_vector_neg[0:-_tail], alpha=0.3, color='red', label='attention_vector_neg');
-    ax.plot(orgs[0:-_tail], alpha=0.3, color='green', label='orgs');
+    ax.plot(names[0:-_tail] - 1, alpha=0.6, color='blue', label='names')
+    ax.plot(distances[0:-_tail], alpha=0.6, color='black', label='distances')
+    ax.plot(attention_vector_neg[0:-_tail], alpha=0.3, color='red', label='attention_vector_neg')
+    ax.plot(orgs[0:-_tail], alpha=0.3, color='green', label='orgs')
     plt.title('_detect_org_name_section')
     plt.legend(loc='upper left')
 
@@ -2465,6 +2464,8 @@ def highlight_margin_numbers(_doc, ctx=None, relu_threshold=0.5):
 
 
 
+
+
 def _extract_constraint_values_from_region(subdoc, attention_vector_name='values'):
   
   sentences = []
@@ -2542,7 +2543,7 @@ def extract_constraint_values_from_bounding_boxes(bounds, _doc):
     
     end = b[1]
     if end-b[0] < 100:
-      end+b[0]+100
+      end = b[0]+100
       
     subdoc = _doc.subdoc(b[0], b[1])
     vector, vector_soft = highlight_margin_numbers(subdoc, ctx=None, relu_threshold=0.4)
@@ -2557,50 +2558,46 @@ def extract_constraint_values_from_bounding_boxes(bounds, _doc):
 
 """#### Rendering"""
 
-def _render_sentence (sentence):
-  html=""
+def _render_sentence(sentence):
+  html = ""
   constraints = sentence['constraints']
-  for c in constraints:          
-    prefix = "" #" > "
+  for c in constraints:
+    prefix = ""  # " > "
     html += sum_to_html(c, prefix)
 
-#   html+=sentence['quote']
-  if len(constraints)>0:
+  #   html+=sentence['quote']
+  if len(constraints) > 0:
     html += '<div style="border-bottom:1px solid #ccc; margin-top:1em"></div>'
     section = sentence['subdoc']
     html += to_color_text(section.tokens, section.distances_per_pattern_dict['values'])
   return html
-          
-          
-  
-def render_constraint_values (rz):
 
-  html=''
+
+def render_constraint_values(rz):
+  html = ''
   for head_type in rz.keys():
-    
-    r_by_head_type = rz[head_type]
 
+    r_by_head_type = rz[head_type]
 
     html += '<hr style="margin-top: 45px">'
     html += '<i style="padding:0; margin:0">решения о пороговых суммах, которые принимает</i><h2 style="color:{}; padding:0;margin:0">{}</h2>'.format(
       head_types_colors[head_type],
       head_types_dict[head_type])
 
-        
     sentences = r_by_head_type['sentences']
     html += '<h4>{}</h4>'.format(r_by_head_type['caption'])
     html += '<div style="padding-left:80px">'
 
     if True:
-      if len(sentences)>0:
+      if len(sentences) > 0:
         for sentence in sentences:
-          html+=_render_sentence(sentence)
+          html += _render_sentence(sentence)
 
       else:
-        html+='<h4 style="color:crimson">Пороговые суммы не найдены или не заданы</h4>'
+        html += '<h4 style="color:crimson">Пороговые суммы не найдены или не заданы</h4>'
 
     html += '</div>'
-     
+
   return html
 
 """### Tests
@@ -2940,6 +2937,7 @@ def _populate_rz(rz, r, worksheet, col):
 
 """### run batch loop"""
 
+worksheet = None
 if read_docs_from_google_drive:
   if run_batch_processing:    
     sh_name = 'Charter test results'
