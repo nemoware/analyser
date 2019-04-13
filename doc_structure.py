@@ -254,17 +254,17 @@ class DocumentStructure:
 
       # self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
 
-      if romans < 4:
+      if romans < 3:
         # not enough roman numbers, so these are not roman
         for s in structure:
           if s.roman:
             s.number = []
-            s.level += 1
+            s.level = max(2, s.level + 1)
+
       elif romans > 40:
         # too many, does not look like top-level
         for s in structure:
           if s.roman:
-            s.number = []
             s.level = max(2, s.level)
 
     self.structure = self.fix_structure(structure)
