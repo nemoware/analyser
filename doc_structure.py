@@ -13,7 +13,7 @@ def _strip_left(tokens):
 
 
 def roman_to_arabic(n):
-  roman = n.upper()
+  roman = n.upper().lstrip()
   if not check_valid_roman(roman):
     return None
 
@@ -27,6 +27,8 @@ def roman_to_arabic(n):
 
 
 def check_valid_roman(roman):
+  if len(roman.strip()) == 0:
+    return False
   invalid = ['IIII', 'VV', 'XXXX', 'LL', 'CCCC', 'DD', 'MMMM', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   if any(sub in roman for sub in invalid):
     return False
@@ -193,7 +195,6 @@ class DocumentStructure:
   def detect_document_structure(self, text):
     lines: List[str] = text.split('\n')
 
-    line_number = 0
 
     last_level_known = 0
 
@@ -213,7 +214,7 @@ class DocumentStructure:
 
       bullet = False
 
-      if len(line_tokens) > 1:
+      if len(line_tokens) > 0:
         # not empty
         number, span, _level = get_tokenized_line_number(line_tokens, last_level_known)
 
@@ -255,6 +256,7 @@ class DocumentStructure:
     return tokens, tokens_cc
 
   def _find_headlines(self, tokens, tokens_cc):
+
     headlines_probability = np.zeros(len(self.structure))
     prev_sentence = []
     prev_value = 0
@@ -263,35 +265,36 @@ class DocumentStructure:
       line_tokens = line.subtokens(tokens)
       line_tokens_cc = line.subtokens(tokens_cc)
 
-      p = headline_probability(line_tokens, line_tokens_cc, prev_sentence, prev_value)
+      p = headline_probability(line_tokens, line_tokens_cc, line, prev_sentence, prev_value)
       headlines_probability[i] = p
+      line.add_possible_level(p)
       prev_sentence = line_tokens
       prev_value = p
 
     _contrasted_probability = self._highlight_headlines_probability(headlines_probability)
     headline_indexes = sorted(np.nonzero(_contrasted_probability)[0])
 
-    hif = []
-    def is_index_far(i):
-      if i == 0: return True
-      return headline_indexes[i] - headline_indexes[i - 1] > 1
-
-    def is_bigger_confidence(i):
-      id = headline_indexes[i]
-      id_p = hif[-1]
-      return _contrasted_probability[id] > _contrasted_probability[id_p]
-
-    for i in range(len(headline_indexes)):
-      id = headline_indexes[i]
-
-      if is_index_far(i):
-        hif.append(id)
-      elif is_bigger_confidence(i):
-        # replace
-        hif[-1] = id
-
-    self.headline_indexes = hif
-    return hif
+    # hif = []
+    # def is_index_far(i):
+    #   if i == 0: return True
+    #   return headline_indexes[i] - headline_indexes[i - 1] > 1
+    #
+    # def is_bigger_confidence(i):
+    #   id = headline_indexes[i]
+    #   id_p = hif[-1]
+    #   return _contrasted_probability[id] > _contrasted_probability[id_p]
+    #
+    # for i in range(len(headline_indexes)):
+    #   id = headline_indexes[i]
+    #
+    #   if is_index_far(i):
+    #     hif.append(id)
+    #   elif is_bigger_confidence(i):
+    #     # replace
+    #     hif[-1] = id
+    #
+    self.headline_indexes = remove_similar_indexes_considering_weights(headline_indexes,  _contrasted_probability)
+    return self.headline_indexes
 
   def _highlight_headlines_probability(self, p_per_line):
 
@@ -391,7 +394,7 @@ class DocumentStructure:
 
 
 # ---------------
-def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> float:
+def headline_probability(sentence, sentence_cc, sentence_meta:StructureLine, prev_sentence, prev_value) -> float:
   """
   _cc == original case
   """
@@ -410,11 +413,15 @@ def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> fl
 
   # headline may not go after another headline
   if prev_value > 0:
-    value -= prev_value
+    value -= 1
 
-  number, span, _level = get_tokenized_line_number(sentence, None)
+  number = sentence_meta.number
+  span = sentence_meta.span
+  _level = sentence_meta.level
+  # number, span, _level = get_tokenized_line_number(sentence, None)
   row = untokenize(sentence_cc[span[1]:])[:40]
   row = row.lstrip()
+
 
   if number is not None:
 
@@ -422,20 +429,18 @@ def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> fl
     if sentence[0] == 'статья':
       value += 3
 
-    if len(number) > 0:
+    if sentence_meta.numbered:
       # headline is numbered
 
-      minor_num = number[-1]
-
-      if minor_num > 0:
+      if sentence_meta.minor_number > 0:
         value += 1
 
       # headline number is NOT too big
-      if minor_num > 40:
+      if sentence_meta.minor_number > 40:
         value -= 1
 
       # headline is NOT a bullet
-      if minor_num < 0:
+      if sentence_meta.minor_number < 0:
         return NEG
     # ----
     if _level is not None:
@@ -464,3 +469,29 @@ def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> fl
     value += 1
 
   return value
+
+
+
+
+def remove_similar_indexes_considering_weights(indexes, weights):
+  hif = []
+
+  def is_index_far(i):
+    if i == 0: return True
+    return indexes[i] - indexes[i - 1] > 1
+
+  def is_bigger_confidence(i):
+    id = indexes[i]
+    id_p = hif[-1]
+    return weights[id] > weights[id_p]
+
+  for i in range(len(indexes)):
+    id = indexes[i]
+
+    if is_index_far(i):
+      hif.append(id)
+    elif is_bigger_confidence(i):
+      # replace
+      hif[-1] = id
+
+  return hif

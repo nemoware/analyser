@@ -671,67 +671,67 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
   return embedded_headlines
 
 
-# @at_github
-@deprecated
-def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
+# # @at_github
+# @deprecated
+# def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
+#
+#
+#   def number_of_leading_spaces(_tokens):
+#     c_ = 0
+#     while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
+#       c_ += 1
+#     return c_
+#
+#   lines = np.zeros(len(TCD.structure.structure))
+#
+#   prev_sentence = []
+#   prev_value = 0
+#
+#   _struct = TCD.structure.structure
+#   for i in range(len(_struct)):
+#     line = _struct[i]
+#
+#     sentence = TCD.tokens[line.span[0]: line.span[1]]
+#     sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
+#
+#     if len(sentence_cc) > 1:
+#       tr = number_of_leading_spaces(sentence)
+#       if tr > 0:
+#         sentence = sentence[tr:]
+#         sentence_cc = sentence_cc[tr:]
+#
+#     p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
+#
+#     #     if line.level == 0:
+#     #       p += 1
+#
+#     prev_sentence = sentence
+#     lines[i] = p
+#     prev_value = p
+#
+#   return lines
 
-
-  def number_of_leading_spaces(_tokens):
-    c_ = 0
-    while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
-      c_ += 1
-    return c_
-
-  lines = np.zeros(len(TCD.structure.structure))
-
-  prev_sentence = []
-  prev_value = 0
-
-  _struct = TCD.structure.structure
-  for i in range(len(_struct)):
-    line = _struct[i]
-
-    sentence = TCD.tokens[line.span[0]: line.span[1]]
-    sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
-
-    if len(sentence_cc) > 1:
-      tr = number_of_leading_spaces(sentence)
-      if tr > 0:
-        sentence = sentence[tr:]
-        sentence_cc = sentence_cc[tr:]
-
-    p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
-
-    #     if line.level == 0:
-    #       p += 1
-
-    prev_sentence = sentence
-    lines[i] = p
-    prev_value = p
-
-  return lines
-
-@deprecated
-def highlight_doc_structure(_doc: LegalDocument):
-  print ('-WARNING- highlight_doc_structure is deprecated')
-  p_per_line = _estimate_headline_probability_for_each_line(_doc)
-
-  def local_contrast(x):
-    blur = 2 * int(len(x) / 20.0)
-    blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
-    delta = relu(x - blured, 0)
-    r = normalize(delta)
-    return r, blured
-
-  max = np.max(p_per_line)
-  result = relu(p_per_line, max / 3.0)
-  contrasted, smoothed = local_contrast(result)
-
-  r = {
-    'line_probability': p_per_line,
-    'line_probability relu': relu(p_per_line),
-    'accents_smooth': smoothed,
-    'result': contrasted
-  }
-
-  return r
+# @deprecated
+# def highlight_doc_structure(_doc: LegalDocument):
+#   print ('-WARNING- highlight_doc_structure is deprecated')
+#   p_per_line = _estimate_headline_probability_for_each_line(_doc)
+#
+#   def local_contrast(x):
+#     blur = 2 * int(len(x) / 20.0)
+#     blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
+#     delta = relu(x - blured, 0)
+#     r = normalize(delta)
+#     return r, blured
+#
+#   max = np.max(p_per_line)
+#   result = relu(p_per_line, max / 3.0)
+#   contrasted, smoothed = local_contrast(result)
+#
+#   r = {
+#     'line_probability': p_per_line,
+#     'line_probability relu': relu(p_per_line),
+#     'accents_smooth': smoothed,
+#     'result': contrasted
+#   }
+#
+#   return r
