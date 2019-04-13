@@ -379,69 +379,8 @@ class DocumentStructure:
         elif s.level < _last_level + 1:
           s.level = _last_level + 1
 
-  def _sequence_continues_fuzzy(self, structure: List, index: int, index_prev: int) -> float:
 
-    if index_prev < 0:
-      return 1.0
-    if index >= len(structure):
-      return 0.0
-    if index_prev >= len(structure):
-      return 0.0
 
-    curr = structure[index]
-    prev = structure[index_prev]
-
-    yes = 0.0
-
-    if curr.parent_number == prev.parent_number:
-      yes += 4
-    if curr.minor_number == prev.minor_number + 1:
-      yes += 2
-    if prev.level == curr.level:
-      yes += 3
-
-    if curr.parent_number is None and prev.parent_number is not None:
-      yes += 1
-    if curr.parent_number is not None and prev.parent_number is None:
-      yes += 1
-
-    if curr.minor_number == prev.minor_number + 2:  # hole
-      yes += 1
-
-    return yes / 9.0
-
-  def _sequence_continues(self, structure: List, index: int, index_prev: int, level_delta=0, check_parent=True,
-                          max_hole=0):
-    def same_parent(a: StructureLine, b: StructureLine):
-      if not check_parent:
-        return True
-
-      if len(a.number) > 1:
-        if len(b.number) == 1:
-          return True  # parent unknown
-        elif len(b.number) > 1:
-          return b.number[-2] == a.number[-2]
-
-      if len(b.number) > 1:
-        if len(a.number) == 1:
-          return True  # parent unknown
-        elif len(a.number) > 1:
-          return b.number[-2] == a.number[-2]
-
-      return True
-
-    # ----
-
-    if index_prev < 0:
-      return True
-
-    curr = structure[index]
-    prev = structure[index_prev]
-
-    if 0 <= (curr.minor_number - (prev.minor_number + 1)) <= max_hole and same_parent(curr, prev):
-      return abs(curr.level - prev.level) <= level_delta
-
-    return False
 
   def print_structured(self, doc, numbered_only=False):
     ln = 0
