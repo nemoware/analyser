@@ -8,7 +8,7 @@ load_punkt=True
 
 from text_tools import *
 
-TEXT_PADDING = 10  # maximum pattern len (in words)
+
 TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine

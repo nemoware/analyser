@@ -355,8 +355,8 @@ class BasicContractDocument(LegalDocumentLowCase):
       text_right_padding=0)
     distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
-    ranges = [np.nanmin(distances_per_subj_pattern_[:-TEXT_PADDING]),
-              np.nanmax(distances_per_subj_pattern_[:-TEXT_PADDING])]
+    ranges = [np.nanmin(distances_per_subj_pattern_ ),
+              np.nanmax(distances_per_subj_pattern_ )]
 
     weight_per_pat = []
     for row in distances_per_pattern_t:
@@ -383,30 +383,7 @@ class BasicContractDocument(LegalDocumentLowCase):
 
     return ranges, winning_patterns
 
-  # TODO: remove
-  def __find_sum(self, pattern_factory):
 
-    min_i, sums_no_padding, confidence = pattern_factory.sum_pattern.find(self.embeddings, self.right_padding)
-
-    self.sums = sums_no_padding
-    sums = sums_no_padding[:-TEXT_PADDING]
-
-    meta = {
-      'tokens': len(sums),
-      'index found': min_i,
-      'd-range': (sums.min(), sums.max()),
-      'confidence': confidence,
-      'mean': sums.mean(),
-      'std': np.std(sums),
-      'min': sums[min_i],
-    }
-
-    start, end = get_sentence_bounds_at_index(min_i, self.tokens)
-    sentence_tokens = self.tokens[start + 1:end]
-
-    f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-    self.found_sum = (f, (start, end), sentence, meta)
 
   #     return
 
@@ -680,9 +657,7 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
 
 # @at_github
 def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
-  """
-  TODO: rename it
-  """
+
 
   def number_of_leading_spaces(_tokens):
     c_ = 0
@@ -717,11 +692,11 @@ def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
     lines[i] = p
     prev_value = p
 
-  return TCD, lines
+  return lines
 
 
 def highlight_doc_structure(_doc: LegalDocument):
-  _doc, p_per_line = _estimate_headline_probability_for_each_line(_doc)
+  p_per_line = _estimate_headline_probability_for_each_line(_doc)
 
   def local_contrast(x):
     blur = 2 * int(len(x) / 20.0)
@@ -741,4 +716,4 @@ def highlight_doc_structure(_doc: LegalDocument):
     'result': contrasted
   }
 
-  return r, _doc
+  return r

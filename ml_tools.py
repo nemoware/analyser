@@ -1,6 +1,10 @@
 import numpy as np
 
 
+def estimate_threshold(a, min_th=0.3):
+  return max(min_th, np.max(a) * 0.7)
+
+
 def normalize(x, out_range=(0, 1)):
   domain = np.min(x), np.max(x)
   if (domain[1] - domain[0]) == 0:

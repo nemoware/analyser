@@ -1,25 +1,7 @@
 import re
 from typing import List
 
-from ml_tools import relu, normalize
 from text_tools import tokenize_text, np, untokenize
-
-
-def extremums_soft(x):
-  extremums = np.zeros(len(x))
-
-  if len(x) > 2:
-    if x[0] >= x[1]:
-      extremums[0] = x[0]
-
-    if x[-1] >= x[-2]:
-      extremums[-1] = x[-1]
-
-  for i in range(1, len(x) - 1):
-    if x[i - 1] <= x[i] >= x[i + 1]:
-      extremums[i] = x[i]
-
-  return extremums
 
 
 def _strip_left(tokens):
@@ -278,219 +260,13 @@ class DocumentStructure:
       self._uplevel_non_numbered(structure)
       self._normalize_levels(structure)
 
-      self._fix_top_level_lines(numbered)
+      # self._fix_top_level_lines(numbered)
       self._update_levels(structure, verbose)
 
       self._uplevel_non_numbered(structure)
       self._normalize_levels(structure)
 
     return structure
-
-  def fix_substructure(self, substructure, min_level):
-    if len(substructure) == 0:
-      return
-
-    #     max = substructure[0].level
-    #     for s in substructure:
-    #       if s.level>max:
-    #         max=s.level
-
-    for s in substructure:
-      s.add_possible_level(max(min_level, s.level))
-
-  def _fix_top_level_lines(self, structure):
-    lines_a = self.detect_top_level_sequence(structure)
-    lines_b = self.detect_full_top_level_sequence(structure)
-
-    for i in range(len(structure)):
-      if i in lines_a:
-        structure[i].add_possible_level(0)
-      else:
-        structure[i].add_possible_level(max(1, structure[i].level))
-
-      if i in lines_b:
-        structure[i].add_possible_level(0)
-      else:
-        structure[i].add_possible_level(max(1, structure[i].level))
-
-  def _find_nexts_fuzzy(self, structure, start, threshold=0.3):
-    if len(structure) < 1:
-      return
-    nexts = []
-    for i in range(start + 1, len(structure)):
-      confidence = self._sequence_continues_fuzzy(structure, i, start)
-      if confidence > threshold:
-        nexts.append((i, confidence))
-    return nexts
-
-  def _find_prevs_fuzzy(self, structure, end, threshold=0.3):
-    if len(structure) < 1:
-      return
-
-    nexts = []
-    for i in reversed(range(0, end)):
-      confidence = self._sequence_continues_fuzzy(structure, end, i)
-      if confidence > threshold:
-        nexts.append((i, confidence))
-    return nexts
-
-  def _detect_sequence(self, structure, i, sequence, depth=0):
-    nexts = self._find_nexts_fuzzy(structure, i, threshold=0.7)
-    nexts += self._find_prevs_fuzzy(structure, i, threshold=0.7)
-
-    for next, w in nexts:
-      sequence[next] += w
-
-  def detect_top_level_sequence(self, structure):
-    candidates = self.get_lines_by_level(self.find_min_level(structure), structure)
-    sequence = np.zeros(len(structure))
-    for i in candidates:
-      sequence[i] += 1
-      self._detect_sequence(structure, i, sequence)
-
-      if i < len(structure) - 1:
-        _k = 0.3
-        if structure[i + 1].minor_number == 1:
-          _k = 0.9
-          self._mark_subsequence(structure, i + 1, sequence, confidence=0.2, mult=-sequence[i] * _k)
-
-        children = self.find_children_for(i, structure)
-        if len(children) > 0:
-          last_child_index = max(children)
-          for k in range(i + 1, last_child_index + 1):
-            sequence[k] -= sequence[i] * 0.8
-
-    v = normalize(relu(sequence, 0))
-    v = relu(v, 0.01)
-
-    _extremums = extremums_soft(v)  # TODO: find a better solution
-    return np.nonzero(_extremums)[0]
-
-  def get_lines_by_level(self, min_level: int, structure: List = None) -> List:
-    if structure is None:
-      structure = self.structure
-
-    candidates = []
-    for s in range(len(structure)):
-      if structure[s].level == min_level:
-        candidates.append(s)
-    return candidates
-
-  def detect_full_top_level_sequence(self, structure):
-
-    candidates = self.get_lines_by_level(self.find_min_level(structure), structure)
-
-    max_number = 0
-    for i in candidates:
-      if structure[i].minor_number > max_number:
-        max_number = structure[i].minor_number
-
-    def search_by_number(n, start_from=0, level=0):
-      found = []
-      for i in range(start_from, len(structure)):
-        if structure[i].minor_number == n and level == structure[i].level:
-          found.append(i)
-      return found
-
-    indices_of_numbered_lines = {}
-    last_found = None
-
-    for n in range(1, max_number + 1):
-      start_from = 0
-      if last_found is not None and len(last_found) > 0:
-        start_from = min(last_found)
-
-      found = search_by_number(n, start_from)
-      indices_of_numbered_lines[n] = found
-      last_found = found
-
-    # filter indexes
-    def filter_indexes():
-      for n in indices_of_numbered_lines:
-        if n > 1:
-          pv = indices_of_numbered_lines[n - 1]
-          cr = indices_of_numbered_lines[n]
-
-          if len(cr) * len(pv) > 0:
-            new_cr = []
-            new_pv = []
-
-            for c in cr:
-              for p in pv:
-                if c > p and c not in new_cr:
-                  new_cr.append(c)
-
-                if p < c and p not in new_pv:
-                  new_pv.append(p)
-
-            indices_of_numbered_lines[n] = new_cr
-            indices_of_numbered_lines[n - 1] = new_pv
-
-    for a in range(len(indices_of_numbered_lines)):
-      filter_indexes()
-
-    # Now flatten
-    top_sequence_indices = []
-    for n in indices_of_numbered_lines:
-      top_sequence_indices += indices_of_numbered_lines[n]
-
-    return top_sequence_indices
-
-  def find_children_for(self, parent_index, structure):
-    if parent_index < 0:
-      return []
-
-    children = []
-    p = structure[parent_index]
-    for i in range(parent_index + 1, len(structure)):
-      c = structure[i]
-      if c.level == p.level + 1 and c.parent_number == p.minor_number:
-        children.append(i)
-
-    #     if len(children) == 0:
-    #       #no direct children, looking for unleveled sequence
-    #       children = self._find_subsequence(structure, start=parent_index+1, confidence=0.7)
-
-    return children
-
-  def _mark_subsequence(self, structure, start, sequence, confidence=0.99, mult=1):
-    if start >= len(structure):
-      return
-
-    sequence[start] += mult
-    for i in range(start + 1, len(structure)):
-      probably_continues = self._sequence_continues_fuzzy(structure, i, i - 1)
-
-      if probably_continues > confidence:
-        sequence[i] += (probably_continues * mult)
-      else:
-        return
-
-  def _find_all_possible_nexts(self, structure, start):
-    nexts = {}
-    for level_delta in [0, 1]:
-      for check_parent in [True, False]:
-        for max_hole in [0, 1, 2]:
-          n = self._find_nexts(structure, start=start, level_delta=level_delta, max_hole=max_hole,
-                               check_parent=check_parent)
-          for kk in n:
-            nexts[kk] = 1
-
-    return sorted(nexts.keys())
-
-  def _find_nexts(self, structure, start=0, level_delta=0, max_hole=0, check_parent=True):
-    if len(structure) < 1:
-      return
-    nexts = []
-    i = start + 1
-    while i < len(structure):
-      if self._sequence_continues(structure, i, start,
-                                  level_delta=level_delta,
-                                  max_hole=max_hole,
-                                  check_parent=check_parent):
-        nexts.append(i)
-      i += 1
-    return nexts
 
   def find_min_level(self, structure):
     min_level = structure[0].level
@@ -609,10 +385,7 @@ class DocumentStructure:
         ln += 1
 
 
-
-
-
-#---------------
+# ---------------
 def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> float:
   """
   _cc == original case
@@ -686,6 +459,3 @@ def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> fl
     value += 1
 
   return value
-
-
-
