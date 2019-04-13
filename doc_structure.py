@@ -195,7 +195,6 @@ class DocumentStructure:
   def detect_document_structure(self, text):
     lines: List[str] = text.split('\n')
 
-
     last_level_known = 0
 
     structure = []
@@ -293,7 +292,7 @@ class DocumentStructure:
     #     # replace
     #     hif[-1] = id
     #
-    self.headline_indexes = remove_similar_indexes_considering_weights(headline_indexes,  _contrasted_probability)
+    self.headline_indexes = remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
     return self.headline_indexes
 
   def _highlight_headlines_probability(self, p_per_line):
@@ -382,9 +381,6 @@ class DocumentStructure:
         elif s.level < _last_level + 1:
           s.level = _last_level + 1
 
-
-
-
   def print_structured(self, doc, numbered_only=False):
     ln = 0
     for s in self.structure:
@@ -394,7 +390,7 @@ class DocumentStructure:
 
 
 # ---------------
-def headline_probability(sentence, sentence_cc, sentence_meta:StructureLine, prev_sentence, prev_value) -> float:
+def headline_probability(sentence, sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
   """
   _cc == original case
   """
@@ -413,35 +409,31 @@ def headline_probability(sentence, sentence_cc, sentence_meta:StructureLine, pre
 
   # headline may not go after another headline
   if prev_value > 0:
-    value -= 1
+    value -= prev_value / 2
 
   number = sentence_meta.number
-  span = sentence_meta.span
+  # span = sentence_meta.span
   _level = sentence_meta.level
   # number, span, _level = get_tokenized_line_number(sentence, None)
-  row = untokenize(sentence_cc[span[1]:])[:40]
+  row = untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
   row = row.lstrip()
 
-
-  if number is not None:
+  if sentence_meta.numbered:
 
     # headline starts from 'статья'
     if sentence[0] == 'статья':
       value += 3
 
-    if sentence_meta.numbered:
-      # headline is numbered
+    if sentence_meta.minor_number > 0:
+      value += 1
 
-      if sentence_meta.minor_number > 0:
-        value += 1
+    # headline number is NOT too big
+    if sentence_meta.minor_number > 40:
+      value -= 1
 
-      # headline number is NOT too big
-      if sentence_meta.minor_number > 40:
-        value -= 1
-
-      # headline is NOT a bullet
-      if sentence_meta.minor_number < 0:
-        return NEG
+    # headline is NOT a bullet
+    if sentence_meta.minor_number < 0:
+      return NEG
     # ----
     if _level is not None:
       if _level == 0:
@@ -453,7 +445,7 @@ def headline_probability(sentence, sentence_cc, sentence_meta:StructureLine, pre
 
   # ------- any number
   # headline DOES not starts from lowercase
-  if len(row) > 1:
+  if len(row) > 0:
     if row.lower()[0] == row[0]:
       value -= 1
 
@@ -469,8 +461,6 @@ def headline_probability(sentence, sentence_cc, sentence_meta:StructureLine, pre
     value += 1
 
   return value
-
-
 
 
 def remove_similar_indexes_considering_weights(indexes, weights):

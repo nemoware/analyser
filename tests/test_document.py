@@ -141,8 +141,7 @@ class LegalDocumentTestCase(unittest.TestCase):
 
 
   def test_embedd_headlines(self):
-    charter_text_1 = """
-    x
+    charter_text_1 = """e
     
     
         2. ЮРИДИЧЕСКИЙ СТАТУС.
@@ -153,7 +152,7 @@ class LegalDocumentTestCase(unittest.TestCase):
         3. УСТАВНЫЙ КАПИТАЛ. 
         и более  
         """
-    charter_text_12 = """
+    charter_text_1 = """
                       2. correct
                           no number
                           no number
