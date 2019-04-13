@@ -115,20 +115,74 @@ class LegalDocumentTestCase(unittest.TestCase):
         3. УСТАВНЫЙ КАПИТАЛ. 
         и более  
         """
+    charter_text_12 = """
+                      2. correct
+                          no number
+                          no number
+                        2.1 correct
+                        2.2 correct
+                        2.3 correct
+                          2.3.1 correct
+                          - bullet
+                          - bullet
+                      4 INcorrect (expected: 2.4)
+                          no number
+                      3. correct
+                        3.1 correct
+                          3.1.2 correct
+                            no number
+                          1.1 INcorrect
+                            no number:
+                              1) ket correct 1
+                              2) ket correct 2
+                        3.2 correct
+                      4. correct
+                        1. INcorrect (expected: 4.1)
+                        4.2 correct
+                          1) ket correct 4.4.1
+                          2) ket correct 4.2.2
+                      I correct Roman I
+                        1). ket correct
+                        2). ket correct
+                      II correct Roman II
+                        1 correct
+                        2. correct
+                          2.2 correct
+                          no number
+
+
+                    """
+    # charter_text_1 = "Заголовок"
+
     TCD = CharterDocument(charter_text_1)
     TCD.right_padding = 0
     TCD.parse()
 
+
     # TCD.structure.print_structured(TCD)
 
-    r, TCD = highlight_doc_structure(TCD)
+    r = highlight_doc_structure(TCD)
     headline_indexes = np.nonzero(r['result'])[0]
+    print(headline_indexes)
 
+    headline_indexes2=TCD.structure.headline_indexes
+    print(headline_indexes2)
     # --
-    print('headline_indexes', len(headline_indexes))
+
+    print('-'*50,'lines len' )
+    for i in range( len(TCD.structure.structure)):
+      l = TCD.structure.structure[i].to_string(TCD.tokens_cc)
+      print(f'[{l}]')
+
+    print('-'*50,'headline_indexes len', len(headline_indexes))
     for i in headline_indexes:
       l=TCD.structure.structure[i].to_string(TCD.tokens_cc)
-      print(l)
+      print(f'[{l}]')
+
+    print('-'*50,'headline_indexes2 len', len(headline_indexes))
+    for i in headline_indexes2:
+      l = TCD.structure.structure[i].to_string(TCD.tokens_cc)
+      print(f'[{l}]')
 
     # # point1 = [1, 6, 4]
     # # emb = FakeEmbedder(point1)

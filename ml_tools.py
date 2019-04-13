@@ -84,6 +84,10 @@ def smooth(x, window_len=11, window='hanning'):
 
 
 def relu(x, relu_th=0):
+
+
+  assert type(x) is np.ndarray
+
   relu = x * (x > relu_th)
   return relu
 

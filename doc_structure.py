@@ -1,6 +1,7 @@
 import re
 from typing import List
 
+from ml_tools import *
 from text_tools import tokenize_text, np, untokenize
 
 
@@ -183,6 +184,7 @@ class DocumentStructure:
 
   def __init__(self):
     self.structure: List[StructureLine] = None
+    self.headline_indexes = []
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
@@ -202,7 +204,6 @@ class DocumentStructure:
 
     index = 0
     for __row in lines:
-      line_number += 1
 
       line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
 
@@ -236,8 +237,10 @@ class DocumentStructure:
         )
 
         # HEADLINE?
-        if __row[:15].upper() == __row[:15]:
-          section_meta.add_possible_level(0)
+        # if __row[:15].upper() == __row[:15]:
+        #   section_meta.add_possible_level(0)
+
+        # p = headline_probability(line_tokens, line_tokens_cc, prev_sentence, prev_value)
 
         structure.append(section_meta)
 
@@ -245,10 +248,73 @@ class DocumentStructure:
 
     # self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
 
-    structure = self.fix_structure(structure)
+    self.structure = self.fix_structure(structure)
 
-    self.structure = structure
+    self._find_headlines(tokens, tokens_cc)
+
     return tokens, tokens_cc
+
+  def _find_headlines(self, tokens, tokens_cc):
+    headlines_probability = np.zeros(len(self.structure))
+    prev_sentence = []
+    prev_value = 0
+    for i in range(len(self.structure)):
+      line = self.structure[i]
+      line_tokens = line.subtokens(tokens)
+      line_tokens_cc = line.subtokens(tokens_cc)
+
+      p = headline_probability(line_tokens, line_tokens_cc, prev_sentence, prev_value)
+      headlines_probability[i] = p
+      prev_sentence = line_tokens
+      prev_value = p
+
+    _contrasted_probability = self._highlight_headlines_probability(headlines_probability)
+    headline_indexes = sorted(np.nonzero(_contrasted_probability)[0])
+
+    hif = []
+    def is_index_far(i):
+      if i == 0: return True
+      return headline_indexes[i] - headline_indexes[i - 1] > 1
+
+    def is_bigger_confidence(i):
+      id = headline_indexes[i]
+      id_p = hif[-1]
+      return _contrasted_probability[id] > _contrasted_probability[id_p]
+
+    for i in range(len(headline_indexes)):
+      id = headline_indexes[i]
+
+      if is_index_far(i):
+        hif.append(id)
+      elif is_bigger_confidence(i):
+        # replace
+        hif[-1] = id
+
+    self.headline_indexes = hif
+    return hif
+
+  def _highlight_headlines_probability(self, p_per_line):
+
+    def local_contrast(x):
+      blur = 2 * int(len(x) / 20.0)
+      blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
+      delta = relu(x - blured, 0)
+      # r = normalize(delta)
+      r = delta
+      return r, blured
+
+    max = np.max(p_per_line)
+    result = relu(p_per_line, max / 3.0)
+    contrasted, smoothed = local_contrast(result)
+
+    # r = {
+    #   'line_probability': p_per_line,
+    #   'line_probability relu': relu(p_per_line),
+    #   'accents_smooth': smoothed,
+    #   'result': contrasted
+    # }
+
+    return contrasted
 
   def fix_structure(self, structure, verbose=False):
 
@@ -256,15 +322,15 @@ class DocumentStructure:
     if len(numbered) == 0:
       return structure
 
-    for a in range(1):
-      self._uplevel_non_numbered(structure)
-      self._normalize_levels(structure)
+    # for a in range(1):
+    # self._uplevel_non_numbered(structure)
+    self._normalize_levels(structure)
 
-      # self._fix_top_level_lines(numbered)
-      self._update_levels(structure, verbose)
+    # self._fix_top_level_lines(numbered)
+    # self._update_levels(structure, verbose)
 
-      self._uplevel_non_numbered(structure)
-      self._normalize_levels(structure)
+    # self._uplevel_non_numbered(structure)
+    # self._normalize_levels(structure)
 
     return structure
 

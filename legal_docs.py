@@ -14,6 +14,22 @@ from transaction_values import extract_sum_from_tokens
 
 PROF_DATA = {}
 
+REPORTED_DEPRECATED = {}
+
+
+def deprecated(fn):
+  @wraps(fn)
+  @wraps(fn)
+  def with_reporting(*args, **kwargs):
+    if fn.__name__ not in REPORTED_DEPRECATED:
+      REPORTED_DEPRECATED[fn.__name__] = 1
+      print("----WARNING!: function {} is deprecated".format(fn.__name__))
+
+    ret = fn(*args, **kwargs)
+    return ret
+
+  return with_reporting
+
 
 def profile(fn):
   @wraps(fn)
@@ -656,6 +672,7 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
 
 
 # @at_github
+@deprecated
 def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
 
 
@@ -694,8 +711,9 @@ def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
 
   return lines
 
-
+@deprecated
 def highlight_doc_structure(_doc: LegalDocument):
+  print ('-WARNING- highlight_doc_structure is deprecated')
   p_per_line = _estimate_headline_probability_for_each_line(_doc)
 
   def local_contrast(x):
