@@ -60,12 +60,12 @@ def get_tokenized_line_number(tokens: List, last_level):
   """
 
   if len(tokens) == 0:
-    return None, (0, 0), last_level
+    return None, (0, 0), last_level + 1, False
 
   r = roman_might_be(tokens[0])
   if r is not None:
     # Roman number
-    return [r], (0, 1), 0
+    return [r], (0, 1), 0, True
 
   else:
     # Arabic (might be)
@@ -89,7 +89,7 @@ def get_tokenized_line_number(tokens: List, last_level):
 
         offset += _strip_left(tokens[offset:])
 
-      return n, (0, offset), level
+      return n, (0, offset), level, False
 
 
     else:
@@ -99,16 +99,16 @@ def get_tokenized_line_number(tokens: List, last_level):
       # x = re.search(r'^\s*[\-|•]\s*', tokens[token_index], flags=re.MULTILINE)
       x = re.search(r'^[\-|•]', tokens[token_index], flags=re.MULTILINE)
       if x is not None:
-        return [-1], (0, 1), last_level
+        return [-1], (0, 1), last_level, False
       else:
         pass
 
-  return None, (0, 0), last_level
+  return None, (0, 0), last_level, False
 
 
 class StructureLine():
 
-  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1, line_number=-1) -> None:
+  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1, line_number=-1, roman=False) -> None:
     super().__init__()
     self.number = number
     self.level = level
@@ -118,6 +118,7 @@ class StructureLine():
     self._possible_levels = []
     self.line_number = line_number
     self.sequence_end = 0
+    self.roman = roman
 
   def __str__(self) -> str:
     return ('#{}  N:{}  L:{} -> PL:{}, '.format(self.minor_number, self.number, self.level, self._possible_levels))
@@ -203,6 +204,8 @@ class DocumentStructure:
     tokens_cc = []
 
     index = 0
+    romans = 0
+    maxroman = 0
     for __row in lines:
 
       line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
@@ -215,7 +218,9 @@ class DocumentStructure:
 
       if len(line_tokens) > 0:
         # not empty
-        number, span, _level = get_tokenized_line_number(line_tokens, last_level_known)
+        number, span, _level, roman = get_tokenized_line_number(line_tokens, last_level_known)
+
+        if roman: romans += 1
 
         if number is None:
           number = []
@@ -233,7 +238,8 @@ class DocumentStructure:
           bullet=bullet,  # 3
           span=(index, index + len(line_tokens)),
           text_offset=span[1],
-          line_number=len(structure)
+          line_number=len(structure),
+          roman=roman
         )
 
         # HEADLINE?
@@ -246,7 +252,20 @@ class DocumentStructure:
 
         index = len(tokens)
 
-    # self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
+      # self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
+
+      if romans < 4:
+        # not enough roman numbers, so these are not roman
+        for s in structure:
+          if s.roman:
+            s.number = []
+            s.level += 1
+      elif romans > 40:
+        # too many, does not look like top-level
+        for s in structure:
+          if s.roman:
+            s.number = []
+            s.level = max(2, s.level)
 
     self.structure = self.fix_structure(structure)
 
