@@ -141,9 +141,10 @@ class LegalDocumentTestCase(unittest.TestCase):
 
 
   def test_embedd_headlines(self):
-    charter_text_1 = """e
+    charter_text_1 = """
+        e
     
-    
+        1. ЮРИДИЧЕСКИЙ содержание 4.
         2. ЮРИДИЧЕСКИЙ СТАТУС.
          
         что-то
@@ -152,7 +153,7 @@ class LegalDocumentTestCase(unittest.TestCase):
         3. УСТАВНЫЙ КАПИТАЛ. 
         и более  
         """
-    charter_text_1 = """
+    charter_text_1_ = """
                       2. correct
                           no number
                           no number
@@ -211,7 +212,7 @@ class LegalDocumentTestCase(unittest.TestCase):
       # l = TCD.structure.structure[i].to_string(TCD.tokens_cc)
       # print(f'[{l}]')
       li = TCD.structure.structure[i]
-      li.print(TCD.tokens_cc, f'\t{li.level}\t#{li.number}\t--------->{li._possible_levels}')
+      print( f'\t {li.level}\t #{li.number} \t--> {li._possible_levels}\t {li.subtokens(TCD.tokens_cc)}')
 
     # print('-'*50,'headline_indexes len', len(headline_indexes))
     # for i in headline_indexes:

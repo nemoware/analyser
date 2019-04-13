@@ -409,7 +409,7 @@ class DocumentStructure:
 
 
 # ---------------
-def headline_probability(sentence, sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
+def headline_probability(sentence:List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
   """
   _cc == original case
   """
@@ -430,7 +430,15 @@ def headline_probability(sentence, sentence_cc, sentence_meta: StructureLine, pr
   if prev_value > 0:
     value -= prev_value / 2
 
-  number = sentence_meta.number
+  #if it ends with a number, it is a contents-line
+  if len(sentence) > 3:
+    r_off=2
+    if sentence[-r_off]=='.':
+      r_off = 3
+    if sentence[-r_off].isdigit():
+      value -= 1.8
+
+
   # span = sentence_meta.span
   _level = sentence_meta.level
   # number, span, _level = get_tokenized_line_number(sentence, None)
