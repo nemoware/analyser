@@ -4,7 +4,7 @@ import time
 from functools import wraps
 from typing import List
 
-from doc_structure import DocumentStructure
+from doc_structure import DocumentStructure, headline_probability, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes
 from patterns import *
@@ -134,8 +134,6 @@ class LegalDocument(EmbeddableText):
 
     return '\n'.join(sents)
 
-
-
   def preprocess_text(self, text):
     a = text
     a = normalize_text(a,
@@ -145,8 +143,6 @@ class LegalDocument(EmbeddableText):
 
     # a = self.normalize_sentences_bounds(a)
     return a
-
-
 
   def read(self, name):
     print("reading...", name)
@@ -500,11 +496,8 @@ class CharterDocument(LegalDocument):
     LegalDocument.__init__(self, original_text)
     self.right_padding = 0
 
-
-
   def tokenize(self, _txt):
     return tokenize_text(_txt)
-
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
@@ -665,7 +658,7 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
 
   tokenized_sentences_list = []
   for i in headline_indexes:
-    line = _str[i]
+    line:StructureLine = _str[i]
 
     _len = line.span[1] - line.span[0]
     _len = min(max_len, _len)
@@ -683,3 +676,69 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
     embedded_headlines[i].calculate_distances_per_pattern(factory)
 
   return embedded_headlines
+
+
+# @at_github
+def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
+  """
+  TODO: rename it
+  """
+
+  def number_of_leading_spaces(_tokens):
+    c_ = 0
+    while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
+      c_ += 1
+    return c_
+
+  lines = np.zeros(len(TCD.structure.structure))
+
+  prev_sentence = []
+  prev_value = 0
+
+  _struct = TCD.structure.structure
+  for i in range(len(_struct)):
+    line = _struct[i]
+
+    sentence = TCD.tokens[line.span[0]: line.span[1]]
+    sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
+
+    if len(sentence_cc) > 1:
+      tr = number_of_leading_spaces(sentence)
+      if tr > 0:
+        sentence = sentence[tr:]
+        sentence_cc = sentence_cc[tr:]
+
+    p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
+
+    #     if line.level == 0:
+    #       p += 1
+
+    prev_sentence = sentence
+    lines[i] = p
+    prev_value = p
+
+  return TCD, lines
+
+
+def highlight_doc_structure(_doc: LegalDocument):
+  _doc, p_per_line = _estimate_headline_probability_for_each_line(_doc)
+
+  def local_contrast(x):
+    blur = 2 * int(len(x) / 20.0)
+    blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
+    delta = relu(x - blured, 0)
+    r = normalize(delta)
+    return r, blured
+
+  max = np.max(p_per_line)
+  result = relu(p_per_line, max / 3.0)
+  contrasted, smoothed = local_contrast(result)
+
+  r = {
+    'line_probability': p_per_line,
+    'line_probability relu': relu(p_per_line),
+    'accents_smooth': smoothed,
+    'result': contrasted
+  }
+
+  return r, _doc

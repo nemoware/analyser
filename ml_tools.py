@@ -5,7 +5,8 @@ def normalize(x, out_range=(0, 1)):
   domain = np.min(x), np.max(x)
   if (domain[1] - domain[0]) == 0:
     # all same
-    raise ValueError('all elements are same')
+    return np.full( len(x), out_range[0] )
+    # raise ValueError('all elements are same')
 
   y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
   return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2

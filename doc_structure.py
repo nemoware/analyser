@@ -180,7 +180,10 @@ class StructureLine():
     return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
   def to_string(self, tokens):
-    return untokenize(tokens[self.span[0]: self.span[1]])
+    return untokenize(self.subtokens(tokens))
+
+  def subtokens(self, tokens):
+    return tokens[self.span[0]: self.span[1]]
 
   def get_numbered(self) -> bool:
     return len(self.number) > 0
@@ -604,3 +607,85 @@ class DocumentStructure:
       if s.numbered or not numbered_only:
         s.print(doc.tokens_cc, str(s.level) + '->' + str(s._possible_levels), line_number=ln)
         ln += 1
+
+
+
+
+
+#---------------
+def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> float:
+  """
+  _cc == original case
+  """
+
+  NEG = -1
+  value = 0
+
+  if sentence == ['\n']:
+    return NEG
+
+  if len(sentence) < 2:
+    return NEG
+
+  if len(sentence) > 30:
+    return NEG
+
+  # headline may not go after another headline
+  if prev_value > 0:
+    value -= prev_value
+
+  number, span, _level = get_tokenized_line_number(sentence, None)
+  row = untokenize(sentence_cc[span[1]:])[:40]
+  row = row.lstrip()
+
+  if number is not None:
+
+    # headline starts from 'статья'
+    if sentence[0] == 'статья':
+      value += 3
+
+    if len(number) > 0:
+      # headline is numbered
+
+      minor_num = number[-1]
+
+      if minor_num > 0:
+        value += 1
+
+      # headline number is NOT too big
+      if minor_num > 40:
+        value -= 1
+
+      # headline is NOT a bullet
+      if minor_num < 0:
+        return NEG
+    # ----
+    if _level is not None:
+      if _level == 0:
+        value += 1
+
+      if _level > 1:
+        # headline is NOT a 1.2 - like-numbered
+        return -_level
+
+  # ------- any number
+  # headline DOES not starts from lowercase
+  if len(row) > 1:
+    if row.lower()[0] == row[0]:
+      value -= 1
+
+  # headline is short enough
+  if len(sentence) < 15:
+    value += 1
+
+  # headline is UPPERCASE
+  if row.upper() == row:
+    value += 2
+
+  if prev_sentence == ['\n'] and sentence != ['\n']:
+    value += 1
+
+  return value
+
+
+

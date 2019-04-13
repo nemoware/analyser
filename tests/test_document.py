@@ -32,7 +32,6 @@ class LegalDocumentTestCase(unittest.TestCase):
 
   def test_embedd_large(self):
     point1 = [1, 6, 4]
-
     emb = FakeEmbedder(point1)
 
     ld = LegalDocument('a b c d e f g h')
@@ -105,6 +104,35 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     print(lll)
 
+
+  def test_embedd_headlines(self):
+    charter_text_1 = """
+    x
+        2. ЮРИДИЧЕСКИЙ СТАТУС. 
+        что-то
+            1. Общество является юридическим лицом согласно законодательству.
+        что-то иное 
+        3. УСТАВНЫЙ КАПИТАЛ. 
+        и более  
+        """
+    TCD = CharterDocument(charter_text_1)
+    TCD.right_padding = 0
+    TCD.parse()
+
+    # TCD.structure.print_structured(TCD)
+
+    r, TCD = highlight_doc_structure(TCD)
+    headline_indexes = np.nonzero(r['result'])[0]
+
+    # --
+    print('headline_indexes', len(headline_indexes))
+    for i in headline_indexes:
+      l=TCD.structure.structure[i].to_string(TCD.tokens_cc)
+      print(l)
+
+    # # point1 = [1, 6, 4]
+    # # emb = FakeEmbedder(point1)
+    # _embedded_headlines = embedd_headlines(headline_indexes, TCD, None)
 
 if __name__ == '__main__':
   unittest.main()
