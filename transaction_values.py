@@ -25,13 +25,13 @@ complete_re = re.compile(
   r'(\s*\(.+?\))?\s*'                                 # some shit in parenthesis 
   r'((руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)\.?)' # currency
   r'(\s*\(.+?\))?'                                    # some shit in parenthesis 
-  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',                     # cents
+  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',        # cents
   re.MULTILINE|re.IGNORECASE
 )
 
 def extract_sum(sentence: str):
   r = complete_re.findall(sentence)
-  print(r[0])
+  # print(r[0])
   number = to_float(r[0][0])
   r_num = r[0][3]
   if r_num:

@@ -3,6 +3,7 @@
 # coding=utf-8
 
 import unittest
+import sys
 
 from  transaction_values import extract_sum
 from text_normalize import *
@@ -95,10 +96,11 @@ class PriceExtractTestCase(unittest.TestCase):
             f = None
             try:
                 f = extract_sum(normal_text)
-                print(f)
+                print(f"\033[1;32m{f}\u2713")
                 self.assertEqual(price, f[0])
             except:
                 print("\033[1;35;40m FAILED:", price, currency, normal_text, 'f=', f)
+                print(sys.exc_info())
 
             # #print (normal_text)
             # print('expected:', price, 'found:', f)
