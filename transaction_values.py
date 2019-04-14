@@ -14,7 +14,8 @@ currency_normalizer = {
   'руб':'РУБ',
   'дол':'USD',
   'евр':'EURO',
-  'тэнг':'тэнгэ',
+  'тэн':'KZT',
+  'тен':'KZT',
 }
 
 complete_re = re.compile(
