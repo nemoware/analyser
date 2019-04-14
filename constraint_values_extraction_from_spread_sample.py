@@ -426,10 +426,10 @@ class PriceFactory(AbstractPatternFactory):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
-    prefix = 'ринятие решений о совершении сделок '
+    prefix = 'принятие решения о согласии на совершение или о последующем одобрении'
     
-    cp('d_order_4', (prefix, 'Сделки', 'стоимость которой равна или превышает'))
-    cp('d_order_5', (prefix, 'Сделки', 'стоимость которой составляет менее'))
+    cp('d_order_4', (prefix, 'cделки', ', стоимость которой равна или превышает'))
+    cp('d_order_5', (prefix, 'cделки', ', стоимость которой составляет менее'))
     
   def _build_sum_patterns(self):
     def cp(name, tuples):
@@ -524,21 +524,55 @@ print('='*80)
 print(f'Average sentence len = {np.mean(lens)}')
 print('='*80)
 
+def cut_above(x, threshold):
+  return threshold + relu(x *-1 + threshold) * -1
+
+def make_constraints_attention_vectors(subdoc):
+  value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max', relu_th=0.4)
+  value_attention_vector = cut_above(value_attention_vector, 1)
+  value_attention_vector = relu(value_attention_vector, 0.6)
+  value_attention_vector = momentum(value_attention_vector, 0.7)
+ 
+
+  deal_attention_vector, _c2 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'd_order', relu_th=0.5)
+  deal_attention_vector = cut_above(deal_attention_vector, 1)
+  deal_attention_vector = momentum(deal_attention_vector, 0.993)
+  
+  
+  margin_attention_vector, _c3 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum__', relu_th=0.5)
+  margin_attention_vector = cut_above(margin_attention_vector, 1)  
+  margin_attention_vector = momentum(margin_attention_vector, 0.95)
+  margin_attention_vector = relu(margin_attention_vector, 0.65)
+  
+#   margin_attention_vector/=_c3
+  
+  
+  margin_value_attention_vector = relu ( (margin_attention_vector + value_attention_vector)/2, 0.6)
+#   margin_value_attention_vector=relu(margin_value_attention_vector, 0.5)
+  
+  deal_value_attention_vector = (deal_attention_vector + margin_value_attention_vector)/2
+  deal_value_attention_vector = relu(deal_value_attention_vector, 0.75)
+
+  return {
+    'value_attention_vector':value_attention_vector,
+    'deal_attention_vector':deal_attention_vector,
+    'deal_value_attention_vector':deal_value_attention_vector,
+    'margin_attention_vector':margin_attention_vector,
+    'margin_value_attention_vector':margin_value_attention_vector
+  }
+
+
+
 for subdoc in subdocs:
   print('_'*40)
   embeddings_len=len(subdoc.embeddings)
-  print(f'subdoc.embeddings= {embeddings_len} \t tokens={len(subdoc.tokens)}' )
   
-  attention_vector_lt =   soft_attention_vector(subdoc, 'sum__lt', blur=10, norm=True)
-#   attention_vector_gt =   soft_attention_vector(subdoc, 'sum__gt', blur=10, norm=False)
-  assert len(subdoc.tokens_cc) == len(attention_vector_lt)
-  
-  for p in subdoc.distances_per_pattern_dict:
-    assert embeddings_len == len(subdoc.distances_per_pattern_dict[p])
+
+  vectors = make_constraints_attention_vectors(subdoc)
+  attention_vector_lt = soft_attention_vector(subdoc, 'sum__', blur=10, norm=True)
+
     
-  render_color_text (subdoc.tokens_cc, attention_vector_lt, _range=[0,1] )
-
-
+  render_color_text (subdoc.tokens_cc, vectors['deal_value_attention_vector'], _range=(0,1) )
 
 """### d"""
 
@@ -585,7 +619,6 @@ def value_to_html(result, prefix='', sign=0):
   if result is None:
     html += '<span style="color:red">СУММА НЕ НАЙДЕНА</span> '
   else:
-#     html += '<b>{}{} {:20,.2f}</b> '.format(prefix, currencly_map[result[1]], result[0])
     color='#333333'
     if sign > 0 :
       color='#993300'
@@ -605,7 +638,7 @@ def __render(subdoc, attention_vector, colormap):
   if len(indexes) > 0:
      
     
-    html += to_color_text(subdoc.tokens[:indexes[0]]  , attention_vector[:indexes[0]], _range=[0, 1.6], colormap=colormap)+' .... <br>'
+    html += to_color_text(subdoc.tokens[:indexes[0]]  , attention_vector[:indexes[0]], _range=[0, 1.2], colormap=colormap)+' .... <br>'
     
     shtml=''
     
@@ -626,7 +659,7 @@ def __render(subdoc, attention_vector, colormap):
       
       sum_h = value_to_html(sum[0], sign_to_text(_sign), _sign)  
       shtml+= f'{sum_h} '
-      shtml+=to_color_text(subtokens ,subvector , _range=[0, 1.6], colormap=colormap)
+      shtml+=to_color_text(subtokens ,subvector , _range=[0, 1.2], colormap=colormap)
       #------
     html+=f'<div style="margin-left:3em; font-size:90%"> {shtml} </div>'
     
@@ -635,60 +668,43 @@ def __render(subdoc, attention_vector, colormap):
 i = 0
 
 ID=2
-ID=36
+# ID=36
 for subdoc in subdocs[ID:ID+1]:
-  fig = plt.figure(figsize=(20, 3))
+  fig = plt.figure(figsize=(20, 6))
   ax = plt.axes()
 
    
   embeddings_len = len(subdoc.embeddings)
   print(f'subdoc.embeddings= {embeddings_len} \t tokens={len(subdoc.tokens)}')
-
-  attention_vector_lt = momentum (soft_attention_vector(subdoc, 'sum__lt', blur=0, norm=True), 0.9)
-  attention_vector_gt = soft_attention_vector(subdoc, 'sum__gt', blur=4, norm=True)
-
-  attention_vector_all = soft_attention_vector(subdoc, 'sum_max', blur=4, norm=True)
-
-  attention_vector_order = soft_attention_vector(subdoc, 'd_order', blur=0, norm=True)
-  attention_vector_order=momentum(attention_vector_order,0.9)
-  attention_vector_order+=attention_vector_all
   
-  
-#   attention_vector_all = normalize(attention_vector_all - smooth_safe(attention_vector_lt, 20)*0.99)
- 
-  print('LT:')
-  __render(subdoc, attention_vector_lt, "Blues")
-  
-  print('GT:')
-  __render(subdoc, attention_vector_gt, "Reds")
-  
-  print('attention_vector_order:')
-  __render(subdoc, attention_vector_order, "Purples")
+  vectors = make_constraints_attention_vectors(subdoc)
 
- 
-#   #   render_color_text (subdoc.tokens_cc, attention_vector_gt, _range=[0,1] )
+  __render(subdoc, vectors['deal_value_attention_vector'], "Reds")
+  
+  for k in vectors:    
+    ax.plot(vectors[k], label=k, alpha=0.4);
+    
+  ax.plot(vectors['deal_value_attention_vector'], label="R", alpha=0.6, color='black');
 
-  ax.plot(attention_vector_lt, color='blue', label='value LT <');
-  ax.plot(attention_vector_gt, color='red', label='value GT >');
-  ax.plot(attention_vector_order, color='purple', label='attention_vector_order>');
 
  
 
   plt.title('margin_numbers "{}"'.format(i))
-  plt.legend(loc='upper left')
+  plt.legend(loc='upper right')
 
 for subdoc in subdocs :
- 
+  vectors = make_constraints_attention_vectors(subdoc)
   
   print(i, '='*40)
   embeddings_len = len(subdoc.embeddings)
 #   print(f'subdoc.embeddings= {embeddings_len} \t tokens={len(subdoc.tokens)}')
 
-  attention_vector_lt = soft_attention_vector(subdoc, 'sum__', blur=4, norm=True)
+#   attention_vector_lt = soft_attention_vector(subdoc, 'sum__', blur=4, norm=True)
 #   attention_vector_gt = soft_attention_vector(subdoc, 'sum__gt', blur=4, norm=True)
 
 #   print('attention sum__')
-  __render(subdoc, attention_vector_lt, "Blues")
+  __render(subdoc, vectors['deal_value_attention_vector'], "coolwarm")
+#   __render(subdoc, attention_vector_lt, "Blues")
   i += 1
 #   print('GT')
 #   __render(subdoc, attention_vector_gt, "Reds")
