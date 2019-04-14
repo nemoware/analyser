@@ -6,11 +6,11 @@ from typing import List
 
 from doc_structure import DocumentStructure, headline_probability, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes
+from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum
 from patterns import *
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens
+from transaction_values import extract_sum_from_tokens, ValueConstraint, split_by_number, extract_sum_and_sign
 
 PROF_DATA = {}
 
@@ -735,3 +735,47 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
 #   }
 #
 #   return r
+def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
+  ValueConstraint]:
+  regions, indexes, bounds = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
+
+  constraints = []
+  if len(indexes) > 0:
+
+    for b in bounds:
+      vc = extract_sum_and_sign(sentence_subdoc, b)
+      constraints.append(vc)
+
+  return constraints
+
+
+def make_constraints_attention_vectors(subdoc):
+  value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
+                                                                relu_th=0.4)
+  value_attention_vector = cut_above(value_attention_vector, 1)
+  value_attention_vector = relu(value_attention_vector, 0.6)
+  value_attention_vector = momentum(value_attention_vector, 0.7)
+
+  deal_attention_vector, _c2 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'd_order',
+                                                               relu_th=0.5)
+  deal_attention_vector = cut_above(deal_attention_vector, 1)
+  deal_attention_vector = momentum(deal_attention_vector, 0.993)
+
+  margin_attention_vector, _c3 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum__',
+                                                                 relu_th=0.5)
+  margin_attention_vector = cut_above(margin_attention_vector, 1)
+  margin_attention_vector = momentum(margin_attention_vector, 0.95)
+  margin_attention_vector = relu(margin_attention_vector, 0.65)
+
+  margin_value_attention_vector = relu((margin_attention_vector + value_attention_vector) / 2, 0.6)
+
+  deal_value_attention_vector = (deal_attention_vector + margin_value_attention_vector) / 2
+  deal_value_attention_vector = relu(deal_value_attention_vector, 0.75)
+
+  return {
+    'value_attention_vector': value_attention_vector,
+    'deal_attention_vector': deal_attention_vector,
+    'deal_value_attention_vector': deal_value_attention_vector,
+    'margin_attention_vector': margin_attention_vector,
+    'margin_value_attention_vector': margin_value_attention_vector
+  }

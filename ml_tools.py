@@ -204,3 +204,7 @@ def remove_similar_indexes(indexes, min_section_size=20):
     if indexes[i] - indexes[i - 1] > min_section_size:
       indexes_zipped.append(indexes[i])
   return indexes_zipped
+
+
+def cut_above(x, threshold):
+  return threshold + relu(x * -1 + threshold) * -1
