@@ -30,10 +30,10 @@ complete_re = re.compile(
 )
 
 def extract_sum(sentence: str):
-  r = complete_re.findall(sentence)
+  r = complete_re.search(sentence)
   # print(r[0])
-  number = to_float(r[0][0])
-  r_num = r[0][3]
+  number = to_float(r[1])
+  r_num = r[4]
   if r_num:
     if r_num.startswith('тыс'):
       number *= 1000
@@ -41,13 +41,13 @@ def extract_sum(sentence: str):
       if r_num.startswith('м'):
         number *= 1000000
 
-  r_cents = r[0][9]
+  r_cents = r[10]
   if r_cents:
     frac, whole = math.modf(number)
     if frac==0:
       number += to_float(r_cents) / 100.
 
-  curr = r[0][6][0:3]
+  curr = r[7][0:3]
 
   return (number, currency_normalizer[curr.lower()])
 
