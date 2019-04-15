@@ -26,7 +26,7 @@ read_docs_from_google_drive = True  #@param {type: "boolean"}
 
 
 #@markdown ## - dev
-dev_mode = True  #@param {type: "boolean"}
+dev_mode = False  #@param {type: "boolean"}
 #@markdown - запуск тестов после декларации методов и функций
 perform_test_on_small_doc = False  #@param {type: "boolean"}
 git_branch = "structured_2" #@param {type:"string"}
@@ -46,6 +46,8 @@ print(str(hyperparameters))
 
 """## Authenticate on Google and mount Google Drive"""
 
+print(f'dev_mode={dev_mode}')
+print(f'run_batch_processing={run_batch_processing}')
 if run_batch_processing or dev_mode:
 
   import gspread
@@ -81,14 +83,14 @@ elmo.__dict__
 # elmo._graph.__dict__
 
 """### Import from GitHub"""
-#
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/text_tools.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/embedding_tools.py
-# !rm ml_tools.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/ml_tools.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/text_normalize.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/patterns.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/transaction_values.py
+
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/text_tools.py
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/embedding_tools.py
+!rm ml_tools.py  
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/ml_tools.py
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/text_normalize.py  
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/patterns.py 
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/transaction_values.py  
 
 from transaction_values import *
 from patterns import *
@@ -99,10 +101,10 @@ from ml_tools import *
 
 # from split import *
 
-# !rm doc_structure.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/doc_structure.py
-# !rm legal_docs.py
-# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/legal_docs.py
+!rm doc_structure.py  
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/doc_structure.py 
+!rm legal_docs.py  
+!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/legal_docs.py  
 from legal_docs import *
 from doc_structure import *
 
@@ -596,7 +598,6 @@ def map_headline_index_to_headline_type(headline_indexes, embedded_headlines, th
 
 
 
-
 # ------------------------------
 def _doc_section_under_headline(_doc, hl_struct, headline_indices, render=False):
   if render:
@@ -693,54 +694,128 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 
   return res, attention_vector, maxes
 
+# @deprecated
+# @at_github
+# def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
+#   assert TCD is not None
+#   assert TCD.structure is not None
+#   assert TCD.structure.structure is not None
+
+#   def number_of_leading_spaces(_tokens):
+#     c_ = 0
+#     while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
+#       c_ += 1
+#     return c_
+
+#   lines = np.zeros(len(TCD.structure.structure))
+
+#   prev_sentence = []
+#   prev_value = 0
+
+#   _struct = TCD.structure.structure
+#   for i in range(len(_struct)):
+#     line = _struct[i]
+
+#     sentence = TCD.tokens[line.span[0]: line.span[1]]
+#     sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
+
+#     if len(sentence_cc) > 1:
+#       tr = number_of_leading_spaces(sentence)
+#       if tr > 0:
+#         sentence = sentence[tr:]
+#         sentence_cc = sentence_cc[tr:]
+
+#     p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
+
+#     #     if line.level == 0:
+#     #       p += 1
+
+#     prev_sentence = sentence
+#     lines[i] = p
+#     prev_value = p
+
+#   return TCD, lines
+
+# @deprecated
+# @at_github
+# def highlight_doc_structure(_doc: LegalDocument):
+#   _doc, p_per_line = _estimate_headline_probability_for_each_line(_doc)
+
+#   def local_contrast(x):
+#     blur = 2 * int(len(x) / 20.0)
+#     blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
+#     delta = relu(x - blured, 0)
+#     r = normalize(delta)
+#     return r, blured
+
+#   max = np.max(p_per_line)
+#   result = relu(p_per_line, max / 3.0)
+#   contrasted, smoothed = local_contrast(result)
+
+#   r = {
+#     'line_probability': p_per_line,
+#     'line_probability relu': relu(p_per_line),
+#     'accents_smooth': smoothed,
+#     'result': contrasted
+#   }
+
+#   return r 
+
+
 import numpy as np
 
-
+from doc_structure import get_tokenized_line_number
 from legal_docs import CharterDocument
-from ml_tools import relu, normalize
+from ml_tools import relu, normalize, smooth
 from text_tools import untokenize
 
  
   
-
-if dev_mode:
-  TCD = None
-
-  def __test_highlight_doc_structure():
-    TCD = CharterDocument(TEST_CHARTER_TEXT)
-    TCD.parse()
-    r, TCD = highlight_doc_structure(TCD)
-
-    sentences = [line.to_string(TCD.tokens_cc) + '<br>' for line in TCD.structure.structure]
-    render_color_text(sentences, r['line_probability'], colormap='coolwarm', print_debug=False, _range=None)
-
-    plt.figure(figsize=(20, 10))
-    ax = plt.axes()
-    off = 0
-    for k in r:
-      ax.plot(normalize(r[k]) + off, label=k, alpha=0.5)
-      off += 1
-
-    ax.plot(normalize(r['result']) + 1, label=k, alpha=0.5)
-    plt.title('detecting captions')
-    plt.legend(loc='upper left')
-
-  __test_highlight_doc_structure()
-
-if dev_mode:
-
-  r, TCD = highlight_doc_structure(TCD)
-  lines_indexes = np.nonzero(r['result'])[0]
+class test_charter:
+  def __enter__(self, *args):
+    print(args)
+    self.TCD = CharterDocument(TEST_CHARTER_TEXT)
+    self.TCD.parse()
+    return self.TCD
+  def __exit__(self, type, value, traceback):
+    del self.TCD
   
 
-  for l in lines_indexes:
-    print(TCD.structure.structure[l].to_string(TCD.tokens_cc))
-
-print(TEST_CHARTER_TEXT)
-
-"""#### all docs"""
+if dev_mode:
+  with test_charter() as TCD:
 
 
+    def __test_highlight_doc_structure():
+
+      r = highlight_doc_structure(TCD)
+
+      sentences = [line.to_string(TCD.tokens_cc) + '<br>' for line in TCD.structure.structure]
+      render_color_text(sentences, r['line_probability'], colormap='coolwarm', print_debug=False, _range=None)
+
+      plt.figure(figsize=(20, 10))
+      ax = plt.axes()
+      off = 0
+      for k in r:
+        ax.plot(normalize(r[k]) + off, label=k, alpha=0.5)
+        off += 1
+
+      ax.plot(normalize(r['result']) + 1, label=k, alpha=0.5)
+      plt.title('detecting captions')
+      plt.legend(loc='upper left')
+
+      return r
+
+    ___r = __test_highlight_doc_structure()
+
+
+    lines_indexes = np.nonzero(r['result'])[0]
+
+
+    for l in lines_indexes:
+      print(TCD.structure.structure[l].to_string(TCD.tokens_cc))
+
+if dev_mode:
+  print(TEST_CHARTER_TEXT)
 
 """# Charter parsing-related code
 
@@ -771,6 +846,7 @@ head_types_colors = {  'head.directors':'crimson',
 
 
 org_types={
+    'org_unknown':'undefined', 
     'org_ao':'Акционерное общество', 
     'org_zao':'Закрытое акционерное общество', 
     'org_oao':'Открытое акционерное общество', 
@@ -2102,6 +2178,9 @@ def _build_org_type_attention_vector(subdoc: CharterDocument):
   attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
   return attention_vector_neg
 
+"""### NER-2
+based on detecting document structure and headlines
+"""
 
 # ------------------------------------------------------------------------------
 def _detect_org_type_and_name(section, render=False):
@@ -2324,40 +2403,6 @@ def extract_constraint_values_from_sections(sections):
 
   return rez
 
-
-@deprecated  
-def extract_constraint_values_from_bounding_boxes(bounds, _doc):
-  
-  rez ={}
-
-  for head_type in bounds:
-#     print('.'*10)
-#     print('head_type=',head_type.upper())
-    
-    rez[head_type] = {}
-    r_by_head_type = rez[head_type]
-    r_by_head_type['section'] = head_types_dict[head_type]
-#     r_by_head_type['constraints'] = []
-
-    b = bounds[head_type]
-    r_by_head_type['bounding box'] = b
-    r_by_head_type['sentences'] = []
-    
-    end = b[1]
-    if end-b[0] < 100:
-      end = b[0]+100
-      
-    subdoc = _doc.subdoc(b[0], b[1])
-    vector, vector_soft = highlight_margin_numbers(subdoc, ctx=None, relu_threshold=0.4)
-
-    subdoc.distances_per_pattern_dict['values'] = vector
- 
-    
-    r_by_head_type['sentences'] =  _extract_constraint_values_from_region(subdoc) 
-    
-    
-  return rez
-
 """#### Rendering"""
 
 def _render_sentence(sentence):
@@ -2419,7 +2464,7 @@ if dev_mode:
 if dev_mode:
 #   headline_indexes = TCD.structure.get_lines_by_level(0)
   
-  r, TCD = highlight_doc_structure(TCD)
+  r = highlight_doc_structure(TCD)
   headline_indexes = np.nonzero(r['result'])[0]
   
   #--
@@ -2646,12 +2691,8 @@ import numpy as np
 
 
 # ---------------------------------------
-def find_contraints(best_indexes, headline_indexes, _charter_doc, verbose=False):
-  # 4. find sections
-  sections = find_sections_by_headlines(best_indexes,
-                                        _charter_doc,
-                                        headline_indexes,
-                                        render=verbose)
+def find_contraints(sections, verbose=False):
+ 
 
   # 5. extract constraint values
   sections_filtered = {}
@@ -2675,7 +2716,7 @@ def process_charter(txt, verbose=False ):
   # 1. find top level structure
   #   headline_indexes = _charter_doc.structure.get_lines_by_level(0)
 
-  r, _charter_doc = highlight_doc_structure(_charter_doc)
+  r = highlight_doc_structure(_charter_doc)
   headline_indexes = np.nonzero(r['result'])[0]
 
   # 2. embedd headlines
@@ -2683,12 +2724,28 @@ def process_charter(txt, verbose=False ):
 
   # 3. apply semantics to headlines,
   best_indexes = match_headline_types(HPF.headlines, headline_indexes, embedded_headlines, 'headline.', 1.4)
+  
+   # 4. find sections
+  sections = find_sections_by_headlines(best_indexes,
+                                        _charter_doc,
+                                        headline_indexes,
+                                        render=verbose)
 
   #   org_subdoc = _doc_section_under_headline(_charter_doc, hl_struct, _headline_indexes, embedd_factory=NerPF, render=render)
   #   _org = detect_ners(section=org_subdoc)
 
-  org = detect_ners(section=sections['name']['body.subdoc'], render=verbose)
-  rz  = find_contraints(best_indexes, headline_indexes, _charter_doc, verbose)
+  if 'name' in sections:
+    org = detect_ners(section=sections['name']['body.subdoc'], render=verbose)
+  else:
+    org = {
+      'type': 'org_unknown',
+      'name': "не определено",
+      'type_name': "не определено",
+      'tokens': [],
+      'attention_vector': []
+    }
+
+  rz  = find_contraints(sections, verbose)
 
   #   html = render_constraint_values(rz)
   #   display(HTML(html))
@@ -2756,7 +2813,7 @@ if upload_enabled:
 
 
 
-raise Exception ("You'd better stop here, dude")
+# raise Exeption("You'd better stop here, dude")
 
 """# BATCH
 пакетный процессинг уставов, запись результатов в google sheets
@@ -2766,11 +2823,8 @@ raise Exception ("You'd better stop here, dude")
 
 populate_names = False  #@param {type: "boolean"}
 #@markdown - читает список файлов из папки и заносит их имена в первый столбец таблицы
-start_from_row = 6  # @param {type: "integer"}
+start_from_row = 9  # @param {type: "integer"}
 #@markdown - читает имена файлов из первого столбца начиная со строки  start_from_row (min=2)
-search_also_for_constraints = True  # @param {type: "boolean"}
-#@markdown - если False, то в Уставах будут определяться только названия организаций
-
 
 if start_from_row < 2:
   raise Exception()
@@ -2820,8 +2874,6 @@ def _populate_rz(rz, r, worksheet, col):
 
       constraints = sentence['constraints']
 
-      
-
       if len(constraints) > 0:
         _p(10, sentence['quote'])
 
@@ -2843,7 +2895,7 @@ def _populate_rz(rz, r, worksheet, col):
 
 """### run batch loop"""
 
-print()
+print(f'read_docs_from_google_drive={read_docs_from_google_drive}')
 worksheet = None
 if read_docs_from_google_drive:
   if run_batch_processing:    
@@ -2860,6 +2912,17 @@ import traceback
 print(f'run_batch_processing : {run_batch_processing}')
   
 if run_batch_processing:
+  
+  
+  def _populate_org(orginfo, the_row):
+    worksheet.update_cell(the_row, col + 4, orginfo['name'])
+    worksheet.update_cell(the_row, col + 5, orginfo['type_name'])
+    worksheet.update_cell(the_row, col + 6, orginfo['type'])
+    worksheet.update_cell(the_row, col + 10, untokenize(orginfo['tokens']))
+    return the_row+1
+
+
+
   worksheet.update_cell(1, 1, "used CONFIG: {}:".format(str(hyperparameters)))
   
   
@@ -2897,18 +2960,12 @@ if run_batch_processing:
     try:      
       
       orginfo, rz = process_charter(txt)  
-      _doc = CharterDocument(txt)  
+#       print(rz)
+#       print(orginfo)
        
 
-      worksheet.update_cell(the_row, col + 4, orginfo['name'])
-      worksheet.update_cell(the_row, col + 5, orginfo['type_name'])
-      worksheet.update_cell(the_row, col + 6, orginfo['type'])
-      
-      worksheet.update_cell(the_row, col +10, untokenize(orginfo['tokens']))
-                   
-      the_row+= 1
+      the_row = _populate_org(orginfo, the_row)
       _clean()
-
       the_row = _populate_rz(rz, the_row, worksheet, col)
 
     except Exception as e:
