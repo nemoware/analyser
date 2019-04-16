@@ -1,7 +1,8 @@
-from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, extract_all_contraints_from_sentence, \
-  embedd_headlines, tokenize_text, HeadlineMeta
+from legal_docs import LegalDocument, HeadlineMeta
+from legal_docs import extract_all_contraints_from_sentence
+from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
 from ml_tools import *
-from patterns import AbstractPatternFactory, FuzzyPattern
+from patterns import AbstractPatternFactoryLowCase
 from renderer import AbstractRenderer
 from transaction_values import ValueConstraint
 
@@ -11,8 +12,8 @@ class ContractAnlysingContext:
     assert embedder is not None
     assert renderer is not None
 
-    self.price_factory = PriceFactory(embedder)
-    self.hadlines_factory = HeadlinesPatternFactory(embedder)
+    self.price_factory = ContractValuePatternFactory(embedder)
+    self.hadlines_factory = ContractHeadlinesPatternFactory(embedder)
     self.renderer = renderer
 
     self.contract = None
@@ -23,7 +24,7 @@ class ContractAnlysingContext:
     doc.parse()
 
     self.contract = doc
-    
+
     values = fetch_value_from_contract(doc, self)
 
     self.renderer.render_values(values)
@@ -31,18 +32,11 @@ class ContractAnlysingContext:
     return doc, values
 
 
-class HeadlinesPatternFactory(AbstractPatternFactory):
-
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp
+class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
-    self.patterns_dict = {}
+    AbstractPatternFactoryLowCase.__init__(self, embedder)
+
     self._build_head_patterns()
     self.embedd()
 
@@ -100,19 +94,10 @@ class HeadlinesPatternFactory(AbstractPatternFactory):
     cp('headline.conficts', (PRFX, 'Споры и разногласия.', ''))
 
 
-class PriceFactory(AbstractPatternFactory):
-
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp
+class ContractValuePatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
-
-    self.patterns_dict = {}
+    AbstractPatternFactoryLowCase.__init__(self, embedder)
 
     self._build_sum_patterns()
     self.embedd()
@@ -165,61 +150,6 @@ class PriceFactory(AbstractPatternFactory):
       'novalue_attention_vector_local_contrast': novalue_attention_vector_local_contrast,
       'value_attention_vector_tuned': value_attention_vector_tuned
     }
-
-
-import math
-
-
-def _find_best_headline_by_pattern_prefix(embedded_headlines: List[LegalDocument],
-                                          pattern_prefix, threshold):
-  confidence_by_headline = []
-
-  attention_vs = []
-  for subdoc in embedded_headlines:
-    names, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix, relu_th=0.6)
-
-    names = smooth_safe(names, 4)
-
-    _max_id = np.argmax(names)
-    _max = np.max(names)
-    _sum = math.log(1 + np.sum(names[_max_id - 1:_max_id + 2]))
-
-    confidence_by_headline.append(_max + _sum)
-    attention_vs.append(names)
-
-  bi = np.argmax(confidence_by_headline)
-
-  if confidence_by_headline[bi] < threshold:
-    raise ValueError('Cannot find headline matching pattern "{}"'.format(pattern_prefix))
-
-  return bi, confidence_by_headline, attention_vs[bi]
-
-
-# ----------------------------------------------------------------------------------------------
-def match_headline_types(head_types_list, embedded_headlines: List[LegalDocument], pattern_prefix, threshold) -> dict:
-  hl_meta_by_index = {}
-  for head_type in head_types_list:
-    try:
-      bi, confidence_by_headline, attention_v = \
-        _find_best_headline_by_pattern_prefix(embedded_headlines, pattern_prefix + head_type, threshold)
-
-      obj = HeadlineMeta(bi, head_type,
-                         confidence=confidence_by_headline[bi],
-                         subdoc=embedded_headlines[bi],
-                         attention_v=attention_v)
-
-      if bi in hl_meta_by_index:
-        e_obj = hl_meta_by_index[bi]
-        if e_obj.confidence < obj.confidence:
-          hl_meta_by_index[bi] = obj
-      else:
-        hl_meta_by_index[bi] = obj
-
-    except Exception as e:
-      print(e)
-      pass
-
-  return hl_meta_by_index
 
 
 # ----------------------------------------------------------------------------------------------
@@ -281,7 +211,7 @@ def find_sections_by_headlines(headline_metas: dict, _doc: LegalDocument) -> dic
   return sections
 
 
-def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: PriceFactory) -> List:
+def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List:
   value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
 
@@ -294,9 +224,6 @@ def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: Pric
                                                                          'value_attention_vector_tuned'])
 
   return values
-
-
-RENDER = True
 
 
 # ----------------------------------
@@ -314,14 +241,14 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
   hadlines_factory = context.hadlines_factory
   price_factory = context.price_factory
 
-  embedded_headlines = embedd_headlines(contract.structure.headline_indexes, contract, hadlines_factory)
+  embedded_headlines = contract.embedd_headlines(hadlines_factory)
 
   if RENDER:
     print('-' * 100)
     for eh in embedded_headlines:
       print(eh.untokenize_cc())
 
-  hl_meta_by_index = match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
+  hl_meta_by_index = contract.match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
 
   if RENDER:
     print('-' * 100)
@@ -384,3 +311,11 @@ class ContractDocument2(LegalDocument):
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
+
+# ------------------------------
+
+
+##---------------------------------------##---------------------------------------##---------------------------------------
+
+
+# self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']

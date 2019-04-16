@@ -1,14 +1,14 @@
-# ------------------------------
+from typing import List
 
-from demo import match_headline_types, find_sections_by_headlines
-from legal_docs import LegalDocument, untokenize, embedd_generic_tokenized_sentences, HeadlineMeta
-from legal_docs import extract_all_contraints_from_sentence, \
-  embedd_headlines, deprecated, CharterDocument, make_soft_attention_vector, make_constraints_attention_vectors
-from ml_tools import *
-from patterns import AbstractPatternFactory, FuzzyPattern
+from demo import  find_sections_by_headlines
+from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
+  embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
+  deprecated, make_soft_attention_vector, org_types
+from ml_tools import np, split_by_token
+from patterns import AbstractPatternFactoryLowCase, AbstractPatternFactory, FuzzyPattern
 from renderer import AbstractRenderer
-from text_tools import find_ner_end
-from transaction_values import ValueConstraint, extract_sum
+from text_tools import find_ner_end, untokenize
+from transaction_values import extract_sum, ValueConstraint
 
 
 class CharterAnlysingContext:
@@ -25,7 +25,6 @@ class CharterAnlysingContext:
     self.constraints = None
     self.doc = None
 
-
   def analyze_charter(self, txt, verbose=False):
     # parse
     _charter_doc = CharterDocument(txt)
@@ -35,17 +34,17 @@ class CharterAnlysingContext:
     self.doc = _charter_doc
 
     # 2. embedd headlines
-    embedded_headlines = embedd_headlines(_charter_doc.structure.headline_indexes, _charter_doc, self.hadlines_factory)
+    embedded_headlines = _charter_doc.embedd_headlines( self.hadlines_factory)
 
     # 3. apply semantics to headlines,
-    best_indexes = match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
+    hl_meta_by_index = _charter_doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
 
     # 4. find sections
-    sections = find_sections_by_headlines(best_indexes, _charter_doc)
+    sections = find_sections_by_headlines(hl_meta_by_index, _charter_doc)
 
     if 'name' in sections:
       section: HeadlineMeta = sections['name']
-      org = detect_ners(section.body, context=self, render=verbose)
+      org = self.detect_ners(section.body)
     else:
       org = {
         'type': 'org_unknown',
@@ -55,29 +54,169 @@ class CharterAnlysingContext:
         'attention_vector': []
       }
 
-    rz = find_contraints(sections, self, verbose)
+    rz = self.find_contraints(sections)
 
     #   html = render_constraint_values(rz)
     #   display(HTML(html))
     self.org = org
     self.constraints = rz
 
+    self.verbosity_level = 1
 
     return org, rz
 
+  # ------------------------------------------------------------------------------
+  def detect_ners(self, section):
+    assert section is not None
 
-class CharterHeadlinesPatternFactory(AbstractPatternFactory):
+    section.embedd(self.ner_factory)
+    section.calculate_distances_per_pattern(self.ner_factory)
 
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp
+    dict_org, best_type = self._detect_org_type_and_name(section)
+
+    if self.verbosity_level > 1:
+      self.renderer.render_color_text(section.tokens_cc, section.distances_per_pattern_dict[best_type],
+                                      _range=[0, 1])
+
+    start = dict_org[best_type][0]
+    start = start + len(self.ner_factory.patterns_dict[best_type].embeddings)
+    end = 1 + find_ner_end(section.tokens, start)
+
+    orgname_sub_section: LegalDocument = section.subdoc(start, end)
+    org_name = orgname_sub_section.untokenize_cc()
+
+    if self.verbosity_level > 1:
+      self.renderer.render_color_text(orgname_sub_section.tokens_cc,
+                                      orgname_sub_section.distances_per_pattern_dict[best_type],
+                                      _range=[0, 1])
+      print('Org type:', org_types[best_type], dict_org[best_type])
+
+    rez = {
+      'type': best_type,
+      'name': org_name,
+      'type_name': org_types[best_type],
+      'tokens': section.tokens_cc,
+      'attention_vector': section.distances_per_pattern_dict[best_type]
+    }
+
+    return rez
+
+  # ------------------------------------------------------------------------------
+  def _detect_org_type_and_name(self, section):
+    s_attention_vector_neg = self.ner_factory._build_org_type_attention_vector(section)
+
+    dict_org = {}
+    best_type = None
+    _max = 0
+    for org_type in org_types.keys():
+
+      vector = section.distances_per_pattern_dict[org_type] * s_attention_vector_neg
+      if self.verbosity_level > 2:
+        print('_detect_org_type_and_name, org_type=', org_type, section.distances_per_pattern_dict[org_type][0:10])
+
+      idx = np.argmax(vector)
+      val = section.distances_per_pattern_dict[org_type][idx]
+      if val > _max:
+        _max = val
+        best_type = org_type
+
+      dict_org[org_type] = [idx, val]
+
+    if self.verbosity_level > 2:
+      print('_detect_org_type_and_name', dict_org)
+
+    return dict_org, best_type
+
+  # ---------------------------------------
+  def find_contraints(self, sections):
+    # 5. extract constraint values
+    sections_filtered = {}
+    prefix = 'head.'
+    for k in sections:
+      if k[:len(prefix)] == prefix:
+        sections_filtered[k] = sections[k]
+
+    rz = self.extract_constraint_values_from_sections(sections_filtered)
+    return rz
+
+  ##---------------------------------------
+  def extract_constraint_values_from_sections(self, sections):
+    rez = {}
+
+    for head_type in sections:
+      section = sections[head_type]
+      rez[head_type] = self.extract_constraint_values_from_section(section)
+
+    return rez
+
+  ##---------------------------------------
+  def extract_constraint_values_from_section(self, section: HeadlineMeta):
+
+    if self.verbosity_level > 1:
+      print('extract_constraint_values_from_section', section.type)
+
+    body = section.body
+
+    if self.verbosity_level > 1:
+      print('extract_constraint_values_from_section', 'embedding....')
+
+    sentenses_i = []
+    senetences = split_by_token(body.tokens, '\n')
+    for s in senetences:
+      line = untokenize(s) + '\n'
+      sum = extract_sum(line)
+      if sum is not None:
+        sentenses_i.append(line)
+      if self.verbosity_level > 2:
+        print('-', sum, line)
+
+    hl_subdoc = section.subdoc
+
+    r_by_head_type = {
+      'section': head_types_dict[section.type],
+      'caption': untokenize(hl_subdoc.tokens_cc),
+      'sentences': self._extract_constraint_values_from_region(sentenses_i, self.price_factory)
+    }
+
+    return r_by_head_type
+
+  ##---------------------------------------
+  def _extract_constraint_values_from_region(self, sentenses_i, _embedd_factory):
+    if sentenses_i is None or len(sentenses_i) == 0:
+      return []
+
+    ssubdocs = embedd_generic_tokenized_sentences(sentenses_i, _embedd_factory)
+
+    for ssubdoc in ssubdocs:
+
+      vectors = make_constraints_attention_vectors(ssubdoc)
+      ssubdoc.distances_per_pattern_dict = {**ssubdoc.distances_per_pattern_dict, **vectors}
+
+      if self.verbosity_level > 1:
+        self.renderer.render_color_text(
+          ssubdoc.tokens,
+          ssubdoc.distances_per_pattern_dict['deal_value_attention_vector'], _range=(0, 1))
+
+    sentences = []
+    for sentence_subdoc in ssubdocs:
+      constraints: List[ValueConstraint] = extract_all_contraints_from_sentence(sentence_subdoc,
+                                                                                sentence_subdoc.distances_per_pattern_dict[
+                                                                                  'deal_value_attention_vector'])
+
+      sentence = {
+        'quote': untokenize(sentence_subdoc.tokens_cc),
+        'subdoc': sentence_subdoc,
+        'constraints': constraints
+      }
+
+      sentences.append(sentence)
+    return sentences
+
+
+class CharterHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
-    self.patterns_dict = {}
+    AbstractPatternFactoryLowCase.__init__(self, embedder)
     self._build_head_patterns()
     self.embedd()
 
@@ -122,19 +261,10 @@ class CharterHeadlinesPatternFactory(AbstractPatternFactory):
     cp('headline.head.gen.4', ('', 'директора', ''))
 
 
-class CharterConstraintsPatternFactory(AbstractPatternFactory):
-
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp
+class CharterConstraintsPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
-
-    self.patterns_dict = {}
+    AbstractPatternFactoryLowCase.__init__(self, embedder)
 
     self._build_order_patterns()
     self._build_sum_margin_extraction_patterns()
@@ -192,22 +322,11 @@ class CharterConstraintsPatternFactory(AbstractPatternFactory):
     self.create_pattern('sum__gt_4', (prefix + '', 'сделка имеет стоимость, равную или превышающую 0', suffix))
 
 
-class CharterPatternFactory(AbstractPatternFactory):
-
-  @deprecated
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp
+class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+    AbstractPatternFactoryLowCase.__init__(self, embedder)
 
-    self.patterns_dict = {}
-
-    #     self._build_paragraph_split_pattern()
     self._build_order_patterns()
     self.embedd()
 
@@ -222,32 +341,6 @@ class CharterPatternFactory(AbstractPatternFactory):
        ('', 'одобрение заключения', 'изменения или расторжения какой-либо сделки Общества'))
     cp('d_order_4', ('', 'Сделки', 'стоимость которой равна или превышает'))
     cp('d_order_5', ('', 'Сделки', 'стоимость которой составляет менее'))
-
-
-# self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
-
-head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
-
-head_types_dict = {'head.directors': 'Совет директоров',
-                   'head.all': 'Общее собрание участников/акционеров',
-                   'head.gen': 'Генеральный директор',
-                   #                      'shareholders':'Общее собрание акционеров',
-                   'head.pravlenie': 'Правление общества',
-                   'head.unknown': '*Неизвестный орган управления*'}
-
-head_types_colors = {'head.directors': 'crimson',
-                     'head.all': 'orange',
-                     'head.gen': 'blue',
-                     'head.shareholders': '#666600',
-                     'head.pravlenie': '#0099cc',
-                     'head.unknown': '#999999'}
-
-org_types = {
-  'org_unknown': 'undefined',
-  'org_ao': 'Акционерное общество',
-  'org_zao': 'Закрытое акционерное общество',
-  'org_oao': 'Открытое акционерное общество',
-  'org_ooo': 'Общество с ограниченной ответственностью'}
 
 
 class CharterNerPatternFactory(AbstractPatternFactory):
@@ -287,163 +380,16 @@ class CharterNerPatternFactory(AbstractPatternFactory):
     cp('nerneg_2', ('', 'сокращенное', ''))
     cp('nerneg_3', ('на', 'английском', 'языке'))
 
-
-def _build_org_type_attention_vector(subdoc: CharterDocument):
-  attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
-  attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
-  return attention_vector_neg
-
-
-# ------------------------------------------------------------------------------
-def _detect_org_type_and_name(section, render=False):
-  s_attention_vector_neg = _build_org_type_attention_vector(section)
-
-  dict_org = {}
-  best_type = None
-  _max = 0
-  for org_type in org_types.keys():
-
-    vector = section.distances_per_pattern_dict[org_type] * s_attention_vector_neg
-    if render:
-      print('_detect_org_type_and_name, org_type=', org_type, section.distances_per_pattern_dict[org_type][0:10])
-
-    idx = np.argmax(vector)
-    val = section.distances_per_pattern_dict[org_type][idx]
-    if val > _max:
-      _max = val
-      best_type = org_type
-
-    dict_org[org_type] = [idx, val]
-
-  if render:
-    print('_detect_org_type_and_name', dict_org)
-
-  return dict_org, best_type
+  def _build_org_type_attention_vector(self, subdoc: CharterDocument):
+    attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
+    attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
+    return attention_vector_neg
 
 
-# ------------------------------------------------------------------------------
-def detect_ners(section, context: CharterAnlysingContext, render=False):
-  assert section is not None
-
-  section.embedd(context.ner_factory)
-  section.calculate_distances_per_pattern(context.ner_factory)
-
-  dict_org, best_type = _detect_org_type_and_name(section, render)
-
-  if render:
-    context.renderer.render_color_text(section.tokens_cc, section.distances_per_pattern_dict[best_type], _range=[0, 1])
-
-  start = dict_org[best_type][0]
-  start = start + len(context.ner_factory.patterns_dict[best_type].embeddings)
-  end = 1 + find_ner_end(section.tokens, start)
-
-  orgname_sub_section: LegalDocument = section.subdoc(start, end)
-  org_name = orgname_sub_section.untokenize_cc()
-
-  if render:
-    context.renderer.render_color_text(orgname_sub_section.tokens_cc,
-                                       orgname_sub_section.distances_per_pattern_dict[best_type],
-                                       _range=[0, 1])
-    print('Org type:', org_types[best_type], dict_org[best_type])
-
-  rez = {
-    'type': best_type,
-    'name': org_name,
-    'type_name': org_types[best_type],
-    'tokens': section.tokens_cc,
-    'attention_vector': section.distances_per_pattern_dict[best_type]
-  }
-
-  return rez
-
-
-def _extract_constraint_values_from_region(sentenses_i, _embedd_factory, context: CharterAnlysingContext, render=False):
-  if sentenses_i is None or len(sentenses_i) == 0:
-    return []
-
-  ssubdocs = embedd_generic_tokenized_sentences(sentenses_i, _embedd_factory)
-
-  for ssubdoc in ssubdocs:
-
-    vectors = make_constraints_attention_vectors(ssubdoc)
-    ssubdoc.distances_per_pattern_dict = {**ssubdoc.distances_per_pattern_dict, **vectors}
-
-    if render:
-      context.renderer.render_color_text(
-        ssubdoc.tokens,
-        ssubdoc.distances_per_pattern_dict['deal_value_attention_vector'], _range=(0, 1))
-
-  sentences = []
-  for sentence_subdoc in ssubdocs:
-    constraints: List[ValueConstraint] = extract_all_contraints_from_sentence(sentence_subdoc,
-                                                                              sentence_subdoc.distances_per_pattern_dict[
-                                                                                'deal_value_attention_vector'])
-
-    sentence = {
-      'quote': untokenize(sentence_subdoc.tokens_cc),
-      'subdoc': sentence_subdoc,
-      'constraints': constraints
-    }
-
-    sentences.append(sentence)
-  return sentences
-
-
-##---------------------------------------
-def extract_constraint_values_from_section(section: HeadlineMeta, context: CharterAnlysingContext, verbose=False):
-  _embedd_factory = context.price_factory
-
-  if verbose:
-    print('extract_constraint_values_from_section', section.type)
-
-  body = section.body
-
-  if verbose:
-    print('extract_constraint_values_from_section', 'embedding....')
-
-  sentenses_i = []
-  senetences = split_by_token(body.tokens, '\n')
-  for s in senetences:
-    line = untokenize(s) + '\n'
-    sum = extract_sum(line)
-    if sum is not None:
-      sentenses_i.append(line)
-    if verbose:
-      print('-', sum, line)
-
-  hl_subdoc = section.subdoc
-
-  r_by_head_type = {
-    'section': head_types_dict[section.type],
-    'caption': untokenize(hl_subdoc.tokens_cc),
-    'sentences': _extract_constraint_values_from_region(sentenses_i, _embedd_factory, context, render=verbose)
-  }
-
-  return r_by_head_type
-
-
-##---------------------------------------
-def extract_constraint_values_from_sections(sections, context: CharterAnlysingContext, verbose=False):
-  rez = {}
-
-  for head_type in sections:
-    section = sections[head_type]
-    rez[head_type] = extract_constraint_values_from_section(section, context, verbose)
-
-  return rez
-
-
-# ---------------------------------------
-def find_contraints(sections, context: CharterAnlysingContext, verbose=False):
-  # 5. extract constraint values
-  sections_filtered = {}
-  prefix = 'head.'
-  for k in sections:
-    if k[:len(prefix)] == prefix:
-      sections_filtered[k] = sections[k]
-
-  rz = extract_constraint_values_from_sections(sections_filtered, context, verbose)
-  return rz
-
-
-# ------------------------------
+head_types_dict = {'head.directors': 'Совет директоров',
+                   'head.all': 'Общее собрание участников/акционеров',
+                   'head.gen': 'Генеральный директор',
+                   #                      'shareholders':'Общее собрание акционеров',
+                   'head.pravlenie': 'Правление общества',
+                   'head.unknown': '*Неизвестный орган управления*'}
+head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']

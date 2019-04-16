@@ -18,16 +18,28 @@ class AbstractRenderer:
     return f'<b style="color:{color}">{sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}</b> '
 
   def render_value_section_details(self, value_section_info):
-    raise NotImplementedError()
+    pass
 
   def to_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
-    raise NotImplementedError()
+    pass
 
   def render_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
-    raise NotImplementedError()
+    pass
 
   def print_results(self, doc, results):
     raise NotImplementedError()
 
   def render_values(self, values):
-    raise NotImplementedError()
+    pass
+
+
+class SilentRenderer(AbstractRenderer):
+  pass
+
+
+head_types_colors = {'head.directors': 'crimson',
+                     'head.all': 'orange',
+                     'head.gen': 'blue',
+                     'head.shareholders': '#666600',
+                     'head.pravlenie': '#0099cc',
+                     'head.unknown': '#999999'}

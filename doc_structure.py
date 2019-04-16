@@ -193,6 +193,9 @@ class DocumentStructure:
   def tokenize(self, _txt):
     return tokenize_text(_txt)
 
+
+
+
   def detect_document_structure(self, text):
     lines: List[str] = text.split('\n')
 

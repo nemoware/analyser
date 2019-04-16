@@ -305,3 +305,17 @@ class AbstractPatternFactory:
     pat.embeddings = emb
 
     return pat
+
+
+class AbstractPatternFactoryLowCase(AbstractPatternFactory):
+  def create_pattern(self, pattern_name, ppp):
+    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
+    fp = FuzzyPattern(_ppp, pattern_name)
+    self.patterns.append(fp)
+    self.patterns_dict[pattern_name] = fp
+    return fp
+
+  def __init__(self, embedder):
+    AbstractPatternFactory.__init__(self, embedder)
+    self.patterns_dict = {}
+    self.embedd()
