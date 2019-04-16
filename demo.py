@@ -73,11 +73,13 @@ class HeadlinesPatternFactory(AbstractPatternFactory):
     cp('headline.price.2', (PRFX, 'СТОИМОСТЬ РАБОТ', ''))
     cp('headline.price.3', (PRFX, ' Расчеты по договору', ''))
 
-    cp('headline.pricecond.3', (PRFX, 'УСЛОВИЯ ПЛАТЕЖЕЙ', ''))
-    cp('headline.pricecond.4', (PRFX, 'Оплата услуг', ''))
-    cp('headline.pricecond.1', (PRFX, 'Условия и порядок расчетов.', ''))
+    cp('headline.pricecond.1', (PRFX, 'УСЛОВИЯ ПЛАТЕЖЕЙ', ''))
+    cp('headline.pricecond.2', (PRFX, 'Оплата услуг', ''))
+    cp('headline.pricecond.3', (PRFX, 'Условия и порядок расчетов.', ''))
+    cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ УСЛУГ', ', ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
 
     cp('headline.terms', (PRFX, 'СРОКИ ВЫПОЛНЕНИЯ РАБОТ.', 'Порядок выполнения работ.'))
+
 
     cp('headline.dates', (PRFX, 'СРОК ДЕЙСТВИЯ ДОГОВОРА.\n',
                           'настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
