@@ -93,3 +93,40 @@ class AbstractEmbedder:
       patterns_emb.append(pattern_emb)
 
     return np.array(patterns_emb)
+
+
+class ElmoEmbedder(AbstractEmbedder):
+
+  def __init__(self, elmo, tf, layer_name):
+    self.elmo = elmo
+    self.config = tf.ConfigProto()
+    self.config.gpu_options.allow_growth = True
+
+    self.layer_name = layer_name
+    self.tf = tf
+
+  def embedd_tokenized_text(self, words, lens):
+    with self.tf.Session(config=self.config) as sess:
+      embeddings = self.elmo(
+        inputs={
+          "tokens": words,
+          "sequence_len": lens
+        },
+        signature="tokens",
+        as_dict=True)[self.layer_name]
+
+      sess.run(self.tf.global_variables_initializer())
+      out = sess.run(embeddings)
+    #       sess.close()
+
+    return out, words
+
+  def get_embedding_tensor(self, str, signature="default"):
+    embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[self.layer_name]
+
+    with self.tf.Session(config=self.config) as sess:
+      sess.run(self.tf.global_variables_initializer())
+      embedding = sess.run(embedding_tensor)
+    #       sess.close()
+
+    return embedding

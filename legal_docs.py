@@ -744,12 +744,14 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for b in bounds:
       vc = extract_sum_and_sign(sentence_subdoc, b)
+
       constraints.append(vc)
 
   return constraints
 
 
 def make_constraints_attention_vectors(subdoc):
+  # TODO: move to notebook, too much tuning
   value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
                                                                 relu_th=0.4)
   value_attention_vector = cut_above(value_attention_vector, 1)
@@ -779,3 +781,14 @@ def make_constraints_attention_vectors(subdoc):
     'margin_attention_vector': margin_attention_vector,
     'margin_value_attention_vector': margin_value_attention_vector
   }
+
+
+
+class HeadlineMeta:
+  def __init__(self, index, type, confidence: float, subdoc, attention_v):
+    self.index: int = index
+    self.confidence: float = confidence
+    self.type: str = type
+    self.subdoc: LegalDocument = subdoc
+    self.attention_v: List[float] = attention_v
+    self.body = None
