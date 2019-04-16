@@ -8,7 +8,6 @@ from transaction_values import ValueConstraint
 
 class ContractAnlysingContext:
   def __init__(self, embedder, renderer: AbstractRenderer):
-
     assert embedder is not None
     assert renderer is not None
 
@@ -17,18 +16,15 @@ class ContractAnlysingContext:
     self.renderer = renderer
 
   def analyze_contract(self, contract_text):
-
-
     doc = ContractDocument2(contract_text)
     doc.parse()
 
-    self.contract=doc
+    self.contract = doc
     values = fetch_value_from_contract(doc, self)
 
     self.renderer.render_values(values)
-    self.contract_values=values
+    self.contract_values = values
     return doc, values
-
 
 
 class HeadlineMeta:
@@ -321,7 +317,7 @@ def filter_nans(vcs):
 def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysingContext):
   renderer = context.renderer
   HPF = context.hadlines_factory
-  price_factory: context.price_factory
+  price_factory = context.price_factory
 
   embedded_headlines = embedd_headlines(contract.structure.headline_indexes, contract, HPF)
 
@@ -342,7 +338,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
                                                untokenize(t.tokens_cc)))
       renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
 
-  sections = find_sections_by_headlines(hl_meta_by_index, contract )
+  sections = find_sections_by_headlines(hl_meta_by_index, contract)
 
   result: List[ValueConstraint] = []
 
