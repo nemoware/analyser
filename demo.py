@@ -12,6 +12,8 @@ class ContractAnlysingContext:
     assert embedder is not None
     assert renderer is not None
 
+    self.verbosity_level = 2
+
     self.price_factory = ContractValuePatternFactory(embedder)
     self.hadlines_factory = ContractHeadlinesPatternFactory(embedder)
     self.renderer = renderer
@@ -243,14 +245,14 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
 
   embedded_headlines = contract.embedd_headlines(hadlines_factory)
 
-  if RENDER:
+  if context.verbosity_level > 1:
     print('-' * 100)
     for eh in embedded_headlines:
       print(eh.untokenize_cc())
 
   hl_meta_by_index = contract.match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
 
-  if RENDER:
+  if context.verbosity_level > 1:
     print('-' * 100)
     for bi in hl_meta_by_index:
       hl = hl_meta_by_index[bi]
@@ -273,7 +275,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
     result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
     if len(result) == 0:
       print(f'-WARNING: В разделе "{ section_name }" стоимость сделки не найдена!')
-    if RENDER:
+    if context.verbosity_level > 1:
       renderer.render_value_section_details(value_section_info)
   else:
     print('-WARNING: Раздел про стоимость сделки не найдена!')
@@ -287,7 +289,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
       section_name = value_section_info.subdoc.untokenize_cc()
       print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
       result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
-      if RENDER:
+      if context.verbosity_level > 0:
         print('alt price section DOC', '-' * 70)
         renderer.render_value_section_details(value_section_info)
 
@@ -297,8 +299,8 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
     #     trying to find sum in the entire doc
     value_section = contract
     result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
-    if RENDER:
-      print('ENTIRE DOC', '-' * 70)
+    if context.verbosity_level > 1:
+      print('ENTIRE DOC', '--' * 70)
   #       render_value_section_details(value_section)
 
   return result
