@@ -30,15 +30,12 @@ class CharterAnlysingContext:
     # parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
+    # 1. find top level structure
     _charter_doc.parse()
     self.doc = _charter_doc
-    # 1. find top level structure
-    #   headline_indexes = _charter_doc.structure.get_lines_by_level(0)
-
-    headline_indexes = _charter_doc.structure.headline_indexes
 
     # 2. embedd headlines
-    embedded_headlines = embedd_headlines(headline_indexes, _charter_doc, self.hadlines_factory)
+    embedded_headlines = embedd_headlines(_charter_doc.structure.headline_indexes, _charter_doc, self.hadlines_factory)
 
     # 3. apply semantics to headlines,
     best_indexes = match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
@@ -341,7 +338,7 @@ def detect_ners(section, context: CharterAnlysingContext, render=False):
   end = 1 + find_ner_end(section.tokens, start)
 
   orgname_sub_section: LegalDocument = section.subdoc(start, end)
-  org_name = orgname_sub_section.untokenize_cc
+  org_name = orgname_sub_section.untokenize_cc()
 
   if render:
     context.renderer.render_color_text(orgname_sub_section.tokens_cc,
