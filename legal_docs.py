@@ -81,6 +81,12 @@ class LegalDocument(EmbeddableText):
     self.start = None
     self.end = None
 
+  def untokenize_cc(self):
+    return untokenize(self.tokens_cc)
+
+  def untokenize(self):
+    return untokenize(self.tokens)
+
   def find_sum_in_section(self):
     raise Exception('not implemented')
 

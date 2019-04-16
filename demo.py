@@ -1,4 +1,4 @@
-from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, untokenize, extract_all_contraints_from_sentence, \
+from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, extract_all_contraints_from_sentence, \
   embedd_headlines, tokenize_text
 from ml_tools import *
 from patterns import AbstractPatternFactory, FuzzyPattern
@@ -262,9 +262,9 @@ def _doc_section_under_headline(_doc: LegalDocument, headline_info: HeadlineMeta
 
   if render:
     print('=' * 100)
-    print(untokenize(headline_info.subdoc.tokens_cc))
+    print(headline_info.subdoc.untokenize_cc())
     print('-' * 100)
-    print(untokenize(subdoc.tokens_cc))
+    print(subdoc.untokenize_cc())
 
   return subdoc
 
@@ -316,26 +316,28 @@ def filter_nans(vcs):
 
 def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysingContext):
   renderer = context.renderer
-  HPF = context.hadlines_factory
+  hadlines_factory = context.hadlines_factory
   price_factory = context.price_factory
 
-  embedded_headlines = embedd_headlines(contract.structure.headline_indexes, contract, HPF)
+  embedded_headlines = embedd_headlines(contract.structure.headline_indexes, contract, hadlines_factory)
 
   if RENDER:
     print('-' * 100)
     for eh in embedded_headlines:
-      print(untokenize(eh.tokens_cc))
+      print(eh.untokenize_cc())
 
-  hl_meta_by_index = match_headline_types(HPF.headlines, embedded_headlines, 'headline.', 0.9)
+  hl_meta_by_index = match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
 
   if RENDER:
     print('-' * 100)
     for bi in hl_meta_by_index:
       hl = hl_meta_by_index[bi]
-      t = hl.subdoc
+      t: LegalDocument = hl.subdoc
       print(bi)
-      print('#{} \t {} \t {:.4f} \t {}'.format(hl.index, hl.type + ('.' * (14 - len(hl.type))), hl.confidence,
-                                               untokenize(t.tokens_cc)))
+      print('#{} \t {} \t {:.4f} \t {}'.format(hl.index, hl.type + ('.' * (14 - len(hl.type))),
+                                               hl.confidence,
+                                               t.untokenize_cc()
+                                               ))
       renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
 
   sections = find_sections_by_headlines(hl_meta_by_index, contract)
@@ -345,7 +347,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
   if 'price.' in sections:
     value_section_info = sections['price.']
     value_section = value_section_info.body
-    section_name = untokenize(value_section_info.subdoc.tokens_cc)
+    section_name = value_section_info.subdoc.untokenize_cc()
     result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
     if len(result) == 0:
       print(f'-WARNING: В разделе "{ section_name }" стоимость сделки не найдена!')
@@ -360,7 +362,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
       # fallback
       value_section_info = sections['pricecond']
       value_section = value_section_info.body
-      section_name = untokenize(value_section_info.subdoc.tokens_cc)
+      section_name = value_section_info.subdoc.untokenize_cc()
       print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
       result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
       if RENDER:
@@ -379,11 +381,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
 
   return result
 
-  #   section_price = sections['price'].b
-  #
-  # section_price_2 = sections['price.cond']['body.subdoc']
-  #
-  # section_subj = sections['subj']['body.subdoc']
+
 
 
 class ContractDocument2(LegalDocument):
