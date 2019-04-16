@@ -80,15 +80,16 @@ fixtures_regex = [
 ]
 
 formatting_regex = [
-    (r'\n\s{2,5}', ' ')
+    # (r'\n\s{2,5}', ' ')
+    (r'(?<=\d)+[(]', ' (')
 ]
 
 tables_regex = [
 #     (r'\|', ' '),
 ]
 
-replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
-
+# replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
+replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 def normalize_text(_t, replacements_regex):
     t = _t
