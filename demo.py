@@ -12,6 +12,18 @@ class ContractAnlysingContext:
     self.hadlines_factory = HeadlinesPatternFactory(embedder)
     self.renderer = renderer
 
+  def analyze_contract(self, contract_text):
+    assert self.context.renderer is not None
+    assert self.context.price_factory is not None
+    assert self.context.hadlines_factory is not None
+
+    doc = ContractDocument2(contract_text)
+    doc.parse()
+
+    values = fetch_value_from_contract(doc, self)
+
+    self.renderer.render_values(values)
+
 
 class HeadlineMeta:
   def __init__(self, index, type, confidence: float, subdoc, attention_v):
@@ -256,7 +268,7 @@ def _doc_section_under_headline(_doc: LegalDocument, headline_info: HeadlineMeta
 
 
 # ----------------------------------------------------------------------------------------------
-def find_sections_by_headlines(headline_metas: dict, _doc: LegalDocument ) -> dict:
+def find_sections_by_headlines(headline_metas: dict, _doc: LegalDocument) -> dict:
   sections = {}
 
   for bi in headline_metas:
@@ -273,7 +285,6 @@ def find_sections_by_headlines(headline_metas: dict, _doc: LegalDocument ) -> di
 
 
 def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: PriceFactory) -> List:
-
   value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
 
@@ -301,12 +312,10 @@ def filter_nans(vcs):
   return r
 
 
-def fetch_value_from_contract(contract: LegalDocument, context:ContractAnlysingContext):
-
+def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysingContext):
   renderer = context.renderer
   HPF = context.hadlines_factory
   price_factory: context.price_factory
-
 
   embedded_headlines = embedd_headlines(contract.structure.headline_indexes, contract, HPF)
 
@@ -384,19 +393,3 @@ class ContractDocument2(LegalDocument):
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
-
-
-
-
-
-def analyze_contract(contract_text,  context:ContractAnlysingContext):
-  assert context.renderer is not None
-  assert context.price_factory is not None
-  assert context.hadlines_factory is not None
-
-  doc = ContractDocument2(contract_text)
-  doc.parse()
-
-  values = fetch_value_from_contract(doc, context )
-
-  context.renderer.render_values(values)
