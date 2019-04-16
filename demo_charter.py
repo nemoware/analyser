@@ -16,6 +16,8 @@ class CharterAnlysingContext:
     assert embedder is not None
     assert renderer is not None
 
+    self.verbosity_level = 2
+    
     self.price_factory = CharterConstraintsPatternFactory(embedder)
     self.hadlines_factory = CharterHeadlinesPatternFactory(embedder)
     self.ner_factory = CharterNerPatternFactory(embedder)
