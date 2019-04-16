@@ -56,7 +56,7 @@ class AbstractEmbedder:
 
       sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
-      print('embedd_contextualized_patterns', (sentence, start, end))
+      # print('embedd_contextualized_patterns', (sentence, start, end))
 
       regions[i] = (start, end)
       tokenized_sentences_list.append(sentence_tokens)
@@ -66,7 +66,7 @@ class AbstractEmbedder:
 
       i = i + 1
 
-    print('maxlen=', maxlen)
+    # print('maxlen=', maxlen)
     _strings = []
 
     for s in tokenized_sentences_list:
@@ -79,7 +79,7 @@ class AbstractEmbedder:
     sentences_emb, wrds = self.embedd_tokenized_text(_strings, lens)
     ## ================================================
 
-    print(sentences_emb.shape)
+    # print(sentences_emb.shape)
     #     assert len(sentence_tokens) == sentences_emb
 
     patterns_emb = []

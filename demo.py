@@ -15,11 +15,15 @@ class ContractAnlysingContext:
     self.hadlines_factory = HeadlinesPatternFactory(embedder)
     self.renderer = renderer
 
+    self.contract = None
+    self.contract_values = None
+
   def analyze_contract(self, contract_text):
     doc = ContractDocument2(contract_text)
     doc.parse()
 
     self.contract = doc
+    
     values = fetch_value_from_contract(doc, self)
 
     self.renderer.render_values(values)

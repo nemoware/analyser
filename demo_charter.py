@@ -31,7 +31,7 @@ class CharterAnlysingContext:
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
     _charter_doc.parse()
-
+    self.doc = _charter_doc
     # 1. find top level structure
     #   headline_indexes = _charter_doc.structure.get_lines_by_level(0)
 
@@ -64,7 +64,7 @@ class CharterAnlysingContext:
     #   display(HTML(html))
     self.org = org
     self.constraints = rz
-    self.doc=_charter_doc
+
 
     return org, rz
 
