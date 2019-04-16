@@ -23,6 +23,8 @@ class CharterAnlysingContext:
 
     self.org = None
     self.constraints = None
+    self.doc = None
+
 
   def analyze_charter(self, txt, verbose=False):
     # parse
@@ -62,6 +64,7 @@ class CharterAnlysingContext:
     #   display(HTML(html))
     self.org = org
     self.constraints = rz
+    self.doc=_charter_doc
 
     return org, rz
 
