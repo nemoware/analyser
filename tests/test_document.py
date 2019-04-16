@@ -148,6 +148,8 @@ class LegalDocumentTestCase(unittest.TestCase):
     emb = FakeEmbedder(point1)
     ctx = CharterAnlysingContext(emb, SilentRenderer())
 
+    ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
+
 
   def test_embedd_headlines(self):
     charter_text_1 = """

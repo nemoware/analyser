@@ -5,17 +5,20 @@
 
 # transaction_values.py
 
+import math
 import re
 from typing import List
 
-from text_tools import to_float, untokenize, np
+from text_tools import np
+from text_tools import to_float, untokenize
 
 currencly_map = {
-  'доллар': 'USD',
-  'евро': 'EUR',
-  'руб': 'RUR'
+  'руб':'РУБ',
+  'дол':'USD',
+  'евр':'EURO',
+  'тэн':'KZT',
+  'тен':'KZT',
 }
-
 
 class ValueConstraint:
   def __init__(self, value: float, currency: str, sign: int, context=None):
@@ -25,39 +28,38 @@ class ValueConstraint:
     self.context = context
 
 
+
 def extract_sum(sentence: str):
-  currency_re = re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-  currency_re_th = re.compile(
-    r'((^|\s+)(\d+[., ])*\d+)(\s+(тыс\.|тысяч.{0,2})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
-  currency_re_mil = re.compile(
-    r'((^|\s+)(\d+[., ])*\d+)(\s+(млн\.|миллион.{0,3})\s+)(\s*([(].{0,100}[)]\s*)?(евро|руб|доллар))')
+  r = complete_re.search(sentence)
 
-  r = currency_re.findall(sentence)
-  f = None
-  try:
-    number = to_float(r[0][0])
-    f = (number, r[0][5])
-  except:
-    r = currency_re_th.findall(sentence)
+  if r is None:
+    return None
 
-    try:
-      number = to_float(r[0][0]) * 1000
-      f = (number, r[0][5])
-    except:
-      r = currency_re_mil.findall(sentence)
-      try:
-        number = to_float(r[0][0]) * 1000000
-        f = (number, r[0][5])
-      except:
-        pass
+  number = to_float(r[1])
+  r_num = r[4]
+  if r_num:
+    if r_num.startswith('тыс'):
+      number *= 1000
+    else:
+      if r_num.startswith('м'):
+        number *= 1000000
 
-  return f
+  r_cents = r[10]
+  if r_cents:
+    frac, whole = math.modf(number)
+    if frac==0:
+      number += to_float(r_cents) / 100.
+
+  curr = r[7][0:3]
+
+  return (number, currencly_map[curr.lower()])
 
 
 def extract_sum_from_tokens(sentence_tokens: List):
   sentence = untokenize(sentence_tokens).lower().strip()
   f = extract_sum(sentence)
   return f, sentence
+
 
 
 _re_less_then = re.compile(r'(до|менее|не выше|не превыша[а-я]{2,4})')
@@ -125,5 +127,34 @@ def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
 
   vc = ValueConstraint(value, currency, _sign)
   return vc
+
+
+
+
+
+
+complete_re = re.compile(
+  # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
+  r'(\d+([., ]\d+)*)'                                 # digits
+  r'(\s*(тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'         # *1000 qualifier
+  r'(\s*\(.+?\))?\s*'                                 # some shit in parenthesis 
+  r'((руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)\.?)' # currency
+  r'(\s*\(.+?\))?'                                    # some shit in parenthesis 
+  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',        # cents
+  re.MULTILINE|re.IGNORECASE
+)
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    # print(extract_sum('\n2.1.  Общая сумма договора составляет 41752 руб. (Сорок одна тысяча семьсот пятьдесят два рубля) '
+    #  '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'))
+    # print(extract_sum('эквивалентной 25 миллионам долларов сша'))
+
+    print(extract_sum('взаимосвязанных сделок в совокупности составляет от 1000000 ( одного ) миллиона рублей до 50000000 '))
 
 
