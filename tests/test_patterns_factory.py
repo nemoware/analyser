@@ -76,7 +76,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
         # cp.add_pattern(fp2, 2)
 
         text_emb = np.array([point1, point2, point3, point3])
-        min_i, sums, confidence = cp.find(text_emb, text_right_padding=0)
+        min_i, sums, confidence = cp.find(text_emb )
 
         print(min_i, sums, confidence)
 

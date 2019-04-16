@@ -76,7 +76,7 @@ class LegalDocument(EmbeddableText):
     self.normal_text = None
     self.distances_per_pattern_dict = None
 
-    self.right_padding = 0
+
 
     # subdocs
     self.start = None
@@ -100,7 +100,7 @@ class LegalDocument(EmbeddableText):
       _len = min(max_len, _len)
 
       subdoc = self.subdoc(line.span[0], line.span[0] + _len)
-      subdoc.right_padding = 0
+
 
       tokenized_sentences_list.append(subdoc.tokens)
       embedded_headlines.append(subdoc)
@@ -189,8 +189,7 @@ class LegalDocument(EmbeddableText):
     for pat in pattern_factory.patterns:
       try:
         dists = pat._eval_distances_multi_window(self.embeddings, dist_function)
-        if self.right_padding > 0:
-          dists = dists[:-self.right_padding]
+
         # TODO: this inversion must be a part of a dist_function
         dists = 1.0 - dists
         distances_per_pattern_dict[pat.name] = dists
@@ -198,8 +197,7 @@ class LegalDocument(EmbeddableText):
       except Exception as e:
         print('ERROR: calculate_distances_per_pattern ', e)
         dists = np.zeros(len(self.embeddings))
-        if self.right_padding > 0:
-          dists = dists[:-self.right_padding]
+
         distances_per_pattern_dict[pat.name] = dists
 
       # print(pat.name)
@@ -220,7 +218,7 @@ class LegalDocument(EmbeddableText):
     sub = klazz("REF")
     sub.start = start
     sub.end = end
-    sub.right_padding = 0
+
 
     if self.embeddings is not None:
       sub.embeddings = self.embeddings[start:end]
@@ -248,10 +246,7 @@ class LegalDocument(EmbeddableText):
 
   def preprocess_text(self, text):
     a = text
-    a = normalize_text(a,
-                       dates_regex + abbreviation_regex + fixtures_regex +
-                       spaces_regex + syntax_regex + numbers_regex +
-                       tables_regex)
+    a = normalize_text(a, replacements_regex)
 
     # a = self.normalize_sentences_bounds(a)
     return a
@@ -279,8 +274,7 @@ class LegalDocument(EmbeddableText):
     for i in range(end):
       if (_words[i] == '\n') or i == end - 1:
         chunk = _words[last_cr_index:i + 1]
-        if (self.right_padding > 0):
-          chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
+
         sparse_words += chunk
         last_cr_index = i + 1
 
@@ -463,8 +457,7 @@ class BasicContractDocument(LegalDocumentLowCase):
     head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
 
     distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
-      self.embeddings,
-      text_right_padding=0)
+      self.embeddings )
     distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
     ranges = [np.nanmin(distances_per_subj_pattern_),
@@ -522,8 +515,7 @@ class ProtocolDocument(LegalDocumentLowCase):
 
     mask = mask_sections(section_name_to_weight_dict, self)
     mask += 0.5
-    if self.right_padding > 0:
-      mask = mask[0:-self.right_padding]
+
 
     mask = smooth(mask, window_len=12)
     return mask
@@ -581,7 +573,7 @@ def mask_sections(section_name_to_weight_dict, doc):
 class CharterDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
-    self.right_padding = 0
+
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)

@@ -3,6 +3,7 @@
 # coding=utf-8
 from typing import List
 
+
 load_punkt=True
 
 
@@ -42,7 +43,7 @@ class EmbeddableText:
   def __init__(self):
     self.tokens = None
     self.embeddings = None
-    self.right_padding = 0
+
 
 
 class FuzzyPattern(EmbeddableText):
@@ -115,13 +116,13 @@ class FuzzyPattern(EmbeddableText):
     distances = self._eval_distances_multi_window(text_ebd)
     return distances
 
-  def find(self, text_ebd, text_right_padding):
+  def find(self, text_ebd ):
     """
       text_ebd:  tensor of embeedings
     """
 
     sums = self._find_patterns(text_ebd)
-    min_i = min_index(sums[:-text_right_padding])  # index of the word with minimum distance to the pattern
+    min_i = min_index(sums )  # index of the word with minimum distance to the pattern
 
     return min_i, sums
 
@@ -160,11 +161,12 @@ class ExclusivePattern(CompoundPattern):
 
     return a
 
-  def calc_exclusive_distances(self, text_ebd, text_right_padding):
 
-    assert len(text_ebd) > text_right_padding
+  def calc_exclusive_distances(self, text_ebd):
 
-    distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd) - text_right_padding))
+
+
+    distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd)  ))
 
     for pattern_index in range(len(self.patterns)):
       pattern = self.patterns[pattern_index]
@@ -215,14 +217,13 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     assert pat is not None
     self.patterns[pat] = weight
 
-  def find(self, text_ebd, text_right_padding):
-    assert len(text_ebd) > text_right_padding
+  def find(self, text_ebd):
+
 
     sums = self._find_patterns(text_ebd)
 
     meaninful_sums = sums
-    if text_right_padding > 0:
-      meaninful_sums = sums[:-text_right_padding]
+
 
     min_i = min_index(meaninful_sums)
     min = sums[min_i]

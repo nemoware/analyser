@@ -1,7 +1,5 @@
 import unittest
 
-import numpy as np
-
 from legal_docs import LegalDocument
 from patterns import *
 
@@ -32,7 +30,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     cp.add_pattern(fp2)
 
     text_emb = np.array([point1, point2, point3, point3, point1])
-    distances_per_pattern, ranges, winning_patterns = cp.calc_exclusive_distances(text_emb, text_right_padding=0)
+    distances_per_pattern, ranges, winning_patterns = cp.calc_exclusive_distances(text_emb)
 
     print("distances_per_pattern")
     print(distances_per_pattern[0])
@@ -55,7 +53,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
     tokens = doc.tokenize('aa bb cc')
     print(tokens)
-    self.assertEqual(3 + doc.right_padding, len(tokens))
+    self.assertEqual(3, len(tokens))
 
   def test_eval_distances_soft_pattern2(self):
     point1 = [1, 3]
@@ -185,7 +183,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     # cp.add_pattern(fp2, 2)
 
     text_emb = np.array([point1, point2, point3])
-    min_i, sums, confidence = cp.find(text_emb, text_right_padding=0)
+    min_i, sums, confidence = cp.find(text_emb)
 
     print(min_i, sums, confidence)
 
