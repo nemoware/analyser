@@ -342,9 +342,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
                                                untokenize(t.tokens_cc)))
       renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
 
-  sections = find_sections_by_headlines(hl_meta_by_index,
-                                        contract,
-                                        render=True)
+  sections = find_sections_by_headlines(hl_meta_by_index, contract )
 
   result: List[ValueConstraint] = []
 
