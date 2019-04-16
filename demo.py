@@ -8,21 +8,27 @@ from transaction_values import ValueConstraint
 
 class ContractAnlysingContext:
   def __init__(self, embedder, renderer: AbstractRenderer):
+
+    assert embedder is not None
+    assert renderer is not None
+
     self.price_factory = PriceFactory(embedder)
     self.hadlines_factory = HeadlinesPatternFactory(embedder)
     self.renderer = renderer
 
   def analyze_contract(self, contract_text):
-    assert self.context.renderer is not None
-    assert self.context.price_factory is not None
-    assert self.context.hadlines_factory is not None
+
 
     doc = ContractDocument2(contract_text)
     doc.parse()
 
+    self.contract=doc
     values = fetch_value_from_contract(doc, self)
 
     self.renderer.render_values(values)
+    self.contract_values=values
+    return doc, values
+
 
 
 class HeadlineMeta:
