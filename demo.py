@@ -1,5 +1,5 @@
 from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, extract_all_contraints_from_sentence, \
-  embedd_headlines, tokenize_text
+  embedd_headlines, tokenize_text, HeadlineMeta
 from ml_tools import *
 from patterns import AbstractPatternFactory, FuzzyPattern
 from renderer import AbstractRenderer
@@ -25,16 +25,6 @@ class ContractAnlysingContext:
     self.renderer.render_values(values)
     self.contract_values = values
     return doc, values
-
-
-class HeadlineMeta:
-  def __init__(self, index, type, confidence: float, subdoc, attention_v):
-    self.index: int = index
-    self.confidence: float = confidence
-    self.type: str = type
-    self.subdoc: LegalDocument = subdoc
-    self.attention_v: List[float] = attention_v
-    self.body = None
 
 
 class HeadlinesPatternFactory(AbstractPatternFactory):
@@ -79,7 +69,6 @@ class HeadlinesPatternFactory(AbstractPatternFactory):
     cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ УСЛУГ', ', ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
 
     cp('headline.terms', (PRFX, 'СРОКИ ВЫПОЛНЕНИЯ РАБОТ.', 'Порядок выполнения работ.'))
-
 
     cp('headline.dates', (PRFX, 'СРОК ДЕЙСТВИЯ ДОГОВОРА.\n',
                           'настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
@@ -382,8 +371,6 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
   #       render_value_section_details(value_section)
 
   return result
-
-
 
 
 class ContractDocument2(LegalDocument):

@@ -1,10 +1,7 @@
 # ------------------------------
 
-import nltk
-
-from demo import match_headline_types, find_sections_by_headlines, HeadlineMeta
-from embedding_tools import embedd_tokenized_sentences_list
-from legal_docs import LegalDocument, untokenize
+from demo import match_headline_types, find_sections_by_headlines
+from legal_docs import LegalDocument, untokenize, embedd_generic_tokenized_sentences, HeadlineMeta
 from legal_docs import extract_all_contraints_from_sentence, \
   embedd_headlines, deprecated, CharterDocument, make_soft_attention_vector, make_constraints_attention_vectors
 from ml_tools import *
@@ -27,7 +24,7 @@ class CharterAnlysingContext:
     self.org = None
     self.constraints = None
 
-  def extract_constraint_values_from_section(self, txt, verbose=False):
+  def analyze_charter(self, txt, verbose=False):
     # parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
@@ -360,42 +357,6 @@ def detect_ners(section, context: CharterAnlysingContext, render=False):
   return rez
 
 
-def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
-        List[LegalDocument]:
-  embedded_docs = []
-  if strings is None or len(strings) == 0:
-    return []
-
-  tokenized_sentences_list = []
-  for i in range(len(strings)):
-    s = strings[i]
-
-    words = nltk.word_tokenize(s)
-
-    subdoc = LegalDocument()
-
-    subdoc.tokens = words
-    subdoc.tokens_cc = words
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_docs.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-  for i in range(len(embedded_docs)):
-    l = lens[i]
-    tokens = wrds[i][:l]
-
-    line_emb = sentences_emb[i][:l]
-
-    embedded_docs[i].tokens = tokens
-    embedded_docs[i].tokens_cc = tokens
-    embedded_docs[i].embeddings = line_emb
-    embedded_docs[i].calculate_distances_per_pattern(factory)
-
-  return embedded_docs
-
-
 def _extract_constraint_values_from_region(sentenses_i, _embedd_factory, context: CharterAnlysingContext, render=False):
   if sentenses_i is None or len(sentenses_i) == 0:
     return []
@@ -455,7 +416,7 @@ def extract_constraint_values_from_section(section: HeadlineMeta, context: Chart
   r_by_head_type = {
     'section': head_types_dict[section.type],
     'caption': untokenize(hl_subdoc.tokens_cc),
-    'sentences': _extract_constraint_values_from_region(sentenses_i, _embedd_factory, render=verbose)
+    'sentences': _extract_constraint_values_from_region(sentenses_i, _embedd_factory, context, render=verbose)
   }
 
   return r_by_head_type
@@ -486,11 +447,3 @@ def find_contraints(sections, context: CharterAnlysingContext, verbose=False):
 
 
 # ------------------------------
-def subdoc_between_lines(line_a: int, line_b: int, doc):
-  _str = doc.structure.structure
-  start = _str[line_a].span[1]
-  if line_b is not None:
-    end = _str[line_b].span[0]
-  else:
-    end = len(doc.tokens)
-  return doc.subdoc(start, end)

@@ -4,10 +4,13 @@ import time
 from functools import wraps
 from typing import List
 
+import nltk
+
 from doc_structure import DocumentStructure, headline_probability, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum
 from patterns import *
+from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
 from transaction_values import extract_sum_from_tokens, ValueConstraint, split_by_number, extract_sum_and_sign
@@ -798,3 +801,49 @@ class HeadlineMeta:
     self.subdoc: LegalDocument = subdoc
     self.attention_v: List[float] = attention_v
     self.body = None
+
+
+def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
+        List[LegalDocument]:
+  embedded_docs = []
+  if strings is None or len(strings) == 0:
+    return []
+
+  tokenized_sentences_list = []
+  for i in range(len(strings)):
+    s = strings[i]
+
+    words = nltk.word_tokenize(s)
+
+    subdoc = LegalDocument()
+
+    subdoc.tokens = words
+    subdoc.tokens_cc = words
+
+    tokenized_sentences_list.append(subdoc.tokens)
+    embedded_docs.append(subdoc)
+
+  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
+
+  for i in range(len(embedded_docs)):
+    l = lens[i]
+    tokens = wrds[i][:l]
+
+    line_emb = sentences_emb[i][:l]
+
+    embedded_docs[i].tokens = tokens
+    embedded_docs[i].tokens_cc = tokens
+    embedded_docs[i].embeddings = line_emb
+    embedded_docs[i].calculate_distances_per_pattern(factory)
+
+  return embedded_docs
+
+
+def subdoc_between_lines(line_a: int, line_b: int, doc):
+  _str = doc.structure.structure
+  start = _str[line_a].span[1]
+  if line_b is not None:
+    end = _str[line_b].span[0]
+  else:
+    end = len(doc.tokens)
+  return doc.subdoc(start, end)
