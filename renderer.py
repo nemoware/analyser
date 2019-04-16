@@ -1,4 +1,4 @@
-from transaction_values import, ValueConstraint
+from transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
                      'head.all': 'orange',
