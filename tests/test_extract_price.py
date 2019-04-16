@@ -3,8 +3,9 @@
 # coding=utf-8
 
 import unittest
+import sys
 
-from transaction_values import extract_sum
+from  transaction_values import extract_sum
 from text_normalize import *
 
 data = [
@@ -90,13 +91,16 @@ class PriceExtractTestCase(unittest.TestCase):
         for (price, currency, text) in data:
 
             normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
+            print(f'text:            {text}')
+            print(f'normalized text: {normal_text}')
             f = None
             try:
                 f = extract_sum(normal_text)
-                print (f)
                 self.assertEqual(price, f[0])
+                print(f"\033[1;32m{f}\u2713")
             except:
-                print("FAILED:", price, currency, normal_text, 'f=', f)
+                print("\033[1;35;40m FAILED:", price, currency, normal_text, 'f=', f)
+                print(sys.exc_info())
 
             # #print (normal_text)
             # print('expected:', price, 'found:', f)
