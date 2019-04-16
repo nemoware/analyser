@@ -1,5 +1,20 @@
+from typing import List
+
 import numpy as np
 
+
+def split_by_token(tokens: List[str], token):
+  res = []
+  sentence = []
+  for i in tokens:
+    if i == token:
+      res.append(sentence)
+      sentence = []
+    else:
+      sentence.append(i)
+
+  res.append(sentence)
+  return res
 
 def estimate_threshold(a, min_th=0.3):
   return max(min_th, np.max(a) * 0.7)

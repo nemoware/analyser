@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-
+from typing import List
 
 load_punkt=True
 
@@ -254,7 +254,7 @@ class AbstractPatternFactory:
 
   def __init__(self, embedder):
     self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
-    self.patterns = []
+    self.patterns:List[FuzzyPattern] = []
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
@@ -305,3 +305,17 @@ class AbstractPatternFactory:
     pat.embeddings = emb
 
     return pat
+
+
+class AbstractPatternFactoryLowCase(AbstractPatternFactory):
+  def __init__(self, embedder):
+    AbstractPatternFactory.__init__(self, embedder)
+    self.patterns_dict = {}
+
+  def create_pattern(self, pattern_name, ppp):
+    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
+    fp = FuzzyPattern(_ppp, pattern_name)
+    self.patterns.append(fp)
+    self.patterns_dict[pattern_name] = fp
+    return fp
+

@@ -56,7 +56,7 @@ class AbstractEmbedder:
 
       sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
-      print('embedd_contextualized_patterns', (sentence, start, end))
+      # print('embedd_contextualized_patterns', (sentence, start, end))
 
       regions[i] = (start, end)
       tokenized_sentences_list.append(sentence_tokens)
@@ -66,20 +66,20 @@ class AbstractEmbedder:
 
       i = i + 1
 
-    print('maxlen=', maxlen)
+    # print('maxlen=', maxlen)
     _strings = []
 
     for s in tokenized_sentences_list:
       s.extend([' '] * (maxlen - len(s)))
       _strings.append(s)
-      print(s)
+      # print(s)
     _strings = np.array(_strings)
 
     ## ======== call TENSORFLOW -----==================
     sentences_emb, wrds = self.embedd_tokenized_text(_strings, lens)
     ## ================================================
 
-    print(sentences_emb.shape)
+    # print(sentences_emb.shape)
     #     assert len(sentence_tokens) == sentences_emb
 
     patterns_emb = []
@@ -93,3 +93,40 @@ class AbstractEmbedder:
       patterns_emb.append(pattern_emb)
 
     return np.array(patterns_emb)
+
+
+class ElmoEmbedder(AbstractEmbedder):
+
+  def __init__(self, elmo, tf, layer_name):
+    self.elmo = elmo
+    self.config = tf.ConfigProto()
+    self.config.gpu_options.allow_growth = True
+
+    self.layer_name = layer_name
+    self.tf = tf
+
+  def embedd_tokenized_text(self, words, lens):
+    with self.tf.Session(config=self.config) as sess:
+      embeddings = self.elmo(
+        inputs={
+          "tokens": words,
+          "sequence_len": lens
+        },
+        signature="tokens",
+        as_dict=True)[self.layer_name]
+
+      sess.run(self.tf.global_variables_initializer())
+      out = sess.run(embeddings)
+    #       sess.close()
+
+    return out, words
+
+  def get_embedding_tensor(self, str, signature="default"):
+    embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[self.layer_name]
+
+    with self.tf.Session(config=self.config) as sess:
+      sess.run(self.tf.global_variables_initializer())
+      embedding = sess.run(embedding_tensor)
+    #       sess.close()
+
+    return embedding

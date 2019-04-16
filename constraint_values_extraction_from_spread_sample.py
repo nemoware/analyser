@@ -17,7 +17,7 @@ hyperparameters={}
 
 #@markdown ## - Embedding module
 embeddings_layer='elmo'  #@param ["elmo", "word_emb" ]
-database = "news" #@param ["wiki", "twitter", "news"]
+database = "twitter" #@param ["wiki", "twitter", "news"]
 
 
 hyperparameters['embeddings.layer']=embeddings_layer
@@ -107,14 +107,23 @@ print(tf.__version__)
 elmo = None
 
 _database = hyperparameters ['database']
-if _database=='twitter':
-  elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_2013-01_2018-04_600k_steps.tar.gz', trainable=False) #twitter
-  
-if _database=='news':
-  elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz', trainable=False) #Russian WMT News
-  
-if _database=='wiki':
-  elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-wiki_600k_steps.tar.gz', trainable=False) #wiki
+print('_database = ',_database)
+
+
+_databases={
+    #Twitter
+    'twitter':'http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_2013-01_2018-04_600k_steps.tar.gz',
+                         
+    
+    #Russian WMT News
+    'news':'http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz',
+            
+    #Wikipedia
+    'wiki':'http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-wiki_600k_steps.tar.gz'
+}
+
+
+elmo = hub.Module(_databases[_database], trainable=False) #twitter
 
 """### Import from GitHub"""
 
@@ -563,6 +572,11 @@ def make_constraints_attention_vectors(subdoc):
 
 
 
+
+
+#-----------------------
+# testing
+
 for subdoc in subdocs:
   print('_'*40)
   embeddings_len=len(subdoc.embeddings)
@@ -576,37 +590,167 @@ for subdoc in subdocs:
 
 """### d"""
 
-print('=' * 80)
-print(f'Average sentence len = {np.mean(lens)}')
-print('=' * 80)
-
-from typing import List
+# from legal_docs import *
+# from ml_tools import *
 
 
-def split_by_number(tokens: List[str], attention: List[float], threshold):
-  indexes = []
-  last_token_is_number = False
-  for i in range(len(tokens)):
-    if tokens[i].isdigit() and attention[i] > threshold:
-      if not last_token_is_number:
-        indexes.append(i)
-      last_token_is_number = True
-    else:
-      last_token_is_number = False
+# # -------------------------------------------------------------------------------------------------------------
+# # RENDERING
 
-  regions = []
-  bounds = []
-  if len(indexes) > 0:
-    for i in range(1, len(indexes)):
-      s = indexes[i - 1]
-      e = indexes[i]
-      regions.append(tokens[s:e])
-      bounds.append( (s,e) )
-        
-    regions.append(tokens[indexes[-1]:])
-    bounds.append((indexes[-1], len(tokens)) )
-  return regions, indexes, bounds
 
+# def sign_to_text(sign: int):
+#   if sign < 0: return " &lt; "
+#   if sign > 0: return " &gt; "
+#   return ' = '
+
+
+# # -------------------------------------------------------------------------------------------------------------
+
+
+# _re_less_then = re.compile(r'(до|менее|не выше|не превыша[а-я]{2,4})')
+# _re_greather_then = re.compile(r'(от|больше|более|свыше|выше|превыша[а-я]{2,4})')
+
+
+# def detect_sign(prefix: str):
+#   a = _re_less_then.findall(prefix)
+#   if len(a) > 0:
+#     return -1
+#   else:
+#     a = _re_greather_then.findall(prefix)
+#     if len(a) > 0:
+#       return +1
+#   return 0
+
+
+# def cut_above(x, threshold):
+#   return threshold + relu(x * -1 + threshold) * -1
+
+
+# def make_constraints_attention_vectors(subdoc):
+#   value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
+#                                                                 relu_th=0.4)
+#   value_attention_vector = cut_above(value_attention_vector, 1)
+#   value_attention_vector = relu(value_attention_vector, 0.6)
+#   value_attention_vector = momentum(value_attention_vector, 0.7)
+
+#   deal_attention_vector, _c2 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'd_order',
+#                                                                relu_th=0.5)
+#   deal_attention_vector = cut_above(deal_attention_vector, 1)
+#   deal_attention_vector = momentum(deal_attention_vector, 0.993)
+
+#   margin_attention_vector, _c3 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum__',
+#                                                                  relu_th=0.5)
+#   margin_attention_vector = cut_above(margin_attention_vector, 1)
+#   margin_attention_vector = momentum(margin_attention_vector, 0.95)
+#   margin_attention_vector = relu(margin_attention_vector, 0.65)
+
+#   margin_value_attention_vector = relu((margin_attention_vector + value_attention_vector) / 2, 0.6)
+
+#   deal_value_attention_vector = (deal_attention_vector + margin_value_attention_vector) / 2
+#   deal_value_attention_vector = relu(deal_value_attention_vector, 0.75)
+
+#   return {
+#     'value_attention_vector': value_attention_vector,
+#     'deal_attention_vector': deal_attention_vector,
+#     'deal_value_attention_vector': deal_value_attention_vector,
+#     'margin_attention_vector': margin_attention_vector,
+#     'margin_value_attention_vector': margin_value_attention_vector
+#   }
+
+
+# def split_by_number(tokens: List[str], attention: List[float], threshold):
+#   # TODO: mind decimals!!
+
+#   indexes = []
+#   last_token_is_number = False
+#   for i in range(len(tokens)):
+#     if tokens[i].isdigit() and attention[i] > threshold:
+#       if not last_token_is_number:
+#         indexes.append(i)
+#       last_token_is_number = True
+#     else:
+#       last_token_is_number = False
+
+#   regions = []
+#   bounds = []
+#   if len(indexes) > 0:
+#     for i in range(1, len(indexes)):
+#       s = indexes[i - 1]
+#       e = indexes[i]
+#       regions.append(tokens[s:e])
+#       bounds.append((s, e))
+
+#     regions.append(tokens[indexes[-1]:])
+#     bounds.append((indexes[-1], len(tokens)))
+#   return regions, indexes, bounds
+
+
+# currencly_map = {
+#   'доллар': 'USD',
+#   'евро': 'EUR',
+#   'руб': 'RUR'
+# }
+
+
+# class ValueConstraint:
+#   def __init__(self, value: float, currency: str, sign: int, context=None):
+#     self.value = value
+#     self.currency = currency
+#     self.sign = sign
+#     self.context = context
+
+
+# def value_to_html(vc: ValueConstraint):
+#   color = '#333333'
+#   if vc.sign > 0:
+#     color = '#993300'
+#   elif vc.sign < 0:
+#     color = '#009933'
+
+#   return f'<b style="color:{color}">{sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}</b> '
+
+
+# VALUE_SIGN_MIN_TOKENS = 4
+
+
+# def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
+#   subtokens = subdoc.tokens_cc[b[0] - VALUE_SIGN_MIN_TOKENS:b[1]]
+#   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
+#   _prefix = untokenize(_prefix_tokens)
+#   _sign = detect_sign(_prefix)
+#   # ======================================
+#   sum = extract_sum_from_tokens(subtokens)[0]
+#   # ======================================
+
+#   currency = "UNDEF"
+#   value = np.nan
+#   if sum is not None:
+#     if sum[1] in currencly_map:
+#       currency = currencly_map[sum[1]]
+#     value = sum[0]
+    
+  
+  
+#   vc = ValueConstraint(value, currency, _sign)
+#   return vc
+
+
+# def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
+#   ValueConstraint]:
+#   regions, indexes, bounds = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
+
+#   constraints = []
+#   if len(indexes) > 0:
+
+#     for b in bounds:
+#       vc = extract_sum_and_sign(sentence_subdoc, b)
+#       constraints.append(vc)
+
+#   return constraints
+
+# -------------------------------------------------------------------------------------------------------------
+# RENDERING
+from transaction_values import ValueConstraint
 
 
 def sign_to_text(sign: int):
@@ -614,83 +758,73 @@ def sign_to_text(sign: int):
   if sign > 0: return " &gt; "
   return ' = '
 
-def value_to_html(result, prefix='', sign=0):
-  html = ""
-  if result is None:
-    html += '<span style="color:red">СУММА НЕ НАЙДЕНА</span> '
-  else:
-    color='#333333'
-    if sign > 0 :
-      color='#993300'
-    elif sign < 0:
-      color='#009933'
 
-    html += f'<b style="color:{color}">{prefix}{currencly_map[result[1]]} {result[0]:20,.2f}</b> '
-      
-  return html
+# -------------------------------------------------------------------------------------------------------------
 
 
+def value_to_html(vc: ValueConstraint):
+  color = '#333333'
+  if vc.sign > 0:
+    color = '#993300'
+  elif vc.sign < 0:
+    color = '#009933'
+
+  return f'<b style="color:{color}">{sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}</b> '
 
 
 def __render(subdoc, attention_vector, colormap):
   regions, indexes, bounds = split_by_number(subdoc.tokens, attention_vector, 0.2)
   html = ''
   if len(indexes) > 0:
-     
-    
-    html += to_color_text(subdoc.tokens[:indexes[0]]  , attention_vector[:indexes[0]], _range=[0, 1.2], colormap=colormap)+' .... <br>'
-    
-    shtml=''
-    
+
+    html += to_color_text(subdoc.tokens[:indexes[0]], attention_vector[:indexes[0]], _range=[0, 1.2],
+                          colormap=colormap) + ' .... <br>'
+
+    shtml = ''
+
     for b in bounds:
-#       print(f'\t\t - { b}')
-      shtml+='<br>  '
-    
-      left_offset=4 # для слов типа "не превыщает"
-      subtokens = subdoc.tokens_cc[b[0]-left_offset:b[1]]
-      subvector = attention_vector[b[0]-left_offset:b[1]]
-      
-   
-      #------
-      _prefix_tokens = subtokens[0:left_offset+1]
-      _prefix = untokenize(_prefix_tokens)
-      _sign = detect_sign(_prefix)      
-      sum = extract_sum_from_tokens(subtokens)       
-      
-      sum_h = value_to_html(sum[0], sign_to_text(_sign), _sign)  
-      shtml+= f'{sum_h} '
-      shtml+=to_color_text(subtokens ,subvector , _range=[0, 1.2], colormap=colormap)
-      #------
-    html+=f'<div style="margin-left:3em; font-size:90%"> {shtml} </div>'
-    
+      #       print(f'\t\t - { b}')
+      shtml += '<br>  '
+
+      vc = extract_sum_and_sign(subdoc, b)
+
+      shtml += f'{value_to_html(vc)} '
+
+      subtokens = subdoc.tokens_cc[b[0] - 4:b[1]]
+      subvector = attention_vector[b[0] - 4:b[1]]
+      shtml += to_color_text(subtokens, subvector, _range=[0, 1.2], colormap=colormap)
+      # ------
+    html += f'<div style="margin-left:3em; font-size:90%"> {shtml} </div>'
+
   display(HTML(html))
 
-i = 0
 
-ID=2
-# ID=36
-for subdoc in subdocs[ID:ID+1]:
-  fig = plt.figure(figsize=(20, 6))
-  ax = plt.axes()
+def __debug_attention_vectors(subdocs):
+  i = 0
 
-   
-  embeddings_len = len(subdoc.embeddings)
-  print(f'subdoc.embeddings= {embeddings_len} \t tokens={len(subdoc.tokens)}')
-  
-  vectors = make_constraints_attention_vectors(subdoc)
+  ID = 2
+  # ID=36
+  for subdoc in subdocs[ID:ID + 1]:
+    fig = plt.figure(figsize=(20, 6))
+    ax = plt.axes()
 
-  __render(subdoc, vectors['deal_value_attention_vector'], "Reds")
-  
-  for k in vectors:    
-    ax.plot(vectors[k], label=k, alpha=0.4);
-    
-  ax.plot(vectors['deal_value_attention_vector'], label="R", alpha=0.6, color='black');
+    embeddings_len = len(subdoc.embeddings)
+    print(f'subdoc.embeddings= {embeddings_len} \t tokens={len(subdoc.tokens)}')
+
+    vectors = make_constraints_attention_vectors(subdoc)
+
+    __render(subdoc, vectors['deal_value_attention_vector'], "Reds")
+
+    for k in vectors:
+      ax.plot(vectors[k], label=k, alpha=0.4);
+
+    ax.plot(vectors['deal_value_attention_vector'], label="R", alpha=0.6, color='black');
+
+    plt.title('margin_numbers "{}"'.format(i))
+    plt.legend(loc='upper right')
 
 
- 
-
-  plt.title('margin_numbers "{}"'.format(i))
-  plt.legend(loc='upper right')
+__debug_attention_vectors(subdocs)
 
 for subdoc in subdocs :
   vectors = make_constraints_attention_vectors(subdoc)

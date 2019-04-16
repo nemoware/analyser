@@ -18,11 +18,21 @@ elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_20
 # elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz', trainable=False) #Russian WMT News
 # elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-wiki_600k_steps.tar.gz', trainable=False) #wiki
 
-
+!wget
+https: // raw.githubusercontent.com / compartia / nlp_tools / resonance / text_tools.py
+!wget
+https: // raw.githubusercontent.com / compartia / nlp_tools / resonance / embedding_tools.py
+!wget
+https: // raw.githubusercontent.com / compartia / nlp_tools / resonance / ml_tools.py
+!wget
+https: // raw.githubusercontent.com / compartia / nlp_tools / resonance / text_normalize.py
+!wget
+https: // raw.githubusercontent.com / compartia / nlp_tools / resonance / patterns.py
 # !wget https://raw.githubusercontent.com/compartia/nlp_tools/protocols/split.py  
 
 
 from embedding_tools import *
+from ml_tools import *
 
 # from split import *
 
@@ -30,6 +40,15 @@ from embedding_tools import *
 
 ### Utils
 """
+
+
+!pip
+install
+docx2txt
+!sudo
+apt - get
+install
+antiword
 
 
 def read_doc(fn):
@@ -52,7 +71,7 @@ import matplotlib as mpl
 from IPython.core.display import display, HTML
 
 
-def render_color_text(tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
+def to_color_text(tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
   #   weights = _weights *-1
   if len(weights) != len(tokens):
     raise ValueError("number of weights differs weights={} tokens={}".format(len(weights), len(tokens)))
@@ -84,6 +103,11 @@ def render_color_text(tokens, weights, colormap='coolwarm', print_debug=False, _
     if tokens[d] == '\n':
       html += "<br>"
 
+  return html
+
+
+def render_color_text(tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
+  html = to_color_text(tokens, weights, colormap, print_debug, _range)
   display(HTML(html))
 
 
@@ -143,12 +167,20 @@ def _render_doc_subject_fragments(doc):
   return _html
 
 
-def sum_to_html(result):
+currencly_map = {
+  'доллар': '$',
+  'евро': '€',
+  'руб': '₽'
+
+}
+
+
+def sum_to_html(result, prefix=''):
   html = ""
   if result is None:
     html += '<h3 style="color:red">СУММА НЕ НАЙДЕНА</h3>'
   else:
-    html += '<h3>{:20,.2f} {}</h3>'.format(result[0], result[1])
+    html += '<h3>{}{} {:20,.2f}</h3>'.format(prefix, currencly_map[result[1]], result[0])
   return html
 
 
@@ -197,13 +229,12 @@ tables_regex = [
   #     (r'\|', ' '),
 ]
 
+from functools import wraps
 from typing import List
 
 from patterns import *
 from text_normalize import *
 from text_tools import *
-
-from functools import wraps
 
 PROF_DATA = {}
 
@@ -249,34 +280,34 @@ def normalize(x, out_range=(0, 1)):
 def smooth(x, window_len=11, window='hanning'):
   """smooth the data using a window with requested size.
 
-  This method is based on the convolution of a scaled window with the signal.
-  The signal is prepared by introducing reflected copies of the signal
-  (with the window size) in both ends so that transient parts are minimized
-  in the begining and end part of the output signal.
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
 
-  input:
-      x: the input signal
-      window_len: the dimension of the smoothing window; should be an odd integer
-      window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-          flat window will produce a moving average smoothing.
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
 
-  output:
-      the smoothed signal
+    output:
+        the smoothed signal
 
-  example:
+    example:
 
-  t=linspace(-2,2,0.1)
-  x=sin(t)+randn(len(t))*0.1
-  y=smooth(x)
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
 
-  see also:
+    see also:
 
-  numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
-  scipy.signal.lfilter
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
 
-  TODO: the window parameter could be the window itself if an array instead of a string
-  NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
-  """
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
 
   if x.ndim != 1:
     raise ValueError("smooth only accepts 1 dimension arrays.")
@@ -368,13 +399,13 @@ class LegalDocument(EmbeddableText):
 
   def split_into_sections(self, caption_pattern_prefix='p_cap_', relu_th=0.5, soothing_wind_size=22):
     """
-    this works only for documents where captions are not unique
+        this works only for documents where captions are not unique
 
-    :param caption_pattern_prefix: pattern name prefix
-    :param relu_th: ReLu threshold
-    :param soothing_wind_size: smoothing coefficient (like average window size) TODO: rename
-    :return:
-    """
+        :param caption_pattern_prefix: pattern name prefix
+        :param relu_th: ReLu threshold
+        :param soothing_wind_size: smoothing coefficient (like average window size) TODO: rename
+        :return:
+        """
 
     print("WARNING: split_into_sections method is deprecated")
 
@@ -412,10 +443,10 @@ class LegalDocument(EmbeddableText):
 
   def normalize_sentences_bounds(self, text):
     """
-    splits text into sentences, join sentences with \n
-    :param text:
-    :return:
-    """
+        splits text into sentences, join sentences with \n
+        :param text:
+        :return:
+        """
     sents = ru_tokenizer.tokenize(text)
     for s in sents:
       s.replace('\n', ' ')
@@ -972,31 +1003,6 @@ def split_doc(doc, caption_prefix, attention_vector=None):
   split_into_sections(doc, caption_indexes)
 
 
-# def embedd_doc_if_large(doc: LegalDocument, embedder, max_tokens=MAX_TOKENS):
-#     assert doc.tokens is not None
-#
-#     overlap = int(max_tokens / 5)
-#     if len(doc.tokens) > max_tokens:
-#
-#         number_of_windows = 1 + int(len(doc.tokens) / max_tokens)
-#         window = max_tokens
-#
-#         print("WARNING: Document is too large for embedding. Splitting into {} overlapping windows".format(
-#             number_of_windows))
-#         start = 0
-#         while start < len(doc.tokens):
-#             _end = start + window
-#             subtokens = doc.tokens[start:_end]
-#             print(start, len(subtokens))
-#             start += window - overlap
-#
-#             embeddings, _g = embedder.embedd_tokenized_text([subtokens], [len(subtokens)])
-#
-#
-#     else:
-#         ret.append(doc)
-#     return ret
-
 """### Embedder"""
 
 
@@ -1257,8 +1263,7 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     sum_comp_pat.add_pattern(self.create_pattern('sum_max2', (prefix + 'цена', 'не больше 0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max3', (prefix + 'стоимость <', '0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max4', (prefix + 'цена менее', '0', suffix)))
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max5', (prefix + 'стоимость не может превышать', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max5', (prefix + 'стоимость не может превышать', '0', suffix)))
     #     sum_comp_pat.add_pattern(self.create_pattern('sum_max4', (prefix + 'общая сумма обязательств по сделке может составить', '0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max6', (prefix + 'лимит соглашения', '0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max7', (prefix + 'верхний лимит стоимости', '0', suffix)))
@@ -1269,11 +1274,9 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек')),
                              -0.8)
     sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи')),
-      -0.8)
+      self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи')), -0.8)
     sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания ')),
-      -0.8)
+      self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания ')), -0.8)
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.')), -0.8)
 
     #     for p in sum_comp_pat.patterns:
@@ -1291,8 +1294,8 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       ep.add_pattern(self.create_pattern('t_deal_1', (PRFX, 'сделки', 'связанной с продажей')))
       ep.add_pattern(
         self.create_pattern('t_deal_2', (PRFX + '', 'совершение сделки', 'связанной с заключением договора')))
-      ep.add_pattern(self.create_pattern('t_deal_3', (
-        PRFX + '', 'крупной сделки', 'связанной с продажей недвижимого имущества')))
+      ep.add_pattern(
+        self.create_pattern('t_deal_3', (PRFX + '', 'крупной сделки', 'связанной с продажей недвижимого имущества')))
 
     #       for p in ep.patterns:
     #         p.soft_sliding_window_borders = True
@@ -1335,16 +1338,15 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       p_solution = CoumpoundFuzzyPattern()
       p_solution.name = "p_solution"
       p_solution.add_pattern(self.create_pattern('p_cap_solution1', (
-        PRFX, 'решение, принятое по первому', ' вопросу повестки дня: одобрить')))
+      PRFX, 'решение, принятое по первому', ' вопросу повестки дня: одобрить')))
       p_solution.add_pattern(self.create_pattern('p_cap_solution2', (
-        PRFX, 'решение, принятое по второму', ' вопросу повестки дня: одобрить')))
+      PRFX, 'решение, принятое по второму', ' вопросу повестки дня: одобрить')))
       p_solution.add_pattern(self.create_pattern('p_cap_solution3', (
-        PRFX, 'решение, принятое по третьему', ' вопросу повестки дня: одобрить')))
+      PRFX, 'решение, принятое по третьему', ' вопросу повестки дня: одобрить')))
       p_solution.add_pattern(self.create_pattern('p_cap_solution4', (
-        PRFX, 'решение, принятое по четвертому', 'вопросу повестки дня: одобрить')))
+      PRFX, 'решение, принятое по четвертому', 'вопросу повестки дня: одобрить')))
 
-      p_solution.add_pattern(
-        self.create_pattern('p_cap_solution_f1', (PRFX + 'формулировка', 'решения', ': одобрить')))
+      p_solution.add_pattern(self.create_pattern('p_cap_solution_f1', (PRFX + 'формулировка', 'решения', ': одобрить')))
 
       sect_pt.add_pattern(p_solution)
 
@@ -1357,8 +1359,8 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       p_votes.add_pattern(
         self.create_pattern('p_cap_votes2', (PRFX + 'Итоги', 'голосования', 'за против воздержаолось')))
 
-      p_votes.add_pattern(self.create_pattern('p_cap_votes3', (
-        PRFX + '', 'подсчет голосов производил', 'секретарь совета директоров')))
+      p_votes.add_pattern(
+        self.create_pattern('p_cap_votes3', (PRFX + '', 'подсчет голосов производил', 'секретарь совета директоров')))
 
       sect_pt.add_pattern(p_votes)
 
@@ -1446,8 +1448,7 @@ def find_subj_in_section(doc):
     RELU_THRESHOLD = 0.35
     org = rectifyed_mean_by_pattern_prefix(section.distances_per_pattern_dict, 't_org', relu_th=RELU_THRESHOLD)
     deal = rectifyed_mean_by_pattern_prefix(section.distances_per_pattern_dict, 't_deal_', relu_th=RELU_THRESHOLD)
-    charity = rectifyed_mean_by_pattern_prefix(section.distances_per_pattern_dict, 't_charity_',
-                                               relu_th=RELU_THRESHOLD)
+    charity = rectifyed_mean_by_pattern_prefix(section.distances_per_pattern_dict, 't_charity_', relu_th=RELU_THRESHOLD)
 
     org = smooth(org, window_len=8)
     deal = smooth(deal, window_len=8)
@@ -2422,15 +2423,14 @@ class ContractPatternFactory(AbstractPatternFactory):
   def _build_subject_patterns(self):
     ep = ExclusivePattern()
 
-    ep.add_pattern(
-      self.create_pattern('t_charity_1', ('договор', 'благотворительного', 'пожертвования')))  # at index 0
+    ep.add_pattern(self.create_pattern('t_charity_1', ('договор', 'благотворительного', 'пожертвования')))  # at index 0
     ep.add_pattern(
       self.create_pattern('t_charity_2', ('договор  о предоставлении', 'безвозмездной  помощи', 'финансовой')))
     ep.add_pattern(self.create_pattern('t_charity_3', ('проведение', 'благотворительных', '')))
     #     ep.add_pattern(self.create_pattern ('t_charity_4',('"Благотворитель" оплачивает следующий счет, выставленный на','Благополучателя', '')))
     ep.add_pattern(self.create_pattern('t_charity_4', ('"принимает в качестве', 'Пожертвования', '')))
-    p1 = self.create_pattern('t_charity_5', (
-      '', 'Жертвователь', 'безвозмездно передает в собственность, а Благополучатель принимает'))
+    p1 = self.create_pattern('t_charity_5',
+                             ('', 'Жертвователь', 'безвозмездно передает в собственность, а Благополучатель принимает'))
 
     """
     
@@ -2442,17 +2442,17 @@ class ContractPatternFactory(AbstractPatternFactory):
     ep.add_pattern(p1)
 
     ep.add_pattern(self.create_pattern('t_comm_1', (
-      'ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить')))
+    'ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить')))
     p2 = self.create_pattern('t_comm_2', ('Арендодатель обязуется предоставить', 'Арендатору',
                                           'за плату во временное владение и пользование недвижимое имущество '))
     p2.soft_sliding_window_borders = True
     ep.add_pattern(p2)
-    ep.add_pattern(self.create_pattern('t_comm_3', (
-      'Исполнитель обязуется своими силами', 'выполнить работы', 'по разработке')))
+    ep.add_pattern(
+      self.create_pattern('t_comm_3', ('Исполнитель обязуется своими силами', 'выполнить работы', 'по разработке')))
 
     ep.add_pattern(self.create_pattern('t_comm_4', ('Исполнитель обязуется', 'оказать услуги', '')))
     ep.add_pattern(self.create_pattern('t_comm_5', (
-      'Заказчик поручает и оплачивает, а Исполнитель предоставляет ', 'услуги', 'в виде')))
+    'Заказчик поручает и оплачивает, а Исполнитель предоставляет ', 'услуги', 'в виде')))
     ep.add_pattern(self.create_pattern('t_comm_6', ('договор на оказание', 'платных', 'услуг')))
     ep.add_pattern(self.create_pattern('t_comm_7', ('договор', 'возмездного', 'оказания услуг')))
 
@@ -2462,7 +2462,7 @@ class ContractPatternFactory(AbstractPatternFactory):
 
   def _build_paragraph_split_pattern(self):
     '''
-
+    
     ПРЕДМЕТ ДОГОВОРА	4
     ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ	4
     ВЗАИМООТНОШЕНИЯ СТОРОН	6
@@ -2470,22 +2470,22 @@ class ContractPatternFactory(AbstractPatternFactory):
     Права и обязанности Заказчика:	7
     Права и обязанности Исполнителя:	11
     Управление эффективностью деятельности контрагентов	19
-
+    
     ПЕРСОНАЛ ИСПОЛНИТЕЛЯ	21
-
+    
     ПОРЯДОК ОКАЗАНИЯ УСЛУГ	23
     СТОИМОСТЬ УСЛУГ, ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ. МЕХАНИЗМ ИЗМЕНЕНИЯ ОБЪЕМА УСЛУГ ПО ДОГОВОРУ.	24
-
+    
     ОТВЕТСТВЕННОСТЬ СТОРОН	31
     ПРОИЗВОДСТВО РАБОТ. ТРЕБОВАНИЯ В ОБЛАСТИ  ОХРАНЫ ТРУДА, ПРОМЫШЛЕННОЙ БЕЗОПАСНОСТИ И ОХРАНЫ ОКРУЖАЮЩЕЙ СРЕДЫ (ПЭБ, ОТ и ГЗ) ПРИ ОКАЗАНИИ УСЛУГ НА ОБЪЕКТАХ ЗАКАЗЧИКА	35
     ОБСТОЯТЕЛЬСТВА НЕПРЕОДОЛИМОЙ СИЛЫ. САНКЦИИ.	35
     ПОРЯДОК ИЗМЕНЕНИЯ, РАСТОРЖЕНИЯ ДОГОВОРА	38
      ПРОЧИЕ УСЛОВИЯ	41
-        41
+    	41
     КОНФИДЕНЦИАЛЬНОСТЬ	42
-
+ 
      ЮРИДИЧЕСКИЕ, ПОЧТОВЫЕ АДРЕСА, БАНКОВСКИЕ И ПЛАТЕЖНЫЕ РЕКВИЗИТЫ СТОРОН	44
-
+    
     '''
 
     PRFX = '\nстатья 0 — '
@@ -2497,18 +2497,18 @@ class ContractPatternFactory(AbstractPatternFactory):
 
     t_def = self.create_pattern(n_p + 'def', (PRFX, 'Термины и определения', 'толкования'))
     subject_pattern = self.create_pattern(n_p + 'subject_pattern', (
-      'заключили настоящий Договор нижеследующем:\n' + PRFX, 'Предмет договора.\n',
-      'Исполнитель обязуется, заказчик поручает'))
+    'заключили настоящий Договор нижеследующем:\n' + PRFX, 'Предмет договора.\n',
+    'Исполнитель обязуется, заказчик поручает'))
 
     t_price = self.create_pattern(n_p + 'price_1', (
-      PRFX, 'цена договора', 'порядок расчетов, СТОИМОСТЬ РАБОТ, порядок оплаты, УСЛОВИЯ ПЛАТЕЖЕЙ'))
+    PRFX, 'цена договора', 'порядок расчетов, СТОИМОСТЬ РАБОТ, порядок оплаты, УСЛОВИЯ ПЛАТЕЖЕЙ'))
     t_price = self.create_pattern(n_p + 'price', (
-      PRFX, 'СТОИМОСТЬ УСЛУГ', 'ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ. МЕХАНИЗМ ИЗМЕНЕНИЯ ОБЪЕМА УСЛУГ ПО ДОГОВОРУ.'))
+    PRFX, 'СТОИМОСТЬ УСЛУГ', 'ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ. МЕХАНИЗМ ИЗМЕНЕНИЯ ОБЪЕМА УСЛУГ ПО ДОГОВОРУ.'))
 
     t_terms = self.create_pattern(n_p + 'terms', (PRFX, 'СРОКИ ВЫПОЛНЕНИЯ РАБОТ.', 'Порядок выполнения работ.'))
 
     t_dates = self.create_pattern(n_p + 'dates', (
-      PRFX, 'СРОК ДЕЙСТВИЯ ДОГОВОРА.\n', 'настоящий договор вступает в силу с момента подписания сторонами'))
+    PRFX, 'СРОК ДЕЙСТВИЯ ДОГОВОРА.\n', 'настоящий договор вступает в силу с момента подписания сторонами'))
     t_break = self.create_pattern(n_p + 'break', (PRFX, 'Расторжение договора',
                                                   'досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
 
@@ -2546,7 +2546,7 @@ class ContractPatternFactory(AbstractPatternFactory):
     #     //--------------
 
     sum_1 = self.create_pattern('sum_max_1', (
-      'Стоимость Работ составляет', '0 рублей', '(миллионов тысяч) рублей 0 копеек, включая НДС'))
+    'Стоимость Работ составляет', '0 рублей', '(миллионов тысяч) рублей 0 копеек, включая НДС'))
     sum_2 = self.create_pattern('sum_max_2', ('Расчеты по договору. Стоимость оказываемых услуг составляет ', '0',
                                               ' рублей 0 копеек. Оплата работ производится '))
     sum_max = self.create_pattern('sum_max_3', ('Стоимость расчетов по договору не может превышать', '0', 'рублей'))
@@ -2558,9 +2558,8 @@ class ContractPatternFactory(AbstractPatternFactory):
     sum_fine_neg = self.create_pattern('sum_max_neg_fine',
                                        ('уплачивается', 'штраф 0 рублей а также возмещаются понесенные', 'убытки'))
     sum_fine_neg2 = self.create_pattern('sum_max_neg_fine2', (
-      'В случае нарушения  сроков выполнения Работ по соответствующему Приложению , Заказчик имеет право взыскать пени в размере',
-      '0%',
-      'от стоимости не выполненного вовремя этапа Работ по соответствующему Приложению за каждый день просрочки'))
+    'В случае нарушения  сроков выполнения Работ по соответствующему Приложению , Заказчик имеет право взыскать пени в размере',
+    '0%', 'от стоимости не выполненного вовремя этапа Работ по соответствующему Приложению за каждый день просрочки'))
     sum_term_neg = self.create_pattern('sum_max_neg_term',
                                        ('в срок не позднее, чем за', '3', 'банковских календарных дней'))
 
@@ -2709,10 +2708,23 @@ def find_sum_in_masked_doc(doc):
 
 find_sum_in_masked_doc(contract)
 
-"""# Charters (Уставы)
+"""# Charters (Уставы)"""
 
-### Sample text
-"""
+head_types = ['directors', 'all', 'gen', 'shareholders', 'pravlenie']
+
+head_types_dict = {'directors': 'Совет директоров',
+                   'all': 'Общее собрание участников',
+                   'gen': 'Генеральный директор',
+                   'shareholders': 'Общее собрание акционеров',
+                   'pravlenie': 'Правление общества'}
+
+head_types_colors = {'directors': 'crimson',
+                     'all': 'orange',
+                     'gen': 'blue',
+                     'shareholders': '#666600',
+                     'pravlenie': '#0099cc'}
+
+"""### Sample text"""
 
 CHARTER_SAMPLE_2 = """
 
@@ -5955,7 +5967,7 @@ class CharterPatternFactory(AbstractPatternFactory):
 
     self.patterns_dict = {}
 
-    self._build_paragraph_split_pattern()
+    #     self._build_paragraph_split_pattern()
     self._build_order_patterns()
     self._build_head_patterns()
     self._build_sum_margin_extraction_patterns()
@@ -5973,16 +5985,17 @@ class CharterPatternFactory(AbstractPatternFactory):
     #     cp('d_head_directors',          ('', 'Совет директоров', ''))
     #     cp('d_head_all.2',              ('к исключительной компетенции общего собрания', ' участников', 'общества относятся следующие вопросы'))
 
-    cp('d_head_shareholders.1', ('', 'компетенции общего собрания акционеров', 'относятся следующие вопросы'))
+    cp('d_head_shareholders.1', ('к компетенции', 'общего собрания акционеров', 'относятся следующие вопросы'))
 
-    cp('d_head_all.1', ('', 'компетенции общего собрания участников', 'общества относятся следующие вопросы'))
+    cp('d_head_all.1', ('к компетенции', 'общего собрания участников', 'общества относятся следующие вопросы'))
 
-    cp('d_head_directors.1', ('', 'компетенции совета директоров', ' общества относятся следующие вопросы'))
+    cp('d_head_directors.1', ('к компетенции', 'совета директоров', 'общества относятся следующие вопросы'))
 
-    cp('d_head_pravlenie.1', ('', 'компетенции правления общества', ' общества относятся следующие вопросы'))
+    cp('d_head_pravlenie.1', ('к компетенции', 'правления общества', 'общества относятся следующие вопросы'))
 
-    cp('d_head_gen', (
-      '', 'компетенции генерального директора', ' относятся все вопросы руководства текущей деятельностью общества'))
+    cp('d_head_gen.1',
+       ('к компетенции', 'генерального директора', 'относятся все вопросы руководства текущей деятельностью общества'))
+    cp('d_head_gen.1', ('\n', 'генеральный директор', 'общества \n'))
 
     cp('negation.1', ('', 'кроме', ''))
     cp('negation.2', ('', 'не', ''))
@@ -5992,8 +6005,7 @@ class CharterPatternFactory(AbstractPatternFactory):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
-    self.create_pattern('d_order_1',
-                        ('Порядок', 'одобрения сделок', 'в совершении которых имеется заинтересованность'))
+    self.create_pattern('d_order_1', ('Порядок', 'одобрения сделок', 'в совершении которых имеется заинтересованность'))
     self.create_pattern('d_order_2', ('', 'принятие решений', 'о совершении сделок'))
     self.create_pattern('d_order_3',
                         ('', 'одобрение заключения', 'изменения или расторжения какой-либо сделки Общества'))
@@ -6026,6 +6038,39 @@ class CharterPatternFactory(AbstractPatternFactory):
 
     self.create_pattern('sumneg_1', ("Размер Уставного капитала Общества составляет", '0', suffix))
 
+  """
+1.	ОБЩИЕ ПОЛОЖЕНИЯ	
+2.	ПРАВОВОЙ СТАТУС ОБЩЕСТВА	
+3.	ОТВЕТСТВЕННОСТЬ ОБЩЕСТВА	
+4.	ЦЕЛИ И ВИДЫ ДЕЯТЕЛЬНОСТИ ОБЩЕСТВА	
+5.	Уставный капитал Общества	
+6.	УВЕЛИЧЕНИЕ УСТАВНОГО КАПИТАЛА ОБЩЕСТВА ЗА СЧЕТ ДОПОЛНИТЕЛЬНЫХ ВКЛАДОВ УЧАСТНИКОВ	
+7.	ПРАВА И ОБЯЗАННОСТИ УЧАСТНИКОВ	
+8.	ВЫХОД УЧАСТНИКА ИЗ ОБЩЕСТВА	
+9.	ПЕРЕДАЧА ДОЛИ УЧАСТНИКА	
+10.	ПРЕИМУЩЕСТВЕННОЕ ПРАВО	
+11.	ЗАЛОГ ИЛИ ИНОЕ ОБРЕМЕНЕНИЕ ДОЛИ	
+12.	СПИСОК УЧАСТНИКОВ ОБЩЕСТВА	
+13.	ИМУЩЕСТВО ОБЩЕСТВА	
+14.	РАСПРЕДЕЛЕНИЕ ПРИБЫЛИ 
+15.	УПРАВЛЕНИЕ ОБЩЕСТВОМ	 
+16.	ОБЩЕЕ СОБРАНИЕ УЧастников 
+17.	КОМПЕТЕНЦИЯ ОБЩЕГО СОБРАНИЯ УЧАСТНИКОВ	
+18.	КВОРУМ И ПОРОГОВЫЕ ЗНАЧЕНИЯ ДЛЯ ГОЛОСОВАНИЯ НА ОБЩЕМ СОБРАНИИ УЧАСТНИКОВ	
+19.	ПРОЦЕДУРА СОЗЫВА ОБЩЕГО СОБРАНИЯ УЧАСТНИКОВ	
+20.	ПРОЦЕДУРА УЧАСТИЯ В ОБЩЕМ СОБРАНИИ УЧАСТНИКОВ	
+21.	ПРОЦЕДУРА ПРОВЕДЕНИЯ ОБЩЕГО СОБРАНИЯ УЧАСТНИКОВ 
+22.	СОВЕТ ДИРЕКТОРОВ ОБЩЕСТВА
+23.	ПРОЦЕДУРА ПРОВЕДЕНИЯ ЗАСЕДАНИЙ СОВЕТА ДИРЕКТОРОВ
+24.	ЕДИНОЛИЧНЫЙ ИСПОЛНИТЕЛЬНЫЙ ОРГАН ОБЩЕСТВА И УПРАВЛЕНИЕ ОБЩЕСТВОМ
+25.	СДЕЛКИ СО СВЯЗАННЫМИ СТОРОНАМИ
+26.	АУДИТОР
+27.	ХРАНЕНИЕ ДОКУМЕНТОВ ОБЩЕСТВА
+28.	РЕОРГАНИЗАЦИЯ И ЛИКВИДАЦИЯ ОБЩЕСТВА
+29.	ОПРЕДЕЛЕНИЯ
+30.	ПРОЧИЕ ПОЛОЖЕНИЯ
+  """
+
   def _build_paragraph_split_pattern(self):
     PRFX = "0."
 
@@ -6034,8 +6079,7 @@ class CharterPatternFactory(AbstractPatternFactory):
 
     cp('p_numbered_article', (PRFX, 'статья 0.0.0', ''))
 
-    cp('p_cap_legal.1',
-       (PRFX, 'ЮРИДИЧЕСКИЙ СТАТУС\n', 'Общество является юридическим лицом согласно законодательству'))
+    cp('p_cap_legal.1', (PRFX, 'ЮРИДИЧЕСКИЙ СТАТУС\n', 'Общество является юридическим лицом согласно законодательству'))
     cp('p_cap_legal.2',
        (PRFX, 'ПРАВОВОЙ СТАТУС ОБЩЕСТВА\n', 'Общество является юридическим лицом согласно законодательству'))
 
@@ -6045,8 +6089,8 @@ class CharterPatternFactory(AbstractPatternFactory):
     cp('p_cap_oblig', (PRFX, 'ответственность общества\n', 'общество несет ответственность'))
     cp('p_cap_heads', (PRFX, 'ОРГАНЫ УПРАВЛЕНИЯ\n', 'Органами управления Общества являются'))
 
-    cp('p_cap_heads_1', (
-      PRFX, 'ОБЩЕЕ СОБРАНИЕ УЧАСТНИКОВ\n', 'Высшим органом управления Общества является Общее собрание Участников'))
+    cp('p_cap_heads_1',
+       (PRFX, 'ОБЩЕЕ СОБРАНИЕ УЧАСТНИКОВ\n', 'Высшим органом управления Общества является Общее собрание Участников'))
     cp('p_cap_heads_2', (PRFX, 'СОВЕТ ДИРЕКТОРОВ ОБЩЕСТВА\n',
                          'Совет директоров Общества осуществляет общее руководство деятельностью Общества'))
     cp('p_cap_heads_3', (PRFX, 'ИСПОЛНИТЕЛЬНЫЙ ОРГАН ОБЩЕСТВА\n',
@@ -6069,9 +6113,9 @@ CharterPF = CharterPatternFactory(embedder)
 
 tf.logging.set_verbosity('FATAL')
 
-# charter = CharterDocument(SAMPLE_CHARTER_3)#big one
+charter = CharterDocument(SAMPLE_CHARTER_3)  # big one
 # charter = CharterDocument(CHARTER_SAMPLE_2)
-charter = CharterDocument(CHARTER_SAMPLE)
+# charter = CharterDocument(CHARTER_SAMPLE)
 
 charter.parse()
 
@@ -6083,38 +6127,6 @@ charter.embedd(CharterPF)
 charter.calculate_distances_per_pattern(CharterPF)
 
 """## Tools"""
-
-
-def average_embedding_pattern(pattern_factory, pattern_prefix):
-  av_emb = None
-  cnt = 0
-  for p in pattern_factory.patterns:
-    #     print ('test-', p.name)
-    if p.name[0: len(pattern_prefix)] == pattern_prefix:
-
-      assert p.embeddings is not None
-
-      cnt += 1
-      p_av_emb = np.mean(p.embeddings, axis=0)
-      if av_emb is None:
-        av_emb = np.array(p_av_emb)
-      else:
-        av_emb += p_av_emb
-
-  #       print(cnt, av_emb[0:3], p.name)
-  #       print (p.embeddings.shape)
-
-  av_emb /= cnt
-  return np.reshape(av_emb, (1, 1024))
-
-
-def make_average_pattern(pattern_factory, pattern_prefix):
-  emb = average_embedding_pattern(pattern_factory, pattern_prefix)
-
-  pat = FuzzyPattern((), pattern_prefix)
-  pat.embeddings = emb
-
-  return pat
 
 
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
@@ -6152,7 +6164,7 @@ def find_ner_end(tokens, start):
 
 """### Split"""
 
-"""## NER
+"""### NER
 
 #### Patterns
 """
@@ -6181,7 +6193,11 @@ class NerPatternFactory(AbstractPatternFactory):
     self._build_ner_patterns()
     self.embedd()
 
-    self.ner_pat = make_average_pattern(self, 'ner_org_')
+    self.ner_pat = None
+    try:
+      self.ner_pat = self.make_average_pattern('ner_org_')
+    except:
+      print('NerPatternFactory: error')
 
   def _build_ner_patterns(self):
     def cp(name, tuples):
@@ -6299,42 +6315,17 @@ def detect_ners(head, render=False):
 
 
 tf.logging.set_verbosity('FATAL')
-
 detect_ners(_doc)
 
 """### Поиск компетенций
 - Совета директоров
 - Общее собрание Участников
-
-#### Ораны управления
-
-##### find sections
 """
-
-# print (math.cos(math.pi/4))
-a = rectifyed_mean_by_pattern_prefix(charter.distances_per_pattern_dict, 'd_head_gen', relu_th=0.5)
-a = smooth(a, window_len=8)
-print(np.mean(a))
-print(np.std(a))
-print(np.min(a))
-print(np.max(a))
-relu_th = max(0.33, np.max(a) * 0.75)
-print(relu_th)
-a = relu(a, relu_th)
-a = momentum(a, 0.999)
-
-render_color_text(charter.tokens[4000:14581], a[4000:14581])
-
-"""#### misc"""
-
-
-# from scipy.special import softmax
 
 
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
-  attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
-                                                        relu_th=relu_th)
+  attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
   #   print('soft_attention_vector', c)
   attention_vector = relu(attention_vector, relu_th=relu_th)
 
@@ -6344,6 +6335,109 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   if norm:
     attention_vector = normalize(attention_vector)
   return attention_vector
+
+
+"""#### Ораны управления Find sections +"""
+
+
+# import math
+# # print (math.cos(math.pi/4))
+# a = rectifyed_mean_by_pattern_prefix(charter.distances_per_pattern_dict, 'd_head_gen', relu_th=0.45)
+# a = smooth(a, window_len=18)
+# print(np.mean(a))
+# print(np.std(a))
+# print(np.min(a))
+# print(np.max(a))
+# relu_th = max( 0.33, np.max(a)*0.75 )
+# print(relu_th)
+# a = relu(a,  relu_th)
+# a = momentum(a, 0.999)
+
+# render_color_text(charter.tokens[4000:14581], a[4000:14581])
+
+
+def find_charter_head_sections(charter, verbose=False):
+  indexes = {}
+  indexes['__end'] = [len(charter.tokens) - charter.right_padding, 0]
+  weights = {}
+
+  for head_type in head_types:
+    a = rectifyed_mean_by_pattern_prefix(charter.distances_per_pattern_dict, 'd_head_' + head_type, relu_th=0.4)
+    a = smooth(a, window_len=6)
+
+    a -= make_soft_attention_vector(charter, 'd_order_', relu_th=0.35, blur=60)
+    a -= soft_attention_vector(charter, 'negation', relu_th=0.4, blur=60)
+
+    weights[head_type] = normalize(a)
+
+    max_id = np.argmax(a)
+    indexes[head_type] = [find_token_before_index(charter.tokens, max_id, "\n"), a[max_id]]
+
+  if verbose:
+    print('indexes=', indexes)
+
+    # clean collisions:
+  for i in indexes:
+
+    if indexes[i] is not None:
+      i1, v1 = indexes[i]
+      for j in indexes:
+        if indexes[j] is not None:
+          i2, v2 = indexes[j]
+          if i != j and i1 == i2:
+            if verbose:
+              print('COLLIDES', i, j, v1, v2)
+            if v1 > v2:
+              indexes[j] = None
+
+  if verbose:
+    print('indexes=', indexes)
+
+    # find sections bounds
+  bounds = {}
+  for i in indexes:
+    if indexes[i] is not None:
+      start, v1 = indexes[i]
+
+      mindelta = 2 ** 20
+      for j in indexes:
+        if i != j:
+          if indexes[j] is not None:
+            end, v2 = indexes[j]
+            delta = end - start
+            if delta > 0:
+              if delta < mindelta:
+                bounds[i] = [start, end]
+                mindelta = delta
+
+  if verbose:
+    print(bounds)
+  return bounds, weights
+
+
+# Render
+
+
+bounds, weights = find_charter_head_sections(charter, verbose=True)
+
+for head_type in bounds.keys():
+  print("-" * 120)
+  print(head_types_dict[head_type])
+  b = bounds[head_type]
+  a = weights[head_type]
+
+  html = ""
+  html += '<h2 style="color:{}; padding:0">{}</h2>'.format(
+    head_types_colors[head_type],
+    head_types_dict[head_type])
+  display(HTML(html))
+
+  render_color_text(charter.tokens[b[0]:b[1]], a[b[0]:b[1]])
+
+"""#### misc"""
+
+
+# from scipy.special import softmax
 
 
 def softmax(v):
@@ -6385,7 +6479,7 @@ def make_echo(av, k=0.5):
 #     m[i] = max(av[i], m[i-1]*decay)
 #   return m
 
-def momentum(x, decay=0.99):
+def momentum_(x, decay=0.99):
   innertia = np.zeros(len(x))
   m = 0
   for i in range(len(x)):
@@ -6396,19 +6490,15 @@ def momentum(x, decay=0.99):
   return innertia
 
 
-head_types = ['directors', 'all', 'gen', 'shareholders', 'pravlenie']
+def momentum(x, decay=0.999):
+  innertia = np.zeros(len(x))
+  m = 0
+  for i in range(len(x)):
+    m = max(m, x[i])
+    innertia[i] = m
+    m *= decay
 
-head_types_dict = {'directors': 'Совет директоров',
-                   'all': 'Общее собрание участников',
-                   'gen': 'Генеральный директор',
-                   'shareholders': 'Общее собрание акционеров',
-                   'pravlenie': 'Правление общества'}
-
-head_types_colors = {'directors': 'crimson',
-                     'all': 'orange',
-                     'gen': 'blue',
-                     'shareholders': '#666600',
-                     'pravlenie': '#0099cc'}
+  return innertia
 
 
 def make_innertia_vectors(charter, render=True):
@@ -6512,8 +6602,8 @@ def _find_sentences_having_currency_numbers(doc, ctx_vector):
 
 # TODO: move this to Pattern Factory
 
-sum_gt_average_emb = average_embedding_pattern(CharterPF, 'sum__gt')
-sum_lt_average_emb = average_embedding_pattern(CharterPF, 'sum__lt')
+sum_gt_average_emb = CharterPF.average_embedding_pattern('sum__gt')
+sum_lt_average_emb = CharterPF.average_embedding_pattern('sum__lt')
 
 p_sum_gt_average_emb = FuzzyPattern((), 'p_sum_gt_average_emb')
 p_sum_gt_average_emb.embeddings = sum_gt_average_emb
@@ -6555,65 +6645,127 @@ def _xxxxx(doc):
 
 _xxxxx(charter.subdoc(3000, len(charter.tokens)))
 
-"""###Add all ctx"""
+"""#### Поиск предложений, в которых есть близость к паттерну"""
+
+
+class ValuesPatternFactory(AbstractPatternFactory):
+
+  def create_pattern(self, pattern_name, ppp):
+    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
+    fp = FuzzyPattern(_ppp, pattern_name)
+    self.patterns.append(fp)
+    self.patterns_dict[pattern_name] = fp
+    return fp
+
+  def __init__(self, embedder):
+    AbstractPatternFactory.__init__(self, embedder)
+
+    self.patterns_dict = {}
+
+    self._build_sum_margin_extraction_patterns()
+    self.embedd()
+
+    self.sum__lt = None
+    self.sum__gt = self.make_average_pattern('sum__gt')
+    try:
+      self.sum__lt = self.make_average_pattern('sum__lt')
+    except:
+      print('NerPatternFactory: error')
+
+  def _build_sum_margin_extraction_patterns(self):
+    suffix = 'тысяч сот долларов рублей евро'
+    prefix = ''
+
+    # less than
+    #     self.create_pattern('sum__lt_1',  (prefix + 'стоимость', 'не более 0', suffix))
+    #     self.create_pattern('sum__lt_2',  (prefix + 'цена', 'не больше 0', suffix))
+
+    self.create_pattern('sum__lt_3', (prefix + 'стоимость', '<', suffix))
+    self.create_pattern('sum__lt_4', (prefix + 'цена', 'менее', suffix))
+    self.create_pattern('sum__lt_4.1', (prefix + 'цена', 'ниже', suffix))
+    #     self.create_pattern('sum__lt_5',  (prefix + 'стоимость', 'не может превышать 0', suffix))
+    #     self.create_pattern('sum__lt_6',  (prefix + 'лимит соглашения', '0', suffix))
+    #     self.create_pattern('sum__lt_7',  (prefix + 'верхний лимит стоимости', '0', suffix))
+    self.create_pattern('sum__lt_8', (prefix, 'максимум', suffix))
+    self.create_pattern('sum__lt_9', (prefix, 'до', suffix))
+    #     self.create_pattern('sum__lt_10', (prefix,  'но не превышающую 0', suffix))
+    self.create_pattern('sum__lt_11', (prefix, 'пороговое значение', suffix))
+
+    # greather than
+    self.create_pattern('sum__gt_1', (prefix + 'составляет', 'более 0', suffix))
+    self.create_pattern('sum__gt_2', (prefix + '', 'превышает 0', suffix))
+    self.create_pattern('sum__gt_3', (prefix + '', 'свыше 0', suffix))
+    self.create_pattern('sum__gt_4', (prefix + '', 'сделка имеет стоимость, равную или превышающую 0', suffix))
+
+
+ValuesPF = ValuesPatternFactory(embedder)
+
+
+def _find_sentences_by_attention_vector(doc, attention_vector):
+  maxes = extremums(attention_vector)[1:]
+  #   print('_find_sentences_by_attention_vector',maxes)
+  maxes = doc.find_sentence_beginnings(maxes)
+  maxes = remove_similar_indexes(maxes, 6)
+
+  res = []
+  for i in maxes:
+    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
+    if e - s > 0:
+      res.append((s, e))
+
+  #   print('_find_sentences_by_attention_vector', res)
+  return res, attention_vector, maxes
+
+
+##--------------
+
+
+def _test_find_sentences_by_attention_vector(charter):
+  relu_th = 0.5
+  v_lt = make_soft_attention_vector(charter, 'sum__lt', relu_th=relu_th, blur=8)
+  v_lt = relu(v_lt, relu_th)
+
+  v_gt = make_soft_attention_vector(charter, 'sum__gt', relu_th=relu_th, blur=8)
+  v_gt = relu(v_gt, relu_th)
+
+  fig = plt.figure(figsize=(20, 3))
+  ax = plt.axes()
+  ax.plot(v_lt, alpha=0.2, color="blue");
+  ax.plot(v_gt, alpha=0.2, color="red");
+
+  res_lt, attention_vector, maxes = _find_sentences_by_attention_vector(charter, v_lt)
+  res_gt, attention_vector, maxes = _find_sentences_by_attention_vector(charter, v_gt)
+  #   print (res)
+
+  for s, e in res_lt:
+    sub = charter.subdoc(s, e)
+    #     sub.calculate_distances_per_pattern(ValuesPF)
+    #     vv = 1.0 - ValuesPF.sum__lt._eval_distances(sub.embeddings)
+
+    vv = soft_attention_vector(sub, 'sum__lt', relu_th=0.4, blur=4)
+
+    vv = relu(normalize(vv), 0.5)
+    #     vv_1 = relu(normalize(1-ValuesPF.sum__gt._eval_distances(sub.embeddings)), 0.5)
+
+    #     vv-=vv_1
+    print(s, e)
+    render_color_text(sub.tokens, vv)
+
+  print("=" * 120)
+  for s, e in res_gt:
+    print(s, e)
+    render_color_text(charter.tokens[s:e], v_gt[s:e])
+
+
+_test_find_sentences_by_attention_vector(charter)
+
+"""#### Add ALL ctx"""
 
 _doc = charter.subdoc(3000, len(charter.tokens))
 
 
-def onehot_column(a, mask=-2 ** 32, replacement=None):
-  """
-
-  Searches for maximum in every column.
-  Other elements are replaced with mask
-
-  :param a:
-  :param mask:
-  :return:
-  """
-  maximals = np.max(a, 0)
-
-  for i in range(a.shape[0]):
-    for j in range(a.shape[1]):
-      if a[i, j] < maximals[j]:
-        a[i, j] = mask
-      else:
-        if replacement is not None:
-          a[i, j] = replacement
-
-  return a
-
-
 def estimate_threshold(a, min_th=0.3):
-  return max(min_th, np.max(a) * 0.75)
-
-
-def make_head_context_momentums(_doc):
-  ctx_momentums_dict = {}
-  ctx_momentums = []
-  negation, c = rectifyed_sum_by_pattern_prefix(_doc.distances_per_pattern_dict, 'negation', relu_th=0.6)
-
-  negation_m = momentum(negation, 0.99)
-
-  for head_type in head_types:
-    #     attention_vector_d,c = rectifyed_sum_by_pattern_prefix(_doc.distances_per_pattern_dict, 'd_head_' + head_type, relu_th=0.5)
-
-    a = rectifyed_mean_by_pattern_prefix(_doc.distances_per_pattern_dict, 'd_head_' + head_type, relu_th=0.45)
-    a = smooth(a, window_len=8)
-
-    a = relu(a, relu_th=estimate_threshold(a))
-
-    a_m = momentum(a, 0.995)
-
-    ctx_momentums.append(a_m)
-
-  # one hot per column
-  ctx_momentums = onehot_column(np.array(ctx_momentums), mask=0.3, replacement=1)
-  i = 0
-  for head_type in head_types:
-    ctx_momentums_dict[head_type] = ctx_momentums[i]
-    i += 1
-
-  return ctx_momentums, ctx_momentums_dict
+  return max(min_th, np.max(a) * 0.7)
 
 
 def extract_sums_from_tokens(tokens: List, x):
@@ -6639,117 +6791,95 @@ def extract_sums_from_tokens(tokens: List, x):
   return results
 
 
-def _find_sentences_by_attention_vector(doc, attention_vector):
-  maxes = extremums(attention_vector)[1:]
-  #   print('_find_sentences_by_attention_vector',maxes)
-  maxes = doc.find_sentence_beginnings(maxes)
-  maxes = remove_similar_indexes(maxes, 6)
-
-  res = []
-  for i in maxes:
-    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
-    if e - s > 0:
-      res.append((s, e))
-
-  #   print('_find_sentences_by_attention_vector', res)
-  return res, attention_vector, maxes
-
-
-def make_momentum_vector_by_prefix(_doc, prefix, decay=0.99, relu_th=0.5):
-  x, c = rectifyed_sum_by_pattern_prefix(_doc.distances_per_pattern_dict, prefix, relu_th=relu_th)
-  x = momentum(x, decay)
-  return x
-
-
-def highlight_margin_numbers(_doc, ctx, relu_threshold=0.5):
+def highlight_margin_numbers(_doc, ctx=None, relu_threshold=0.5):
   attention_vector = make_soft_attention_vector(_doc, 'sum_', relu_th=0.35, blur=10)
   attention_vector += make_soft_attention_vector(_doc, 'd_order_', relu_th=0.35, blur=120)
-  attention_vector *= (ctx + 0.01)
 
-  #   attention_vector += make_momentum_vector_by_prefix(_doc, 'd_order_', relu_th=0.5, decay=0.92) / 3
+  if ctx is not None:
+    attention_vector += ctx
 
   #   attention_vector_n=normalize(attention_vector)
-  estimated_threshold = estimate_threshold(attention_vector)
+  estimated_threshold = estimate_threshold(attention_vector) * 0.8
   print('highlight_margin_numbers estimated_threshold=', estimated_threshold)
   attention_vector_r = relu(attention_vector, relu_th=estimated_threshold)
+
   return attention_vector_r, attention_vector
 
 
-# ___xxxx=make_momentum_vector_by_prefix(_doc, 'd_order_', relu_th=0.5, decay=0.9)
+_ic_arr = None
 
-# ctx_with_momentum_dict = make_innertia_vectors(_doc, render=False)
-_ic_arr, ctx_with_momentum_dict = make_head_context_momentums(_doc)
+# _ic_arr, ctx_with_momentum_dict =  make_head_context_momentums(_doc)
 
-for head_type in head_types:
+
+ctx_with_momentum_dict = None
+#######################################
+
+bounds, weights = find_charter_head_sections(_doc)
+
+# for head_type in bounds.keys():
+#   print("-"*120)
+#   print (head_types_dict[head_type])
+#   b = bounds[head_type]
+#   a = weights[head_type]
+
+#   html=""
+#   html+='<h2 style="color:{}; padding:0">{}</h2>'.format(
+#       head_types_colors[head_type],
+#       head_types_dict[head_type])
+#   display(HTML(html))
+
+
+#   render_color_text(charter.tokens[b[0]:b[1]], a[b[0]:b[1]])
+
+
+for head_type in bounds.keys():
   #   print('#'*120)
   #   print(head_type.upper())
   #   print (head_types_dict[head_type])
-  html = ""
-  html += '<h3>решения о пороговых суммах, которые принимает</h3><h2 style="color:{}; padding:0">{}</h2>'.format(
+
+  html = '<hr style="margin-top: 45px">'
+  html += '<i style="padding:0; margin:0">решения о пороговых суммах, которые принимает</i><h2 style="color:{}; padding:0;margin:0">{}</h2>'.format(
     head_types_colors[head_type],
     head_types_dict[head_type])
-
-  vector, vector_soft = highlight_margin_numbers(_doc, ctx_with_momentum_dict[head_type], relu_threshold=0.4)
-
-  _doc.distances_per_pattern_dict['att_head_' + head_type] = vector
-
-  fig = plt.figure(figsize=(20, 3))
-  ax = plt.axes()
-  ax.plot(vector_soft, alpha=0.2);
-  ax.plot(vector, alpha=0.7, color=head_types_colors[head_type]);
-  ax.plot(ctx_with_momentum_dict[head_type], alpha=0.3, color=head_types_colors[head_type]);
-
   display(HTML(html))
 
-  _sentences_having_currency_numbers, attention_vector, _s_indexes = _find_sentences_by_attention_vector(_doc, vector)
+  b = bounds[head_type]
+  subdoc = _doc.subdoc(b[0], b[1])
+  vector, vector_soft = highlight_margin_numbers(subdoc, ctx=None, relu_threshold=0.4)
 
+  subdoc.distances_per_pattern_dict['values'] = vector
+
+  if True:
+    # Plot
+    fig = plt.figure(figsize=(20, 3))
+    ax = plt.axes()
+    ax.plot(vector_soft, alpha=0.2);
+    ax.plot(vector, alpha=0.7, color=head_types_colors[head_type]);
+  #     ax.plot(ctx_with_momentum_dict[head_type], alpha=0.3, color=head_types_colors[head_type] );
+
+  _sentences_having_currency_numbers, attention_vector, _s_indexes = _find_sentences_by_attention_vector(subdoc, vector)
+
+  html = '<div style="padding-left:80px">'
   for i in range(len(_s_indexes)):
     s, e = _sentences_having_currency_numbers[i]
 
-    section = _doc.subdoc(s, e)
+    section = subdoc.subdoc(s, e)
 
-    results = extract_sums_from_tokens(section.tokens, section.distances_per_pattern_dict['att_head_' + head_type])
+    results = extract_sums_from_tokens(section.tokens, section.distances_per_pattern_dict['values'])
+
     if len(results) > 0:
-      print([s, e - s], "-" * 120)
-      #         print(results)
+
+      html += '<div style="border-bottom:1px solid #ccc; margin-top:1em"></div>'
       for r in results:
-        html = sum_to_html(r['sum'])
-        #           print (r['sum'])
-        display(HTML(html))
-      print()
-      render_color_text(section.tokens, section.distances_per_pattern_dict['att_head_' + head_type])
+        prefix = " > "
+        html += sum_to_html(r['sum'], prefix)
 
-"""### Playing with Context momentum"""
+      html += to_color_text(section.tokens, section.distances_per_pattern_dict['values'])
 
-# negation,c = rectifyed_sum_by_pattern_prefix(_doc.distances_per_pattern_dict, 'negation', relu_th=0.65)
-# negation_m=momentum(negation, 0.99)
+  html += '</div>'
+  display(HTML(html))
 
-# attention_vector_d,c = rectifyed_sum_by_pattern_prefix(_doc.distances_per_pattern_dict, 'd_head_directors', relu_th=0.65)
-# attention_vector_d-=negation_m
-
-# attention_vector_a,c = rectifyed_sum_by_pattern_prefix(_doc.distances_per_pattern_dict, 'd_head_shareholders', relu_th=0.65)
-# attention_vector_a-=negation_m
-
-
-# attention_vector_d=relu(attention_vector_d, relu_th=0.6)
-# attention_vector_a=relu(attention_vector_a, relu_th=0.6)
-
-
-# attention_vector_d_m=momentum(attention_vector_d, 0.999)
-# attention_vector_a_m=momentum(attention_vector_a, 0.999)
-
-# attention_vector_d_m, attention_vector_a_m = onehot_column(np.array ([attention_vector_d_m, attention_vector_a_m]),0)
-
-ctx_momentums, ctx_momentums_dict = make_head_context_momentums(_doc)
-fig = plt.figure(figsize=(20, 6))
-ax = plt.axes()
-# ax.plot(momentum(attention_vector_d, 0.999), alpha=0.2, color = 'green');
-# ax.plot(attention_vector_a, alpha=0.1, color = 'blue');
-# ax.plot(attention_vector_d_m, alpha=0.4, color = 'red');
-for x in ctx_momentums:
-  ax.plot(x, alpha=0.9);
-
-ax.plot(negation_m, alpha=0.1, color='black');
+"""### Playing with ...."""
 
 # for s,e in _sentences_having_currency_numbers:  
 #   print([s,e], "*"*120)

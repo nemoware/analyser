@@ -5,6 +5,7 @@
 
 import unittest
 
+from demo_charter import CharterAnlysingContext
 from doc_structure import remove_similar_indexes_considering_weights
 from embedding_tools import AbstractEmbedder
 from legal_docs import *
@@ -138,6 +139,16 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     r = remove_similar_indexes_considering_weights(a, w)
     self.assertEqual(r,[1,5])
+
+
+
+  def test_embedd_headlines_1(self):
+    from renderer import SilentRenderer
+    point1 = [1, 6, 4]
+    emb = FakeEmbedder(point1)
+    ctx = CharterAnlysingContext(emb, SilentRenderer())
+
+    ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
 
 
   def test_embedd_headlines(self):

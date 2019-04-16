@@ -4,10 +4,11 @@ import time
 from functools import wraps
 from typing import List
 
-from doc_structure import DocumentStructure, headline_probability, StructureLine
+from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum
 from patterns import *
+from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
 from transaction_values import extract_sum_from_tokens, ValueConstraint, split_by_number, extract_sum_and_sign
@@ -80,6 +81,101 @@ class LegalDocument(EmbeddableText):
     # subdocs
     self.start = None
     self.end = None
+
+  def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
+    'LegalDocument']:
+
+    if headline_indexes is None:
+      headline_indexes = self.structure.headline_indexes
+
+    _str = self.structure.structure
+
+    embedded_headlines: List['LegalDocument'] = []
+
+    tokenized_sentences_list = []
+    for i in headline_indexes:
+      line: StructureLine = _str[i]
+
+      _len = line.span[1] - line.span[0]
+      _len = min(max_len, _len)
+
+      subdoc = self.subdoc(line.span[0], line.span[0] + _len)
+      subdoc.right_padding = 0
+
+      tokenized_sentences_list.append(subdoc.tokens)
+      embedded_headlines.append(subdoc)
+
+    sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
+
+    for i in range(len(headline_indexes)):
+      embedded_headlines[i].embeddings = sentences_emb[i][0:lens[i]]
+      embedded_headlines[i].calculate_distances_per_pattern(factory)
+
+    return embedded_headlines
+
+  def _find_best_headline_by_pattern_prefix(self, embedded_headlines:List['LegalDocument'], pattern_prefix:str, threshold):
+
+    import math
+    confidence_by_headline = []
+
+    confidence_by_headline_a = np.zeros(len(embedded_headlines))
+
+    attention_vectors_by_headline = {}
+    for i in range(len(embedded_headlines)):
+      subdoc = embedded_headlines[i]
+      names, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix, relu_th=0.6)
+
+      names = smooth_safe(names, 4)
+
+      _max_id = np.argmax(names)
+      _max = np.max(names)
+      _sum = math.log(1 + np.sum(names[_max_id - 1:_max_id + 2]))
+
+      confidence_by_headline.append(_max + _sum)
+      confidence_by_headline_a[i] = _max + _sum
+      attention_vectors_by_headline[i] = names
+
+    bi = int(np.argmax(confidence_by_headline))
+
+    if confidence_by_headline[bi] < threshold:
+      raise ValueError('Cannot find headline matching pattern "{}"'.format(pattern_prefix))
+
+    return bi, confidence_by_headline, attention_vectors_by_headline[bi]
+
+  # ----------------------------------------------------------------------------------------------
+  def match_headline_types(self, head_types_list, embedded_headlines: List['LegalDocument'], pattern_prefix,
+                           threshold) -> dict:
+    hl_meta_by_index = {}
+    for head_type in head_types_list:
+      try:
+        bi, confidence_by_headline, attention_v = \
+          self._find_best_headline_by_pattern_prefix(embedded_headlines, pattern_prefix + head_type, threshold)
+
+        obj = HeadlineMeta(bi, head_type,
+                           confidence=confidence_by_headline[bi],
+                           subdoc=embedded_headlines[bi],
+                           attention_v=attention_v)
+
+        if bi in hl_meta_by_index:
+          # replace
+          e_obj = hl_meta_by_index[bi]
+          if e_obj.confidence < obj.confidence:
+            #replace
+            hl_meta_by_index[bi] = obj
+        else:
+          hl_meta_by_index[bi] = obj
+
+      except Exception as e:
+        print(e)
+        pass
+
+    return hl_meta_by_index
+
+  def untokenize_cc(self):
+    return untokenize(self.tokens_cc)
+
+  def untokenize(self):
+    return untokenize(self.tokens)
 
   def find_sum_in_section(self):
     raise Exception('not implemented')
@@ -371,8 +467,8 @@ class BasicContractDocument(LegalDocumentLowCase):
       text_right_padding=0)
     distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
-    ranges = [np.nanmin(distances_per_subj_pattern_ ),
-              np.nanmax(distances_per_subj_pattern_ )]
+    ranges = [np.nanmin(distances_per_subj_pattern_),
+              np.nanmax(distances_per_subj_pattern_)]
 
     weight_per_pat = []
     for row in distances_per_pattern_t:
@@ -398,8 +494,6 @@ class BasicContractDocument(LegalDocumentLowCase):
     self.head_range = head_range
 
     return ranges, winning_patterns
-
-
 
   #     return
 
@@ -643,34 +737,6 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
   return res, attention_vector, maxes
 
 
-def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: AbstractPatternFactory, max_len=40) -> \
-        List[LegalDocument]:
-  _str = doc.structure.structure
-
-  embedded_headlines = []
-
-  tokenized_sentences_list = []
-  for i in headline_indexes:
-    line:StructureLine = _str[i]
-
-    _len = line.span[1] - line.span[0]
-    _len = min(max_len, _len)
-
-    subdoc = doc.subdoc(line.span[0], line.span[0] + _len)
-    subdoc.right_padding = 0
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_headlines.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-  for i in range(len(headline_indexes)):
-    embedded_headlines[i].embeddings = sentences_emb[i][0:lens[i]]
-    embedded_headlines[i].calculate_distances_per_pattern(factory)
-
-  return embedded_headlines
-
-
 # # @at_github
 # @deprecated
 # def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
@@ -744,12 +810,14 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for b in bounds:
       vc = extract_sum_and_sign(sentence_subdoc, b)
+
       constraints.append(vc)
 
   return constraints
 
 
 def make_constraints_attention_vectors(subdoc):
+  # TODO: move to notebook, too much tuning
   value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
                                                                 relu_th=0.4)
   value_attention_vector = cut_above(value_attention_vector, 1)
@@ -779,3 +847,67 @@ def make_constraints_attention_vectors(subdoc):
     'margin_attention_vector': margin_attention_vector,
     'margin_value_attention_vector': margin_value_attention_vector
   }
+
+
+class HeadlineMeta:
+  def __init__(self, index, type, confidence: float, subdoc, attention_v):
+    self.index: int = index
+    self.confidence: float = confidence
+    self.type: str = type
+    self.subdoc: LegalDocument = subdoc
+    self.attention_v: List[float] = attention_v
+    self.body = None
+
+
+def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
+        List[LegalDocument]:
+  embedded_docs = []
+  if strings is None or len(strings) == 0:
+    return []
+
+  tokenized_sentences_list = []
+  for i in range(len(strings)):
+    s = strings[i]
+
+    words = nltk.word_tokenize(s)
+
+    subdoc = LegalDocument()
+
+    subdoc.tokens = words
+    subdoc.tokens_cc = words
+
+    tokenized_sentences_list.append(subdoc.tokens)
+    embedded_docs.append(subdoc)
+
+  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
+
+  for i in range(len(embedded_docs)):
+    l = lens[i]
+    tokens = wrds[i][:l]
+
+    line_emb = sentences_emb[i][:l]
+
+    embedded_docs[i].tokens = tokens
+    embedded_docs[i].tokens_cc = tokens
+    embedded_docs[i].embeddings = line_emb
+    embedded_docs[i].calculate_distances_per_pattern(factory)
+
+  return embedded_docs
+
+
+def subdoc_between_lines(line_a: int, line_b: int, doc):
+  _str = doc.structure.structure
+  start = _str[line_a].span[1]
+  if line_b is not None:
+    end = _str[line_b].span[0]
+  else:
+    end = len(doc.tokens)
+  return doc.subdoc(start, end)
+
+
+org_types = {
+  'org_unknown': 'undefined',
+  'org_ao': 'Акционерное общество',
+  'org_zao': 'Закрытое акционерное общество',
+  'org_oao': 'Открытое акционерное общество',
+  'org_ooo': 'Общество с ограниченной ответственностью'}
