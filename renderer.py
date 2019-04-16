@@ -1,4 +1,11 @@
-from transaction_values import ValueConstraint
+from transaction_values import, ValueConstraint
+
+head_types_colors = {'head.directors': 'crimson',
+                     'head.all': 'orange',
+                     'head.gen': 'blue',
+                     'head.shareholders': '#666600',
+                     'head.pravlenie': '#0099cc',
+                     'head.unknown': '#999999'}
 
 
 class AbstractRenderer:
@@ -35,11 +42,3 @@ class AbstractRenderer:
 
 class SilentRenderer(AbstractRenderer):
   pass
-
-
-head_types_colors = {'head.directors': 'crimson',
-                     'head.all': 'orange',
-                     'head.gen': 'blue',
-                     'head.shareholders': '#666600',
-                     'head.pravlenie': '#0099cc',
-                     'head.unknown': '#999999'}

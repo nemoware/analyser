@@ -28,14 +28,6 @@ class ValueConstraint:
     self.sign = sign
     self.context = context
 
-currency_normalizer = {
-  'руб':'РУБ',
-  'дол':'USD',
-  'евр':'EURO',
-  'тэн':'KZT',
-  'тен':'KZT',
-}
-
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
   r'(\d+([., ]\d+)*)'                                 # digits
@@ -144,6 +136,7 @@ def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
   currency = "UNDEF"
   value = np.nan
   if sum is not None:
+    currency = sum[1]
     if sum[1] in currencly_map:
       currency = currencly_map[sum[1]]
     value = sum[0]

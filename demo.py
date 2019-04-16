@@ -309,7 +309,6 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
 class ContractDocument2(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
-    self.right_padding = 0
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
