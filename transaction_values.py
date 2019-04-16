@@ -2,13 +2,28 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
+
 # transaction_values.py
 
 import re
 import math
 from typing import List
 
-from text_tools import to_float, untokenize
+from text_tools import to_float, untokenize, np
+
+currencly_map = {
+  'доллар': 'USD',
+  'евро': 'EUR',
+  'руб': 'RUR'
+}
+
+
+class ValueConstraint:
+  def __init__(self, value: float, currency: str, sign: int, context=None):
+    self.value = value
+    self.currency = currency
+    self.sign = sign
+    self.context = context
 
 currency_normalizer = {
   'руб':'РУБ',
@@ -59,10 +74,77 @@ def extract_sum_from_tokens(sentence_tokens: List):
   return f, sentence
 
 
+
+_re_less_then = re.compile(r'(до|менее|не выше|не превыша[а-я]{2,4})')
+_re_greather_then = re.compile(r'(от|больше|более|свыше|выше|превыша[а-я]{2,4})')
+
+
+def detect_sign(prefix: str):
+  a = _re_less_then.findall(prefix)
+  if len(a) > 0:
+    return -1
+  else:
+    a = _re_greather_then.findall(prefix)
+    if len(a) > 0:
+      return +1
+  return 0
+
+
+
+
+def split_by_number(tokens: List[str], attention: List[float], threshold):
+  # TODO: mind decimals!!
+
+  indexes = []
+  last_token_is_number = False
+  for i in range(len(tokens)):
+    if tokens[i].isdigit() and attention[i] > threshold:
+      if not last_token_is_number:
+        indexes.append(i)
+      last_token_is_number = True
+    else:
+      last_token_is_number = False
+
+  regions = []
+  bounds = []
+  if len(indexes) > 0:
+    for i in range(1, len(indexes)):
+      s = indexes[i - 1]
+      e = indexes[i]
+      regions.append(tokens[s:e])
+      bounds.append((s, e))
+
+    regions.append(tokens[indexes[-1]:])
+    bounds.append((indexes[-1], len(tokens)))
+  return regions, indexes, bounds
+
+
+VALUE_SIGN_MIN_TOKENS = 4
+
+
+def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
+  subtokens = subdoc.tokens_cc[b[0] - VALUE_SIGN_MIN_TOKENS:b[1]]
+  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
+  _prefix = untokenize(_prefix_tokens)
+  _sign = detect_sign(_prefix)
+  # ======================================
+  sum = extract_sum_from_tokens(subtokens)[0]
+  # ======================================
+
+  currency = "UNDEF"
+  value = np.nan
+  if sum is not None:
+    if sum[1] in currencly_map:
+      currency = currencly_map[sum[1]]
+    value = sum[0]
+
 if __name__ == '__main__':
     print(extract_sum('\n2.1.  Общая сумма договора составляет 41752 руб. (Сорок одна тысяча семьсот пятьдесят два рубля) '
      '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'))
     print(extract_sum('эквивалентной 25 миллионам долларов сша'))
 
+
+  vc = ValueConstraint(value, currency, _sign)
+  return vc
 
 

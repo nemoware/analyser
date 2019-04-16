@@ -29,7 +29,7 @@ read_docs_from_google_drive = True  #@param {type: "boolean"}
 dev_mode = True  #@param {type: "boolean"}
 #@markdown - запуск тестов после декларации методов и функций
 perform_test_on_small_doc = False  #@param {type: "boolean"}
-git_branch = "structured" #@param {type:"string"}
+git_branch = "structured_2" #@param {type:"string"}
 
 #@markdown ## - Embedding module
 embeddings_layer='elmo'  #@param ["elmo", "word_emb" ]
@@ -42,7 +42,7 @@ print()
 
 print(str(hyperparameters))
 
-## GoogleCredentials
+
 
 """## Authenticate on Google and mount Google Drive"""
 
@@ -54,7 +54,7 @@ if run_batch_processing or dev_mode:
   from oauth2client.client import GoogleCredentials
 
   auth.authenticate_user()
-  gc = gspread.authorize(GoogleCredentials.get_application_default())
+  google_spread = gspread.authorize(GoogleCredentials.get_application_default())
 
   if read_docs_from_google_drive:
     drive.mount('/content/gdrive', force_remount=True)
@@ -81,13 +81,14 @@ elmo.__dict__
 # elmo._graph.__dict__
 
 """### Import from GitHub"""
-
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/text_tools.py
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/embedding_tools.py
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/ml_tools.py
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/text_normalize.py  
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/patterns.py 
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/transaction_values.py  
+#
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/text_tools.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/embedding_tools.py
+# !rm ml_tools.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/ml_tools.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/text_normalize.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/patterns.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/transaction_values.py
 
 from transaction_values import *
 from patterns import *
@@ -98,10 +99,10 @@ from ml_tools import *
 
 # from split import *
 
-!rm doc_structure.py  
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/doc_structure.py 
-!rm legal_docs.py  
-!wget https://raw.githubusercontent.com/compartia/nlp_tools/structured/legal_docs.py  
+# !rm doc_structure.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/doc_structure.py
+# !rm legal_docs.py
+# !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/legal_docs.py
 from legal_docs import *
 from doc_structure import *
 
@@ -233,7 +234,7 @@ if read_docs_from_google_drive or dev_mode:
 #@title ## Select charter to test with { run: "auto", vertical-output: true, form-width: "750px", display-mode: "form" }
 
 
-TEST_CHARTER_FILENAME = "\u0423\u0441\u0442\u0430\u0432 - \u0413\u041F\u041D-\u0422\u0440\u0430\u043D\u0441\u043F\u043E\u0440\u0442_\u0413\u041E\u0421\u0410-2018.docx" #@param ['Устав ГПН-Новосибирск (НБ)_с СД.doc', 'Устав ГПН-КП_ГОСУ-2018_сентябрь end.doc', 'Новая редакция Устава.doc', 'Устав_ООО ЮП ГПЗ_ред 5.doc', 'Устав ООО.doc', 'Устав - ГПН-Транспорт_ГОСА-2018.docx', 'Устав_Рег. продажи авг 2018.docx', '6.1.1(a) Project Tri-Neft - Sunrise Charter.docx', 'Устав 2.docx']
+TEST_CHARTER_FILENAME = "\u0423\u0441\u0442\u0430\u0432 \u0413\u041F\u041D-\u041D\u043E\u0432\u043E\u0441\u0438\u0431\u0438\u0440\u0441\u043A (\u041D\u0411)_\u0441 \u0421\u0414.doc" #@param ['Устав ГПН-Новосибирск (НБ)_с СД.doc', 'Устав ГПН-КП_ГОСУ-2018_сентябрь end.doc', 'Новая редакция Устава.doc', 'Устав_ООО ЮП ГПЗ_ред 5.doc', 'Устав ООО.doc', 'Устав - ГПН-Транспорт_ГОСА-2018.docx', 'Устав_Рег. продажи авг 2018.docx', '6.1.1(a) Project Tri-Neft - Sunrise Charter.docx', 'Устав 2.docx']
 
 if dev_mode:
   _filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + TEST_CHARTER_FILENAME
@@ -249,9 +250,11 @@ class ElmoEmbedder(AbstractEmbedder):
 
   def __init__(self, elmo):
     self.elmo = elmo
+    self.config = tf.ConfigProto()
+    self.config.gpu_options.allow_growth=True
 
   def embedd_tokenized_text(self, words, lens):
-    with tf.Session() as sess:
+    with tf.Session(config=self.config) as sess:
       embeddings = self.elmo(
         inputs={
           "tokens": words,
@@ -262,20 +265,25 @@ class ElmoEmbedder(AbstractEmbedder):
 
       sess.run(tf.global_variables_initializer())
       out = sess.run(embeddings)
+#       sess.close()
+
 
     return out, words
 
   def get_embedding_tensor(self, str, type=hyperparameters['embeddings.layer'], signature="default"):
     embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[type]
 
-    with tf.Session() as sess:
+    with tf.Session(config=self.config) as sess:
       sess.run(tf.global_variables_initializer())
       embedding = sess.run(embedding_tensor)
+#       sess.close()
 
     return embedding
 
 
 embedder = ElmoEmbedder(elmo)
+
+
 
 """## Rendering"""
 
@@ -446,10 +454,7 @@ def render_sections(doc, weights):
 ### Document Structure
 """
 
-import math
-
- 
-#------------------------------
+# ------------------------------
 def subdoc_between_lines(line_a: int, line_b: int, doc):
   _str = doc.structure.structure
   start = _str[line_a].span[1]
@@ -460,9 +465,8 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
   return doc.subdoc(start, end)
 
 
-
-
-#------------------------------
+# ------------------------------
+@deprecated
 def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, pat_refix, threshold, render=False):
   distance_by_headline = []
   if render:
@@ -472,29 +476,27 @@ def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, p
     fig = plt.figure(figsize=(20, 7))
     ax = plt.axes()
 
-
   off_ = 0
-  
-  attention_vs=[]
+
+  attention_vs = []
   for headline_index, subdoc in zip(headline_indices, embedded_headlines):
     names, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pat_refix, relu_th=0.6)
     names = smooth_safe(names, 4)
     _max_id = np.argmax(names)
     _max = np.max(names)
-    _sum = math.log(1 + np.sum(names[_max_id-1:_max_id+2 ]))
+    _sum = math.log(1 + np.sum(names[_max_id - 1:_max_id + 2]))
     distance_by_headline.append(_max + _sum)
-    attention_vs.append (names)
-    
+    attention_vs.append(names)
+
     if render:
       ax.plot(names + off_, alpha=0.5, label=str(headline_index));
       print('dist={} sum={} d+s={}'.format(_max, _sum, _max + _sum))
       render_color_text(subdoc.tokens_cc, names, _range=[0, 2])
     off_ += 1
-    
 
   if render:
     plt.legend(loc='upper left')
-    plt.title("find_best_headline_by_pattern_prefix:"+pat_refix + " in headlines")
+    plt.title("find_best_headline_by_pattern_prefix:" + pat_refix + " in headlines")
 
   bi = np.argmax(distance_by_headline)
   if distance_by_headline[bi] < threshold:
@@ -502,143 +504,164 @@ def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, p
 
   return bi, distance_by_headline, attention_vs[bi]
 
-#------------------------------
-def map_headline_index_to_headline_type(headline_indexes, embedded_headlines, threshold):
-  best_indexes={}
-  for head_type in head_types:
+
+# ------------------------------
+import math
+from typing import List
+
+import numpy as np
+
+from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, untokenize
+from ml_tools import smooth_safe
+
+
+def _find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, pat_refix, threshold, render=False):
+  distance_by_headline = []
+
+  attention_vs = []
+  for headline_index, subdoc in zip(headline_indices, embedded_headlines):
+    names, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pat_refix, relu_th=0.6)
+    names = smooth_safe(names, 4)
+    _max_id = np.argmax(names)
+    _max = np.max(names)
+    _sum = math.log(1 + np.sum(names[_max_id - 1:_max_id + 2]))
+    distance_by_headline.append(_max + _sum)
+    attention_vs.append(names)
+
+  bi = np.argmax(distance_by_headline)
+  if distance_by_headline[bi] < threshold:
+    raise ValueError('Cannot find headline matching pattern "{}"'.format(pat_refix))
+
+  return bi, distance_by_headline, attention_vs[bi]
+
+
+def match_headline_types(head_types_list, headline_indexes, embedded_headlines: List[LegalDocument], pattern_prefix,
+                         threshold):
+  best_indexes = {}
+  for head_type in head_types_list:
     try:
       bi, distance_by_headline, attention_v = \
-        find_best_headline_by_pattern_prefix(headline_indexes, embedded_headlines, 'd_head_'+head_type, threshold, render=False)
+        _find_best_headline_by_pattern_prefix(headline_indexes, embedded_headlines, pattern_prefix + head_type,
+                                              threshold,
+                                              render=False)
 
-      obj = {'index':bi, 
-             'type':head_type, 
-             'weight':distance_by_headline[bi], 
-             'embedded':embedded_headlines[bi],
-             'attention_v':attention_v}
+      obj = {'headline.index': bi,
+             'headline.type': head_type,
+             'headline.confidence': distance_by_headline[bi],
+             'headline.subdoc': embedded_headlines[bi],
+             'headline.attention_v': attention_v}
 
       if bi in best_indexes:
-        e_obj= best_indexes[bi]
-        if e_obj['weight'] < obj['weight']:
-          best_indexes[bi]= obj
+        e_obj = best_indexes[bi]
+        if e_obj['headline.confidence'] < obj['headline.confidence']:
+          best_indexes[bi] = obj
       else:
-        best_indexes[bi]= obj
-    
+        best_indexes[bi] = obj
+
     except Exception as e:
       print(e)
       pass
-    
+
   return best_indexes
 
 
-#------------------------------------------------------------------------------
+# ------------------------------
 @deprecated
-def _detect_section_by_headline(_doc, pattern_prefix, headline_indices, embedded_headlines, factory, render):
-  if render:
-    print('_detect_section_by_headline:searching for section:',pattern_prefix)
-    
-    
-  bi, distance_by_headline, att_ = find_best_headline_by_pattern_prefix(headline_indices, 
-                                                                  embedded_headlines, 
-                                                                  pattern_prefix,
-                                                                  1.5,
-                                                                  render=render)
-  
-  
-  bi_next = bi + 1  
-  best_headline = headline_indices[bi]
-  best_headline_subdoc =  embedded_headlines[bi]
-  
-  if bi_next < len(headline_indices):
-    best_headline_next = headline_indices[bi_next]
-  else:
-    best_headline_next = None
-    
-  if render:
-    print(
-      '_detect_section_by_headline: best_headline:{} best_headline_next:{} bi:{}'.format(best_headline, best_headline_next, bi),
-      '_' * 40)
-    
-  subdoc = subdoc_between_lines(best_headline, best_headline_next, _doc)  
-  if len(subdoc.tokens) < 2:
-    raise ValueError('Empty "{}" section between headlines #{} and #{}'.format(pattern_prefix, best_headline, best_headline_next))
-    
-  #May be embedd
-  if subdoc.embeddings is None:
-    if render:
-      print('_detect_section_by_headline: embedding segment:', untokenize(subdoc.tokens_cc))
-    subdoc.embedd(factory)
-    subdoc.calculate_distances_per_pattern(factory)
-  
-  
-#   if render:
-#     render_color_text(subdoc.tokens_cc, subdoc.distances_per_pattern_dict['ner_org.1'], _range=[0, 1])
-    
-  return subdoc, best_headline_subdoc
+def map_headline_index_to_headline_type(headline_indexes, embedded_headlines, threshold):
+  best_indexes = {}
+  for head_type in head_types:
+    try:
+      bi, distance_by_headline, attention_v = \
+        find_best_headline_by_pattern_prefix(headline_indexes, embedded_headlines, 'd_head_' + head_type, threshold,
+                                             render=False)
 
-#------------------------------
-def _doc_section_under_headline(_doc, hl_struct, headline_indices, embedd_factory=None, render=False):
+      obj = {'headline.index': bi,
+             'headline.type': head_type,
+             'headline.confidence': distance_by_headline[bi],
+             'headline.subdoc': embedded_headlines[bi],
+             'headline.attention_v': attention_v}
+
+      if bi in best_indexes:
+        e_obj = best_indexes[bi]
+        if e_obj['headline.confidence'] < obj['headline.confidence']:
+          best_indexes[bi] = obj
+      else:
+        best_indexes[bi] = obj
+
+    except Exception as e:
+      print(e)
+      pass
+
+  return best_indexes
+
+
+
+
+# ------------------------------
+def _doc_section_under_headline(_doc, hl_struct, headline_indices, render=False):
   if render:
-    print('_doc_section_under_headline:searching for section:',hl_struct['type'])
-    
-    
-  bi = hl_struct['index']
-  
-   
-  bi_next = bi + 1  
+    print('_doc_section_under_headline:searching for section:', hl_struct['headline.type'])
+
+  bi = hl_struct['headline.index']
+
+  bi_next = bi + 1
   best_headline = headline_indices[bi]
-  
+
   if bi_next < len(headline_indices):
     best_headline_next = headline_indices[bi_next]
   else:
     best_headline_next = None
-    
+
   if render:
     print(
-      '_doc_section_under_headline: best_headline:{} best_headline_next:{} bi:{}'.format(best_headline, best_headline_next, bi),
+      '_doc_section_under_headline: best_headline:{} best_headline_next:{} bi:{}'.format(best_headline,
+                                                                                         best_headline_next, bi),
       '_' * 40)
-    
-  subdoc = subdoc_between_lines(best_headline, best_headline_next, _doc)  
+
+  subdoc = subdoc_between_lines(best_headline, best_headline_next, _doc)
   if len(subdoc.tokens) < 2:
-    raise ValueError('Empty "{}" section between headlines #{} and #{}'.format(hl_struct['type'], best_headline, best_headline_next))
-    
-  #May be embedd
+    raise ValueError(
+      'Empty "{}" section between headlines #{} and #{}'.format(hl_struct['headline.type'], best_headline, best_headline_next))
+
+  # May be embedd
   if render:
-      print('_doc_section_under_headline: embedding segment:', untokenize(subdoc.tokens_cc))
-      
-  if subdoc.embeddings is None and embedd_factory is not None:    
-    subdoc.embedd(embedd_factory)
-    subdoc.calculate_distances_per_pattern(embedd_factory)
+    print('_doc_section_under_headline: embedding segment:', untokenize(subdoc.tokens_cc))
+
   
 
   return subdoc
 
 
+# ------------------------------
+def find_sections_by_headlines(best_indexes, _doc, headline_indexes, render=False):
+  sections = {}
 
-
-#------------------------------
-def find_sections_by_headlines(best_indexes, _doc, headline_indexes, embedd_factory=None, render = False):
-  sections={}
   for bi in best_indexes:
+
+    """
+    bi = {
+        'headline.index': bi,
+        'headline.type': head_type,
+        'headline.confidence': distance_by_headline[bi],
+        'headline.subdoc': embedded_headlines[bi],
+        'headline.attention_v': attention_v}
+    """
     hl = best_indexes[bi]
+    
     if render:
-      print('='*100)      
-      print( untokenize( hl['embedded'].tokens_cc))
-      print('-'*100)
-          
-    head_type=hl['type']
+      print('=' * 100)
+      print(untokenize(hl['headline.subdoc'].tokens_cc))
+      print('-' * 100)
 
-    try:
-      s={
-          'type':head_type,
-          'subdoc': _doc_section_under_headline(_doc, hl, headline_indexes, embedd_factory=embedd_factory, render = render),
-          'headline':hl['embedded']
-      }      
+    head_type = hl['headline.type']
 
-
-      sections[ head_type ] = s
+    try:      
+      hl['body.subdoc'] = _doc_section_under_headline(_doc, hl, headline_indexes, render=render)
+      sections[head_type] = hl
+      
     except ValueError as error:
       print(error)
-      
+
   return sections
 
 """### Experiment: headlines attention vector"""
@@ -670,179 +693,28 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 
   return res, attention_vector, maxes
 
-
-@at_github
-def to_string(l:StructureLine, tokens_cc):
-  return untokenize(tokens_cc[l.span[0]: l.span[1]])
-
 import numpy as np
 
-from doc_structure import get_tokenized_line_number
+
 from legal_docs import CharterDocument
-from ml_tools import relu, normalize, smooth
+from ml_tools import relu, normalize
 from text_tools import untokenize
 
-
-def headline_probability(sentence, sentence_cc, prev_sentence, prev_value) -> float:
-  """
-  _cc == original case
-  """
-
-  NEG = -1
-  value = 0
-
-  if sentence == ['\n']:
-    return NEG
-
-  if len(sentence) < 2:
-    return NEG
-
-  if len(sentence) > 30:
-    return NEG
-
-  # headline may not go after another headline
-  if prev_value > 0:
-    value -= prev_value
-
-  number, span, _level = get_tokenized_line_number(sentence, None)
-  row = untokenize(sentence_cc[span[1]:])[:40]
-  row = row.lstrip()
-
-#   if len(row) < 2:
-#     return NEG
-
-  #       print(number, span, _level, untokenize(sentence_cc))
-
-  if number is not None:
-
-    # headline starts from 'статья'
-    if sentence[0] == 'статья':
-      value += 3
-
-    if len(number) > 0:
-      # headline is numbered
-
-      minor_num = number[-1]
-
-      if minor_num > 0:
-        value += 1
-
-      # headline number is NOT too big
-      if minor_num > 40:
-        value -= 1
-
-      # headline is NOT a bullet
-      if minor_num < 0:
-        return 0
-    # ----
-    if _level is not None:
-      if _level == 0:
-        value += 1
-
-      if _level > 1:
-        # headline is NOT a 1.2 - like-numbered
-        return -_level
-
-  # ------- any number
-  # headline DOES not starts lowercase
-  if len(row) > 1:
-    if row.lower()[0] == row[0]:
-      value -= 1
-
-  # headline is short
-  if len(sentence) < 15:
-    value += 1
-
-  # headline is UPPERCASE
-  if row.upper() == row:
-    value += 2
-
-  if prev_sentence == ['\n'] and sentence != ['\n']:
-    value += 1
-
-  #   if value>2:
-  # print(f'{value}\t {number}\t {span}\t {_level} \t', untokenize(sentence_cc))
-  #   if value>0:
-  #     print(f'{len(sentence)}\t {value} \t {untokenize(sentence_cc)} \t')
-  return value
-
-
-def hl_structure(txt):
-  def number_of_leading_spaces(_tokens):
-    c_ = 0
-    while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
-      c_ += 1
-    return c_
-
-  TCD = CharterDocument(txt)
-  TCD.parse()
-
-  lines = np.zeros(len(TCD.structure.structure))
-
-  prev_sentence = []
-  prev_value = 0
-
-  _struct = TCD.structure.structure
-  for i in range(len(_struct)):
-    line = _struct[i]
-
-    sentence = TCD.tokens[line.span[0]: line.span[1]]
-    sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
-
-    if len(sentence_cc) > 1:
-      tr = number_of_leading_spaces(sentence)
-      if tr > 0:
-        sentence = sentence[tr:]
-        sentence_cc = sentence_cc[tr:]
-
-    p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
-
-    #     if line.level == 0:
-    #       p += 1
-
-    prev_sentence = sentence
-    lines[i] = p
-    prev_value = p
-
-  return TCD, lines
-
-
-def highlight_doc_structure(txt):
-  _doc, p_per_line = hl_structure(txt)
-
-  def local_contrast(x):
-    blur = 2 * int(len(x) / 20.0)
-    blured = smooth(x, window_len=blur, window='blackman')
-    delta = relu(x - blured, 0)
-    r = normalize(delta)
-    return r, blured
-
-  max = np.max(p_per_line)
-  result = relu(p_per_line, max / 3.0)
-  result, smoothed = local_contrast(result)
+ 
   
-  r = {
-    'line_probability': p_per_line,
-    'line_probability relu': relu(p_per_line),
-    'accents_smooth': smoothed,
-    'result': result
-  }
-
-  return r, _doc
-
 
 if dev_mode:
   TCD = None
 
-
   def __test_highlight_doc_structure():
-    r, _doc = highlight_doc_structure(TEST_CHARTER_TEXT)
+    TCD = CharterDocument(TEST_CHARTER_TEXT)
+    TCD.parse()
+    r, TCD = highlight_doc_structure(TCD)
 
-    sentences = [to_string(line, _doc.tokens_cc) + '<br>' for line in _doc.structure.structure]
-
+    sentences = [line.to_string(TCD.tokens_cc) + '<br>' for line in TCD.structure.structure]
     render_color_text(sentences, r['line_probability'], colormap='coolwarm', print_debug=False, _range=None)
 
-    fig = plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, 10))
     ax = plt.axes()
     off = 0
     for k in r:
@@ -850,52 +722,25 @@ if dev_mode:
       off += 1
 
     ax.plot(normalize(r['result']) + 1, label=k, alpha=0.5)
-
     plt.title('detecting captions')
     plt.legend(loc='upper left')
-
 
   __test_highlight_doc_structure()
 
 if dev_mode:
 
-  r, _doc = highlight_doc_structure(TEST_CHARTER_TEXT)
+  r, TCD = highlight_doc_structure(TCD)
   lines_indexes = np.nonzero(r['result'])[0]
   
 
   for l in lines_indexes:
-    print(to_string(_doc.structure.structure[l], _doc.tokens_cc))
+    print(TCD.structure.structure[l].to_string(TCD.tokens_cc))
 
 print(TEST_CHARTER_TEXT)
 
 """#### all docs"""
 
-if dev_mode or True:
-  
-  html=""
-  i=1
-  
-  for fn in charters:
-    r, _doc = highlight_doc_structure(charters[fn])
-    lines_indexes = np.nonzero(r['result'])[0]
-    lines_indexes = remove_similar_indexes(lines_indexes,2)
-    
-    html=f'<h3>{i}. {fn}</h3><ul>'
-    i+=1
- 
-    prev_n=0
-    for l in lines_indexes:      
-      line = _doc.structure.structure[l]
-      color='black'
-      if  line.numbered and line.minor_number!=prev_n+1:
-        color='red'
-      html+=f'<li style="color:{color}">{ to_string(line,_doc.tokens_cc ) }</li>'
-      if  line.numbered:
-        prev_n = line.minor_number
-    
-    html+='</ul>'
-    
-    display(HTML(html))
+
 
 """# Charter parsing-related code
 
@@ -906,21 +751,23 @@ if dev_mode or True:
 
 """### Constants"""
 
-head_types = ['directors', 'all', 'gen', 'pravlenie']
+# self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
 
-head_types_dict = {  'directors':'Совет директоров', 
-                     'all':'Общее собрание участников/акционеров', 
-                     'gen':'Генеральный директор', 
+head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
+
+head_types_dict = {  'head.directors':'Совет директоров', 
+                     'head.all':'Общее собрание участников/акционеров', 
+                     'head.gen':'Генеральный директор', 
 #                      'shareholders':'Общее собрание акционеров', 
-                     'pravlenie':'Правление общества',
-                     'unknown':'*Неизвестный орган управления*'}
+                     'head.pravlenie':'Правление общества',
+                     'head.unknown':'*Неизвестный орган управления*'}
 
-head_types_colors = {  'directors':'crimson', 
-                     'all':'orange', 
-                     'gen':'blue', 
-                     'shareholders':'#666600', 
-                     'pravlenie':'#0099cc',
-                     'unknown':'#999999'}
+head_types_colors = {  'head.directors':'crimson', 
+                     'head.all':'orange', 
+                     'head.gen':'blue', 
+                     'head.shareholders':'#666600', 
+                     'head.pravlenie':'#0099cc',
+                     'head.unknown':'#999999'}
 
 
 org_types={
@@ -934,6 +781,68 @@ org_types={
 ##
 
 """## 1.  Patterns Factory 1"""
+
+class HeadlinesPatternFactory(AbstractPatternFactory):
+
+  def create_pattern(self, pattern_name, ppp):
+    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
+    fp = FuzzyPattern(_ppp, pattern_name)
+    self.patterns.append(fp)
+    self.patterns_dict[pattern_name] = fp
+    return fp
+
+  def __init__(self, embedder):
+    AbstractPatternFactory.__init__(self, embedder)
+    self.patterns_dict = {}
+    self._build_head_patterns()
+    self.embedd()
+    
+    self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
+
+  def _build_head_patterns(self):
+    def cp(name, tuples):
+      return self.create_pattern(name, tuples)
+    
+    head_prfx=""
+            
+    cp('headline.name.1', ('Полное', 'фирменное наименование', 'общества на русском языке:'))    
+    cp('headline.name.2', ('', 'ОБЩИЕ ПОЛОЖЕНИЯ', ''))    
+    cp('headline.name.3', ('', 'фирменное', ''))
+    cp('headline.name.4', ('', 'русском', ''))
+    cp('headline.name.5', ('', 'языке', ''))
+    cp('headline.name.6', ('', 'полное', ''))
+    
+    
+    cp('headline.head.all.1', (head_prfx, 'компетенции общего собрания акционеров\n', ''))
+    cp('headline.head.all.2', (head_prfx, 'собрание акционеров\n', ''))
+    
+    cp('headline.head.all.3', ('', 'компетенции', ''))
+    cp('headline.head.all.4', ('', 'собрания', ''))
+    cp('headline.head.all.5', ('', 'участников', ''))
+    cp('headline.head.all.6', ('', 'акционеров', ''))
+    
+    
+    cp('headline.head.directors.1', (head_prfx, 'компетенция совета директоров\n', ''))
+    cp('headline.head.directors.2', ('', 'совет директоров общества\n', ''))
+    cp('headline.head.directors.3', ('', 'компетенции', ''))
+    cp('headline.head.directors.4', ('', 'совета', ''))
+    cp('headline.head.directors.5', ('', 'директоров', ''))
+    
+    
+    cp('headline.head.pravlenie.1', (head_prfx, 'компетенции правления', ''))
+    cp('headline.head.pravlenie.2', ('', 'компетенции', ''))
+    cp('headline.head.pravlenie.3', ('', 'правления', ''))
+#     cp('d_head_pravlenie.2', ('', 'общества', ''))
+    
+    cp('headline.head.gen.1', (head_prfx, 'компетенции генерального директора', ''))
+    cp('headline.head.gen.2', ('', 'компетенции', ''))
+    cp('headline.head.gen.3', ('', 'генерального', ''))
+    cp('headline.head.gen.4', ('', 'директора', ''))
+    
+
+HPF = HeadlinesPatternFactory(embedder)
+
+
 
 class CharterPatternFactory(AbstractPatternFactory):
 
@@ -955,6 +864,7 @@ class CharterPatternFactory(AbstractPatternFactory):
     self._build_sum_margin_extraction_patterns()
     self.embedd()
 
+  @deprecated
   def _build_head_patterns(self):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
@@ -2193,73 +2103,6 @@ def _build_org_type_attention_vector(subdoc: CharterDocument):
   return attention_vector_neg
 
 
-@deprecated
-def _get_document_head_having_org_name(txt):
-  doc = CharterDocument(txt)
-  doc.parse()
-  index = find_token_after_index(doc.tokens, 0, "наименование")
-  index = max(0, index - 300)
-
-  head = doc.subdoc(index, index + 3000)  # XXX: make smarter range
-  return head
-
-
-
-# ------------------------------------------------------------------------------
-@deprecated
-def _detect_org_name_section(head: CharterDocument, render=False):
-  _tail = 40  ## after blulring tail is a bit wrong
-  head.calculate_distances_per_pattern(NerPF)
-
-  """
-  paying attention to
-  FuzzyPattern: org_ao ('', 'акционерное общество', '"')
-  FuzzyPattern: org_zao ('', 'закрытое акционерное общество', '"')
-  FuzzyPattern: org_oao ('', 'открытое акционерное общество', '"')
-  FuzzyPattern: org_ooo ('', 'общество с ограниченной ответственностью', '"')
-  """
-  orgs = make_soft_attention_vector(head, 'org_', relu_th=0.6, blur=40) * 0.5
-  names = make_soft_attention_vector(head, 'ner_org', relu_th=0.6, blur=14) * 0.5
-
-  attention_vector_neg = _build_org_type_attention_vector(head)
-
-  distances = names + orgs
-  distances *= attention_vector_neg
-  distances = normalize(distances)
-
-  head.distances_per_pattern_dict['attention_vector'] = attention_vector_neg
-  #
-
-  idx = np.argmax(distances[0:-_tail])  ## after blulring tail is a bit wrong
-  start = idx - 40
-  if start < 0:
-    start = 0
-  end = start + 80
-
-  section = head.subdoc(start, end)
-
-  if render:
-    print('-' * 30)
-    print('_detect_org_name_section, idx: {}, start: {} - end: {}'.format(idx, start, end))
-    render_color_text(head.tokens_cc[0:len(distances)], distances, _range=[0, 1])
-
-    fig = plt.figure(figsize=(20, 4))
-    ax = plt.axes()
-    ax.plot(names[0:-_tail] - 1, alpha=0.6, color='blue', label='names')
-    ax.plot(distances[0:-_tail], alpha=0.6, color='black', label='distances')
-    ax.plot(attention_vector_neg[0:-_tail], alpha=0.3, color='red', label='attention_vector_neg')
-    ax.plot(orgs[0:-_tail], alpha=0.3, color='green', label='orgs')
-    plt.title('_detect_org_name_section')
-    plt.legend(loc='upper left')
-
-    print('distances_per_pattern_dict', section.distances_per_pattern_dict.keys())
-    print('-' * 30, '_detect_org_name_section')
-  return section
-
-"""### NER-2
-based on detecting document structure and headlines
-"""
-
 # ------------------------------------------------------------------------------
 def _detect_org_type_and_name(section, render=False):
   s_attention_vector_neg = _build_org_type_attention_vector(section)
@@ -2291,6 +2134,9 @@ def _detect_org_type_and_name(section, render=False):
 # ------------------------------------------------------------------------------
 def detect_ners(section, render=False):
   assert section is not None
+  
+  section.embedd(NerPF)
+  section.calculate_distances_per_pattern(NerPF)
 
   dict_org, best_type = _detect_org_type_and_name(section, render)
 
@@ -2301,11 +2147,11 @@ def detect_ners(section, render=False):
   start = start + len(NerPF.patterns_dict[best_type].embeddings)
   end = 1 + find_ner_end(section.tokens, start)
 
-  section_name = section.subdoc(start, end)
-  org_name = untokenize(section_name.tokens_cc)
+  orgname_sub_section = section.subdoc(start, end)
+  org_name = untokenize(orgname_sub_section.tokens_cc)
 
   if render:
-    render_color_text(section_name.tokens_cc, section_name.distances_per_pattern_dict[best_type],
+    render_color_text(orgname_sub_section.tokens_cc, orgname_sub_section.distances_per_pattern_dict[best_type],
                       _range=[0, 1])
     print('Org type:', org_types[best_type], dict_org[best_type])
 
@@ -2319,168 +2165,54 @@ def detect_ners(section, render=False):
 
   return rez
 
-def detect_org_name(_doc, render=False):  
+# def detect_org_name(_doc, render=False):  
   
-  _headline_indexes = _doc.structure.get_lines_by_level(0)
-  _embedded_headlines = embedd_headlines(_headline_indexes, _doc, NerPF)
-  try:
-    bi, distance_by_headline, attention_v = find_best_headline_by_pattern_prefix(_headline_indexes, _embedded_headlines, 'ner_org', 1.8, render=render)
-    hl_struct = {'index': bi,
-               'weight': distance_by_headline[bi],
-               'type': 'ner_org',
-               'embedded': _embedded_headlines[bi],
-               'attention_v': attention_v}
-    subdoc = _doc_section_under_headline(_doc, hl_struct, _headline_indexes, embedd_factory=NerPF, render=render)
-    _org = detect_ners(section=subdoc, render=render)
-  except ValueError as e:
+#   _headline_indexes = _doc.structure.get_lines_by_level(0)
+#   _embedded_headlines = embedd_headlines(_headline_indexes, _doc, NerPF)
+#   try:
+#     bi, distance_by_headline, attention_v = find_best_headline_by_pattern_prefix(_headline_indexes, _embedded_headlines, 'ner_org', 1.8, render=render)
+#     hl_struct = {'index': bi,
+#                'weight': distance_by_headline[bi],
+#                'type': 'ner_org',
+#                'embedded': _embedded_headlines[bi],
+#                'attention_v': attention_v}
+#     subdoc = _doc_section_under_headline(_doc, hl_struct, _headline_indexes, embedd_factory=NerPF, render=render)
+#     _org = detect_ners(section=subdoc, render=render)
+#   except ValueError as e:
     
-    # Most likely, section not found
+#     # Most likely, section not found
     
-    print('detect_org_name WARNING: {}, fallback to fuzzy solution'.format(e))
-    _head = _get_document_head_having_org_name(_doc.normal_text)
-    _head.embedd(NerPF)
-    _section = _detect_org_name_section(_head, render=render)
-    _org = detect_ners(_section, render=render)
+#     print('detect_org_name WARNING: {}, fallback to fuzzy solution'.format(e))
+#     _head = _get_document_head_having_org_name(_doc.normal_text)
+#     _head.embedd(NerPF)
+#     _section = _detect_org_name_section(_head, render=render)
+#     _org = detect_ners(_section, render=render)
 
-  return _org, _headline_indexes, _embedded_headlines
+#   return _org, _headline_indexes, _embedded_headlines
 
 
 
-#TESTING
-# ------------------------------------------------------------------------------  
-if dev_mode:
+# #TESTING
+# # ------------------------------------------------------------------------------  
+# if dev_mode:
   
-  _doc = CharterDocument(tiny_charter_sample)
-  _doc.right_padding = 0
-  _doc.parse()
+#   _doc = CharterDocument(tiny_charter_sample)
+#   _doc.right_padding = 0
+#   _doc.parse()
   
-  _org,  _headline_indexes, _embedded_headlines = detect_org_name(_doc, render=True)
-  render_org(_org)
+#   _org,  _headline_indexes, _embedded_headlines = detect_org_name(_doc, render=True)
+#   render_org(_org)
 
 """## Margin values detection
 
 ### Split doc into section (поиск разделов )
+
+### Find constraint values
 """
-
-@deprecated
-def find_charter_head_sections(charter, verbose=False):
-  indexes = {}
-  indexes['__end'] = [len(charter.tokens)-charter.right_padding, 0]
-  indexes['unknown'] = [0, 0]
-  weights ={}
-  
-  
-  order_v = make_soft_attention_vector(charter, 'd_order_2', relu_th=0.35, blur=60)
-  negation_v = soft_attention_vector(charter, 'negation', relu_th=0.4, blur=4)
-  negation_v = momentum(negation_v)
-  d_competence = soft_attention_vector(charter, 'd_competence', relu_th=0.4, blur=10)
-  
-  
-#   organs_v = soft_attention_vector(charter, 'organs_', relu_th=0.4, blur=110)
-  
- 
-  
-  
-  weights['unknown'] = order_v
-  
-
-  vvvs = _make_vectors_contrast(charter)
-  
-  # head_types are:  ['directors', 'all', 'gen', 'pravlenie']
-  for head_type in head_types: 
-#     a = vvvs[head_type]/2
-    a, __c = rectifyed_sum_by_pattern_prefix(charter.distances_per_pattern_dict, 'd_head_'+head_type, relu_th=0.4)  
-    a = smooth(a, window_len=6)
-    a+=d_competence
-
-    a -= order_v/2
-#     a -= organs_v
-    a -= negation_v/2
-
-    weights[head_type] = normalize(a)
-
-    max_id = np.argmax(a)
-    indexes[head_type] = [find_token_before_index(charter.tokens, max_id, "\n"), a[max_id]]
-
-  if verbose:  
-    print('indexes=',indexes)  
-
-  # clean collisions:
-  for i in indexes:
-
-    if indexes[i] is not None:
-      i1, v1 = indexes[i]
-      for j in indexes:
-        if indexes[j] is not None:
-          i2, v2 = indexes[j]
-          if i!=j and i1 == i2:
-            if verbose:  
-              print('COLLIDES', i,j, v1, v2)
-            if v1 > v2:
-               indexes[j] = None
-
-  if verbose:  
-    print('indexes=',indexes)  
-
-
-  # find sections bounds
-  bounds={}
-  for i in indexes:   
-    if indexes[i] is not None:
-      start,v1 = indexes[i]
-
-      mindelta=2**20
-      for j in indexes:
-        if i!=j:
-          if indexes[j] is not None:
-            end,v2 = indexes[j]
-            delta = end - start
-            if delta > 0:
-              if delta < mindelta:
-
-                bounds[i] = [start, end]
-                mindelta = delta
-
-                
-  if verbose:  
-    print (bounds)
-    
-  return bounds, weights
-
-@deprecated
-def _make_vectors_contrast(charter):
-  vectors={}
-  off=0
-  for head_type in head_types: 
-    a = rectifyed_mean_by_pattern_prefix(charter.distances_per_pattern_dict, 'd_head_'+head_type, relu_th=0.4)    
-    a = relu(a, estimate_threshold(a)*0.8)
-    a = momentum(a)
-    vectors[head_type] = a
-  #   ax.plot(a+off  , alpha=0.4, );
-    off+=0.05
-
-
-
-  vectors2={}  
-  for head_type1 in vectors: 
-    vectors2[head_type1]  = np.array(vectors[head_type1] )
-
-    for head_type2 in vectors: 
-      if head_type1!=head_type2:
-        vectors2[head_type1] -= smooth(vectors[head_type2], window_len=260)  / 5
-
-  #   vectors2[head_type1]+=1
-    
-    vectors2[head_type1] = relu( vectors2[head_type1],  estimate_threshold(vectors2[head_type1]))
-    vectors2[head_type1] = smooth(vectors2[head_type1], window_len=260)
-  return vectors2
-
-"""### Find constraint values"""
 
 @at_github
 def estimate_threshold(a, min_th=0.3):
   return max(min_th, np.max(a) * 0.7)
-
 
 def extract_sums_from_tokens(tokens: List, x, verbose=False):
   maximas = extremums(x)
@@ -2509,6 +2241,7 @@ def extract_sums_from_tokens(tokens: List, x, verbose=False):
 
 
 def highlight_margin_numbers(_doc, ctx=None, relu_threshold=0.5):
+ 
   attention_vector = make_soft_attention_vector(_doc, 'sum_', relu_th=0.35, blur=10)
   attention_vector += make_soft_attention_vector(_doc, 'd_order_', relu_th=0.35, blur=120)
 
@@ -2553,26 +2286,35 @@ def _extract_constraint_values_from_region(subdoc, attention_vector_name='values
 def extract_constraint_values_from_sections(sections):
   """
     section={
-          'type':head_type,
-          'subdoc': subdoc
-          'headline':hl['embedded']
+          'headline.type':head_type,
+          'body.subdoc': subdoc
+          'headline.subdoc':hl['embedded']
       } 
 
   """
 
   rez = {}
-
+  
+  _embedd_factory=CharterPF
+  
   for head_type in sections:
+    print('extract_constraint_values_from_sections',head_type)
     section = sections[head_type]
+    
 
-    subdoc = section['subdoc']
-    hl_subdoc = section['headline']
+    subdoc = section['body.subdoc']
+    
+    subdoc.embedd(_embedd_factory)
+    subdoc.calculate_distances_per_pattern(_embedd_factory)
+      
+      
+    hl_subdoc = section['headline.subdoc']
 
     vector, vector_soft = highlight_margin_numbers(subdoc, ctx=None, relu_threshold=0.4)
     subdoc.distances_per_pattern_dict['values'] = vector
 
     r_by_head_type = {
-      'section': head_types_dict[section['type']],
+      'section': head_types_dict[section['headline.type']],
       'bounding box': (subdoc.start, subdoc.end),
       'caption': untokenize(hl_subdoc.tokens_cc),
       'sentences': _extract_constraint_values_from_region(subdoc, 'values')
@@ -2666,10 +2408,6 @@ def render_constraint_values(rz):
 #### Test init
 """
 
-# raise Exception('STOP')
-
-
- 
 if dev_mode:
 
   TCD = CharterDocument(TEST_CHARTER_TEXT)
@@ -2679,7 +2417,11 @@ if dev_mode:
 """#### Проверка определения структуры дока"""
 
 if dev_mode:
-  headline_indexes = TCD.structure.get_lines_by_level(0)
+#   headline_indexes = TCD.structure.get_lines_by_level(0)
+  
+  r, TCD = highlight_doc_structure(TCD)
+  headline_indexes = np.nonzero(r['result'])[0]
+  
   #--
   print('headline_indexes', headline_indexes)
   for i in headline_indexes:
@@ -2690,38 +2432,127 @@ if dev_mode:
 """
 
 if dev_mode:
-  embedded_headlines = embedd_headlines(headline_indexes, TCD, CharterPF)
+  embedded_headlines = embedd_headlines(headline_indexes, TCD, HPF)
   for eh in embedded_headlines:
     print( untokenize(eh.tokens_cc))
 
-"""##### Test apply semantics to headlines"""
+"""#### Test apply semantics to headlines"""
 
 if dev_mode:
-  best_indexes = map_headline_index_to_headline_type(headline_indexes, embedded_headlines, 1.4)
+#   best_indexes = map_headline_index_to_headline_type(headline_indexes, embedded_headlines, 1.4)
+ 
+  best_indexes = match_headline_types(HPF.headlines, headline_indexes, embedded_headlines, 'headline.', 1.4)
+  
   for bi in best_indexes:
     hl = best_indexes[bi]
-    t=hl['embedded']
+    t=hl['headline.subdoc']
     print(bi)
-    render_color_text(t.tokens_cc, hl['attention_v'], _range=[0, 2])
+    render_color_text(t.tokens_cc, hl['headline.attention_v'], _range=[0, 2])
 
   print()
   for bi in best_indexes:
     hl = best_indexes[bi]
-    t=hl['embedded']
-    print( '#{} \t {} \t {:.4f} \t {}'.format(hl['index'], hl['type'] + ('.' * (14-len(hl['type']))), hl['weight'], untokenize(t.tokens_cc)))
+    t=hl['headline.subdoc']
+    print( '#{} \t {} \t {:.4f} \t {}'.format(hl['headline.index'], hl['headline.type'] + ('.' * (14-len(hl['headline.type']))), hl['headline.confidence'], untokenize(t.tokens_cc)))
 
-"""##### Test extract text sections under  headlines"""
+"""(disabled)"""
+
+import gc
+if dev_mode and False:
+  
+  tf.logging.set_verbosity('FATAL')
+  
+  
+  html=""
+  i=1
+  
+  for fn in charters:
+    
+    
+    gc.collect()
+
+    r, _doc = highlight_doc_structure(charters[fn])
+    lines_indexes = np.nonzero(r['result'])[0]
+    lines_indexes = remove_similar_indexes(lines_indexes,2)
+    
+    embedded_headlines = embedd_headlines(lines_indexes, _doc, HPF)
+#     best_indexes = map_headline_index_to_headline_type(lines_indexes, embedded_headlines, 'headline.name', 1.4)
+     
+         
+    best_indexes = match_headline_types(HPF.headlines, lines_indexes, embedded_headlines, 'headline.', 1.4)
+    
+    ffound_html=""
+    for bi in best_indexes:
+      hl = best_indexes[bi]
+      t=hl['headline.subdoc']
+#       print(bi)
+      ffound_html += to_color_text(t.tokens_cc, hl['headline.attention_v'], _range=[0, 2])
+
+    meta_html="<h4>Найдены разделы:</h4>"
+    for bi in best_indexes:
+      hl = best_indexes[bi]
+      t=hl['headline.subdoc']
+      meta_html+=f'<div> #{hl["headline.index"]}  {hl["headline.type"] } confidence:{hl["headline.confidence"]:.4f} </div>'
+#       print( '#{} \t {} \t {:.4f} \t {}'.format(hl['index'], hl['type'] + ('.' * (14-len(hl['type']))), hl['weight'], untokenize(t.tokens_cc)))
+
+
+    
+    
+    
+    html=f'<h3>{i}. {fn}</h3><ul>'
+    i+=1
+ 
+    html+=f'<div style="margin-left:2em">{meta_html}<br> {ffound_html}</div>'
+  
+    prev_n=0
+    for l in lines_indexes:      
+      line = _doc.structure.structure[l]
+      color='black'
+      if  line.numbered and line.minor_number!=prev_n+1:
+        color='red'
+      html+=f'<li style="color:{color}">{ line.to_string(_doc.tokens_cc ) }</li>'
+      if  line.numbered:
+        prev_n = line.minor_number
+    
+    html+='</ul>'
+    
+    display(HTML(html))
+
+"""#### Test extract text sections under  headlines"""
+
+def render_section(section):
+  fragment = section['body.subdoc'].tokens_cc[0:200]+['...']
+  headline = section['headline.subdoc'].tokens_cc
+  stype = section['headline.type']
+  
+  zeros = np.zeros(len(fragment))
+  txt = to_color_text(fragment, zeros, _range=[-1,1])
+  html = f'<h3>{ untokenize (headline) }</h3><div>{stype}</div><div>{txt}</div>'
+  display(HTML(html))
 
 if dev_mode:    
-  sections = find_sections_by_headlines(best_indexes, TCD, headline_indexes, embedd_factory=CharterPF, render = False )
+  #--------------
+  sections = find_sections_by_headlines(best_indexes, TCD, headline_indexes, render = False )
+  #--------------
+  
+  """
+    sections={
+          'type':head_type,
+          'subdoc': _doc_section_under_headline(_doc, hl, headline_indexes, embedd_factory=embedd_factory, render = render),
+          'headline':hl['subdc']
+      }      
+
+  """
   for i in sections:
-    print(i)
-    s=sections[i]
-    print('='*100)      
-    print( untokenize( s['headline'].tokens_cc)+' <<<<== '+s['type'])
-    print('-'*100)    
+    render_section(sections[i])
+    
+#     print(i)
+#     s=sections[i]
+#     print('='*100)      
+#     print( untokenize( s['headline'].tokens_cc)+' <<<<== '+s['type'])
+#     print('-'*100)    
       
-    print( untokenize( s['subdoc'].tokens_cc[0:200])+'.....<cut>')
+#     print( untokenize( s['subdoc'].tokens_cc[0:200])+'.....<cut>')
 
 if dev_mode:    
   
@@ -2746,12 +2577,12 @@ if dev_mode:
   for i in sections:
     print(i)
     s=sections[i]
-    section_name=untokenize(s['headline'].tokens_cc)
+    section_name=untokenize(s['headline.subdoc'].tokens_cc)
 
     
-    subdoc = s['subdoc']
+    subdoc = s['body.subdoc']
     print('='*100)      
-    print( f'{section_name} {s}' )
+    print( f'Section name: {section_name} {s}' )
     
 #     print( untokenize(subdoc.tokens_cc)+' <<<<== '+s['type'])
 #     print('-'*100)
@@ -2774,7 +2605,7 @@ if dev_mode:
 #     ax.plot(distances[0:-_tail], alpha=0.6, color='black', label='distances');
 #     ax.plot(attention_vector_neg[0:-_tail], alpha=0.3, color='red', label='attention_vector_neg');
 #     ax.plot(orgs[0:-_tail], alpha=0.3, color='green', label='orgs');
-    plt.title('margin_numbers contexts: "{}"'.format( untokenize(s['headline'].tokens_cc[:9])) )
+    plt.title('margin_numbers contexts: "{}"'.format( untokenize(s['headline.subdoc'].tokens_cc[:9])) )
     plt.legend(loc='upper left')
 
     
@@ -2783,7 +2614,7 @@ if dev_mode:
     for start in regions:
       e=regions[start]
       print(start,e)
-      render_color_text(s['subdoc'].tokens_cc[start:e], order_attention_vector[start:e], _range=[0,1])
+      render_color_text(subdoc.tokens_cc[start:e], order_attention_vector[start:e], _range=[0,1])
       
 #     render_color_text(s['subdoc'].tokens_cc, v1)
       
@@ -2792,84 +2623,101 @@ if dev_mode:
 """##### Test extract constraint values from sub sections"""
 
 if dev_mode:
-  rz = extract_constraint_values_from_sections(sections)
+  sections_filtered={}
+  prefix = 'head.'
+  for k in sections:
+    if k[0:len(prefix)]==prefix:
+      sections_filtered[k]=sections[k]
+      
+  rz = extract_constraint_values_from_sections(sections_filtered)
   html = render_constraint_values(rz)
   display(HTML(html))
 
 """## ~ALL together~"""
 
 # MAIN METHOD
+import gc
+
+from legal_docs import CharterDocument, embedd_headlines, highlight_doc_structure
+
+gc.collect()
+
+import numpy as np
 
 
+# ---------------------------------------
+def find_contraints(best_indexes, headline_indexes, _charter_doc, verbose=False):
+  # 4. find sections
+  sections = find_sections_by_headlines(best_indexes,
+                                        _charter_doc,
+                                        headline_indexes,
+                                        render=verbose)
 
-#---------------------------------------
-def find_contraints(_charter_doc):
-  #1. find top level structure
-  headline_indexes = _charter_doc.structure.get_lines_by_level(0)
-  
-  #2. embedd headlines
-  embedded_headlines = embedd_headlines(headline_indexes, _charter_doc, CharterPF)
-  
-  #3. apply semantics to headlines,
-  best_indexes = map_headline_index_to_headline_type(headline_indexes, embedded_headlines, 2.0)
-  
-  #4. find sections
-  sections = find_sections_by_headlines(best_indexes, 
-                                        _charter_doc, 
-                                        headline_indexes, 
-                                        embedd_factory=CharterPF,
-                                        render=False)
-  
-  #5. extract constraint values
-  rz = extract_constraint_values_from_sections(sections)
+  # 5. extract constraint values
+  sections_filtered = {}
+  prefix = 'head.'
+  for k in sections:
+    if k[:len(prefix)] == prefix:
+      sections_filtered[k] = sections[k]
+      
+
+  rz = extract_constraint_values_from_sections(sections_filtered)
   return rz
 
-#---------------------------------------
-def process_charter(txt, verbose=False):
+
+# ---------------------------------------
+def process_charter(txt, verbose=False ):
   # parse
   _charter_doc = CharterDocument(txt)
-  
   _charter_doc.right_padding = 0
   _charter_doc.parse()
 
+  # 1. find top level structure
+  #   headline_indexes = _charter_doc.structure.get_lines_by_level(0)
 
-  org,_,_ = detect_org_name(_charter_doc)
-  rz = find_contraints(_charter_doc)
-  
-  
-#   html = render_constraint_values(rz)
-#   display(HTML(html))
+  r, _charter_doc = highlight_doc_structure(_charter_doc)
+  headline_indexes = np.nonzero(r['result'])[0]
+
+  # 2. embedd headlines
+  embedded_headlines = embedd_headlines(headline_indexes, _charter_doc, HPF)
+
+  # 3. apply semantics to headlines,
+  best_indexes = match_headline_types(HPF.headlines, headline_indexes, embedded_headlines, 'headline.', 1.4)
+
+  #   org_subdoc = _doc_section_under_headline(_charter_doc, hl_struct, _headline_indexes, embedd_factory=NerPF, render=render)
+  #   _org = detect_ners(section=org_subdoc)
+
+  org = detect_ners(section=sections['name']['body.subdoc'], render=verbose)
+  rz  = find_contraints(best_indexes, headline_indexes, _charter_doc, verbose)
+
+  #   html = render_constraint_values(rz)
+  #   display(HTML(html))
 
   return org, rz
 
 
-
-
-
-#-------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 
 # RENDER
 def render_charter_parsing_results(org, rz):
-  txt_html = to_color_text(org['tokens'], org['attention_vector'], _range=[0,1])
+  txt_html = to_color_text(org['tokens'], org['attention_vector'], _range=[0, 1])
 
-  html = '<div style="background:#eeeeff; padding:0.5em"> recognized NE(s): <br><br> org type:<h3 style="margin:0">  {} </h3>org full name:<h2 style="margin:0">  {} </h2> <br>quote: <div style="font-size:90%; background:white">{}</div> </div>'.format( org['type_name'],org['name'], txt_html )
+  html = '<div style="background:#eeeeff; padding:0.5em"> recognized NE(s): <br><br> org type:<h3 style="margin:0">  {} </h3>org full name:<h2 style="margin:0">  {} </h2> <br>quote: <div style="font-size:90%; background:white">{}</div> </div>'.format(
+    org['type_name'], org['name'], txt_html)
   # html+=txt_html
   html += render_constraint_values(rz)
 
   display(HTML(html))
-  
 
-  
-  
-#-------------------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------------------
 if dev_mode:
-
   # TESTING
-  #-------------------------------------------------------------------------------------
+  # -------------------------------------------------------------------------------------
 
-  filename = '/content/gdrive/My Drive/GazpromOil/Charters/' + 'Устав - ГПН-Транспорт_ГОСА-2018.docx'
-  org, rz = process_charter(charters[filename],  verbose=True)
+  org, rz = process_charter(TEST_CHARTER_TEXT, verbose=True)
   render_charter_parsing_results(org, rz)
+  gc.collect()
 
 """# DEMO
 
@@ -2907,6 +2755,8 @@ if upload_enabled:
   render_charter_parsing_results(org, rz)
 
 
+
+raise Exception ("You'd better stop here, dude")
 
 """# BATCH
 пакетный процессинг уставов, запись результатов в google sheets
@@ -2993,19 +2843,21 @@ def _populate_rz(rz, r, worksheet, col):
 
 """### run batch loop"""
 
+print()
 worksheet = None
 if read_docs_from_google_drive:
   if run_batch_processing:    
     sh_name = 'Charter test results'
-    worksheet = gc.open(sh_name).sheet1
+    worksheet = google_spread.open(sh_name).sheet1
 
 import sys
 import traceback
 
     
 #------------------------------------------------------------------------------
+ 
 
-
+print(f'run_batch_processing : {run_batch_processing}')
   
 if run_batch_processing:
   worksheet.update_cell(1, 1, "used CONFIG: {}:".format(str(hyperparameters)))
@@ -3038,62 +2890,38 @@ if run_batch_processing:
     txt = charters[filename]
 
     _clean()
+    
     worksheet.update_cell(the_row, col + 2, "{}: {}".format(_row, short_fn))
     worksheet.update_cell(the_row, col + 3, time.strftime("%Y-%m-%d %H:%M"))
+    
     try:      
+      
+      orginfo, rz = process_charter(txt)  
       _doc = CharterDocument(txt)  
-      _doc.right_padding = 0
-      _doc.parse()
-
-      orginfo,_,_ = detect_org_name(_doc)
+       
 
       worksheet.update_cell(the_row, col + 4, orginfo['name'])
       worksheet.update_cell(the_row, col + 5, orginfo['type_name'])
       worksheet.update_cell(the_row, col + 6, orginfo['type'])
       
       worksheet.update_cell(the_row, col +10, untokenize(orginfo['tokens']))
+                   
+      the_row+= 1
+      _clean()
 
-      
+      the_row = _populate_rz(rz, the_row, worksheet, col)
+
     except Exception as e:
-      print("Unexpected error:", sys.exc_info())
-      worksheet.update_cell( the_row, col + 4,  '-ERROR- {}'.format(e) )
-
-    the_row+= 1
-    _clean()
-
-    if search_also_for_constraints:
-      try:    
-        #         charter = CharterDocument(txt)
-#         charter.parse()
-#         charter.embedd(CharterPF)
-#         charter.calculate_distances_per_pattern(CharterPF)
-
-#         _doc = charter.subdoc(20, len(charter.tokens))
-
-        
-#         _doc.embedd(CharterPF)
-#         _doc.calculate_distances_per_pattern(CharterPF)
-#         _bounds, weights = find_charter_head_sections(_doc)
-
-#         rz = extract_constraint_values_from_bounding_boxes(_bounds, _doc)
-#         headline_indices, embedded_headlines = embedd_headlines(_doc, CharterPF)
-#         sections={}
-  
-        rz = find_contraints(_doc)
-  
-        the_row = _populate_rz(rz, the_row, worksheet, col)
-
-      except Exception as e:
-        _, _, tb = sys.exc_info()
-        traceback.print_tb(tb) # Fixed format
-        tb_info = traceback.extract_tb(tb)
-        filename, line, func, text = tb_info[-1]
+      _, _, tb = sys.exc_info()
+      traceback.print_tb(tb) # Fixed format
+      tb_info = traceback.extract_tb(tb)
+      filename, line, func, text = tb_info[-1]
 
 #         print('An error occurred on line {} in statement {}'.format(line, text))
-    
-    
-        print("Unexpected error:", sys.exc_info())
-        worksheet.update_cell(the_row, col + 10, '-ERROR- {} {} {}'.format(func, line, text,  ))
+
+
+      print("Unexpected error:", sys.exc_info())
+      worksheet.update_cell(the_row, col + 10, '-ERROR- {} {} {}'.format(func, line, text,  ))
 
     the_row += 1
     worksheet.update_cell(_row + 1, 2, the_row)

@@ -4,15 +4,31 @@ import time
 from functools import wraps
 from typing import List
 
-from doc_structure import DocumentStructure
+from doc_structure import DocumentStructure, headline_probability, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes
+from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum
 from patterns import *
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens
+from transaction_values import extract_sum_from_tokens, ValueConstraint, split_by_number, extract_sum_and_sign
 
 PROF_DATA = {}
+
+REPORTED_DEPRECATED = {}
+
+
+def deprecated(fn):
+  @wraps(fn)
+  @wraps(fn)
+  def with_reporting(*args, **kwargs):
+    if fn.__name__ not in REPORTED_DEPRECATED:
+      REPORTED_DEPRECATED[fn.__name__] = 1
+      print("----WARNING!: function {} is deprecated".format(fn.__name__))
+
+    ret = fn(*args, **kwargs)
+    return ret
+
+  return with_reporting
 
 
 def profile(fn):
@@ -134,8 +150,6 @@ class LegalDocument(EmbeddableText):
 
     return '\n'.join(sents)
 
-
-
   def preprocess_text(self, text):
     a = text
     a = normalize_text(a,
@@ -145,8 +159,6 @@ class LegalDocument(EmbeddableText):
 
     # a = self.normalize_sentences_bounds(a)
     return a
-
-
 
   def read(self, name):
     print("reading...", name)
@@ -359,8 +371,8 @@ class BasicContractDocument(LegalDocumentLowCase):
       text_right_padding=0)
     distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
-    ranges = [np.nanmin(distances_per_subj_pattern_[:-TEXT_PADDING]),
-              np.nanmax(distances_per_subj_pattern_[:-TEXT_PADDING])]
+    ranges = [np.nanmin(distances_per_subj_pattern_ ),
+              np.nanmax(distances_per_subj_pattern_ )]
 
     weight_per_pat = []
     for row in distances_per_pattern_t:
@@ -387,30 +399,7 @@ class BasicContractDocument(LegalDocumentLowCase):
 
     return ranges, winning_patterns
 
-  # TODO: remove
-  def __find_sum(self, pattern_factory):
 
-    min_i, sums_no_padding, confidence = pattern_factory.sum_pattern.find(self.embeddings, self.right_padding)
-
-    self.sums = sums_no_padding
-    sums = sums_no_padding[:-TEXT_PADDING]
-
-    meta = {
-      'tokens': len(sums),
-      'index found': min_i,
-      'd-range': (sums.min(), sums.max()),
-      'confidence': confidence,
-      'mean': sums.mean(),
-      'std': np.std(sums),
-      'min': sums[min_i],
-    }
-
-    start, end = get_sentence_bounds_at_index(min_i, self.tokens)
-    sentence_tokens = self.tokens[start + 1:end]
-
-    f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-    self.found_sum = (f, (start, end), sentence, meta)
 
   #     return
 
@@ -500,11 +489,8 @@ class CharterDocument(LegalDocument):
     LegalDocument.__init__(self, original_text)
     self.right_padding = 0
 
-
-
   def tokenize(self, _txt):
     return tokenize_text(_txt)
-
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
@@ -665,7 +651,7 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
 
   tokenized_sentences_list = []
   for i in headline_indexes:
-    line = _str[i]
+    line:StructureLine = _str[i]
 
     _len = line.span[1] - line.span[0]
     _len = min(max_len, _len)
@@ -683,3 +669,113 @@ def embedd_headlines(headline_indexes: List[int], doc: LegalDocument, factory: A
     embedded_headlines[i].calculate_distances_per_pattern(factory)
 
   return embedded_headlines
+
+
+# # @at_github
+# @deprecated
+# def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
+#
+#
+#   def number_of_leading_spaces(_tokens):
+#     c_ = 0
+#     while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
+#       c_ += 1
+#     return c_
+#
+#   lines = np.zeros(len(TCD.structure.structure))
+#
+#   prev_sentence = []
+#   prev_value = 0
+#
+#   _struct = TCD.structure.structure
+#   for i in range(len(_struct)):
+#     line = _struct[i]
+#
+#     sentence = TCD.tokens[line.span[0]: line.span[1]]
+#     sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
+#
+#     if len(sentence_cc) > 1:
+#       tr = number_of_leading_spaces(sentence)
+#       if tr > 0:
+#         sentence = sentence[tr:]
+#         sentence_cc = sentence_cc[tr:]
+#
+#     p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
+#
+#     #     if line.level == 0:
+#     #       p += 1
+#
+#     prev_sentence = sentence
+#     lines[i] = p
+#     prev_value = p
+#
+#   return lines
+
+# @deprecated
+# def highlight_doc_structure(_doc: LegalDocument):
+#   print ('-WARNING- highlight_doc_structure is deprecated')
+#   p_per_line = _estimate_headline_probability_for_each_line(_doc)
+#
+#   def local_contrast(x):
+#     blur = 2 * int(len(x) / 20.0)
+#     blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
+#     delta = relu(x - blured, 0)
+#     r = normalize(delta)
+#     return r, blured
+#
+#   max = np.max(p_per_line)
+#   result = relu(p_per_line, max / 3.0)
+#   contrasted, smoothed = local_contrast(result)
+#
+#   r = {
+#     'line_probability': p_per_line,
+#     'line_probability relu': relu(p_per_line),
+#     'accents_smooth': smoothed,
+#     'result': contrasted
+#   }
+#
+#   return r
+def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
+  ValueConstraint]:
+  regions, indexes, bounds = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
+
+  constraints = []
+  if len(indexes) > 0:
+
+    for b in bounds:
+      vc = extract_sum_and_sign(sentence_subdoc, b)
+      constraints.append(vc)
+
+  return constraints
+
+
+def make_constraints_attention_vectors(subdoc):
+  value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
+                                                                relu_th=0.4)
+  value_attention_vector = cut_above(value_attention_vector, 1)
+  value_attention_vector = relu(value_attention_vector, 0.6)
+  value_attention_vector = momentum(value_attention_vector, 0.7)
+
+  deal_attention_vector, _c2 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'd_order',
+                                                               relu_th=0.5)
+  deal_attention_vector = cut_above(deal_attention_vector, 1)
+  deal_attention_vector = momentum(deal_attention_vector, 0.993)
+
+  margin_attention_vector, _c3 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum__',
+                                                                 relu_th=0.5)
+  margin_attention_vector = cut_above(margin_attention_vector, 1)
+  margin_attention_vector = momentum(margin_attention_vector, 0.95)
+  margin_attention_vector = relu(margin_attention_vector, 0.65)
+
+  margin_value_attention_vector = relu((margin_attention_vector + value_attention_vector) / 2, 0.6)
+
+  deal_value_attention_vector = (deal_attention_vector + margin_value_attention_vector) / 2
+  deal_value_attention_vector = relu(deal_value_attention_vector, 0.75)
+
+  return {
+    'value_attention_vector': value_attention_vector,
+    'deal_attention_vector': deal_attention_vector,
+    'deal_value_attention_vector': deal_value_attention_vector,
+    'margin_attention_vector': margin_attention_vector,
+    'margin_value_attention_vector': margin_value_attention_vector
+  }

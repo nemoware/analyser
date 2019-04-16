@@ -5,6 +5,7 @@
 
 import unittest
 
+from doc_structure import remove_similar_indexes_considering_weights
 from embedding_tools import AbstractEmbedder
 from legal_docs import *
 from patterns import *
@@ -32,7 +33,6 @@ class LegalDocumentTestCase(unittest.TestCase):
 
   def test_embedd_large(self):
     point1 = [1, 6, 4]
-
     emb = FakeEmbedder(point1)
 
     ld = LegalDocument('a b c d e f g h')
@@ -105,6 +105,129 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     print(lll)
 
+  def test_remove_similar_indexes_considering_weights(self):
+    a = []
+    w = []
+
+    remove_similar_indexes_considering_weights(a,w)
+
+  def test_remove_similar_indexes_considering_weights_2(self):
+    a = [1,2]
+    w = [99,0,1,99]
+
+    r = remove_similar_indexes_considering_weights(a, w)
+    self.assertEqual(r,[2])
+
+  def test_remove_similar_indexes_considering_weights_3(self):
+    a = [1,2]
+    w = [99,1,0,99]
+
+    r = remove_similar_indexes_considering_weights(a, w)
+    self.assertEqual(r,[1])
+
+  def test_remove_similar_indexes_considering_weights_4(self):
+    a = [1,2,4]
+    w = [99,1,0,99,0]
+
+    r = remove_similar_indexes_considering_weights(a, w)
+    self.assertEqual(r,[1,4])
+
+  def test_remove_similar_indexes_considering_weights_5(self):
+    a = [1,2,4,5]
+    w = [99,1,0,99,0,1]
+
+    r = remove_similar_indexes_considering_weights(a, w)
+    self.assertEqual(r,[1,5])
+
+
+  def test_embedd_headlines(self):
+    charter_text_1 = """
+        e
+    
+        1. ЮРИДИЧЕСКИЙ содержание 4.
+        2. ЮРИДИЧЕСКИЙ СТАТУС.
+         
+        что-то
+            1. Общество является юридическим лицом согласно законодательству.
+        что-то иное 
+        3. УСТАВНЫЙ КАПИТАЛ. 
+        и более  
+        """
+    charter_text_1_ = """
+                      2. correct
+                          no number
+                          no number
+                        2.1 correct
+                        2.2 correct
+                        2.3 correct
+                          2.3.1 correct
+                          - bullet
+                          - bullet
+                      4 INcorrect (expected: 2.4)
+                          no number
+                      3. correct
+                        3.1 correct
+                          3.1.2 correct
+                            no number
+                          1.1 INcorrect
+                            no number:
+                              1) ket correct 1
+                              2) ket correct 2
+                        3.2 correct
+                      4. correct
+                        1. INcorrect (expected: 4.1)
+                        4.2 correct
+                          1) ket correct 4.4.1
+                          2) ket correct 4.2.2
+                      I correct Roman I
+                        1). ket correct
+                        2). ket correct
+                      II correct Roman II
+                        1 correct
+                        2. correct
+                          2.2 correct
+                          no number
+
+
+                    """
+    # charter_text_1 = "Заголовок"
+
+    TCD = CharterDocument(charter_text_1)
+    TCD.right_padding = 0
+    TCD.parse()
+
+
+    # TCD.structure.print_structured(TCD)
+
+    # r = highlight_doc_structure(TCD)
+    # headline_indexes = np.nonzero(r['result'])[0]
+    # print(headline_indexes)
+
+    headline_indexes2=TCD.structure.headline_indexes
+    print(headline_indexes2)
+    # --
+
+    print('-'*50,'lines len' )
+    for i in range( len(TCD.structure.structure)):
+      # l = TCD.structure.structure[i].to_string(TCD.tokens_cc)
+      # print(f'[{l}]')
+      li = TCD.structure.structure[i]
+      print( f'\t {li.level}\t #{li.number} \t--> {li._possible_levels}\t {li.subtokens(TCD.tokens_cc)}')
+
+    # print('-'*50,'headline_indexes len', len(headline_indexes))
+    # for i in headline_indexes:
+    #   l=TCD.structure.structure[i].to_string(TCD.tokens_cc)
+    #   print(f'[{l}]')
+
+    print('-'*50,'headline_indexes2 len', len(headline_indexes2))
+    for i in headline_indexes2:
+      TCD.structure.structure[i].print(TCD.tokens_cc)
+      # print(f'[{l}]')
+
+
+    # # point1 = [1, 6, 4]
+    # # emb = FakeEmbedder(point1)
+    # _embedded_headlines = embedd_headlines(headline_indexes, TCD, None)
 
 if __name__ == '__main__':
   unittest.main()
