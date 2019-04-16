@@ -138,13 +138,12 @@ def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
       currency = currencly_map[sum[1]]
     value = sum[0]
 
+  vc = ValueConstraint(value, currency, _sign)
+  return vc
+
 if __name__ == '__main__':
     print(extract_sum('\n2.1.  Общая сумма договора составляет 41752 руб. (Сорок одна тысяча семьсот пятьдесят два рубля) '
      '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'))
     print(extract_sum('эквивалентной 25 миллионам долларов сша'))
-
-
-  vc = ValueConstraint(value, currency, _sign)
-  return vc
-
+    print (extract_sum('взаимосвязанных сделок в совокупности составляет от 1000000 ( одного ) миллиона рублей до 50000000 '))
 
