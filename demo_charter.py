@@ -27,7 +27,7 @@ class CharterAnlysingContext:
     self.org = None
     self.constraints = None
 
-  def analyze_charter(self, txt, verbose=False):
+  def extract_constraint_values_from_section(self, txt, verbose=False):
     # parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
@@ -63,9 +63,9 @@ class CharterAnlysingContext:
 
     #   html = render_constraint_values(rz)
     #   display(HTML(html))
-    self.org=org
+    self.org = org
     self.constraints = rz
-    
+
     return org, rz
 
 
@@ -219,12 +219,12 @@ class CharterPatternFactory(AbstractPatternFactory):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
-    self.create_pattern('d_order_1', ('Порядок', 'одобрения сделок', 'в совершении которых имеется заинтересованность'))
-    self.create_pattern('d_order_2', ('', 'принятие решений', 'о совершении сделок'))
-    self.create_pattern('d_order_3',
-                        ('', 'одобрение заключения', 'изменения или расторжения какой-либо сделки Общества'))
-    self.create_pattern('d_order_4', ('', 'Сделки', 'стоимость которой равна или превышает'))
-    self.create_pattern('d_order_5', ('', 'Сделки', 'стоимость которой составляет менее'))
+    cp('d_order_1', ('Порядок', 'одобрения сделок', 'в совершении которых имеется заинтересованность'))
+    cp('d_order_2', ('', 'принятие решений', 'о совершении сделок'))
+    cp('d_order_3',
+       ('', 'одобрение заключения', 'изменения или расторжения какой-либо сделки Общества'))
+    cp('d_order_4', ('', 'Сделки', 'стоимость которой равна или превышает'))
+    cp('d_order_5', ('', 'Сделки', 'стоимость которой составляет менее'))
 
 
 # self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
@@ -303,7 +303,7 @@ def _detect_org_type_and_name(section, render=False):
 
   dict_org = {}
   best_type = None
-  max = 0
+  _max = 0
   for org_type in org_types.keys():
 
     vector = section.distances_per_pattern_dict[org_type] * s_attention_vector_neg
@@ -312,8 +312,8 @@ def _detect_org_type_and_name(section, render=False):
 
     idx = np.argmax(vector)
     val = section.distances_per_pattern_dict[org_type][idx]
-    if val > max:
-      max = val
+    if val > _max:
+      _max = val
       best_type = org_type
 
     dict_org[org_type] = [idx, val]
@@ -429,13 +429,13 @@ def _extract_constraint_values_from_region(sentenses_i, _embedd_factory, context
 
 
 ##---------------------------------------
-def extract_constraint_values_from_section(section, context: CharterAnlysingContext, verbose=False):
+def extract_constraint_values_from_section(section: HeadlineMeta, context: CharterAnlysingContext, verbose=False):
   _embedd_factory = context.price_factory
 
   if verbose:
-    print('extract_constraint_values_from_section', section['headline.type'])
+    print('extract_constraint_values_from_section', section.type)
 
-  body = section['body.subdoc']
+  body = section.body
 
   if verbose:
     print('extract_constraint_values_from_section', 'embedding....')
@@ -450,10 +450,10 @@ def extract_constraint_values_from_section(section, context: CharterAnlysingCont
     if verbose:
       print('-', sum, line)
 
-  hl_subdoc = section['headline.subdoc']
+  hl_subdoc = section.subdoc
 
   r_by_head_type = {
-    'section': head_types_dict[section['headline.type']],
+    'section': head_types_dict[section.type],
     'caption': untokenize(hl_subdoc.tokens_cc),
     'sentences': _extract_constraint_values_from_region(sentenses_i, _embedd_factory, render=verbose)
   }
