@@ -72,7 +72,7 @@ class AbstractEmbedder:
     for s in tokenized_sentences_list:
       s.extend([' '] * (maxlen - len(s)))
       _strings.append(s)
-      print(s)
+      # print(s)
     _strings = np.array(_strings)
 
     ## ======== call TENSORFLOW -----==================
