@@ -16,6 +16,7 @@ class ContractAnlysingContext:
 
     self.price_factory = ContractValuePatternFactory(embedder)
     self.hadlines_factory = ContractHeadlinesPatternFactory(embedder)
+    self.subj_factory = ContractSubjPatternFactory(embedder)
     self.renderer = renderer
 
     self.contract = None
@@ -325,41 +326,20 @@ class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
-    # ep = ExclusivePattern()
-    #
-    # ep.add_pattern(self.create_pattern('t_charity_1', ('договор', 'благотворительного', 'пожертвования')))  # at index 0
-    # ep.add_pattern(
-    #   self.create_pattern('t_charity_2', ('договор  о предоставлении', 'безвозмездной  помощи', 'финансовой')))
-    # ep.add_pattern(self.create_pattern('t_charity_3', ('проведение', 'благотворительных', '')))
-    # #     ep.add_pattern(self.create_pattern ('t_charity_4',('"Благотворитель" оплачивает следующий счет, выставленный на','Благополучателя', '')))
-    # ep.add_pattern(self.create_pattern('t_charity_4', ('"принимает в качестве', 'Пожертвования', '')))
-    # p1 = self.create_pattern('t_charity_5',
-    #                          ('', 'Жертвователь', 'безвозмездно передает в собственность, а Благополучатель принимает'))
-    #
-    # """
-    #
-    #
-    # Получатель принимает в качестве Пожертвования
-    #
-    # """
-    # #     p1.soft_sliding_window_borders=True
-    # ep.add_pattern(p1)
-    #
-    # ep.add_pattern(self.create_pattern('t_comm_1', (
-    # 'ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить')))
-    # p2 = self.create_pattern('t_comm_2', ('Арендодатель обязуется предоставить', 'Арендатору',
-    #                                       'за плату во временное владение и пользование недвижимое имущество '))
-    # p2.soft_sliding_window_borders = True
-    # ep.add_pattern(p2)
-    # ep.add_pattern(
-    #   self.create_pattern('t_comm_3', ('Исполнитель обязуется своими силами', 'выполнить работы', 'по разработке')))
-    #
-    # ep.add_pattern(self.create_pattern('t_comm_4', ('Исполнитель обязуется', 'оказать услуги', '')))
-    # ep.add_pattern(self.create_pattern('t_comm_5', (
-    # 'Заказчик поручает и оплачивает, а Исполнитель предоставляет ', 'услуги', 'в виде')))
-    # ep.add_pattern(self.create_pattern('t_comm_6', ('договор на оказание', 'платных', 'услуг')))
-    # ep.add_pattern(self.create_pattern('t_comm_7', ('договор', 'возмездного', 'оказания услуг')))
-    #
-    # ep.add_pattern(self.create_pattern('t_unk', ('<UNK>', 'unk', '<UNK>')))
-    #
-    # self.subject_patterns = ep
+    cp('t_charity_1', ('договор', 'благотворительного', 'пожертвования'))
+    cp('t_charity_2', ('договор  о предоставлении', 'безвозмездной  помощи', 'финансовой'))
+    cp('t_charity_3', ('проведение', 'благотворительных', ''))
+    cp('t_charity_4', ('', 'Благотворитель' ''))
+    cp('t_charity_5', ('', 'Благополучатель' ''))
+    cp('t_charity_6', ('"принимает в качестве', 'Пожертвования', ''))
+    cp('t_charity_7', ('', 'Жертвователь', 'безвозмездно передает в собственность, а Благополучатель принимает'))
+
+    cp('t_comm_1',
+       ('ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить'))
+    cp('t_comm_2', ('Арендодатель обязуется предоставить', 'Арендатору',
+                    'за плату во временное владение и пользование недвижимое имущество '))
+    cp('t_comm_3', ('Исполнитель обязуется своими силами', 'выполнить работы', 'по разработке'))
+    cp('t_comm_4', ('Исполнитель обязуется', 'оказать услуги', ''))
+    cp('t_comm_5', ('Заказчик поручает и оплачивает, а Исполнитель предоставляет ', 'услуги', 'в виде'))
+    cp('t_comm_6', ('договор на оказание', 'платных', 'услуг'))
+    cp('t_comm_7', ('договор', 'возмездного', 'оказания услуг'))

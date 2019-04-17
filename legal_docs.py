@@ -300,12 +300,7 @@ class LegalDocument(EmbeddableText):
 
     return '\n'.join(sents)
 
-  def preprocess_text(self, text):
-    a = text
-    a = normalize_text(a, replacements_regex)
 
-    # a = self.normalize_sentences_bounds(a)
-    return a
 
   def read(self, name):
     print("reading...", name)
@@ -354,8 +349,10 @@ class LegalDocument(EmbeddableText):
 
     # self.tokens = self.tokenize(self.normal_text)
     # self.tokens_cc = np.array(self.tokens)
-
     return self.tokens
+
+  def preprocess_text(self, text):
+    return normalize_text(text, replacements_regex)
 
   def embedd(self, pattern_factory):
     max_tokens = 6000

@@ -92,6 +92,7 @@ tables_regex = [
 replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 def normalize_text(_t, replacements_regex):
+    # TODO: compile re
     t = _t
     for (reg, to) in replacements_regex:
         t = re.sub(reg, to, t)
