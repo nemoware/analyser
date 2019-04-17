@@ -293,13 +293,14 @@ class ContractValuePatternFactory(AbstractPatternFactoryLowCase):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
-    suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
+    suffix = '(млн. тыс. миллионов тысяч рублей долларов копеек евро)'
     prefix = 'решений о совершении сделок '
 
     cp('_sum.work.1', ('Стоимость Работ составляет', '0 рублей', suffix))
     cp('_sum.work.2', ('Расчеты по договору. Стоимость оказываемых услуг составляет ', '0', suffix))
     cp('_sum.work.3', ('Стоимость расчетов по договору не может превышать', '0', suffix))
     cp('_sum.work.4', ('после выставления счета оплачивает сумму в размере', '0', suffix))
+    cp('_sum.work.5', ('Общая сумма договора составляет', '0', suffix))
 
     cp('sum_neg.phone', ('телефон', '00-00-00', ''))
 

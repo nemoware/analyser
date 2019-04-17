@@ -108,8 +108,8 @@ class ElmoEmbedder(AbstractEmbedder):
     self.layer_name = layer_name
     self.tf = tf
 
-    # self.session = tf.Session(config=self.config)
-    self.session = tf.Session()
+    self.session = tf.Session(config=self.config)
+    # self.session = tf.Session()
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
