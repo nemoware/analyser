@@ -135,6 +135,7 @@ def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
   currency = "UNDEF"
   value = np.nan
   if sum is not None:
+    currency = sum[1]
     if sum[1] in currencly_map:
       currency = currencly_map[sum[1]]
     value = sum[0]
