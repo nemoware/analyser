@@ -18,6 +18,16 @@ PROF_DATA = {}
 REPORTED_DEPRECATED = {}
 
 
+class HeadlineMeta:
+  def __init__(self, index, type, confidence: float, subdoc, attention_v):
+    self.index: int = index
+    self.confidence: float = confidence
+    self.type: str = type
+    self.subdoc: LegalDocument = subdoc
+    self.attention_v: List[float] = attention_v
+    self.body = None
+
+
 def deprecated(fn):
   @wraps(fn)
   @wraps(fn)
@@ -76,11 +86,57 @@ class LegalDocument(EmbeddableText):
     self.normal_text = None
     self.distances_per_pattern_dict = None
 
+    self.sections = {}
 
 
     # subdocs
     self.start = None
     self.end = None
+
+  # ----------------------------------------------------------------------------------------------
+  def find_sections_by_headlines(self, headline_metas: dict) -> dict:
+    sections = {}
+
+    for bi in headline_metas:
+      hl: HeadlineMeta = headline_metas[bi]
+
+      try:
+        hl.body = self._doc_section_under_headline(hl, render=False)
+        sections[hl.type] = hl
+
+      except ValueError as error:
+        print(error)
+
+    return sections
+
+  def _doc_section_under_headline(self, headline_info: HeadlineMeta, render=False):
+    if render:
+      print('Searching for section:', headline_info.type)
+
+    bi_next = headline_info.index + 1
+
+    headline_indexes = self.structure.headline_indexes
+
+    headline_index = self.structure.headline_indexes[headline_info.index]
+    if bi_next < len(headline_indexes):
+      headline_next_id = headline_indexes[headline_info.index + 1]
+    else:
+      headline_next_id = None
+
+    subdoc = subdoc_between_lines(headline_index, headline_next_id, self)
+    if len(subdoc.tokens) < 2:
+      raise ValueError(
+        'Empty "{}" section between headlines #{} and #{}'.format(headline_info.type, headline_index,
+                                                                  headline_next_id))
+
+    if render:
+      print('=' * 100)
+      print(headline_info.subdoc.untokenize_cc())
+      print('-' * 100)
+      print(subdoc.untokenize_cc())
+
+    return subdoc
+
 
   def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
     'LegalDocument']:
@@ -841,14 +897,6 @@ def make_constraints_attention_vectors(subdoc):
   }
 
 
-class HeadlineMeta:
-  def __init__(self, index, type, confidence: float, subdoc, attention_v):
-    self.index: int = index
-    self.confidence: float = confidence
-    self.type: str = type
-    self.subdoc: LegalDocument = subdoc
-    self.attention_v: List[float] = attention_v
-    self.body = None
 
 
 def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \

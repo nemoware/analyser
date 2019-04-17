@@ -1,6 +1,5 @@
 from typing import List
 
-from demo import  find_sections_by_headlines
 from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
   embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
   deprecated, make_soft_attention_vector, org_types
@@ -49,10 +48,10 @@ class CharterAnlysingContext:
     hl_meta_by_index = _charter_doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
 
     # 4. find sections
-    sections = find_sections_by_headlines(hl_meta_by_index, _charter_doc)
+    _charter_doc.sections = _charter_doc.find_sections_by_headlines(hl_meta_by_index)
 
-    if 'name' in sections:
-      section: HeadlineMeta = sections['name']
+    if 'name' in _charter_doc.sections:
+      section: HeadlineMeta = _charter_doc.sections['name']
       org = self.detect_ners(section.body)
     else:
       org = {
@@ -63,7 +62,7 @@ class CharterAnlysingContext:
         'attention_vector': []
       }
 
-    rz = self.find_contraints(sections)
+    rz = self.find_contraints(_charter_doc.sections)
 
     #   html = render_constraint_values(rz)
     #   display(HTML(html))

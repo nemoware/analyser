@@ -37,9 +37,16 @@ class ContractAnlysingContext:
     self.contract = doc
     self._logstep("parsing document and detecting document high-level structure")
 
+    embedded_headlines = doc.embedd_headlines(self.hadlines_factory)
+    hl_meta_by_index = doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
+    doc.sections = doc.find_sections_by_headlines(hl_meta_by_index)
 
 
-    values = self.fetch_value_from_contract(doc)
+    self._logstep("embedding headlines into semantic space")
+
+
+
+    values = self.fetch_value_from_contract(doc  )
     self._logstep("fetching transaction values")
 
     self.renderer.render_values(values)
@@ -51,34 +58,34 @@ class ContractAnlysingContext:
     print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
     self.__step+=1
 
-  def fetch_value_from_contract(self, contract: LegalDocument ):
+  def fetch_value_from_contract(self, contract: LegalDocument):
     renderer = self.renderer
-    hadlines_factory = self.hadlines_factory
+
     price_factory = self.price_factory
 
-    embedded_headlines = contract.embedd_headlines(hadlines_factory)
-    self._logstep("embedding headlines into semantic space")
 
-    if self.verbosity_level > 1:
-      print('-' * 100)
-      for eh in embedded_headlines:
-        print(eh.untokenize_cc())
 
-    hl_meta_by_index = contract.match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
+    # if self.verbosity_level > 1:
+    #   print('-' * 100)
+    #   for eh in embedded_headlines:
+    #     print(eh.untokenize_cc())
 
-    if self.verbosity_level > 1:
-      print('-' * 100)
-      for bi in hl_meta_by_index:
-        hl = hl_meta_by_index[bi]
-        t: LegalDocument = hl.subdoc
-        print(bi)
-        print('#{} \t {} \t {:.4f} \t {}'.format(hl.index, hl.type + ('.' * (14 - len(hl.type))),
-                                                 hl.confidence,
-                                                 t.untokenize_cc()
-                                                 ))
-        renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
 
-    sections = find_sections_by_headlines(hl_meta_by_index, contract)
+
+
+    # if self.verbosity_level > 1:
+    #   print('-' * 100)
+    #   for bi in hl_meta_by_index:
+    #     hl = hl_meta_by_index[bi]
+    #     t: LegalDocument = hl.subdoc
+    #     print(bi)
+    #     print('#{} \t {} \t {:.4f} \t {}'.format(hl.index, hl.type + ('.' * (14 - len(hl.type))),
+    #                                              hl.confidence,
+    #                                              t.untokenize_cc()
+    #                                              ))
+    #     renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
+
+    sections = contract.sections
 
     result: List[ValueConstraint] = []
 
@@ -255,50 +262,10 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 
 
 # ----------------------------------------------------------------------------------------------
-def _doc_section_under_headline(_doc: LegalDocument, headline_info: HeadlineMeta, render=False):
-  if render:
-    print('Searching for section:', headline_info.type)
-
-  bi_next = headline_info.index + 1
-
-  headline_indexes = _doc.structure.headline_indexes
-
-  headline_index = _doc.structure.headline_indexes[headline_info.index]
-  if bi_next < len(headline_indexes):
-    headline_next_id = headline_indexes[headline_info.index + 1]
-  else:
-    headline_next_id = None
-
-  subdoc = subdoc_between_lines(headline_index, headline_next_id, _doc)
-  if len(subdoc.tokens) < 2:
-    raise ValueError(
-      'Empty "{}" section between headlines #{} and #{}'.format(headline_info.type, headline_index,
-                                                                headline_next_id))
-
-  if render:
-    print('=' * 100)
-    print(headline_info.subdoc.untokenize_cc())
-    print('-' * 100)
-    print(subdoc.untokenize_cc())
-
-  return subdoc
 
 
-# ----------------------------------------------------------------------------------------------
-def find_sections_by_headlines(headline_metas: dict, _doc: LegalDocument) -> dict:
-  sections = {}
 
-  for bi in headline_metas:
-    hl: HeadlineMeta = headline_metas[bi]
 
-    try:
-      hl.body = _doc_section_under_headline(_doc, hl, render=False)
-      sections[hl.type] = hl
-
-    except ValueError as error:
-      print(error)
-
-  return sections
 
 
 def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List:
@@ -345,3 +312,70 @@ class ContractDocument2(LegalDocument):
 
 
 # self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
+
+
+class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
+
+  def __init__(self, embedder):
+    AbstractPatternFactoryLowCase.__init__(self, embedder)
+    self._build_subject_patterns()
+    self.embedd()
+
+
+  def _build_subject_patterns(self):
+    def cp(name, tuples):
+      return self.create_pattern(name, tuples)
+
+
+    # ep = ExclusivePattern()
+    #
+    # ep.add_pattern(self.create_pattern('t_charity_1', ('договор', 'благотворительного', 'пожертвования')))  # at index 0
+    # ep.add_pattern(
+    #   self.create_pattern('t_charity_2', ('договор  о предоставлении', 'безвозмездной  помощи', 'финансовой')))
+    # ep.add_pattern(self.create_pattern('t_charity_3', ('проведение', 'благотворительных', '')))
+    # #     ep.add_pattern(self.create_pattern ('t_charity_4',('"Благотворитель" оплачивает следующий счет, выставленный на','Благополучателя', '')))
+    # ep.add_pattern(self.create_pattern('t_charity_4', ('"принимает в качестве', 'Пожертвования', '')))
+    # p1 = self.create_pattern('t_charity_5',
+    #                          ('', 'Жертвователь', 'безвозмездно передает в собственность, а Благополучатель принимает'))
+    #
+    # """
+    #
+    #
+    # Получатель принимает в качестве Пожертвования
+    #
+    # """
+    # #     p1.soft_sliding_window_borders=True
+    # ep.add_pattern(p1)
+    #
+    # ep.add_pattern(self.create_pattern('t_comm_1', (
+    # 'ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить')))
+    # p2 = self.create_pattern('t_comm_2', ('Арендодатель обязуется предоставить', 'Арендатору',
+    #                                       'за плату во временное владение и пользование недвижимое имущество '))
+    # p2.soft_sliding_window_borders = True
+    # ep.add_pattern(p2)
+    # ep.add_pattern(
+    #   self.create_pattern('t_comm_3', ('Исполнитель обязуется своими силами', 'выполнить работы', 'по разработке')))
+    #
+    # ep.add_pattern(self.create_pattern('t_comm_4', ('Исполнитель обязуется', 'оказать услуги', '')))
+    # ep.add_pattern(self.create_pattern('t_comm_5', (
+    # 'Заказчик поручает и оплачивает, а Исполнитель предоставляет ', 'услуги', 'в виде')))
+    # ep.add_pattern(self.create_pattern('t_comm_6', ('договор на оказание', 'платных', 'услуг')))
+    # ep.add_pattern(self.create_pattern('t_comm_7', ('договор', 'возмездного', 'оказания услуг')))
+    #
+    # ep.add_pattern(self.create_pattern('t_unk', ('<UNK>', 'unk', '<UNK>')))
+    #
+    # self.subject_patterns = ep
+
+
+
+
+
+
+
+
+
+
+
+
+
+
