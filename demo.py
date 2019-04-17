@@ -1,3 +1,9 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
+
+
 from legal_docs import LegalDocument
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
@@ -330,8 +336,8 @@ class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
                        'благотворительного',
                        'пожертвования'))
 
-    cp('t_charity_2', ('договор  о предоставлении',
-                       'безвозмездной  помощи',
+    cp('t_charity_2', ('договор о предоставлении',
+                       'безвозмездной помощи',
                        'финансовой'))
 
     cp('t_charity_3', ('проведение',
