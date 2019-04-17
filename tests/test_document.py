@@ -147,6 +147,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
     ctx = ContractAnlysingContext(emb, SilentRenderer())
+    ctx.analyze_contract("1. ЮРИДИЧЕСКИЙ содержание 4.")
 
   def test_embedd_headlines_1(self):
     from renderer import SilentRenderer

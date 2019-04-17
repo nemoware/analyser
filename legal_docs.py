@@ -2,7 +2,6 @@
 
 import time
 from functools import wraps
-from typing import List
 
 from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
@@ -16,6 +15,8 @@ from transaction_values import extract_sum_from_tokens, ValueConstraint, split_b
 PROF_DATA = {}
 
 REPORTED_DEPRECATED = {}
+
+import gc
 
 
 class HeadlineMeta:
@@ -137,7 +138,6 @@ class LegalDocument(EmbeddableText):
 
     return subdoc
 
-
   def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
     'LegalDocument']:
 
@@ -157,7 +157,6 @@ class LegalDocument(EmbeddableText):
 
       subdoc = self.subdoc(line.span[0], line.span[0] + _len)
 
-
       tokenized_sentences_list.append(subdoc.tokens)
       embedded_headlines.append(subdoc)
 
@@ -169,7 +168,8 @@ class LegalDocument(EmbeddableText):
 
     return embedded_headlines
 
-  def _find_best_headline_by_pattern_prefix(self, embedded_headlines:List['LegalDocument'], pattern_prefix:str, threshold):
+  def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
+                                            threshold):
 
     import math
     confidence_by_headline = []
@@ -216,7 +216,7 @@ class LegalDocument(EmbeddableText):
           # replace
           e_obj = hl_meta_by_index[bi]
           if e_obj.confidence < obj.confidence:
-            #replace
+            # replace
             hl_meta_by_index[bi] = obj
         else:
           hl_meta_by_index[bi] = obj
@@ -275,7 +275,6 @@ class LegalDocument(EmbeddableText):
     sub.start = start
     sub.end = end
 
-
     if self.embeddings is not None:
       sub.embeddings = self.embeddings[start:end]
 
@@ -299,8 +298,6 @@ class LegalDocument(EmbeddableText):
       s.replace('\n', ' ')
 
     return '\n'.join(sents)
-
-
 
   def read(self, name):
     print("reading...", name)
@@ -353,6 +350,12 @@ class LegalDocument(EmbeddableText):
 
   def preprocess_text(self, text):
     return normalize_text(text, replacements_regex)
+
+  def reset_embeddings(self):
+
+    del self.embeddings
+    self.embeddings = None
+    gc.collect()
 
   def embedd(self, pattern_factory):
     max_tokens = 6000
@@ -510,7 +513,7 @@ class BasicContractDocument(LegalDocumentLowCase):
     head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
 
     distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
-      self.embeddings )
+      self.embeddings)
     distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
 
     ranges = [np.nanmin(distances_per_subj_pattern_),
@@ -569,7 +572,6 @@ class ProtocolDocument(LegalDocumentLowCase):
     mask = mask_sections(section_name_to_weight_dict, self)
     mask += 0.5
 
-
     mask = smooth(mask, window_len=12)
     return mask
 
@@ -626,7 +628,6 @@ def mask_sections(section_name_to_weight_dict, doc):
 class CharterDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
-
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
@@ -892,8 +893,6 @@ def make_constraints_attention_vectors(subdoc):
     'margin_attention_vector': margin_attention_vector,
     'margin_value_attention_vector': margin_value_attention_vector
   }
-
-
 
 
 def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \

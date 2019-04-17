@@ -3,7 +3,6 @@
 # coding=utf-8
 
 
-
 from legal_docs import LegalDocument
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
@@ -11,6 +10,14 @@ from ml_tools import *
 from patterns import AbstractPatternFactoryLowCase
 from renderer import AbstractRenderer
 from transaction_values import ValueConstraint
+
+subject_types = {
+  'charity': 'благ-ость'.upper(),
+  'comm': 'грязный коммерс'.upper(),
+  'comm_estate': 'недвижуха'.upper(),
+  'comm_service': 'наказание услуг'.upper()
+}
+subject_types_dict = {**subject_types, **{'unknown': 'предмет не ясен'}}
 
 
 class ContractAnlysingContext:
@@ -50,11 +57,58 @@ class ContractAnlysingContext:
     self._logstep("embedding headlines into semantic space")
 
     values = self.fetch_value_from_contract(doc)
+    doc.subject = self.recognize_subject(doc)
     self._logstep("fetching transaction values")
 
     self.renderer.render_values(values)
     self.contract_values = values
     return doc, values
+
+  def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
+    r = {}
+    for subj_types_prefix in subj_types_prefixes:
+      attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, subj_types_prefix)
+      r[subj_types_prefix + 'attention_vector'] = attention_vector
+      attention_vector_l = relu(attention_vector, 0.6)
+      r[subj_types_prefix + 'attention_vector_l'] = attention_vector_l
+
+    return r
+
+  def recognize_subject(self, doc):
+
+    if 'subj' in doc.sections:
+      subj_section = doc.sections['subj']
+
+      subj_ = subj_section.body
+
+      # ===================
+      subj_.embedd(self.subj_factory)
+      subj_.calculate_distances_per_pattern(self.subj_factory)
+      subj_.reset_embeddings()
+      prefixes = [f't_{st}_' for st in subject_types]
+      r = self.make_subj_attention_vectors(subj_, prefixes)
+
+      interresting_vectors = [r[f't_{st}_attention_vector_l'] for st in subject_types]
+
+      interresting_vectors_means = [np.nanmean(x) for x in interresting_vectors]
+      interresting_vectors_maxes = [np.nanmax(x) for x in interresting_vectors]
+
+      winner_id = np.argmax(interresting_vectors_means)
+
+      winner_t = prefixes[winner_id][2:-1]
+
+      confidence = interresting_vectors_maxes[winner_id]
+      if confidence < 0.3:
+        winner_t = 'unknown'
+
+      return winner_t, confidence
+
+
+    else:
+      print('⚠️ раздел о предмете договора не найден')
+      return 'unknown'
+
+    return 'unknown'
 
   def _logstep(self, name):
     s = self.__step
@@ -307,6 +361,7 @@ def filter_nans(vcs):
 class ContractDocument2(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
+    self.subject = ('unknown', 1.0)
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
@@ -358,16 +413,16 @@ class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
     cp('t_comm_1',
        ('ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить'))
     cp('t_comm_estate_2', ('Арендодатель обязуется предоставить',
-                    'Арендатору',
-                    'за плату во временное владение и пользование недвижимое имущество '))
+                           'Арендатору',
+                           'за плату во временное владение и пользование недвижимое имущество '))
 
     cp('t_comm_service_3', ('Исполнитель обязуется своими силами',
-                    'выполнить работы',
-                    'по разработке'))
+                            'выполнить работы',
+                            'по разработке'))
 
     cp('t_comm_service_4', ('Исполнитель обязуется',
-                    'оказать услуги',
-                    ''))
+                            'оказать услуги',
+                            ''))
 
     cp('t_comm_service_5', ('Заказчик поручает и оплачивает, а Исполнитель предоставляет ', 'услуги', 'в виде'))
     cp('t_comm_service_6', ('договор на оказание', 'платных', 'услуг'))
