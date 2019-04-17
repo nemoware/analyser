@@ -34,11 +34,13 @@ class ContractAnlysingContext:
     """
     doc = ContractDocument2(contract_text)
     doc.parse()
+    self.contract = doc
     self._logstep("parsing document and detecting document high-level structure")
 
-    self.contract = doc
 
-    values = fetch_value_from_contract(doc, self)
+
+    values = self.fetch_value_from_contract(doc)
+    self._logstep("fetching transaction values")
 
     self.renderer.render_values(values)
     self.contract_values = values
@@ -48,6 +50,76 @@ class ContractAnlysingContext:
     s = self.__step
     print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
     self.__step+=1
+
+  def fetch_value_from_contract(self, contract: LegalDocument ):
+    renderer = self.renderer
+    hadlines_factory = self.hadlines_factory
+    price_factory = self.price_factory
+
+    embedded_headlines = contract.embedd_headlines(hadlines_factory)
+    self._logstep("embedding headlines into semantic space")
+
+    if self.verbosity_level > 1:
+      print('-' * 100)
+      for eh in embedded_headlines:
+        print(eh.untokenize_cc())
+
+    hl_meta_by_index = contract.match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
+
+    if self.verbosity_level > 1:
+      print('-' * 100)
+      for bi in hl_meta_by_index:
+        hl = hl_meta_by_index[bi]
+        t: LegalDocument = hl.subdoc
+        print(bi)
+        print('#{} \t {} \t {:.4f} \t {}'.format(hl.index, hl.type + ('.' * (14 - len(hl.type))),
+                                                 hl.confidence,
+                                                 t.untokenize_cc()
+                                                 ))
+        renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
+
+    sections = find_sections_by_headlines(hl_meta_by_index, contract)
+
+    result: List[ValueConstraint] = []
+
+    if 'price.' in sections:
+      value_section_info = sections['price.']
+      value_section = value_section_info.body
+      section_name = value_section_info.subdoc.untokenize_cc()
+      result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+      if len(result) == 0:
+        print(f'-WARNING: В разделе "{ section_name }" стоимость сделки не найдена!')
+      if self.verbosity_level > 1:
+        renderer.render_value_section_details(value_section_info)
+        self._logstep(f'searching for transaction values in section  "{ section_name }"')
+    else:
+      print('-WARNING: Раздел про стоимость сделки не найдена!')
+
+    if len(result) == 0:
+      if 'pricecond' in sections:
+
+        # fallback
+        value_section_info = sections['pricecond']
+        value_section = value_section_info.body
+        section_name = value_section_info.subdoc.untokenize_cc()
+        print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
+        result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+        if self.verbosity_level > 0:
+          print('alt price section DOC', '-' * 70)
+          renderer.render_value_section_details(value_section_info)
+          self._logstep(f'searching for transaction values in section  "{ section_name }"')
+    if len(result) == 0:
+      print('-WARNING: Ищем стоимость во всем документе!')
+
+      #     trying to find sum in the entire doc
+      value_section = contract
+      result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+      if self.verbosity_level > 1:
+        print('ENTIRE DOC', '--' * 70)
+        self._logstep(f'searching for transaction values in the entire document')
+    #       render_value_section_details(value_section)
+
+    return result
 
 
 class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
@@ -256,75 +328,7 @@ def filter_nans(vcs):
   return r
 
 
-def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysingContext):
-  renderer = context.renderer
-  hadlines_factory = context.hadlines_factory
-  price_factory = context.price_factory
 
-  embedded_headlines = contract.embedd_headlines(hadlines_factory)
-  context._logstep("embedding headlines into semantic space")
-
-  if context.verbosity_level > 1:
-    print('-' * 100)
-    for eh in embedded_headlines:
-      print(eh.untokenize_cc())
-
-  hl_meta_by_index = contract.match_headline_types(hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
-
-  if context.verbosity_level > 1:
-    print('-' * 100)
-    for bi in hl_meta_by_index:
-      hl = hl_meta_by_index[bi]
-      t: LegalDocument = hl.subdoc
-      print(bi)
-      print('#{} \t {} \t {:.4f} \t {}'.format(hl.index, hl.type + ('.' * (14 - len(hl.type))),
-                                               hl.confidence,
-                                               t.untokenize_cc()
-                                               ))
-      renderer.render_color_text(t.tokens_cc, hl.attention_v, _range=[0, 2])
-
-  sections = find_sections_by_headlines(hl_meta_by_index, contract)
-
-  result: List[ValueConstraint] = []
-
-  if 'price.' in sections:
-    value_section_info = sections['price.']
-    value_section = value_section_info.body
-    section_name = value_section_info.subdoc.untokenize_cc()
-    result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
-    if len(result) == 0:
-      print(f'-WARNING: В разделе "{ section_name }" стоимость сделки не найдена!')
-    if context.verbosity_level > 1:
-      renderer.render_value_section_details(value_section_info)
-    context._logstep(f'searching for transaction values in section  "{ section_name }"')
-  else:
-    print('-WARNING: Раздел про стоимость сделки не найдена!')
-
-  if len(result) == 0:
-    if 'pricecond' in sections:
-
-      # fallback
-      value_section_info = sections['pricecond']
-      value_section = value_section_info.body
-      section_name = value_section_info.subdoc.untokenize_cc()
-      print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
-      result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
-      if context.verbosity_level > 0:
-        print('alt price section DOC', '-' * 70)
-        renderer.render_value_section_details(value_section_info)
-      context._logstep(f'searching for transaction values in section  "{ section_name }"')
-  if len(result) == 0:
-    print('-WARNING: Ищем стоимость во всем документе!')
-
-    #     trying to find sum in the entire doc
-    value_section = contract
-    result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
-    if context.verbosity_level > 1:
-      print('ENTIRE DOC', '--' * 70)
-    context._logstep(f'searching for transaction values in the entire document')
-  #       render_value_section_details(value_section)
-
-  return result
 
 
 class ContractDocument2(LegalDocument):

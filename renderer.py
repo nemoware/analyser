@@ -1,3 +1,5 @@
+from typing import List
+
 from transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
@@ -11,6 +13,11 @@ head_types_colors = {'head.directors': 'crimson',
 class AbstractRenderer:
 
   def sign_to_text(self, sign: int):
+    if sign < 0: return " < "
+    if sign > 0: return " > "
+    return ' = '
+
+  def sign_to_html(self, sign: int):
     if sign < 0: return " &lt; "
     if sign > 0: return " &gt; "
     return ' = '
@@ -22,7 +29,7 @@ class AbstractRenderer:
     elif vc.sign < 0:
       color = '#009933'
 
-    return f'<b style="color:{color}">{sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}</b> '
+    return f'<b style="color:{color}">{self.sign_to_html(vc.sign)} {vc.currency} {vc.value:20,.2f}</b> '
 
   def render_value_section_details(self, value_section_info):
     pass
@@ -36,8 +43,10 @@ class AbstractRenderer:
   def print_results(self, doc, results):
     raise NotImplementedError()
 
-  def render_values(self, values):
-    pass
+  def render_values(self, values:List[ValueConstraint]):
+    for vc in values:
+      s = f'{self.sign_to_text(vc.sign)} \t {vc.currency} \t {vc.value:20,.2f} '
+      print(s)
 
 
 class SilentRenderer(AbstractRenderer):
