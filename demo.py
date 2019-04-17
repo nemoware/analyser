@@ -93,7 +93,7 @@ class ContractAnlysingContext:
       interresting_vectors_means = [np.nanmean(x) for x in interresting_vectors]
       interresting_vectors_maxes = [np.nanmax(x) for x in interresting_vectors]
 
-      winner_id = np.argmax(interresting_vectors_means)
+      winner_id = int(np.argmax(interresting_vectors_means))
 
       winner_t = prefixes[winner_id][2:-1]
 
@@ -106,9 +106,7 @@ class ContractAnlysingContext:
 
     else:
       print('⚠️ раздел о предмете договора не найден')
-      return 'unknown'
-
-    return 'unknown'
+      return ('unknown', 0)
 
   def _logstep(self, name):
     s = self.__step
@@ -142,7 +140,7 @@ class ContractAnlysingContext:
     result: List[ValueConstraint] = []
 
     if 'price.' in sections:
-      value_section_info:HeadlineMeta = sections['price.']
+      value_section_info: HeadlineMeta = sections['price.']
       value_section = value_section_info.body
       section_name = value_section_info.subdoc.untokenize_cc()
       result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
@@ -151,8 +149,8 @@ class ContractAnlysingContext:
       if self.verbosity_level > 1:
         renderer.render_value_section_details(value_section_info)
         self._logstep(f'searching for transaction values in section  "{ section_name }"')
-        #------------
-        value_section.reset_embeddings() #careful with this. Hope, we will not be required to search here
+        # ------------
+        value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
     else:
       print('-WARNING: Раздел про стоимость сделки не найдена!')
 
