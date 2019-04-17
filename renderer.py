@@ -1,5 +1,6 @@
 from typing import List
 
+from ml_tools import ProbableValue
 from transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
@@ -43,9 +44,10 @@ class AbstractRenderer:
   def print_results(self, doc, results):
     raise NotImplementedError()
 
-  def render_values(self, values:List[ValueConstraint]):
-    for vc in values:
-      s = f'{self.sign_to_text(vc.sign)} \t {vc.currency} \t {vc.value:20,.2f} '
+  def render_values(self, values: List[ProbableValue]):
+    for pv in values:
+      vc = pv.value
+      s = f'{self.sign_to_text(vc.sign)} \t {vc.currency} \t {vc.value:20,.2f} \t {pv.confidence:20,.2f} '
       print(s)
 
   def render_contents(self, doc):

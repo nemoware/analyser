@@ -5,7 +5,8 @@ from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum
+from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
+  ProbableValue
 from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
@@ -848,16 +849,18 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 #
 #   return r
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
-  ValueConstraint]:
-  regions, indexes, bounds = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
+  ProbableValue]:
+  text_fragments, indexes, ranges = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
 
-  constraints = []
+  constraints:List[ProbableValue] = []
   if len(indexes) > 0:
 
-    for b in bounds:
-      vc = extract_sum_and_sign(sentence_subdoc, b)
+    for region in ranges:
+      confidence=attention_vector[region[0]]
+      vc = extract_sum_and_sign(sentence_subdoc, region, confidence)
+      pv = ProbableValue(vc, confidence)
 
-      constraints.append(vc)
+      constraints.append(pv)
 
   return constraints
 

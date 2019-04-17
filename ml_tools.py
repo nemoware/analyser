@@ -3,6 +3,12 @@ from typing import List
 import numpy as np
 
 
+class ProbableValue:
+  def __init__(self, value, confidence:float):
+    self.confidence: float = confidence
+    self.value = value
+
+
 def split_by_token(tokens: List[str], token):
   res = []
   sentence = []

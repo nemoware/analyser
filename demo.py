@@ -114,7 +114,16 @@ class ContractAnlysingContext:
     print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
     self.__step += 1
 
-  def fetch_value_from_contract(self, contract: LegalDocument):
+  def fetch_value_from_contract(self, contract: LegalDocument)-> List[ProbableValue]:
+
+    def filter_nans(vcs: List[ProbableValue])-> List[ProbableValue]:
+      r:List[ProbableValue] = []
+      for vc in vcs:
+        if vc.value is not None and not np.isnan(vc.value.value):
+          r.append(vc)
+      return r
+
+
     renderer = self.renderer
 
     price_factory = self.price_factory
@@ -163,7 +172,12 @@ class ContractAnlysingContext:
         value_section = value_section_info.body
         section_name = value_section_info.subdoc.untokenize_cc()
         print(f'-WARNING: Ищем стоимость в разделе { section_name }')
-        result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+        result:List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+
+        #decrease confidence:
+        for _r in result:
+          _r.confidence *= 0.7
+
         if self.verbosity_level > 0:
           print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
@@ -177,12 +191,14 @@ class ContractAnlysingContext:
         value_section = value_section_info.body
         section_name = value_section_info.subdoc.untokenize_cc()
         print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
-        result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
         if self.verbosity_level > 0:
           print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
           self._logstep(f'searching for transaction values in section  "{ section_name }"')
         # ------------
+        for _r in result:
+          _r.confidence *= 0.7
         value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
 
     if len(result) == 0:
@@ -190,11 +206,14 @@ class ContractAnlysingContext:
 
       #     trying to find sum in the entire doc
       value_section = contract
-      result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+      result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
       if self.verbosity_level > 1:
         print('ENTIRE DOC', '--' * 70)
         self._logstep(f'searching for transaction values in the entire document')
       # ------------
+      # decrease confidence:
+      for _r in result:
+        _r.confidence *= 0.6
       value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
 
     return result
@@ -335,7 +354,7 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 # ----------------------------------------------------------------------------------------------
 
 
-def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List:
+def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List[ProbableValue]:
   value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
 
@@ -345,7 +364,7 @@ def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: Cont
 
   value_section.distances_per_pattern_dict = {**value_section.distances_per_pattern_dict, **vectors}
 
-  values: List[ValueConstraint] = extract_all_contraints_from_sentence(value_section,
+  values: List[ProbableValue] = extract_all_contraints_from_sentence(value_section,
                                                                        value_section.distances_per_pattern_dict[
                                                                          'value_attention_vector_tuned'])
 
@@ -354,19 +373,14 @@ def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: Cont
 
 # ----------------------------------
 
-def filter_nans(vcs):
-  r = []
-  for vc in vcs:
-    if not np.isnan(vc.value):
-      r.append(vc)
-  return r
+
 
 
 class ContractDocument2(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
     self.subject = ('unknown', 1.0)
-    self.contract_values = []
+    self.contract_values = [ProbableValue]
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)

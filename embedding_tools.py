@@ -1,3 +1,5 @@
+from abc import abstractmethod
+
 from text_tools import *
 
 
@@ -26,15 +28,16 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
 
 class AbstractEmbedder:
 
-  # @abstractmethod
+  @abstractmethod
   def get_embedding_tensor(self, tokenized_sentences_list):
     pass
 
+  @abstractmethod
   def embedd_tokenized_text(self, words, lens):
     pass
 
-  def embedd_sentence(self, str):
-    words = tokenize_text(str)
+  def embedd_sentence(self, _str):
+    words = tokenize_text(_str)
     return self.embedd_tokenized_text([words], [len(words)])
 
   def embedd_contextualized_patterns(self, patterns):

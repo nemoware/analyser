@@ -10,6 +10,7 @@ import re
 import math
 from typing import List
 
+from ml_tools import ProbableValue
 from text_tools import np
 from text_tools import to_float, untokenize
 
@@ -106,25 +107,25 @@ def split_by_number(tokens: List[str], attention: List[float], threshold):
     else:
       last_token_is_number = False
 
-  regions = []
-  bounds = []
+  text_fragments = []
+  ranges = []
   if len(indexes) > 0:
     for i in range(1, len(indexes)):
       s = indexes[i - 1]
       e = indexes[i]
-      regions.append(tokens[s:e])
-      bounds.append((s, e))
+      text_fragments.append(tokens[s:e])
+      ranges.append((s, e))
 
-    regions.append(tokens[indexes[-1]:])
-    bounds.append((indexes[-1], len(tokens)))
-  return regions, indexes, bounds
+    text_fragments.append(tokens[indexes[-1]:])
+    ranges.append((indexes[-1], len(tokens)))
+  return text_fragments, indexes, ranges
 
 
 VALUE_SIGN_MIN_TOKENS = 4
 
 
-def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
-  subtokens = subdoc.tokens_cc[b[0] - VALUE_SIGN_MIN_TOKENS:b[1]]
+def extract_sum_and_sign(subdoc, region) -> ValueConstraint:
+  subtokens = subdoc.tokens_cc[region[0] - VALUE_SIGN_MIN_TOKENS:region[1]]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
   _prefix = untokenize(_prefix_tokens)
   _sign = detect_sign(_prefix)
@@ -141,6 +142,8 @@ def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
     value = sum[0]
 
   vc = ValueConstraint(value, currency, _sign)
+
+
   return vc
 
 
