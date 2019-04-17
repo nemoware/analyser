@@ -435,7 +435,7 @@ class ContractDocument(LegalDocumentLowCase):
     LegalDocumentLowCase.__init__(self, original_text)
 
 
-def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
+def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th:float=0.0):
   c = 0
   sum = None
 
@@ -453,7 +453,7 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=
 
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
   #     print('mean_by_pattern_prefix', prefix, relu_th)
-  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0)
+  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
   return normalize(sum)
 
 

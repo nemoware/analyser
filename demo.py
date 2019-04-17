@@ -109,7 +109,7 @@ class ContractAnlysingContext:
       print('⚠️ раздел о предмете договора не найден')
       return ('unknown', 0)
 
-  def _logstep(self, name):
+  def _logstep(self, name: str) -> None:
     s = self.__step
     print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
     self.__step += 1
@@ -377,7 +377,7 @@ def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: Cont
 
 
 class ContractDocument2(LegalDocument):
-  def __init__(self, original_text):
+  def __init__(self, original_text: str):
     LegalDocument.__init__(self, original_text)
     self.subject = ('unknown', 1.0)
     self.contract_values = [ProbableValue]
