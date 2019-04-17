@@ -3,7 +3,7 @@
 # coding=utf-8
 
 
-from legal_docs import LegalDocument
+from legal_docs import LegalDocument, HeadlineMeta
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
 from ml_tools import *
@@ -142,7 +142,7 @@ class ContractAnlysingContext:
     result: List[ValueConstraint] = []
 
     if 'price.' in sections:
-      value_section_info = sections['price.']
+      value_section_info:HeadlineMeta = sections['price.']
       value_section = value_section_info.body
       section_name = value_section_info.subdoc.untokenize_cc()
       result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
@@ -151,6 +151,8 @@ class ContractAnlysingContext:
       if self.verbosity_level > 1:
         renderer.render_value_section_details(value_section_info)
         self._logstep(f'searching for transaction values in section  "{ section_name }"')
+        #------------
+        value_section.reset_embeddings() #careful with this. Hope, we will not be required to search here
     else:
       print('-WARNING: Раздел про стоимость сделки не найдена!')
 
@@ -181,6 +183,8 @@ class ContractAnlysingContext:
           print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
           self._logstep(f'searching for transaction values in section  "{ section_name }"')
+        # ------------
+        value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
 
     if len(result) == 0:
       print('-WARNING: Ищем стоимость во всем документе!')
@@ -191,7 +195,8 @@ class ContractAnlysingContext:
       if self.verbosity_level > 1:
         print('ENTIRE DOC', '--' * 70)
         self._logstep(f'searching for transaction values in the entire document')
-    #       render_value_section_details(value_section)
+      # ------------
+      value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
 
     return result
 

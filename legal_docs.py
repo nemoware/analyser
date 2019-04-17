@@ -26,7 +26,7 @@ class HeadlineMeta:
     self.type: str = type
     self.subdoc: LegalDocument = subdoc
     self.attention_v: List[float] = attention_v
-    self.body = None
+    self.body:LegalDocument = None
 
 
 def deprecated(fn):
