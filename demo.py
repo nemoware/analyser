@@ -62,6 +62,7 @@ class ContractAnlysingContext:
 
     self.renderer.render_values(values)
     self.contract_values = values
+    doc.contract_values = values
     return doc, values
 
   def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
@@ -365,6 +366,7 @@ class ContractDocument2(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
     self.subject = ('unknown', 1.0)
+    self.contract_values = []
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
