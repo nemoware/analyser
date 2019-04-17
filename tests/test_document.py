@@ -150,6 +150,9 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
 
+    ctx._logstep("analyze_charter")
+    ctx._logstep("analyze_charter 2")
+
 
   def test_embedd_headlines(self):
     charter_text_1 = """

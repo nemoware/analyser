@@ -15,7 +15,7 @@ class CharterAnlysingContext:
   def __init__(self, embedder, renderer: AbstractRenderer):
     assert embedder is not None
     assert renderer is not None
-
+    self.__step=0
     self.verbosity_level = 2
     
     self.price_factory = CharterConstraintsPatternFactory(embedder)
@@ -27,7 +27,14 @@ class CharterAnlysingContext:
     self.constraints = None
     self.doc = None
 
+  def _logstep(self, name):
+    s = self.__step
+    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
+    self.__step+=1
+
+
   def analyze_charter(self, txt, verbose=False):
+    self.__step = 0
     # parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0

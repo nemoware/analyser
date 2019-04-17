@@ -21,9 +21,20 @@ class ContractAnlysingContext:
     self.contract = None
     self.contract_values = None
 
+    self.__step = 0
+
+
   def analyze_contract(self, contract_text):
+    self.__step = 0
+    """
+    MAIN METHOD
+    
+    :param contract_text: 
+    :return: 
+    """
     doc = ContractDocument2(contract_text)
     doc.parse()
+    self._logstep("parsing document and detecting document high-level structure")
 
     self.contract = doc
 
@@ -32,6 +43,11 @@ class ContractAnlysingContext:
     self.renderer.render_values(values)
     self.contract_values = values
     return doc, values
+
+  def _logstep(self, name):
+    s = self.__step
+    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
+    self.__step+=1
 
 
 class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
@@ -217,6 +233,8 @@ def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: Cont
   value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
 
+  # context._logstep(f'embedding for transaction values in section  "{ section_name }"')
+
   vectors = factory.make_contract_value_attention_vectors(value_section)
 
   value_section.distances_per_pattern_dict = {**value_section.distances_per_pattern_dict, **vectors}
@@ -244,6 +262,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
   price_factory = context.price_factory
 
   embedded_headlines = contract.embedd_headlines(hadlines_factory)
+  context._logstep("embedding headlines into semantic space")
 
   if context.verbosity_level > 1:
     print('-' * 100)
@@ -277,6 +296,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
       print(f'-WARNING: В разделе "{ section_name }" стоимость сделки не найдена!')
     if context.verbosity_level > 1:
       renderer.render_value_section_details(value_section_info)
+    context._logstep(f'searching for transaction values in section  "{ section_name }"')
   else:
     print('-WARNING: Раздел про стоимость сделки не найдена!')
 
@@ -292,7 +312,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
       if context.verbosity_level > 0:
         print('alt price section DOC', '-' * 70)
         renderer.render_value_section_details(value_section_info)
-
+    context._logstep(f'searching for transaction values in section  "{ section_name }"')
   if len(result) == 0:
     print('-WARNING: Ищем стоимость во всем документе!')
 
@@ -301,6 +321,7 @@ def fetch_value_from_contract(contract: LegalDocument, context: ContractAnlysing
     result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
     if context.verbosity_level > 1:
       print('ENTIRE DOC', '--' * 70)
+    context._logstep(f'searching for transaction values in the entire document  "{ section_name }"')
   #       render_value_section_details(value_section)
 
   return result
