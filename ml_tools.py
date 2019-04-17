@@ -16,6 +16,7 @@ def split_by_token(tokens: List[str], token):
   res.append(sentence)
   return res
 
+
 def estimate_threshold(a, min_th=0.3):
   return max(min_th, np.max(a) * 0.7)
 
@@ -24,7 +25,7 @@ def normalize(x, out_range=(0, 1)):
   domain = np.min(x), np.max(x)
   if (domain[1] - domain[0]) == 0:
     # all same
-    return np.full( len(x), out_range[0] )
+    return np.full(len(x), out_range[0])
     # raise ValueError('all elements are same')
 
   y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
@@ -34,13 +35,12 @@ def normalize(x, out_range=(0, 1)):
 def smooth_safe(x, window_len=10, window='hanning'):
   _blur = int(min(window_len, 2 + len(x) / 3.0))
   _blur = int(_blur / 2) * 2
-  if(_blur>(len(x))):
+  if (_blur > (len(x))):
     return x
   return smooth(x, window_len=_blur, window=window)
 
 
 def smooth(x, window_len=11, window='hanning'):
-
   """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
@@ -99,8 +99,6 @@ def smooth(x, window_len=11, window='hanning'):
 
 
 def relu(x, relu_th=0):
-
-
   assert type(x) is np.ndarray
 
   relu = x * (x > relu_th)
@@ -223,3 +221,18 @@ def remove_similar_indexes(indexes, min_section_size=20):
 
 def cut_above(x, threshold):
   return threshold + relu(x * -1 + threshold) * -1
+
+
+def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
+  _sum = None
+
+  for p in distances_per_pattern_dict:
+    if p.startswith(prefix):
+      x = distances_per_pattern_dict[p]
+
+      if _sum is None:
+        _sum = np.zeros(len(x))
+
+      _sum = np.maximum(_sum, x)
+
+  return _sum
