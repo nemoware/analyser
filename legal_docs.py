@@ -558,10 +558,10 @@ class BasicContractDocument(LegalDocumentLowCase):
 # SUMS -----------------------------
 
 
-class ProtocolDocument(LegalDocumentLowCase):
+class ProtocolDocument(LegalDocument):
 
   def __init__(self, original_text=None):
-    LegalDocumentLowCase.__init__(self, original_text)
+    LegalDocument.__init__(self, original_text)
 
   def make_solutions_mask(self):
 
@@ -726,8 +726,7 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
     print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
     return np.full(len(doc.tokens), 0.0001)
 
-  attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
-                                                         relu_th=relu_th)
+  attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
   attention_vector = relu(attention_vector, relu_th=relu_th)
 
   attention_vector = smooth_safe(attention_vector, window_len=blur)
@@ -857,7 +856,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       confidence=attention_vector[region[0]]
-      vc = extract_sum_and_sign(sentence_subdoc, region, confidence)
+      vc = extract_sum_and_sign(sentence_subdoc, region)
       pv = ProbableValue(vc, confidence)
 
       constraints.append(pv)
