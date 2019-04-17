@@ -1,4 +1,4 @@
-from legal_docs import LegalDocument, HeadlineMeta
+from legal_docs import LegalDocument
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
 from ml_tools import *
@@ -23,7 +23,6 @@ class ContractAnlysingContext:
 
     self.__step = 0
 
-
   def analyze_contract(self, contract_text):
     self.__step = 0
     """
@@ -41,12 +40,9 @@ class ContractAnlysingContext:
     hl_meta_by_index = doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
     doc.sections = doc.find_sections_by_headlines(hl_meta_by_index)
 
-
     self._logstep("embedding headlines into semantic space")
 
-
-
-    values = self.fetch_value_from_contract(doc  )
+    values = self.fetch_value_from_contract(doc)
     self._logstep("fetching transaction values")
 
     self.renderer.render_values(values)
@@ -56,22 +52,17 @@ class ContractAnlysingContext:
   def _logstep(self, name):
     s = self.__step
     print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
-    self.__step+=1
+    self.__step += 1
 
   def fetch_value_from_contract(self, contract: LegalDocument):
     renderer = self.renderer
 
     price_factory = self.price_factory
 
-
-
     # if self.verbosity_level > 1:
     #   print('-' * 100)
     #   for eh in embedded_headlines:
     #     print(eh.untokenize_cc())
-
-
-
 
     # if self.verbosity_level > 1:
     #   print('-' * 100)
@@ -103,6 +94,20 @@ class ContractAnlysingContext:
       print('-WARNING: Раздел про стоимость сделки не найдена!')
 
     if len(result) == 0:
+      if 'subj' in sections:
+
+        # fallback
+        value_section_info = sections['subj']
+        value_section = value_section_info.body
+        section_name = value_section_info.subdoc.untokenize_cc()
+        print(f'-WARNING: Ищем стоимость в разделе { section_name }')
+        result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+        if self.verbosity_level > 0:
+          print('alt price section DOC', '-' * 20)
+          renderer.render_value_section_details(value_section_info)
+          self._logstep(f'searching for transaction values in section  "{ section_name }"')
+
+    if len(result) == 0:
       if 'pricecond' in sections:
 
         # fallback
@@ -112,9 +117,10 @@ class ContractAnlysingContext:
         print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
         result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
         if self.verbosity_level > 0:
-          print('alt price section DOC', '-' * 70)
+          print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
           self._logstep(f'searching for transaction values in section  "{ section_name }"')
+
     if len(result) == 0:
       print('-WARNING: Ищем стоимость во всем документе!')
 
@@ -264,10 +270,6 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 # ----------------------------------------------------------------------------------------------
 
 
-
-
-
-
 def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List:
   value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
@@ -295,15 +297,13 @@ def filter_nans(vcs):
   return r
 
 
-
-
-
 class ContractDocument2(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
+
 
 # ------------------------------
 
@@ -321,11 +321,9 @@ class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
     self._build_subject_patterns()
     self.embedd()
 
-
   def _build_subject_patterns(self):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
-
 
     # ep = ExclusivePattern()
     #
@@ -365,17 +363,3 @@ class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
     # ep.add_pattern(self.create_pattern('t_unk', ('<UNK>', 'unk', '<UNK>')))
     #
     # self.subject_patterns = ep
-
-
-
-
-
-
-
-
-
-
-
-
-
-

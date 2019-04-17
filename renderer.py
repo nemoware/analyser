@@ -48,6 +48,9 @@ class AbstractRenderer:
       s = f'{self.sign_to_text(vc.sign)} \t {vc.currency} \t {vc.value:20,.2f} '
       print(s)
 
+  def render_contents(self, doc):
+    pass
+
 
 class SilentRenderer(AbstractRenderer):
   pass
