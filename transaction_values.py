@@ -7,7 +7,6 @@
 
 import math
 import re
-import math
 from typing import List
 
 from text_tools import np
@@ -91,40 +90,40 @@ def detect_sign(prefix: str):
   return 0
 
 
+number_re = re.compile(r'^\d+[,.]{0,1}\d+', re.MULTILINE)
 
 
 def split_by_number(tokens: List[str], attention: List[float], threshold):
-  # TODO: mind decimals!!
-
   indexes = []
   last_token_is_number = False
   for i in range(len(tokens)):
-    if tokens[i].isdigit() and attention[i] > threshold:
+
+    if attention[i] > threshold and len(number_re.findall(tokens[i]))>0:
       if not last_token_is_number:
         indexes.append(i)
       last_token_is_number = True
     else:
       last_token_is_number = False
 
-  regions = []
-  bounds = []
+  text_fragments = []
+  ranges = []
   if len(indexes) > 0:
     for i in range(1, len(indexes)):
       s = indexes[i - 1]
       e = indexes[i]
-      regions.append(tokens[s:e])
-      bounds.append((s, e))
+      text_fragments.append(tokens[s:e])
+      ranges.append((s, e))
 
-    regions.append(tokens[indexes[-1]:])
-    bounds.append((indexes[-1], len(tokens)))
-  return regions, indexes, bounds
+    text_fragments.append(tokens[indexes[-1]:])
+    ranges.append((indexes[-1], len(tokens)))
+  return text_fragments, indexes, ranges
 
 
 VALUE_SIGN_MIN_TOKENS = 4
 
 
-def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
-  subtokens = subdoc.tokens_cc[b[0] - VALUE_SIGN_MIN_TOKENS:b[1]]
+def extract_sum_and_sign(subdoc, region) -> ValueConstraint:
+  subtokens = subdoc.tokens_cc[region[0] - VALUE_SIGN_MIN_TOKENS:region[1]]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
   _prefix = untokenize(_prefix_tokens)
   _sign = detect_sign(_prefix)
@@ -141,6 +140,8 @@ def extract_sum_and_sign(subdoc, b) -> ValueConstraint:
     value = sum[0]
 
   vc = ValueConstraint(value, currency, _sign)
+
+
   return vc
 
 
@@ -150,6 +151,6 @@ if __name__ == '__main__':
     # print(extract_sum('эквивалентной 25 миллионам долларов сша'))
 
     # print(extract_sum('взаимосвязанных сделок в совокупности составляет от 1000000 ( одного ) миллиона рублей до 50000000 '))
-    print(extract_sum('сумму 50950000 (пятьдесят миллионов девятьсот пятьдесят тысяч) рублей 00 копеек без НДС, НДС'))
+    print(extract_sum('Общая сумма договора составляет 41752,62 рублей ( Сорок одна тысяча семьсот пятьдесят два рубля ) 62 копейки , в том числе НДС '))
 
 

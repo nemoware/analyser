@@ -1,4 +1,9 @@
+import gc
+from abc import abstractmethod
+
 from text_tools import *
+
+import time
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
@@ -26,15 +31,16 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
 
 class AbstractEmbedder:
 
-  # @abstractmethod
+  @abstractmethod
   def get_embedding_tensor(self, tokenized_sentences_list):
     pass
 
+  @abstractmethod
   def embedd_tokenized_text(self, words, lens):
     pass
 
-  def embedd_sentence(self, str):
-    words = tokenize_text(str)
+  def embedd_sentence(self, _str):
+    words = tokenize_text(_str)
     return self.embedd_tokenized_text([words], [len(words)])
 
   def embedd_contextualized_patterns(self, patterns):
@@ -97,7 +103,8 @@ class AbstractEmbedder:
 
 class ElmoEmbedder(AbstractEmbedder):
 
-  def __init__(self, elmo, tf, layer_name):
+  def __init__(self, elmo, tf, layer_name, create_module_method):
+    self.create_module_method = create_module_method
     self.elmo = elmo
     self.config = tf.ConfigProto()
     self.config.gpu_options.allow_growth = True
@@ -105,7 +112,11 @@ class ElmoEmbedder(AbstractEmbedder):
     self.layer_name = layer_name
     self.tf = tf
 
-    self.session =   tf.Session(config=self.config)
+    self.session = tf.Session(config=self.config)
+
+
+    # self.session = tf.Session()
+    self.sessionruns = 0
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
@@ -119,9 +130,10 @@ class ElmoEmbedder(AbstractEmbedder):
 
     self.session.run(self.tf.global_variables_initializer())
     out = self.session.run(embeddings)
-    #       sess.close()
+    self.reset_maybe()
 
     return out, words
+
 
   def get_embedding_tensor(self, str, signature="default"):
     embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[self.layer_name]
@@ -129,6 +141,38 @@ class ElmoEmbedder(AbstractEmbedder):
     # with self.tf.Session(config=self.config) as sess:
     self.session.run(self.tf.global_variables_initializer())
     embedding = self.session.run(embedding_tensor)
+    self.reset_maybe()
+
     #       sess.close()
 
     return embedding
+
+  def reset_maybe(self):
+    self.sessionruns += 1
+
+    if self.sessionruns > 14:
+      self.reset()
+
+
+
+  def reset(self):
+    self.session.close()
+
+    del self.elmo
+    del self.session
+    self.elmo = None
+    self.session = None
+
+    print(gc.collect())
+    gc.enable()
+
+    print('clean-up ---------------SLEEP: give it a time')
+    time.sleep(10)
+
+    self.elmo = self.create_module_method()
+    self.session = self.tf.Session(config=self.config)
+    # self.session.run(self.tf.global_variables_initializer())
+
+
+    self.sessionruns = 0
+    # self.session = self.tf.Session(config=self.config)

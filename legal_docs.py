@@ -5,12 +5,13 @@ from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum
+from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
+  ProbableValue
 from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, ValueConstraint, split_by_number, extract_sum_and_sign
+from transaction_values import extract_sum_from_tokens, split_by_number, extract_sum_and_sign
 
 PROF_DATA = {}
 
@@ -26,7 +27,7 @@ class HeadlineMeta:
     self.type: str = type
     self.subdoc: LegalDocument = subdoc
     self.attention_v: List[float] = attention_v
-    self.body:LegalDocument = None
+    self.body: LegalDocument = None
 
 
 def deprecated(fn):
@@ -88,7 +89,6 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict = None
 
     self.sections = {}
-
 
     # subdocs
     self.start = None
@@ -434,7 +434,7 @@ class ContractDocument(LegalDocumentLowCase):
     LegalDocumentLowCase.__init__(self, original_text)
 
 
-def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0):
+def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
   c = 0
   sum = None
 
@@ -452,7 +452,7 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=
 
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
   #     print('mean_by_pattern_prefix', prefix, relu_th)
-  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0)
+  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
   return normalize(sum)
 
 
@@ -557,10 +557,10 @@ class BasicContractDocument(LegalDocumentLowCase):
 # SUMS -----------------------------
 
 
-class ProtocolDocument(LegalDocumentLowCase):
+class ProtocolDocument(LegalDocument):
 
   def __init__(self, original_text=None):
-    LegalDocumentLowCase.__init__(self, original_text)
+    LegalDocument.__init__(self, original_text)
 
   def make_solutions_mask(self):
 
@@ -848,16 +848,22 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 #
 #   return r
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
-  ValueConstraint]:
-  regions, indexes, bounds = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
+  ProbableValue]:
+  tokens = sentence_subdoc.tokens
+  assert len(attention_vector) == len(tokens)
 
-  constraints = []
+  text_fragments, indexes, ranges = split_by_number(tokens, attention_vector, 0.2)
+
+  constraints: List[ProbableValue] = []
   if len(indexes) > 0:
 
-    for b in bounds:
-      vc = extract_sum_and_sign(sentence_subdoc, b)
+    for region in ranges:
+      vc = extract_sum_and_sign(sentence_subdoc, region)
+      vc.context = [tokens[region[0]-10:region[1]+10], attention_vector[region[0]-10:region[1]+10]]
+      confidence = attention_vector[region[0]]
+      pv = ProbableValue(vc, confidence)
 
-      constraints.append(vc)
+      constraints.append(pv)
 
   return constraints
 
