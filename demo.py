@@ -281,6 +281,8 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.subj.1', ('заключили настоящий Договор нижеследующем:\n' + PRFX, 'Предмет договора.\n',
                            'Исполнитель обязуется, заказчик поручает'))
     cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ ДОГОВОРА', ''))
+    cp('headline.subj.3', (PRFX, 'Общие положения', ''))
+
 
     cp('headline.price.1', (PRFX, 'цена договора', ''))
     cp('headline.price.2', (PRFX, 'СТОИМОСТЬ РАБОТ', ''))
