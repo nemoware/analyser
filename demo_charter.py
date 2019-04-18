@@ -2,11 +2,15 @@ from demo import ParsingContext
 from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
   embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
   deprecated, make_soft_attention_vector, org_types
-from ml_tools import np, split_by_token
+from ml_tools import   split_by_token
 from patterns import AbstractPatternFactoryLowCase, AbstractPatternFactory, FuzzyPattern
 from renderer import *
 from text_tools import find_ner_end
 from transaction_values import extract_sum, ValueConstraint
+
+
+from text_tools import untokenize
+import numpy as np
 
 
 class CharterAnlysingContext(ParsingContext):
@@ -231,16 +235,8 @@ class CharterAnlysingContext(ParsingContext):
   #==============
   # VIOLATIONS
 
-  def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue, m_convert, equality_range=0):
-    if abs(m_convert(a.value).value - m_convert(alternative.value).value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-    return a
 
-
-  def _find_ranges_by_group(self, charter_constraints, m_convert, verbose=False):
+  def find_ranges_by_group(self, charter_constraints, m_convert, verbose=False):
     ranges_by_group = {}
     for head_group in charter_constraints:
       #     print('-' * 20)
@@ -248,15 +244,6 @@ class CharterAnlysingContext(ParsingContext):
       data = self._combine_constraints_in_group(group_c, m_convert, verbose)
       ranges_by_group[head_group] = data
     return ranges_by_group
-
-  def find_contract_best_value(self, m_convert):
-    best_value: ProbableValue = max(self.constraints,
-                                    key=lambda item: m_convert(item.value).value)
-
-    most_confident_value = max(self.constraints, key=lambda item: item.confidence)
-    best_value = self.select_most_confident_if_almost_equal(best_value, most_confident_value, 20)
-
-    return best_value
 
 
   def _combine_constraints_in_group(self, group_c,  m_convert, verbose=False):
@@ -503,21 +490,6 @@ head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
 #=======================
 from ml_tools import ProbableValue
 
-# def convert(v, currency_converter):
-#   v_converted = copy.copy(v)
-#   if v.currency in currency_converter:
-#     v_converted.value = currency_converter[v.currency] * v.value
-#     v_converted.currency = 'RUB'
-#     return v_converted
-#   else:
-#     display(HTML(as_error_html(
-#       f"мы не в настроении (пока) конвертировать {v.currency} --> RUB. Это вообще валюта какой страны? Румынии?")))
-#     return v
-
-
-from text_tools import untokenize
-import numpy as np
-
 
 class VConstraint:
   def __init__(self, lower, upper, head_group):
@@ -540,6 +512,8 @@ class VConstraint:
       html += as_warning(f"конвертация валют {as_currency(v)} --> RUB ")
       html += as_offset(as_warning(f"примерно: {as_currency(v)} ~~  {as_currency(v_converted)}  "))
     return v, v_converted, html
+
+
 
   def check_contract_value(self, _v: ProbableValue, convet_m, renderer):
     greather_lower = False
@@ -605,16 +579,6 @@ class VConstraint:
 
 
 # -----------
-
-
-
-
-
-
-
-
-
-
 
 
 

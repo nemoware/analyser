@@ -51,7 +51,7 @@ class ParsingContext:
     return '\n'.join(self.warnings)
 
   def log_warnings(self):
-    if len(self.warnings)>0:
+    if len(self.warnings) > 0:
       print("Recent parsing warnings:")
 
       for w in self.warnings:
@@ -88,7 +88,7 @@ class ContractAnlysingContext(ParsingContext):
 
     self._logstep("embedding headlines into semantic space")
 
-    #-------------------------------values
+    # -------------------------------values
     values = self.fetch_value_from_contract(doc)
     # -------------------------------subj
     doc.subject = self.recognize_subject(doc)
@@ -102,6 +102,26 @@ class ContractAnlysingContext(ParsingContext):
     self.log_warnings()
 
     return doc, values
+
+  def select_most_confident_if_almost_equal(self, a: ProbableValue, alternative: ProbableValue, m_convert,
+                                            equality_range=0.0):
+
+    if abs(m_convert(a.value).value - m_convert(alternative.value).value) < equality_range:
+      if a.confidence > alternative.confidence:
+        return a
+      else:
+        return alternative
+    return a
+
+  def find_contract_best_value(self, m_convert):
+    best_value: ProbableValue = max(self.contract_values,
+                                    key=lambda item: m_convert(item.value).value)
+
+    most_confident_value = max(self.contract_values, key=lambda item: item.confidence)
+    best_value = self.select_most_confident_if_almost_equal(best_value, most_confident_value, m_convert,
+                                                            equality_range=20)
+
+    return best_value
 
   def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
     r = {}
@@ -284,11 +304,9 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ ДОГОВОРА', ''))
     cp('headline.subj.3', (PRFX, 'Общие положения', ''))
 
-
     cp('headline.price.1', (PRFX, 'цена договора', ''))
     cp('headline.price.2', (PRFX, 'СТОИМОСТЬ РАБОТ', ''))
     cp('headline.price.3', (PRFX, ' Расчеты по договору', ''))
-
 
     cp('headline.pricecond.1', (PRFX, 'УСЛОВИЯ ПЛАТЕЖЕЙ', ''))
     cp('headline.pricecond.2', (PRFX, 'Оплата услуг', ''))
@@ -477,8 +495,6 @@ class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
                        'безвозмездно передает в собственность, а Благополучатель принимает'))
 
     cp('t_charity_8', ('Жертвователь', 'безвозмездно', ''))
-
-
 
     cp('t_comm_1',
        ('ПРОДАВЕЦ обязуется передать в собственность ПОКУПАТЕЛЯ, а', 'ПОКУПАТЕЛЬ', 'обязуется принять и оплатить'))
