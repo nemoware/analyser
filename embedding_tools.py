@@ -153,15 +153,21 @@ class ElmoEmbedder(AbstractEmbedder):
     if self.sessionruns > 14:
       self.reset()
 
+
+
   def reset(self):
     self.session.close()
 
     del self.elmo
-    gc.collect()
+    del self.session
+    self.elmo = None
+    self.session = None
 
-    print('---------------SLEEP: give it a time')
+    print(gc.collect())
+    gc.enable()
+
+    print('clean-up ---------------SLEEP: give it a time')
     time.sleep(10)
-
 
     self.elmo = self.create_module_method()
     self.session = self.tf.Session(config=self.config)
