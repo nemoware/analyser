@@ -11,7 +11,7 @@ from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, ValueConstraint, split_by_number, extract_sum_and_sign
+from transaction_values import extract_sum_from_tokens, split_by_number, extract_sum_and_sign
 
 PROF_DATA = {}
 
@@ -27,7 +27,7 @@ class HeadlineMeta:
     self.type: str = type
     self.subdoc: LegalDocument = subdoc
     self.attention_v: List[float] = attention_v
-    self.body:LegalDocument = None
+    self.body: LegalDocument = None
 
 
 def deprecated(fn):
@@ -89,7 +89,6 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict = None
 
     self.sections = {}
-
 
     # subdocs
     self.start = None
@@ -435,7 +434,7 @@ class ContractDocument(LegalDocumentLowCase):
     LegalDocumentLowCase.__init__(self, original_text)
 
 
-def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th:float=0.0):
+def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
   c = 0
   sum = None
 
@@ -726,7 +725,8 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
     print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
     return np.full(len(doc.tokens), 0.0001)
 
-  attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
+  attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
+                                                         relu_th=relu_th)
   attention_vector = relu(attention_vector, relu_th=relu_th)
 
   attention_vector = smooth_safe(attention_vector, window_len=blur)
@@ -850,13 +850,15 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
   text_fragments, indexes, ranges = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
+  assert len(attention_vector) == len(sentence_subdoc)
 
-  constraints:List[ProbableValue] = []
+  constraints: List[ProbableValue] = []
   if len(indexes) > 0:
 
     for region in ranges:
-      confidence=attention_vector[region[0]]
       vc = extract_sum_and_sign(sentence_subdoc, region)
+      vc.context = [sentence_subdoc[region[0]:region[1]], attention_vector[region[0]:region[1]]]
+      confidence = attention_vector[region[0]]
       pv = ProbableValue(vc, confidence)
 
       constraints.append(pv)
