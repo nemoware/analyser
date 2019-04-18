@@ -331,7 +331,7 @@ class ContractValuePatternFactory(AbstractPatternFactoryLowCase):
     value_attention_vector_tuned = (value_attention_vector - novalue_attention_vector * 0.7)
 
     value_attention_vector_tuned = (value_attention_vector_tuned + sumphrase_attention_vector) / 2
-    value_attention_vector_tuned = relu(value_attention_vector_tuned, 0.6)
+    value_attention_vector_tuned = relu(value_attention_vector_tuned, 0.4)
 
     return {
       'sumphrase_attention_vector': sumphrase_attention_vector,
