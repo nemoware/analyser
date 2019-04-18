@@ -18,9 +18,9 @@ class CharterAnlysingContext(ParsingContext):
     ParsingContext.__init__(self, embedder, renderer)
 
     
-    self.price_factory = CharterConstraintsPatternFactory(embedder)
-    self.hadlines_factory = CharterHeadlinesPatternFactory(embedder)
-    self.ner_factory = CharterNerPatternFactory(embedder)
+    self.price_factory = None
+    self.hadlines_factory:CharterHeadlinesPatternFactory = None
+    self.ner_factory:CharterNerPatternFactory = None
     self.renderer = renderer
 
     self.org = None
@@ -31,6 +31,15 @@ class CharterAnlysingContext(ParsingContext):
 
 
   def analyze_charter(self, txt, verbose=False):
+
+    if self.price_factory is None:
+      self.price_factory = CharterConstraintsPatternFactory(self.embedder)
+
+    if self.hadlines_factory is None:
+      self.hadlines_factory = CharterHeadlinesPatternFactory(self.embedder)
+
+    if self.ner_factory is None:
+      self.ner_factory = CharterNerPatternFactory(self.embedder)
 
     self._reset_context()
     # parse

@@ -212,7 +212,7 @@ def most_popular_in(arr):
   return np.argmax(counts)
 
 
-def remove_similar_indexes(indexes, min_section_size=20):
+def remove_similar_indexes(indexes:List[int], min_section_size=20):
   if len(indexes) < 2:
     return indexes
 
