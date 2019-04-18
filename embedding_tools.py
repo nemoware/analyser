@@ -111,6 +111,8 @@ class ElmoEmbedder(AbstractEmbedder):
     self.tf = tf
 
     self.session = tf.Session(config=self.config)
+    self.session.run(self.tf.global_variables_initializer())
+
     # self.session = tf.Session()
     self.sessionruns=0
 
@@ -124,14 +126,13 @@ class ElmoEmbedder(AbstractEmbedder):
       signature="tokens",
       as_dict=True)[self.layer_name]
 
-    self.run_session_maybe()
     out = self.session.run(embeddings)
-    #       sess.close()
+    self.reset_maybe()
 
     return out, words
 
-  def run_session_maybe(self):
-    self.session.run(self.tf.global_variables_initializer())
+  def reset_maybe(self):
+
     self.sessionruns += 1
 
     if self.sessionruns>10:
@@ -142,15 +143,18 @@ class ElmoEmbedder(AbstractEmbedder):
     del self.elmo
     gc.collect()
     self.elmo = self.create_module_method()
+
     self.session = self.tf.Session(config=self.config)
+    self.session.run(self.tf.global_variables_initializer())
+    # self.session = self.tf.Session(config=self.config)
 
 
   def get_embedding_tensor(self, str, signature="default"):
     embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[self.layer_name]
 
     # with self.tf.Session(config=self.config) as sess:
-    self.run_session_maybe()
     embedding = self.session.run(embedding_tensor)
+    self.reset_maybe()
     #       sess.close()
 
     return embedding
