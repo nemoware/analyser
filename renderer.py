@@ -34,6 +34,8 @@ def as_headline_2(txt):
 def as_headline_3(txt):
   return f'<h3 style="margin:0">{txt}</h3>'
 
+def as_headline_4(txt):
+  return f'<h4 style="margin:0">{txt}</h4>'
 
 def as_offset(txt):
   return f'<div style="margin-left:2em">{txt}</div>'
