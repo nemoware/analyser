@@ -87,9 +87,12 @@ class ContractAnlysingContext(ParsingContext):
 
     self._logstep("embedding headlines into semantic space")
 
+    #-------------------------------values
     values = self.fetch_value_from_contract(doc)
+    # -------------------------------subj
     doc.subject = self.recognize_subject(doc)
     self._logstep("fetching transaction values")
+    # -------------------------------values
 
     self.renderer.render_values(values)
     self.contract_values = values
@@ -103,8 +106,9 @@ class ContractAnlysingContext(ParsingContext):
     r = {}
     for subj_types_prefix in subj_types_prefixes:
       attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, subj_types_prefix)
-      r[subj_types_prefix + 'attention_vector'] = attention_vector
       attention_vector_l = relu(attention_vector, 0.6)
+
+      r[subj_types_prefix + 'attention_vector'] = attention_vector
       r[subj_types_prefix + 'attention_vector_l'] = attention_vector_l
 
     return r

@@ -859,7 +859,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       vc = extract_sum_and_sign(sentence_subdoc, region)
-      vc.context = [tokens[region[0]:region[1]], attention_vector[region[0]:region[1]]]
+      vc.context = [tokens[region[0]-10:region[1]+10], attention_vector[region[0]-10:region[1]+10]]
       confidence = attention_vector[region[0]]
       pv = ProbableValue(vc, confidence)
 
