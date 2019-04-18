@@ -338,7 +338,10 @@ class LegalDocument(EmbeddableText):
   #   return self.tokens
 
   def parse(self, txt=None):
-    if txt is None: txt = self.original_text
+    if txt is None:
+      txt = self.original_text
+    
+    print(f'Debug[legal_docs.py:343]: text len:{len(txt)}')
     self.normal_text = self.preprocess_text(txt)
 
     self.structure = DocumentStructure()
