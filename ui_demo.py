@@ -14,6 +14,8 @@ Original file is located at
 ##utils
 """
 
+
+
 import IPython
 import uuid
 from google.colab import output
@@ -110,11 +112,28 @@ GLOBALS__ = {}
 
 """#Демо"""
 
-#@title Обработка документов
+#@title Настройки { run: "auto", vertical-output: true, display-mode: "form" }
+USD_to_RUB = 164.02 #@param {type:"number"}
+RUB_to_USD = 1.0/USD_to_RUB
 
-=========================
-_git_branch='demo-2-fixed'
-=========================
+# print('USD_to_RUB=',USD_to_RUB)
+# print('RUB_to_USD=',RUB_to_USD)
+
+
+
+currency_converter = {
+  'USD': USD_to_RUB,
+  'RUB': 1.0
+}
+
+print(currency_converter)
+
+#@title Обработка документов { vertical-output: true, output-height: 800, display-mode: "form" }
+
+ 
+
+
+
 
 import os
 import sys
@@ -149,10 +168,17 @@ def interactive_upload(filetype):
     docs.append(text)
     return docs
 
+  
+#====================================  
+#====================================  
+_git_branch = "demo-price-confidence" #@param {type:"string"}
+#====================================
+#====================================
 
+import os
+import sys
 
 # AZ:-IMPORT CODE GITHUB-----------------------------------------------------------------------------------
-
 def _init_import_code_from_gh():
   if '_init_import_code_from_gh' in GLOBALS__:
     print('👌 code already imported from GitHub!')
@@ -164,7 +190,7 @@ def _init_import_code_from_gh():
   os.system(l1)
   os.system(l2)
   import subprocess
-  r = subprocess.check_output('cd nlp_tools\ngit rev-list --reverse HEAD | awk "{ print NR }" | tail -n 1\ngit branch',
+  r = subprocess.check_output('cd nlp_tools\ngit rev-list --reverse HEAD | awk "{ print NR }" | tail -n 1\ngit branch\ngit log -3 --pretty=%B',
                               shell=True)
   print('🦊 GIT revision:', str(r).replace('\\n', '\t'))
 
@@ -186,41 +212,46 @@ def _init_import_code_from_gh():
   GLOBALS__['_init_import_code_from_gh'] = True
   print('❤️ DONE importing Code fro GitHub')
 
-  
 
-  
+# AZ:-INIT ELMO-----------------------------------------------------------------------------------
 
-#AZ:-INIT ELMO-----------------------------------------------------------------------------------
 import tensorflow as tf
 import tensorflow_hub as hub
 
 
 
 def _import_elmo():
-  if 'elmo' in GLOBALS__:
-    print('👌 Tensorflow hub.Module is already imported ')
-    return GLOBALS__['elmo']
-    
-  elmo = hub.Module('https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz', trainable=False) #twitter
-  print('❤️ DONE importing Tensorflow hub.Module ')
-  print('Tensorflow version is', tf.__version__)
-  GLOBALS__['elmo']=elmo
-
-  print(GLOBALS__['elmo'].__dict__)
-  return GLOBALS__['elmo']
+  """
+  ACHTUNG!! this method is called later by ElmoEmbedder
+  """
   
-#AZ:-INIT EMBEDDER-----------------------------------------------------------------------------------
+#   if 'elmo' in GLOBALS__:
+#     print('👌 Tensorflow hub.Module is already imported ')
+#     return GLOBALS__['elmo']
+
+  
+  elmo = hub.Module('https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz',
+                    trainable=False)  # twitter
+  print('❤️ ❤️ ❤️ DONE (re)importing Tensorflow hub.Module ')
+  print('Tensorflow version is', tf.__version__)
+
+  return elmo
+#   GLOBALS__['elmo'] = elmo
+
+#   print(GLOBALS__['elmo'].__dict__)
+#   return GLOBALS__['elmo']
+
+
+# AZ:-INIT EMBEDDER-----------------------------------------------------------------------------------
 
 def _init_embedder():
-  
   if 'elmo_embedder' in GLOBALS__:
     print('👌 Embedder is already created! ')
     return
 
-  elmo = _import_elmo()
-  
+
   from embedding_tools import ElmoEmbedder
-  GLOBALS__['elmo_embedder'] = ElmoEmbedder(elmo, tf, 'elmo')
+  GLOBALS__['elmo_embedder'] = ElmoEmbedder(_import_elmo(), tf, 'elmo', _import_elmo)
   
   print('❤️ DONE creating words embedding model')
   return GLOBALS__['elmo_embedder']
@@ -267,32 +298,64 @@ def _init_the_code():
   import matplotlib.pyplot as plt
   from renderer import AbstractRenderer, head_types_colors
   from transaction_values import ValueConstraint
-  
+  from legal_docs import org_types
   from demo_charter import head_types_dict, head_types
-
   
   class DemoRenderer(AbstractRenderer):
+    
+    def render_subj(self, doc):
+      from demo import subject_types_dict
+      subj=doc.subject
+      s_name=subject_types_dict[ subj[0]].upper()
+      
+      display(HTML(f'Предмет договора:<h3 style="margin:0">{s_name}<sup> {subj[0]}</sup> </h3> confidence:{subj[1]:20,.2f}'))
     
     def sign_to_text(self, sign: int):
       if sign < 0: return " &lt; "
       if sign > 0: return " &gt; "
       return ' = '
 
-    def value_to_html(self, vc: ValueConstraint):
+    def probable_value_to_html(self, pv):
+      
+      vc=pv.value
+      
       color = '#333333'
       if vc.sign > 0:
         color = '#993300'
       elif vc.sign < 0:
         color = '#009933'
 
-      return f'<b style="color:{color}">{self.sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}</b> '
+      return f'<b style="color:{color}">{self.sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f} confidence={pv.confidence:20,.2f}</b> '
+
+    def render_contents(doc):
+      html = '<h3>Выявленное Содержание документа</h4>'
+      html += "<ul>"
+      for i in doc.structure.headline_indexes:
+        line = doc.structure.structure[i].to_string(doc.tokens_cc)
+        html += f'<li> {line} <sup>line {i}</sup></li>'
+      html += "</ul>"
+
+      display(HTML(html))
 
 
-    def render_values(self, values):
-      
+    def render_sections(sections):
+      html = '<h3>Выявленное секции документа</h4>'
+      html += "<ul>"
+      for section_type in sections:
+        section:HeadlineMeta = sections[section_type]
+        body = section.body.untokenize_cc()[:1000]
+        headline = section.subdoc.untokenize_cc()[:500]
+        #     line = doc.structure.structure[i].to_string(doc.tokens_cc)
+        html += f'<li><h3> {headline} <sup>type: {section_type}</sup> </h3> <p>{body}</p> </li>'
+      html += "</ul>"
+
+      display(HTML(html))
+  
+  
+    def render_values(self, values):      
       if len(values)>0:
-        for p in values:
-          h = self.value_to_html(p)
+        for pv in values:
+          h = self.probable_value_to_html(pv)
           display(HTML(h))
       else:
         display(HTML('сумма не найдена'))
@@ -375,8 +438,8 @@ def _init_the_code():
     def _render_sentence(self, sentence):
       html = ""
       constraints:List[ValueConstraint] = sentence['constraints']
-      for c in constraints:
-        html += self.value_to_html(c)
+      for probable_v in constraints:
+        html += self.value_to_html(probable_v.value)
 
       if len(constraints) > 0:
         html += '<div style="border-bottom:1px solid #ccc; margin-top:1em"></div>'
@@ -388,25 +451,8 @@ def _init_the_code():
 
 
     def render_constraint_values(self, rz):
-      head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
+       
 
-      head_types_dict = {  'head.directors':'Совет директоров', 
-                           'head.all':'Общее собрание участников/акционеров', 
-                           'head.gen':'Генеральный директор', 
-      #                      'shareholders':'Общее собрание акционеров', 
-                           'head.pravlenie':'Правление общества',
-                           'head.unknown':'*Неизвестный орган управления*'}
-
-      
-
-
-      org_types={
-          'org_unknown':'undefined', 
-          'org_ao':'Акционерное общество', 
-          'org_zao':'Закрытое акционерное общество', 
-          'org_oao':'Открытое акционерное общество', 
-          'org_ooo':'Общество с ограниченной ответственностью'}
-      
       html = ''
       for head_type in rz.keys():
 
@@ -505,15 +551,75 @@ def _init_the_code():
 
 
 
+# AZ:-FINDING_VIOLATIONS--------------------------------------------------------
+def find_and_show_violations():
+
+  from IPython.core.display import display, HTML
+
+  from demo import ContractAnlysingContext
+  from demo_charter import CharterAnlysingContext
+  from renderer import as_headline_2, as_error_html
+
+  print('Поиск нарушений')
+
+  charterAnlysingContext: CharterAnlysingContext = GLOBALS__['CharterAnlysingContext']
+  contractAnlysingContext: ContractAnlysingContext = GLOBALS__['ContractAnlysingContext']
+
+  contract = contractAnlysingContext.contract
+  charter = charterAnlysingContext.doc
+  charter_constraints = charterAnlysingContext.constraints  # XXX: move to doc
+
+  renderer = GLOBALS__['renderer']
+  renderer.render_subj(contract)
+
+  import copy
+
+  def convert(v):
+    v_converted = copy.copy(v)
+    if v.currency in currency_converter:
+      v_converted.value = currency_converter[v.currency] * v.value
+      v_converted.currency = 'RUB'
+      return v_converted
+    else:
+      display(HTML(as_error_html(
+        f"мы не в настроении (пока) конвертировать {v.currency} --> RUB. Это вообще валюта какой страны? Румынии?")))
+      return v
+
+  best_value = contractAnlysingContext.find_contract_best_value(convert)
+
+  # rendering:----------------------------
+
+  def _render_violations(ranges_by_group, best_value):
+    for group_key in ranges_by_group:
+      group = ranges_by_group[group_key]
+      display(HTML(as_headline_2(group['name'])))
+
+      for rk in group['ranges']:
+        r = group['ranges'][rk]
+        display(HTML(r.check_contract_value(best_value, convert, renderer)))
+
+  print("Сумма Договора:")
+  renderer.render_values([best_value])
+  renderer.render_color_text(best_value.value.context[0], best_value.value.context[1], _range=[0, 1])
+
+  _render_violations(
+    charterAnlysingContext.find_ranges_by_group(charter_constraints, convert, verbose=False),
+    best_value)
+
+#   display(HTML(renderer.render_constraint_values(charter_constraints)))
 
 
-#AZ:- ENDO OF THE THE CODE-----------------------------------------------------------------------------------
+
+# AZ:--------------------------------------------------------FINDING_VIOLATIONS-
+
+#AZ:- ENDO OF THE THE CODE------------------------------------------------XXXXX
+#AZ:- ENDO OF THE THE CODE------------------------------------------------XXXXX
+#AZ:- ENDO OF THE THE CODE------------------------------------------------XXXXX
+#AZ:- ENDO OF THE THE CODE------------------------------------------------XXXXX
 
 
+# VI: @artifex from here:
 
-
-
-  
 
   
 def start_wizard(tb):
@@ -528,10 +634,9 @@ def start_wizard(tb):
       
       try:
         GLOBALS__['CharterAnlysingContext'].analyze_charter(uploaded[0], True)       
-        doc = GLOBALS__['CharterAnlysingContext'].doc
-        GLOBALS__['renderer'].render_contents(doc)
-          
-        org, rz = GLOBALS__['CharterAnlysingContext'] .analyze_charter(uploaded[0])
+        org, rz = GLOBALS__['CharterAnlysingContext'].doc
+
+        GLOBALS__['renderer'].render_contents(doc)          
         GLOBALS__['renderer'].render_charter_parsing_results(org,rz)
           
       except Exception as e:
@@ -550,6 +655,8 @@ def start_wizard(tb):
       try:
         GLOBALS__['ContractAnlysingContext'].analyze_contract(uploaded[0])        
         doc = GLOBALS__['ContractAnlysingContext'].contract
+               
+        GLOBALS__['renderer'].render_subj(doc)
         GLOBALS__['renderer'].render_contents(doc)
    
       except Exception as e:
@@ -561,19 +668,27 @@ def start_wizard(tb):
   def step3():    
     replace_self_elem(b3.callback_id, '')   
     with tb.output_to(3):
-      print('TAB3')
-#       uploaded = upload_file()
+#       #       print('TAB3')
+#       #       uploaded = upload_file()
       
-      ## do something 
-      print('Поиск нарушений')
-      GLOBALS__['renderer'].render_values(GLOBALS__['ContractAnlysingContext'].contract_values)
-#       GLOBALS__['renderer'].render_charter_parsing_results(GLOBALS__['CharterAnlysingContext'].org, GLOBALS__['CharterAnlysingContext'].constraints)
-      from IPython.core.display import display, HTML
-      h = GLOBALS__['renderer'].render_constraint_values(GLOBALS__['CharterAnlysingContext'].constraints)
-      display(HTML(h))
+#       ## do something 
+#       print('Поиск нарушений')
+#       from IPython.core.display import display, HTML
+#       contract = GLOBALS__['ContractAnlysingContext'].contract
+               
+#       GLOBALS__['renderer'].render_subj(contract)
+#       GLOBALS__['renderer'].render_values(GLOBALS__['ContractAnlysingContext'].contract_values)
+#       GLOBALS__['renderer'].render_contents(contract)                
+      
+# #       GLOBALS__['renderer'].render_charter_parsing_results(GLOBALS__['CharterAnlysingContext'].org, GLOBALS__['CharterAnlysingContext'].constraints)
+      
+#       h = GLOBALS__['renderer'].render_constraint_values(GLOBALS__['CharterAnlysingContext'].constraints)
+#       display(HTML(h))
       
       
-      print(f"\033[1;32mШаг3: сделано\u2713")  
+#       print(f"\033[1;32mШаг3: сделано\u2713")  
+      
+      find_and_show_violations()
       b4.render()
 
   def step4():
@@ -621,43 +736,3 @@ def start_wizard(tb):
 tb2 = widgets.TabBar(['Начало', 'Устав', 'Договор', 'Поиск нарушений', 'Протокол'], location='top')    
 start_wizard(tb2)
 
-# constraints = GLOBALS__['CharterAnlysingContext'].constraints
-
-# GLOBALS__['renderer'].render_values(GLOBALS__['ContractAnlysingContext'].contract_values)
-# GLOBALS__['renderer'].render_charter_parsing_results(GLOBALS__['CharterAnlysingContext'].org, GLOBALS__['CharterAnlysingContext'].constraints)
-
-
-# # for i in 
-
-# for headkey in constraints:
-#   cc = constraints[headkey]
-#   print (cc)
-#   print (cc['section'])
-#   print (cc['caption'])
-  
-#   for s in cc['sentences']:
-#     print ('\t\t',s['constraints'])
-#     c = s['constraints']
-#     for vc in c:
-#       print(f'\t\t\t {vc.value} \t {vc.sign} \t {vc.currency}')
-
-GLOBALS__['ContractAnlysingContext'].analyze_contract(GLOBALS__['ContractAnlysingContext'].contract.untokenize_cc() )
-
-doc = GLOBALS__['CharterAnlysingContext'].doc
-from IPython.core.display import display, HTML
-
-
-def render_contents(doc):
-  html='<h3>Выявленное Содержание документа</h4>'
-  html+="<ul>"
-  for i in doc.structure.headline_indexes:
-    line = doc.structure.structure[i].to_string(doc.tokens_cc)
-    html+=f'<li> {line} <sup>line {i}</sup></li>'
-  html+="</ul>"
- 
-  
-  display(HTML(html))
-    
-render_contents(doc)
-
-print(GLOBALS__['ContractAnlysingContext'].contract)
