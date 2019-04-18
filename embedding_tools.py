@@ -3,6 +3,8 @@ from abc import abstractmethod
 
 from text_tools import *
 
+import time
+
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
@@ -153,12 +155,18 @@ class ElmoEmbedder(AbstractEmbedder):
 
   def reset(self):
     self.session.close()
+
     del self.elmo
     gc.collect()
-    self.elmo = self.create_module_method()
 
+    print('---------------SLEEP: give it a time')
+    time.sleep(10)
+
+
+    self.elmo = self.create_module_method()
     self.session = self.tf.Session(config=self.config)
     # self.session.run(self.tf.global_variables_initializer())
+
 
     self.sessionruns = 0
     # self.session = self.tf.Session(config=self.config)
