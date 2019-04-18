@@ -9,13 +9,12 @@ from renderer import AbstractRenderer
 from text_tools import find_ner_end, untokenize
 from transaction_values import extract_sum, ValueConstraint
 
+from demo import  ParsingContext
 
-class CharterAnlysingContext:
+class CharterAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: AbstractRenderer):
-    assert embedder is not None
-    assert renderer is not None
-    self.__step=0
-    self.verbosity_level = 2
+    ParsingContext.__init__(self, embedder, renderer)
+
     
     self.price_factory = CharterConstraintsPatternFactory(embedder)
     self.hadlines_factory = CharterHeadlinesPatternFactory(embedder)
@@ -26,10 +25,7 @@ class CharterAnlysingContext:
     self.constraints = None
     self.doc = None
 
-  def _logstep(self, name):
-    s = self.__step
-    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
-    self.__step+=1
+
 
 
   def analyze_charter(self, txt, verbose=False):
@@ -70,6 +66,8 @@ class CharterAnlysingContext:
     self.constraints = rz
 
     self.verbosity_level = 1
+
+    self.log_warnings()
 
     return org, rz
 
