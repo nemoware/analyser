@@ -42,9 +42,12 @@ class ParsingContext:
     self.__step += 1
 
   def warning(self, text):
-    t_ = '⚠️ WARNING' + text + '\n'
+    t_ = '⚠️ WARNING: - ' + text
     self.warnings.append(t_)
     print(t_)
+
+  def get_warings(self):
+    return '\n'.join(self.warnings)
 
   def log_warnings(self):
     for w in self.warnings:
@@ -61,10 +64,6 @@ class ContractAnlysingContext(ParsingContext):
 
     self.contract = None
     self.contract_values = None
-
-
-
-
 
   def analyze_contract(self, contract_text):
     self._reset_context()
@@ -96,8 +95,6 @@ class ContractAnlysingContext(ParsingContext):
     self.log_warnings()
 
     return doc, values
-
-
 
   def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
     r = {}
@@ -214,7 +211,6 @@ class ContractAnlysingContext(ParsingContext):
 
         if len(result) == 0:
           self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
-
 
     if len(result) == 0:
       if 'pricecond' in sections:
