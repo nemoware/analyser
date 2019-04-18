@@ -849,8 +849,9 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 #   return r
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
+  assert len(attention_vector) == len(sentence_subdoc.tokens)
+
   text_fragments, indexes, ranges = split_by_number(sentence_subdoc.tokens, attention_vector, 0.2)
-  assert len(attention_vector) == len(sentence_subdoc)
 
   constraints: List[ProbableValue] = []
   if len(indexes) > 0:
