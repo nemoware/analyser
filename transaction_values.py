@@ -7,10 +7,8 @@
 
 import math
 import re
-import math
 from typing import List
 
-from ml_tools import ProbableValue
 from text_tools import np
 from text_tools import to_float, untokenize
 
@@ -92,15 +90,15 @@ def detect_sign(prefix: str):
   return 0
 
 
+number_re = re.compile(r'\d+[,.]\d+')
 
 
 def split_by_number(tokens: List[str], attention: List[float], threshold):
-  # TODO: mind decimals!!
-
   indexes = []
   last_token_is_number = False
   for i in range(len(tokens)):
-    if tokens[i].isdigit() and attention[i] > threshold:
+
+    if attention[i] > threshold and number_re.findall(tokens[i]) is not None:
       if not last_token_is_number:
         indexes.append(i)
       last_token_is_number = True
@@ -153,6 +151,6 @@ if __name__ == '__main__':
     # print(extract_sum('эквивалентной 25 миллионам долларов сша'))
 
     # print(extract_sum('взаимосвязанных сделок в совокупности составляет от 1000000 ( одного ) миллиона рублей до 50000000 '))
-    print(extract_sum('сумму 50950000 (пятьдесят миллионов девятьсот пятьдесят тысяч) рублей 00 копеек без НДС, НДС'))
+    print(extract_sum('Общая сумма договора составляет 41752,62 рублей ( Сорок одна тысяча семьсот пятьдесят два рубля ) 62 копейки , в том числе НДС '))
 
 
