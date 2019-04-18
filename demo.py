@@ -12,12 +12,13 @@ from renderer import AbstractRenderer
 from transaction_values import ValueConstraint
 
 subject_types = {
-  'charity': 'благ-ость'.upper(),
-  'comm': 'грязный коммерс'.upper(),
-  'comm_estate': 'недвижуха'.upper(),
-  'comm_service': 'наказание услуг'.upper()
+  'charity': 'благотворительность'.upper(),
+  'comm': 'коммерческая сделка'.upper(),
+  'comm_estate': 'недвижемость'.upper(),
+  'comm_service': 'оаказание услуг'.upper()
 }
-subject_types_dict = {**subject_types, **{'unknown': 'предмет не ясен'}}
+
+subject_types_dict = {**subject_types, **{'unknown': 'предмет догоовора не ясен'}}
 
 
 class ParsingContext:
