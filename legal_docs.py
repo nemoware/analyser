@@ -467,10 +467,10 @@ def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th
   return sum
 
 
-class BasicContractDocument(LegalDocumentLowCase):
+class BasicContractDocument(LegalDocument):
 
   def __init__(self, original_text=None):
-    LegalDocumentLowCase.__init__(self, original_text)
+    LegalDocument.__init__(self, original_text)
 
   def get_subject_ranges(self, indexes_zipped, section_indexes: List):
 
