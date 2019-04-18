@@ -90,7 +90,7 @@ def detect_sign(prefix: str):
   return 0
 
 
-number_re = re.compile(r'\d+[,.]\d+')
+number_re = re.compile(r'\d+[,.]{0,1}\d+')
 
 
 def split_by_number(tokens: List[str], attention: List[float], threshold):
@@ -98,7 +98,7 @@ def split_by_number(tokens: List[str], attention: List[float], threshold):
   last_token_is_number = False
   for i in range(len(tokens)):
 
-    if attention[i] > threshold and number_re.findall(tokens[i]) is not None:
+    if attention[i] > threshold and len(number_re.findall(tokens[i]))>0:
       if not last_token_is_number:
         indexes.append(i)
       last_token_is_number = True

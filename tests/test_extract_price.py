@@ -5,6 +5,10 @@
 import unittest
 import sys
 
+import numpy as np
+import nltk
+from text_tools import untokenize
+from transaction_values import split_by_number
 from  transaction_values import extract_sum
 from text_normalize import *
 
@@ -38,13 +42,13 @@ data = [
     (67624292.0, 'RUB', 'составляет 67 624 292 (шестьдесят семь миллионов шестьсот двадцать четыре тысячи '
                         'двести девяносто два) рубля '),
 
-    (4003246.0, 'RUB', 'участка № 1, приобретаемого ПОКУПАТЕЛЕМ, составляет 4 003 246 (Четыре миллиона три '
+    (4003246.0, 'RUB', 'участка № 1, приобретаемого ПОКУПАТЕЛЕМ, составляет 4 003 246(Четыре миллиона три '
                        'тысячи двести сорок шесть)  рублей,  НДС '),
 
     (81430814.0, 'RUB', '3. Общая Цена Договора: 81 430 814 (восемьдесят один миллион четыреста тридцать '
                         'тысяч восемьсот четырнадцать) рублей'),
 
-    (50950000.0, 'RUB', 'сумму  50 950 000 (пятьдесят миллионов девятьсот пятьдесят тысяч) руб. 00 коп. '
+    (50950000.0, 'RUB', 'сумму  50 950 000(пятьдесят миллионов девятьсот пятьдесят тысяч) руб. 00 коп. '
                         'без НДС, НДС не облагается на основании п.2 статьи 346.11.'),
 
     (1661293757.0, 'RUB',
@@ -59,7 +63,7 @@ data = [
     (25000000.0, 'USD', 'в размере более 25 млн . долларов сша'),
     (25000000.0, 'USD', 'эквивалентной 25 миллионам долларов сша'),
 
-    (1000000.0, 'RUB', 'взаимосвязанных сделок в совокупности составляет от 1000000 ( одного ) миллиона рублей до 50000000 '),
+    (1000000.0, 'RUB', 'взаимосвязанных сделок в совокупности составляет от 1000000( одного ) миллиона рублей до 50000000 '),
 
 
 ]
@@ -106,6 +110,37 @@ class PriceExtractTestCase(unittest.TestCase):
 
             # #print (normal_text)
             # print('expected:', price, 'found:', f)
+
+    def test_number_re(self):
+      from transaction_values import number_re
+      numbers_str="""
+      3.44
+      41752,62 рублей
+      превышать 300000 ( трехсот тысяч )
+      Соглашения: 99000000 ( девяносто 
+      в размере 300000 ( Триста
+      оборудования 80000,00 ( восемьдесят
+      покупки: 1000000 евро
+      составляет 67624292 ( шестьдесят
+      """
+      numbers = numbers_str.split('\n')
+      for n in numbers:
+        tokens = nltk.word_tokenize(n)
+        print (tokens)
+        for t in tokens:
+          ff = number_re.findall(t)
+          print ( len(ff)>0  )
+
+    def test_split_by_number(self):
+      import nltk
+      for (price, currency, text) in data:
+
+        normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
+        tokens = nltk.word_tokenize(normal_text)
+
+        a,b,c = split_by_number(tokens, np.ones(len(tokens)), 0.1)
+        for t in a:
+          print ('\t-', untokenize(t))
 
 
 if __name__ == '__main__':

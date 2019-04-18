@@ -200,8 +200,9 @@ def sentence_similarity_matrix(emb, distance_function):
     return mtx  # norm_matrix(mtx)
 
 
+my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 def untokenize(tokens):
-    return "".join([" " + i if not i.startswith("'") and i not in string.punctuation else i for i in tokens]).strip()
+    return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
 
 def find_token_before_index(tokens, index, token, default_ret=-1):
