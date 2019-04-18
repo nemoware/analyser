@@ -1,8 +1,8 @@
+import gc
 from abc import abstractmethod
 
 from text_tools import *
 
-import gc
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
@@ -102,7 +102,7 @@ class AbstractEmbedder:
 class ElmoEmbedder(AbstractEmbedder):
 
   def __init__(self, elmo, tf, layer_name, create_module_method):
-    self.create_module_method=create_module_method
+    self.create_module_method = create_module_method
     self.elmo = elmo
     self.config = tf.ConfigProto()
     self.config.gpu_options.allow_growth = True
@@ -114,7 +114,7 @@ class ElmoEmbedder(AbstractEmbedder):
     self.session.run(self.tf.global_variables_initializer())
 
     # self.session = tf.Session()
-    self.sessionruns=0
+    self.sessionruns = 0
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
@@ -132,10 +132,9 @@ class ElmoEmbedder(AbstractEmbedder):
     return out, words
 
   def reset_maybe(self):
-
     self.sessionruns += 1
 
-    if self.sessionruns>10:
+    if self.sessionruns > 14:
       self.reset()
 
   def reset(self):
@@ -148,13 +147,13 @@ class ElmoEmbedder(AbstractEmbedder):
     self.session.run(self.tf.global_variables_initializer())
     # self.session = self.tf.Session(config=self.config)
 
-
   def get_embedding_tensor(self, str, signature="default"):
     embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[self.layer_name]
 
     # with self.tf.Session(config=self.config) as sess:
     embedding = self.session.run(embedding_tensor)
     self.reset_maybe()
+    self.sessionruns = 0
     #       sess.close()
 
     return embedding
