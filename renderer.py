@@ -11,6 +11,63 @@ head_types_colors = {'head.directors': 'crimson',
                      'head.unknown': '#999999'}
 
 
+def as_error_html(txt):
+  return f'<div style="color:red">⚠️ {txt}</div>'
+
+
+def as_warning(txt):
+  return f'<div style="color:orange">⚠️ {txt}</div>'
+
+
+def as_msg(txt):
+  return f'<div>{txt}</div>'
+
+
+def as_quote(txt):
+  return f'<i style="margin-top:0.2em; margin-left:2em; font-size:90%">"...{txt} ..."</i>'
+
+
+def as_headline_2(txt):
+  return f'<h2>{txt}</h2>'
+
+
+def as_headline_3(txt):
+  return f'<h3 style="margin:0">{txt}</h3>'
+
+
+def as_offset(txt):
+  return f'<div style="margin-left:2em">{txt}</div>'
+
+
+def as_currency(v):
+  if v is None: return "any"
+  return f'{v.value:20,.0f} {v.currency} '
+
+
+def as_error_html(txt):
+  return f'<div style="color:red">{txt}</div>'
+
+
+def as_warning(txt):
+  return f'<div style="color:orange">{txt}</div>'
+
+
+def as_msg(txt):
+  return f'<div>{txt}</div>'
+
+
+def as_quote(txt):
+  return f'<i style="margin-top:0.2em; margin-left:2em; font-size:90%">{txt}</i>'
+
+
+def as_headline_2(txt):
+  return f'<h2>{txt}</h2>'
+
+
+def as_headline_3(txt):
+  return f'<h3 style="margin:0">{txt}</h3>'
+
+
 class AbstractRenderer:
 
   def sign_to_text(self, sign: int):
