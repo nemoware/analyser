@@ -294,7 +294,8 @@ class ContractValuePatternFactory(AbstractPatternFactoryLowCase):
       return self.create_pattern(name, tuples)
 
     suffix = '(млн. тыс. миллионов тысяч рублей долларов копеек евро)'
-    prefix = 'решений о совершении сделок '
+
+    cp('_phrase.1', ('общая', 'сумма', 'договора составляет'))
 
     cp('_sum.work.1', ('Стоимость Работ составляет', '0 рублей', suffix))
     cp('_sum.work.2', ('Расчеты по договору. Стоимость оказываемых услуг составляет ', '0', suffix))
@@ -312,31 +313,34 @@ class ContractValuePatternFactory(AbstractPatternFactoryLowCase):
     cp('sum_neg.vat', ('в том числе', 'НДС', '0 ' + suffix))
     cp('sum_neg.date.2', ('в течение', '0', 'рабочих дней '))
 
-  def make_contract_value_attention_vectors(self, subdoc):
+  def make_contract_value_attention_vectors(subdoc):
+    sumphrase_attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, '_phrase')
+    sumphrase_attention_vector = momentum(sumphrase_attention_vector, 0.99)
+
     value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, '_sum.work',
                                                                   relu_th=0.4)
     value_attention_vector = cut_above(value_attention_vector, 1)
     value_attention_vector = relu(value_attention_vector, 0.6)
     value_attention_vector = momentum(value_attention_vector, 0.8)
 
-    novalue_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_neg',
-                                                                    relu_th=0.4)
-    novalue_attention_vector = cut_above(novalue_attention_vector, 1)
+    novalue_attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, 'sum_neg')
 
     novalue_attention_vector_local_contrast = relu(novalue_attention_vector, 0.6)
     novalue_attention_vector_local_contrast = momentum(novalue_attention_vector_local_contrast, 0.9)
 
     value_attention_vector_tuned = (value_attention_vector - novalue_attention_vector * 0.7)
 
-    value_attention_vector_tuned = relu(value_attention_vector_tuned, 0.3)
-    value_attention_vector_tuned = normalize(value_attention_vector_tuned)
+    value_attention_vector_tuned = (value_attention_vector_tuned + sumphrase_attention_vector) / 2
+    value_attention_vector_tuned = relu(value_attention_vector_tuned, 0.6)
 
     return {
+      'sumphrase_attention_vector': sumphrase_attention_vector,
       'value_attention_vector': value_attention_vector,
       'novalue_attention_vector': novalue_attention_vector,
 
       'novalue_attention_vector_local_contrast': novalue_attention_vector_local_contrast,
-      'value_attention_vector_tuned': value_attention_vector_tuned
+      'value_attention_vector_tuned': value_attention_vector_tuned,
+
     }
 
 
