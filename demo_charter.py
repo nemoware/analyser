@@ -29,27 +29,34 @@ class CharterAnlysingContext(ParsingContext):
 
 
   def analyze_charter(self, txt, verbose=False):
+
     self._reset_context()
     # parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
     # 1. find top level structure
     _charter_doc.parse()
+
+
     self.doc = _charter_doc
 
     # 2. embedd headlines
     embedded_headlines = _charter_doc.embedd_headlines( self.hadlines_factory)
+    self._logstep("embedding headlines into semantic space")
 
     # 3. apply semantics to headlines,
     hl_meta_by_index = _charter_doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
 
     # 4. find sections
     _charter_doc.sections = _charter_doc.find_sections_by_headlines(hl_meta_by_index)
+    self._logstep("extracting doc structure")
 
     if 'name' in _charter_doc.sections:
       section: HeadlineMeta = _charter_doc.sections['name']
       org = self.detect_ners(section.body)
+      self._logstep("extracting NERs (named entities)")
     else:
+      self.warning('Секция наименования компнании не найдена')
       org = {
         'type': 'org_unknown',
         'name': "не определено",
@@ -59,6 +66,7 @@ class CharterAnlysingContext(ParsingContext):
       }
 
     rz = self.find_contraints(_charter_doc.sections)
+    self._logstep("Finding margin transaction values")
 
     #   html = render_constraint_values(rz)
     #   display(HTML(html))
@@ -183,7 +191,7 @@ class CharterAnlysingContext(ParsingContext):
       'caption': untokenize(hl_subdoc.tokens_cc),
       'sentences': self._extract_constraint_values_from_region(sentenses_i, self.price_factory)
     }
-
+    self._logstep(f"Finding margin transaction values in section {untokenize(hl_subdoc.tokens_cc)}")
     return r_by_head_type
 
   ##---------------------------------------
