@@ -142,6 +142,7 @@ class ElmoEmbedder(AbstractEmbedder):
     del self.elmo
     gc.collect()
     self.elmo = self.create_module_method()
+    self.session = self.tf.Session(config=self.config)
 
 
   def get_embedding_tensor(self, str, signature="default"):
