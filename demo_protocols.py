@@ -101,7 +101,7 @@ class ProtocolAnlysingContext(ParsingContext):
     # ----
 
     protocol = ProtocolDocument(text)
-    self._logstep(f"ProtocolDocument text: len({len(text)})")
+    print(f"ProtocolDocument text: len({len(text)})")
     protocol.parse()
 
     self.protocol = protocol
