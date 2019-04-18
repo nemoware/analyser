@@ -122,6 +122,7 @@ class PriceExtractTestCase(unittest.TestCase):
       оборудования 80000,00 ( восемьдесят
       покупки: 1000000 евро
       составляет 67624292 ( шестьдесят
+      АИ-92
       """
       numbers = numbers_str.split('\n')
       for n in numbers:
@@ -129,7 +130,8 @@ class PriceExtractTestCase(unittest.TestCase):
         print (tokens)
         for t in tokens:
           ff = number_re.findall(t)
-          print ( len(ff)>0  )
+          print ( len(ff)>0, ff  )
+          # self.assertTrue(len(ff)>0 )
 
     def test_split_by_number(self):
       import nltk
@@ -140,7 +142,9 @@ class PriceExtractTestCase(unittest.TestCase):
 
         a,b,c = split_by_number(tokens, np.ones(len(tokens)), 0.1)
         for t in a:
-          print ('\t-', untokenize(t))
+          restored=untokenize(t)
+          print ('\t-', t)
+          self.assertTrue(restored[0].isdigit())
 
 
 if __name__ == '__main__':

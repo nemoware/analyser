@@ -90,7 +90,7 @@ def detect_sign(prefix: str):
   return 0
 
 
-number_re = re.compile(r'\d+[,.]{0,1}\d+')
+number_re = re.compile(r'^\d+[,.]{0,1}\d+', re.MULTILINE)
 
 
 def split_by_number(tokens: List[str], attention: List[float], threshold):
