@@ -313,7 +313,7 @@ class ContractValuePatternFactory(AbstractPatternFactoryLowCase):
     cp('sum_neg.vat', ('в том числе', 'НДС', '0 ' + suffix))
     cp('sum_neg.date.2', ('в течение', '0', 'рабочих дней '))
 
-  def make_contract_value_attention_vectors(subdoc):
+  def make_contract_value_attention_vectors(self, subdoc):
     sumphrase_attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, '_phrase')
     sumphrase_attention_vector = momentum(sumphrase_attention_vector, 0.99)
 
