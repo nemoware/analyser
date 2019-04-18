@@ -29,7 +29,7 @@ class CharterAnlysingContext(ParsingContext):
 
 
   def analyze_charter(self, txt, verbose=False):
-    self.__step = 0
+    self._reset_context()
     # parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0

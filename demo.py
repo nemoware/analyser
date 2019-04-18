@@ -32,6 +32,10 @@ class ParsingContext:
 
     self.warnings = []
 
+  def _reset_context(self):
+    self.warnings = []
+    self.__step = 0
+
   def _logstep(self, name: str) -> None:
     s = self.__step
     print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
@@ -63,7 +67,7 @@ class ContractAnlysingContext(ParsingContext):
 
 
   def analyze_contract(self, contract_text):
-    self.__step = 0
+    self._reset_context()
     """
     MAIN METHOD
     
@@ -92,6 +96,8 @@ class ContractAnlysingContext(ParsingContext):
     self.log_warnings()
 
     return doc, values
+
+
 
   def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
     r = {}
