@@ -145,6 +145,8 @@ class ElmoEmbedder(AbstractEmbedder):
 
     self.session = self.tf.Session(config=self.config)
     self.session.run(self.tf.global_variables_initializer())
+
+    self.sessionruns = 0
     # self.session = self.tf.Session(config=self.config)
 
   def get_embedding_tensor(self, str, signature="default"):
@@ -153,7 +155,7 @@ class ElmoEmbedder(AbstractEmbedder):
     # with self.tf.Session(config=self.config) as sess:
     embedding = self.session.run(embedding_tensor)
     self.reset_maybe()
-    self.sessionruns = 0
+
     #       sess.close()
 
     return embedding
