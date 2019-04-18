@@ -50,8 +50,11 @@ class ParsingContext:
     return '\n'.join(self.warnings)
 
   def log_warnings(self):
-    for w in self.warnings:
-      print(w)
+    if len(self.warnings)>0:
+      print("Recent parsing warnings:")
+
+      for w in self.warnings:
+        print('\t\t', w)
 
 
 class ContractAnlysingContext(ParsingContext):
