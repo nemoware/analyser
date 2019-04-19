@@ -245,8 +245,8 @@ class LegalDocument(EmbeddableText):
   def subdoc(self, start, end):
 
     assert self.tokens is not None
-    #         assert self.embeddings is not None
-    #         assert self.distances_per_pattern_dict is not None
+
+    _s = slice(start, end)
 
     klazz = self.__class__
     sub = klazz("REF")
@@ -254,15 +254,15 @@ class LegalDocument(EmbeddableText):
     sub.end = end
 
     if self.embeddings is not None:
-      sub.embeddings = self.embeddings[start:end]
+      sub.embeddings = self.embeddings[_s]
 
     if self.distances_per_pattern_dict is not None:
       sub.distances_per_pattern_dict = {}
       for d in self.distances_per_pattern_dict:
-        sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][start:end]
+        sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][_s]
 
-    sub.tokens = self.tokens[start:end]
-    sub.tokens_cc = self.tokens_cc[start:end]
+    sub.tokens = self.tokens[_s]
+    sub.tokens_cc = self.tokens_cc[_s]
     return sub
 
   def normalize_sentences_bounds(self, text):

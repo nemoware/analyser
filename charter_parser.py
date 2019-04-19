@@ -1,11 +1,24 @@
 from legal_docs import deprecated, get_sentence_bounds_at_index
 from ml_tools import *
-from parsing import ParsingConfig
-from patterns import make_smart_meta_click_pattern
+from patterns import FuzzyPattern
 from patterns import make_pattern_attention_vector
-default_charter_parsing_config: ParsingConfig = ParsingConfig()
+
 
 # ❤️ == GOOD HEART LINE ========================================================
+
+def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
+  assert attention_vector is not None
+  if name is None:
+    import random
+    name = 's-meta-na-' + str(random.random())
+
+  best_id = np.argmax(attention_vector)
+  confidence = attention_vector[best_id]
+  best_embedding_v = embeddings[best_id]
+  meta_pattern = FuzzyPattern(None, _name=name)
+  meta_pattern.embeddings = np.array([best_embedding_v])
+
+  return meta_pattern, confidence, best_id
 
 
 @deprecated
@@ -32,7 +45,6 @@ from legal_docs import rectifyed_sum_by_pattern_prefix
 
 
 def make_improved_attention_vector(doc, pattern_prefix):
-  #    🧠  🧠  🧠  🧠
   _max_hit_attention, _ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix)
   improved = improve_attention_vector(doc.embeddings, _max_hit_attention, mix=1)
   return improved
@@ -41,16 +53,12 @@ def make_improved_attention_vector(doc, pattern_prefix):
 # ❤️ == GOOD HEART LINE =======================================================+
 
 class CharterDocumentParser:
-  def __init__(self):
+  def __init__(self, pattern_factory):
+    self.pattern_factory = pattern_factory
     pass
 
   def parse(self, doc):
     self.doc = doc
-    #     assert do
-    self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
-
-    self.competence_v, c__ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'competence', 0.3)
-    self.competence_v, c = improve_attention_vector(doc.embeddings, self.competence_v, mix=1)
 
     self.deal_attention = make_improved_attention_vector(self.doc, 'd_order_')
     # 💵 💵 💰
@@ -58,15 +66,33 @@ class CharterDocumentParser:
     # 💰
     self.currency_attention_vector = make_improved_attention_vector(self.doc, 'currency')
 
-  def _do_nothing(self, h, a, b):
+  def _do_nothing(self, a, b):
     pass  #
+
+  def find_charter_sections_starts(self, debug_renderer):
+    if debug_renderer == None:
+      debug_renderer = self._do_nothing
+
+      
+    #     assert do
+    self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
+
+    self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
+    self.competence_v, c__ = rectifyed_sum_by_pattern_prefix(self.doc.distances_per_pattern_dict, 'competence', 0.3)
+    self.competence_v, c = improve_attention_vector(self.doc.embeddings, self.competence_v, mix=1)
+
+    for cap in ['headline.name.', 'headline.head.all.', 'headline.head.gen.', 'headline.head.directors.']:
+      self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=cap, merge=True)
+
+      bounds = self.find_charter_section_start(cap, debug_renderer=debug_renderer)
+      print(bounds)
+      s = slice(bounds[0], bounds[1])
 
   def find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
     assert self.competence_v is not None
     assert self.headlines_attention_vector is not None
 
-    if debug_renderer == None:
-      debug_renderer = self._do_nothing
+
 
     competence_s = smooth(self.competence_v, 6)
 
@@ -109,5 +135,3 @@ class CharterDocumentParser:
     return relu(headline_attention_vector)
 
   # =======================
-
-
