@@ -1,3 +1,5 @@
+#origin: charter_parser.py
+
 from legal_docs import deprecated, get_sentence_bounds_at_index
 from ml_tools import *
 from patterns import FuzzyPattern
@@ -69,11 +71,10 @@ class CharterDocumentParser:
   def _do_nothing(self, a, b):
     pass  #
 
-  def find_charter_sections_starts(self, debug_renderer):
+  def find_charter_sections_starts(self, section_types, headlines_patterns_prefix='headline.', debug_renderer=None):
     if debug_renderer == None:
       debug_renderer = self._do_nothing
 
-      
     #     assert do
     self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
 
@@ -81,18 +82,18 @@ class CharterDocumentParser:
     self.competence_v, c__ = rectifyed_sum_by_pattern_prefix(self.doc.distances_per_pattern_dict, 'competence', 0.3)
     self.competence_v, c = improve_attention_vector(self.doc.embeddings, self.competence_v, mix=1)
 
-    for cap in ['headline.name.', 'headline.head.all.', 'headline.head.gen.', 'headline.head.directors.']:
-      self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=cap, merge=True)
+    for section_type in section_types:
+      # ['headline.name.', 'headline.head.all.', 'headline.head.gen.', 'headline.head.directors.']:
+      pattern_prefix = headlines_patterns_prefix + section_type
+      self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
 
-      bounds = self.find_charter_section_start(cap, debug_renderer=debug_renderer)
+      bounds = self.find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
       print(bounds)
       s = slice(bounds[0], bounds[1])
 
   def find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
     assert self.competence_v is not None
     assert self.headlines_attention_vector is not None
-
-
 
     competence_s = smooth(self.competence_v, 6)
 
