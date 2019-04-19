@@ -1,24 +1,11 @@
 from legal_docs import deprecated, get_sentence_bounds_at_index
 from ml_tools import *
-from patterns import FuzzyPattern
+from parsing import ParsingConfig
+from patterns import make_smart_meta_click_pattern
 from patterns import make_pattern_attention_vector
-
+default_charter_parsing_config: ParsingConfig = ParsingConfig()
 
 # ❤️ == GOOD HEART LINE ========================================================
-
-def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
-  assert attention_vector is not None
-  if name is None:
-    import random
-    name = 's-meta-na-' + str(random.random())
-
-  best_id = np.argmax(attention_vector)
-  confidence = attention_vector[best_id]
-  best_embedding_v = embeddings[best_id]
-  meta_pattern = FuzzyPattern(None, _name=name)
-  meta_pattern.embeddings = np.array([best_embedding_v])
-
-  return meta_pattern, confidence, best_id
 
 
 @deprecated
@@ -45,6 +32,7 @@ from legal_docs import rectifyed_sum_by_pattern_prefix
 
 
 def make_improved_attention_vector(doc, pattern_prefix):
+  #    🧠  🧠  🧠  🧠
   _max_hit_attention, _ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix)
   improved = improve_attention_vector(doc.embeddings, _max_hit_attention, mix=1)
   return improved
@@ -70,7 +58,7 @@ class CharterDocumentParser:
     # 💰
     self.currency_attention_vector = make_improved_attention_vector(self.doc, 'currency')
 
-  def _do_nothing(self, a, b):
+  def _do_nothing(self, h, a, b):
     pass  #
 
   def find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
@@ -121,3 +109,5 @@ class CharterDocumentParser:
     return relu(headline_attention_vector)
 
   # =======================
+
+

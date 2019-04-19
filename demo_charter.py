@@ -1,26 +1,26 @@
 import numpy as np
 
+from charter_parser import default_charter_parsing_config
 from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
   embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
-  deprecated, make_soft_attention_vector, org_types
-from parsing import ParsingContext, ParsingConfig
+  deprecated, make_soft_attention_vector, org_types, embedd_generic_tokenized_sentences_2
 from ml_tools import split_by_token
-from patterns import AbstractPatternFactoryLowCase, AbstractPatternFactory, FuzzyPattern
+from parsing import ParsingContext
+from patterns import AbstractPatternFactoryLowCase
 from renderer import *
 from text_tools import find_ner_end
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 
-default_charter_parsing_config:ParsingConfig=ParsingConfig()
 default_charter_parsing_config.headline_attention_threshold = 1.4
+
 
 class CharterAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: AbstractRenderer):
     ParsingContext.__init__(self, embedder, renderer)
 
-    self.price_factory = None
-    self.hadlines_factory: CharterHeadlinesPatternFactory = None
-    self.ner_factory: CharterNerPatternFactory = None
+    self.factory: CharterPatternFactory = None
+
     self.renderer = renderer
 
     self.org = None
@@ -30,31 +30,32 @@ class CharterAnlysingContext(ParsingContext):
     self.config = default_charter_parsing_config
 
   def analyze_charter(self, txt, verbose=False):
+    """
+    🚀
+    :param txt:
+    :param verbose:
+    :return:
+    """
 
-    if self.price_factory is None:
-      self.price_factory = CharterConstraintsPatternFactory(self.embedder)
-
-    if self.hadlines_factory is None:
-      self.hadlines_factory = CharterHeadlinesPatternFactory(self.embedder)
-
-    if self.ner_factory is None:
-      self.ner_factory = CharterNerPatternFactory(self.embedder)
+    if self.factory is None:
+      self.factory = CharterPatternFactory(self.embedder)
 
     self._reset_context()
-    # parse
+    #0. parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
+
     # 1. find top level structure
     _charter_doc.parse()
 
     self.doc = _charter_doc
 
     # 2. embedd headlines
-    embedded_headlines = _charter_doc.embedd_headlines(self.hadlines_factory)
+    embedded_headlines = _charter_doc.embedd_headlines(self.factory)
     self._logstep("embedding headlines into semantic space")
 
     _charter_doc.sections = _charter_doc.find_sections_by_headlines_2(
-      self, self.hadlines_factory.headlines, embedded_headlines, 'headline.', self.config.headline_attention_threshold)
+      self, self.factory.headlines, embedded_headlines, 'headline.', self.config.headline_attention_threshold)
 
     self._logstep("extracting doc structure")
 
@@ -64,13 +65,15 @@ class CharterAnlysingContext(ParsingContext):
       self._logstep("extracting NERs (named entities)")
     else:
       self.warning('Секция наименования компнании не найдена')
-      org = {
-        'type': 'org_unknown',
-        'name': "не определено",
-        'type_name': "не определено",
-        'tokens': [],
-        'attention_vector': []
-      }
+      self.warning('Попытаемся искать просто в начале документа')
+      org = self.detect_ners(_charter_doc.subdoc(0,3000))
+      # org = {
+      #   'type': 'org_unknown',
+      #   'name': "не определено",
+      #   'type_name': "не определено",
+      #   'tokens': [],
+      #   'attention_vector': []
+      # }
 
     rz = self.find_contraints(_charter_doc.sections)
     self._logstep("Finding margin transaction values")
@@ -90,17 +93,20 @@ class CharterAnlysingContext(ParsingContext):
   def detect_ners(self, section):
     assert section is not None
 
-    section.embedd(self.ner_factory)
-    section.calculate_distances_per_pattern(self.ner_factory)
+    section.embedd(self.factory)
 
-    dict_org, best_type = self._detect_org_type_and_name(section)
+    section.calculate_distances_per_pattern(self.factory, pattern_prefix='org_', merge=True)
+    section.calculate_distances_per_pattern(self.factory, pattern_prefix='ner_org', merge=True)
+    section.calculate_distances_per_pattern(self.factory, pattern_prefix='nerneg_', merge=True)
+
+    org_by_type_dict, org_type = self._detect_org_type_and_name(section)
 
     if self.verbosity_level > 1:
-      self.renderer.render_color_text(section.tokens_cc, section.distances_per_pattern_dict[best_type],
+      self.renderer.render_color_text(section.tokens_cc, section.distances_per_pattern_dict[org_type],
                                       _range=[0, 1])
 
-    start = dict_org[best_type][0]
-    start = start + len(self.ner_factory.patterns_dict[best_type].embeddings)
+    start = org_by_type_dict[org_type][0]
+    start = start + len(self.factory.patterns_dict[org_type].embeddings)
     end = 1 + find_ner_end(section.tokens, start)
 
     orgname_sub_section: LegalDocument = section.subdoc(start, end)
@@ -108,26 +114,26 @@ class CharterAnlysingContext(ParsingContext):
 
     if self.verbosity_level > 1:
       self.renderer.render_color_text(orgname_sub_section.tokens_cc,
-                                      orgname_sub_section.distances_per_pattern_dict[best_type],
+                                      orgname_sub_section.distances_per_pattern_dict[org_type],
                                       _range=[0, 1])
-      print('Org type:', org_types[best_type], dict_org[best_type])
+      print('Org type:', org_types[org_type], org_by_type_dict[org_type])
 
     rez = {
-      'type': best_type,
+      'type': org_type,
       'name': org_name,
-      'type_name': org_types[best_type],
+      'type_name': org_types[org_type],
       'tokens': section.tokens_cc,
-      'attention_vector': section.distances_per_pattern_dict[best_type]
+      'attention_vector': section.distances_per_pattern_dict[org_type]
     }
 
     return rez
 
   # ------------------------------------------------------------------------------
   def _detect_org_type_and_name(self, section):
-    s_attention_vector_neg = self.ner_factory._build_org_type_attention_vector(section)
+    s_attention_vector_neg = self.factory._build_org_type_attention_vector(section)
 
-    dict_org = {}
-    best_type = None
+    org_by_type = {}
+    best_org_type = None
     _max = 0
     for org_type in org_types.keys():
 
@@ -139,14 +145,14 @@ class CharterAnlysingContext(ParsingContext):
       val = section.distances_per_pattern_dict[org_type][idx]
       if val > _max:
         _max = val
-        best_type = org_type
+        best_org_type = org_type
 
-      dict_org[org_type] = [idx, val]
+      org_by_type[org_type] = [idx, val]
 
     if self.verbosity_level > 2:
-      print('_detect_org_type_and_name', dict_org)
+      print('_detect_org_type_and_name', org_by_type)
 
-    return dict_org, best_type
+    return org_by_type, best_org_type
 
   # ---------------------------------------
   def find_contraints(self, sections):
@@ -196,7 +202,7 @@ class CharterAnlysingContext(ParsingContext):
     r_by_head_type = {
       'section': head_types_dict[section.type],
       'caption': untokenize(hl_subdoc.tokens_cc),
-      'sentences': self._extract_constraint_values_from_region(sentenses_i, self.price_factory)
+      'sentences': self._extract_constraint_values_from_region(sentenses_i, self.factory)
     }
     self._logstep(f"Finding margin transaction values in section {untokenize(hl_subdoc.tokens_cc)}")
     return r_by_head_type
@@ -206,9 +212,12 @@ class CharterAnlysingContext(ParsingContext):
     if sentenses_i is None or len(sentenses_i) == 0:
       return []
 
-    ssubdocs = embedd_generic_tokenized_sentences(sentenses_i, _embedd_factory)
+    ssubdocs = embedd_generic_tokenized_sentences_2(sentenses_i, _embedd_factory.embedder)
 
     for ssubdoc in ssubdocs:
+      ssubdoc.calculate_distances_per_pattern(_embedd_factory,  pattern_prefix='sum_max.', merge=True)
+      ssubdoc.calculate_distances_per_pattern(_embedd_factory, pattern_prefix='sum__', merge=True)
+      ssubdoc.calculate_distances_per_pattern(_embedd_factory, pattern_prefix='d_order.', merge=True)
 
       vectors = make_constraints_attention_vectors(ssubdoc)
       ssubdoc.distances_per_pattern_dict = {**ssubdoc.distances_per_pattern_dict, **vectors}
@@ -293,11 +302,21 @@ class CharterAnlysingContext(ParsingContext):
   # ==================================================================VIOLATIONS
 
 
-class CharterHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
+class CharterPatternFactory(AbstractPatternFactoryLowCase):
+  """
+  🏭
+  """
 
   def __init__(self, embedder):
     AbstractPatternFactoryLowCase.__init__(self, embedder)
+
     self._build_head_patterns()
+    self._build_order_patterns()
+    self._build_sum_margin_extraction_patterns()
+    self._build_sum_patterns()
+
+    self._build_ner_patterns()
+
     self.embedd()
 
     self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
@@ -340,26 +359,6 @@ class CharterHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.head.gen.3', ('', 'генерального', ''))
     cp('headline.head.gen.4', ('', 'директора', ''))
 
-
-class CharterConstraintsPatternFactory(AbstractPatternFactoryLowCase):
-
-  def __init__(self, embedder):
-    AbstractPatternFactoryLowCase.__init__(self, embedder)
-
-    self._build_order_patterns()
-    self._build_sum_margin_extraction_patterns()
-    self._build_sum_patterns()
-    self.embedd()
-
-  def _build_order_patterns(self):
-    def cp(name, tuples):
-      return self.create_pattern(name, tuples)
-
-    prefix = 'принятие решения о согласии на совершение или о последующем одобрении'
-
-    cp('d_order_4', (prefix, 'cделки', ', стоимость которой равна или превышает'))
-    cp('d_order_5', (prefix, 'cделки', ', стоимость которой составляет менее'))
-
   def _build_sum_patterns(self):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
@@ -401,17 +400,8 @@ class CharterConstraintsPatternFactory(AbstractPatternFactoryLowCase):
     self.create_pattern('sum__gt_3', (prefix + '', 'свыше 0', suffix))
     self.create_pattern('sum__gt_4', (prefix + '', 'сделка имеет стоимость, равную или превышающую 0', suffix))
 
-
-class CharterPatternFactory(AbstractPatternFactoryLowCase):
-
-  def __init__(self, embedder):
-    AbstractPatternFactoryLowCase.__init__(self, embedder)
-
-    self._build_order_patterns()
-    self.embedd()
-
   @deprecated
-  def _build_order_patterns(self):
+  def _build_order_patterns____OLD(self):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
@@ -422,23 +412,14 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     cp('d_order_4', ('', 'Сделки', 'стоимость которой равна или превышает'))
     cp('d_order_5', ('', 'Сделки', 'стоимость которой составляет менее'))
 
+  def _build_order_patterns(self):
+    def cp(name, tuples):
+      return self.create_pattern(name, tuples)
 
-class CharterNerPatternFactory(AbstractPatternFactory):
+    prefix = 'принятие решения о согласии на совершение или о последующем одобрении'
 
-  def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
-    self.patterns_dict[pattern_name] = fp
-    return fp
-
-  def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
-
-    self.patterns_dict = {}
-
-    self._build_ner_patterns()
-    self.embedd()
+    cp('d_order_4', (prefix, 'cделки', ', стоимость которой равна или превышает'))
+    cp('d_order_5', (prefix, 'cделки', ', стоимость которой составляет менее'))
 
   def _build_ner_patterns(self):
     def cp(name, tuples):
@@ -507,7 +488,7 @@ class VConstraint:
     greather_upper = False
 
     if _v is None:
-      return as_error_html("сумма контракта не известна")
+      return as_error_html("сумма контракта неизвестна")
     v: ValueConstraint = _v.value
 
     if v is None:

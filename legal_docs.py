@@ -232,10 +232,10 @@ class LegalDocument(EmbeddableText):
 
   @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
-                                      verbosity=1, merge=False):
+                                      verbosity=1, merge=False, pattern_prefix=None):
 
     self.distances_per_pattern_dict = calculate_distances_per_pattern(self, pattern_factory, dist_function, merge=merge,
-                                                                      verbosity=verbosity)
+                                                                      verbosity=verbosity, pattern_prefix=pattern_prefix)
 
     return self.distances_per_pattern_dict
 
@@ -880,7 +880,7 @@ def make_constraints_attention_vectors(subdoc):
     'margin_value_attention_vector': margin_value_attention_vector
   }
 
-
+@deprecated
 def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
         List[LegalDocument]:
   embedded_docs = []
@@ -913,6 +913,42 @@ def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatt
     embedded_docs[i].tokens_cc = tokens
     embedded_docs[i].embeddings = line_emb
     embedded_docs[i].calculate_distances_per_pattern(factory)
+
+  return embedded_docs
+
+
+def embedd_generic_tokenized_sentences_2(strings: List[str], embedder) -> \
+        List[LegalDocument]:
+  embedded_docs = []
+  if strings is None or len(strings) == 0:
+    return []
+
+  tokenized_sentences_list = []
+  for i in range(len(strings)):
+    s = strings[i]
+
+    words = nltk.word_tokenize(s)
+
+    subdoc = LegalDocument()
+
+    subdoc.tokens = words
+    subdoc.tokens_cc = words
+
+    tokenized_sentences_list.append(subdoc.tokens)
+    embedded_docs.append(subdoc)
+
+  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(embedder, tokenized_sentences_list)
+
+  for i in range(len(embedded_docs)):
+    l = lens[i]
+    tokens = wrds[i][:l]
+
+    line_emb = sentences_emb[i][:l]
+
+    embedded_docs[i].tokens = tokens
+    embedded_docs[i].tokens_cc = tokens
+    embedded_docs[i].embeddings = line_emb
+
 
   return embedded_docs
 

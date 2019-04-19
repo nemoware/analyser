@@ -3,6 +3,8 @@
 # coding=utf-8
 from typing import List
 
+from ml_tools import np
+
 load_punkt = True
 
 from text_tools import *
@@ -331,3 +333,17 @@ def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=D
     print('ERROR: calculate_distances_per_pattern ', e)
     dists = np.zeros(len(embeddings))
   return dists
+
+import random
+def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
+  assert attention_vector is not None
+  if name is None:
+    name = 's-meta-na-' + str(random.random())
+
+  best_id = np.argmax(attention_vector)
+  confidence = attention_vector[best_id]
+  best_embedding_v = embeddings[best_id]
+  meta_pattern = FuzzyPattern(None, _name=name)
+  meta_pattern.embeddings = np.array([best_embedding_v])
+
+  return meta_pattern, confidence, best_id
