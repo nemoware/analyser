@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from demo import ParsingContext
-
-from legal_docs import BasicContractDocument, LegalDocument, deprecated
+from legal_docs import BasicContractDocument, LegalDocument, deprecated, ParsingContext
 from patterns import *
 from renderer import AbstractRenderer
 from transaction_values import extract_sum_from_tokens

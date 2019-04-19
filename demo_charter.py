@@ -1,34 +1,28 @@
-from demo import ParsingContext
+import numpy as np
+
 from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
   embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
-  deprecated, make_soft_attention_vector, org_types
-from ml_tools import   split_by_token
+  deprecated, make_soft_attention_vector, org_types, ParsingContext
+from ml_tools import split_by_token
 from patterns import AbstractPatternFactoryLowCase, AbstractPatternFactory, FuzzyPattern
 from renderer import *
 from text_tools import find_ner_end
-from transaction_values import extract_sum, ValueConstraint
-
-
 from text_tools import untokenize
-import numpy as np
+from transaction_values import extract_sum, ValueConstraint
 
 
 class CharterAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: AbstractRenderer):
     ParsingContext.__init__(self, embedder, renderer)
 
-    
     self.price_factory = None
-    self.hadlines_factory:CharterHeadlinesPatternFactory = None
-    self.ner_factory:CharterNerPatternFactory = None
+    self.hadlines_factory: CharterHeadlinesPatternFactory = None
+    self.ner_factory: CharterNerPatternFactory = None
     self.renderer = renderer
 
     self.org = None
     self.constraints = None
     self.doc = None
-
-
-
 
   def analyze_charter(self, txt, verbose=False):
 
@@ -48,18 +42,15 @@ class CharterAnlysingContext(ParsingContext):
     # 1. find top level structure
     _charter_doc.parse()
 
-
     self.doc = _charter_doc
 
     # 2. embedd headlines
-    embedded_headlines = _charter_doc.embedd_headlines( self.hadlines_factory)
+    embedded_headlines = _charter_doc.embedd_headlines(self.hadlines_factory)
     self._logstep("embedding headlines into semantic space")
 
-    # 3. apply semantics to headlines,
-    hl_meta_by_index = _charter_doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
+    _charter_doc.sections = _charter_doc.find_sections_by_headlines_2(
+      self, self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
 
-    # 4. find sections
-    _charter_doc.sections = _charter_doc.find_sections_by_headlines(hl_meta_by_index)
     self._logstep("extracting doc structure")
 
     if 'name' in _charter_doc.sections:
@@ -237,13 +228,8 @@ class CharterAnlysingContext(ParsingContext):
       sentences.append(sentence)
     return sentences
 
-
-
-
-
-  #==============
+  # ==============
   # VIOLATIONS
-
 
   def find_ranges_by_group(self, charter_constraints, m_convert, verbose=False):
     ranges_by_group = {}
@@ -254,8 +240,7 @@ class CharterAnlysingContext(ParsingContext):
       ranges_by_group[head_group] = data
     return ranges_by_group
 
-
-  def _combine_constraints_in_group(self, group_c,  m_convert, verbose=False):
+  def _combine_constraints_in_group(self, group_c, m_convert, verbose=False):
     # print(group_c)
     # print(group_c['section'])
 
@@ -300,7 +285,8 @@ class CharterAnlysingContext(ParsingContext):
         data['ranges'][sentence_id] = VConstraint(constraint_low, constraint_up, group_c)
 
     return data
-  #==================================================================VIOLATIONS
+  # ==================================================================VIOLATIONS
+
 
 class CharterHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
 
@@ -483,20 +469,9 @@ head_types_dict = {'head.directors': 'Совет директоров',
                    'head.unknown': '*Неизвестный орган управления*'}
 head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
 
-
-
-
-
-
-
-
-
-
-
-
-#=======================
-#=======================
-#=======================
+# =======================
+# =======================
+# =======================
 from ml_tools import ProbableValue
 
 
@@ -521,8 +496,6 @@ class VConstraint:
       html += as_warning(f"конвертация валют {as_currency(v)} --> RUB ")
       html += as_offset(as_warning(f"примерно: {as_currency(v)} ~~  {as_currency(v_converted)}  "))
     return v, v_converted, html
-
-
 
   def check_contract_value(self, _v: ProbableValue, convet_m, renderer):
     greather_lower = False
@@ -586,11 +559,7 @@ class VConstraint:
 
     return html
 
-
 # -----------
-
-
-
 
 
 # rendering:----------------------------

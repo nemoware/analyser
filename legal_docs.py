@@ -9,6 +9,7 @@ from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_sim
   ProbableValue
 from patterns import *
 from patterns import AbstractPatternFactory
+from renderer import AbstractRenderer
 from text_normalize import *
 from text_tools import *
 from transaction_values import extract_sum_from_tokens, split_by_number, extract_sum_and_sign
@@ -20,13 +21,49 @@ REPORTED_DEPRECATED = {}
 import gc
 
 
+class ParsingContext:
+  def __init__(self, embedder, renderer: AbstractRenderer):
+    assert embedder is not None
+    assert renderer is not None
+    self.renderer = renderer
+    self.embedder = embedder
+    # ---
+    self.verbosity_level = 2
+    self.__step = 0
+
+    self.warnings = []
+
+  def _reset_context(self):
+    self.warnings = []
+    self.__step = 0
+
+  def _logstep(self, name: str) -> None:
+    s = self.__step
+    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
+    self.__step += 1
+
+  def warning(self, text):
+    t_ = '⚠️ WARNING: - ' + text
+    self.warnings.append(t_)
+    print(t_)
+
+  def get_warings(self):
+    return '\n'.join(self.warnings)
+
+  def log_warnings(self):
+    if len(self.warnings) > 0:
+      print("Recent parsing warnings:")
+
+      for w in self.warnings:
+        print('\t\t', w)
+
+
 class HeadlineMeta:
-  def __init__(self, index, type, confidence: float, subdoc, attention_v):
+  def __init__(self, index, type, confidence: float, subdoc):
     self.index: int = index
     self.confidence: float = confidence
     self.type: str = type
     self.subdoc: LegalDocument = subdoc
-    self.attention_v: List[float] = attention_v
     self.body: LegalDocument = None
 
 
@@ -90,24 +127,51 @@ class LegalDocument(EmbeddableText):
 
     self.sections = {}
 
-
     # subdocs
     self.start = None
     self.end = None
 
-  # ----------------------------------------------------------------------------------------------
-  def find_sections_by_headlines(self, headline_metas: dict) -> dict:
+  def find_sections_by_headlines_2(self, context: ParsingContext, head_types_list,
+                                   embedded_headlines: List['LegalDocument'], pattern_prefix,
+                                   threshold) -> dict:
+
+    hl_meta_by_index = {}
     sections = {}
 
-    for bi in headline_metas:
-      hl: HeadlineMeta = headline_metas[bi]
+    for head_type in head_types_list:
 
+      confidence_by_headline = self._find_best_headline_by_pattern_prefix_2(embedded_headlines,
+                                                                            pattern_prefix + head_type, threshold)
+      closest_headline_index = int(np.argmax(confidence_by_headline))
+
+      if confidence_by_headline[closest_headline_index] > threshold:
+
+        obj = HeadlineMeta(closest_headline_index,
+                           head_type,
+                           confidence=confidence_by_headline[closest_headline_index],
+                           subdoc=embedded_headlines[closest_headline_index])
+
+        if closest_headline_index in hl_meta_by_index:
+          # replace
+          e_obj = hl_meta_by_index[closest_headline_index]
+          if e_obj.confidence < obj.confidence:
+            # replace
+            hl_meta_by_index[closest_headline_index] = obj
+        else:
+          hl_meta_by_index[closest_headline_index] = obj
+
+
+      else:
+        context.warning(f'Cannot find headline matching pattern "{pattern_prefix}"*')
+
+    for hl in hl_meta_by_index.values():
       try:
         hl.body = self._doc_section_under_headline(hl, render=False)
         sections[hl.type] = hl
 
       except ValueError as error:
-        print(error)
+        context.warning(str(error))
+        # print(error)
 
     return sections
 
@@ -126,10 +190,11 @@ class LegalDocument(EmbeddableText):
       headline_next_id = None
 
     subdoc = subdoc_between_lines(headline_index, headline_next_id, self)
+
     if len(subdoc.tokens) < 2:
       raise ValueError(
-        'Empty "{}" section between headlines #{} and #{}'.format(headline_info.type, headline_index,
-                                                                  headline_next_id))
+        'Empty "{}" section between detected headlines #{} and #{}'.format(headline_info.type, headline_index,
+                                                                           headline_next_id))
 
     if render:
       print('=' * 100)
@@ -169,64 +234,63 @@ class LegalDocument(EmbeddableText):
 
     return embedded_headlines
 
+  @deprecated
   def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
                                             threshold):
 
     import math
-    confidence_by_headline = []
 
-    confidence_by_headline_a = np.zeros(len(embedded_headlines))
+    number_of_headlines = len(embedded_headlines)
+    confidence_by_headline = np.zeros(number_of_headlines)
 
     attention_vectors_by_headline = {}
-    for i in range(len(embedded_headlines)):
+
+    for i in range(number_of_headlines):
       subdoc = embedded_headlines[i]
-      names, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix, relu_th=0.6)
 
-      names = smooth_safe(names, 4)
+      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
+                                                             relu_th=0.6)
+      headline_name_av = smooth_safe(headline_name_av, 4)
 
-      _max_id = np.argmax(names)
-      _max = np.max(names)
-      _sum = math.log(1 + np.sum(names[_max_id - 1:_max_id + 2]))
+      _max_id = np.argmax(headline_name_av)
+      _max = np.max(headline_name_av)
+      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
 
-      confidence_by_headline.append(_max + _sum)
-      confidence_by_headline_a[i] = _max + _sum
-      attention_vectors_by_headline[i] = names
+      confidence_by_headline[i] = _max + _sum
+      attention_vectors_by_headline[i] = headline_name_av
 
-    bi = int(np.argmax(confidence_by_headline))
+    closest_headline_index = int(np.argmax(confidence_by_headline))
 
-    if confidence_by_headline[bi] < threshold:
+    if confidence_by_headline[closest_headline_index] < threshold:
       raise ValueError('Cannot find headline matching pattern "{}"'.format(pattern_prefix))
 
-    return bi, confidence_by_headline, attention_vectors_by_headline[bi]
+    return closest_headline_index, confidence_by_headline, attention_vectors_by_headline[closest_headline_index]
 
-  # ----------------------------------------------------------------------------------------------
-  def match_headline_types(self, head_types_list, embedded_headlines: List['LegalDocument'], pattern_prefix,
-                           threshold) -> dict:
-    hl_meta_by_index = {}
-    for head_type in head_types_list:
-      try:
-        bi, confidence_by_headline, attention_v = \
-          self._find_best_headline_by_pattern_prefix(embedded_headlines, pattern_prefix + head_type, threshold)
+  def _find_best_headline_by_pattern_prefix_2(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
+                                              threshold):
 
-        obj = HeadlineMeta(bi, head_type,
-                           confidence=confidence_by_headline[bi],
-                           subdoc=embedded_headlines[bi],
-                           attention_v=attention_v)
+    import math
 
-        if bi in hl_meta_by_index:
-          # replace
-          e_obj = hl_meta_by_index[bi]
-          if e_obj.confidence < obj.confidence:
-            # replace
-            hl_meta_by_index[bi] = obj
-        else:
-          hl_meta_by_index[bi] = obj
+    number_of_headlines = len(embedded_headlines)
+    confidence_by_headline = np.zeros(number_of_headlines)
 
-      except Exception as e:
-        print(e)
-        pass
+    attention_vectors_by_headline = {}
 
-    return hl_meta_by_index
+    for i in range(number_of_headlines):
+      subdoc = embedded_headlines[i]
+
+      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
+                                                             relu_th=0.6)
+      headline_name_av = smooth_safe(headline_name_av, 4)
+
+      _max_id = np.argmax(headline_name_av)
+      _max = np.max(headline_name_av)
+      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
+
+      confidence_by_headline[i] = _max + _sum
+      attention_vectors_by_headline[i] = headline_name_av
+
+    return confidence_by_headline
 
   def untokenize_cc(self):
     return untokenize(self.tokens_cc)
@@ -952,18 +1016,18 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   if merge:
     distances_per_pattern_dict = doc.distances_per_pattern_dict
 
-  c=0
+  c = 0
   for pat in pattern_factory.patterns:
     if pattern_prefix is None or pat.name[:len(pattern_prefix)] == pattern_prefix:
       if verbosity > 1: print(f'estimating distances to pattern {pat.name}', pat)
 
       dists = make_pattern_attention_vector(pat, doc.embeddings, dist_function)
       distances_per_pattern_dict[pat.name] = dists
-      c+=1
+      c += 1
 
   if verbosity > 0:
     print(distances_per_pattern_dict.keys())
-  if(c==0):
-    raise ValueError('no pattern with prefix: '+pattern_prefix)
+  if (c == 0):
+    raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
   return distances_per_pattern_dict

@@ -3,7 +3,7 @@
 # coding=utf-8
 
 
-from legal_docs import LegalDocument, HeadlineMeta
+from legal_docs import LegalDocument, HeadlineMeta, ParsingContext
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
 from ml_tools import *
@@ -19,43 +19,6 @@ subject_types = {
 }
 
 subject_types_dict = {**subject_types, **{'unknown': 'предмет догоовора не ясен'}}
-
-
-class ParsingContext:
-  def __init__(self, embedder, renderer: AbstractRenderer):
-    assert embedder is not None
-    assert renderer is not None
-    self.renderer = renderer
-    self.embedder = embedder
-    # ---
-    self.verbosity_level = 2
-    self.__step = 0
-
-    self.warnings = []
-
-  def _reset_context(self):
-    self.warnings = []
-    self.__step = 0
-
-  def _logstep(self, name: str) -> None:
-    s = self.__step
-    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
-    self.__step += 1
-
-  def warning(self, text):
-    t_ = '⚠️ WARNING: - ' + text
-    self.warnings.append(t_)
-    print(t_)
-
-  def get_warings(self):
-    return '\n'.join(self.warnings)
-
-  def log_warnings(self):
-    if len(self.warnings) > 0:
-      print("Recent parsing warnings:")
-
-      for w in self.warnings:
-        print('\t\t', w)
 
 
 class ContractAnlysingContext(ParsingContext):
@@ -83,8 +46,9 @@ class ContractAnlysingContext(ParsingContext):
     self._logstep("parsing document and detecting document high-level structure")
 
     embedded_headlines = doc.embedd_headlines(self.hadlines_factory)
-    hl_meta_by_index = doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
-    doc.sections = doc.find_sections_by_headlines(hl_meta_by_index)
+
+    doc.sections = doc.find_sections_by_headlines_2(
+      self, self.hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
 
     self._logstep("embedding headlines into semantic space")
 
