@@ -316,7 +316,12 @@ class AbstractPatternFactoryLowCase(AbstractPatternFactory):
   def create_pattern(self, pattern_name, ppp):
     _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
     fp = FuzzyPattern(_ppp, pattern_name)
-    self.patterns.append(fp)
+
+    if pattern_name in self.patterns_dict:
+      #Let me be strict!
+      raise ValueError(f'Duplicated {pattern_name}')
+
     self.patterns_dict[pattern_name] = fp
+    self.patterns.append(fp)
     return fp
 
