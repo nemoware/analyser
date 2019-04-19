@@ -325,3 +325,33 @@ class AbstractPatternFactoryLowCase(AbstractPatternFactory):
     self.patterns.append(fp)
     return fp
 
+
+
+
+
+
+
+import numpy as np
+
+from legal_docs import LegalDocument
+from patterns import AbstractPatternFactory, FuzzyPattern
+from text_tools import dist_mean_cosine
+
+DIST_FUNC = dist_mean_cosine
+
+
+def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=DIST_FUNC):
+  try:
+    dists = pat._eval_distances_multi_window(embeddings, dist_function)
+
+    # TODO: this inversion must be a part of a dist_function
+    dists = 1.0 - dists
+    # distances_per_pattern_dict[pat.name] = dists
+    dists.flags.writeable = False
+
+  except Exception as e:
+    print('ERROR: calculate_distances_per_pattern ', e)
+    dists = np.zeros(len(embeddings))
+  return dists
+
+

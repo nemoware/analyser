@@ -240,25 +240,12 @@ class LegalDocument(EmbeddableText):
     return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
 
   @profile
-  def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC):
-    distances_per_pattern_dict = {}
-    for pat in pattern_factory.patterns:
-      try:
-        dists = pat._eval_distances_multi_window(self.embeddings, dist_function)
+  def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
+                                      verbosity=1, merge=False):
 
-        # TODO: this inversion must be a part of a dist_function
-        dists = 1.0 - dists
-        distances_per_pattern_dict[pat.name] = dists
-        dists.flags.writeable = False
-      except Exception as e:
-        print('ERROR: calculate_distances_per_pattern ', e)
-        dists = np.zeros(len(self.embeddings))
+    self.distances_per_pattern_dict = calculate_distances_per_pattern(self, pattern_factory, dist_function, merge=merge,
+                                                                      verbosity=verbosity)
 
-        distances_per_pattern_dict[pat.name] = dists
-
-      # print(pat.name)
-
-    self.distances_per_pattern_dict = distances_per_pattern_dict
     return self.distances_per_pattern_dict
 
   def print_structured(self, numbered_only=False):
@@ -340,7 +327,7 @@ class LegalDocument(EmbeddableText):
   def parse(self, txt=None):
     if txt is None:
       txt = self.original_text
-    
+
     self.normal_text = self.preprocess_text(txt)
 
     self.structure = DocumentStructure()
@@ -861,7 +848,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       vc = extract_sum_and_sign(sentence_subdoc, region)
-      vc.context = [tokens[region[0]-10:region[1]+10], attention_vector[region[0]-10:region[1]+10]]
+      vc.context = [tokens[region[0] - 10:region[1] + 10], attention_vector[region[0] - 10:region[1] + 10]]
       confidence = attention_vector[region[0]]
       pv = ProbableValue(vc, confidence)
 
@@ -955,3 +942,25 @@ org_types = {
   'org_zao': 'Закрытое акционерное общество',
   'org_oao': 'Открытое акционерное общество',
   'org_ooo': 'Общество с ограниченной ответственностью'}
+
+
+def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: AbstractPatternFactory,
+                                    dist_function=DIST_FUNC, merge=False,
+                                    pattern_prefix=None, verbosity=1):
+  distances_per_pattern_dict = {}
+  if merge:
+    distances_per_pattern_dict = doc.distances_per_pattern_dict
+
+  for pat in pattern_factory.patterns:
+    if pattern_prefix is None or pat.name[:len(pattern_prefix)] == pattern_prefix:
+      if verbosity > 1:
+        print(f'estimating distances to pattern {pat.name}', pat)
+
+        dists = make_pattern_attention_vector(pat, doc.embeddings, dist_function)
+
+        distances_per_pattern_dict[pat.name] = dists
+
+  if verbosity > 0:
+    print(distances_per_pattern_dict.keys())
+
+  return distances_per_pattern_dict
