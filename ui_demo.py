@@ -10,13 +10,14 @@ Original file is located at
 
 ##utils
 """
+from __future__ import print_function
 
 import IPython
 import uuid
 from google.colab import output
 from google.colab import files
 
-from __future__ import print_function
+
 
 from google.colab import widgets
 from google.colab import output
