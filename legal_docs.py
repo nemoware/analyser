@@ -58,6 +58,9 @@ class LegalDocument(EmbeddableText):
     self.start = None
     self.end = None
 
+  def __del__(self):
+    print("----------------- LegalDocument deleted. Ciao bella!")
+
   def find_sections_by_headlines_2(self, context: ParsingContext, head_types_list,
                                    embedded_headlines: List['LegalDocument'], pattern_prefix,
                                    threshold) -> dict:

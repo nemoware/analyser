@@ -252,3 +252,10 @@ def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
       _sum = np.maximum(_sum, x)
 
   return _sum
+
+def put_if_better(dict:dict, key, x, is_better:staticmethod):
+  if key in dict:
+    if is_better(x, dict[key]):
+      dict[key] = x
+  else:
+    dict[key] = x

@@ -1,9 +1,16 @@
-#origin: charter_parser.py
+# origin: charter_parser.py
 
-from legal_docs import deprecated, get_sentence_bounds_at_index
+from legal_docs import get_sentence_bounds_at_index, HeadlineMeta
 from ml_tools import *
 from patterns import FuzzyPattern
 from patterns import make_pattern_attention_vector
+
+def put_if_better(dict:dict, key, x, is_better:staticmethod):
+  if key in dict:
+    if is_better(x, dict[key]):
+      dict[key] = x
+  else:
+    dict[key] = x
 
 
 # ❤️ == GOOD HEART LINE ========================================================
@@ -21,11 +28,6 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
-
-
-@deprecated
-def make_smart_pattern_attention_vector(doc, vv, relu_th=0.8):
-  return improve_attention_vector(doc.embeddings, vv, relu_th=relu_th)[1]
 
 
 # ❤️ == GOOD HEART LINE ========================================================
@@ -75,6 +77,9 @@ class CharterDocumentParser:
     if debug_renderer == None:
       debug_renderer = self._do_nothing
 
+    def is_hl_more_confident(a: HeadlineMeta, b: HeadlineMeta):
+      return a.confidence > b.confidence
+
     #     assert do
     self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
 
@@ -82,16 +87,22 @@ class CharterDocumentParser:
     self.competence_v, c__ = rectifyed_sum_by_pattern_prefix(self.doc.distances_per_pattern_dict, 'competence', 0.3)
     self.competence_v, c = improve_attention_vector(self.doc.embeddings, self.competence_v, mix=1)
 
+    section_by_index = {}
     for section_type in section_types:
       # ['headline.name.', 'headline.head.all.', 'headline.head.gen.', 'headline.head.directors.']:
-      pattern_prefix = headlines_patterns_prefix + section_type
+      pattern_prefix = f'{headlines_patterns_prefix}{section_type}'
+      print('ddd', pattern_prefix)
       self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
 
-      bounds = self.find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
-      print(bounds)
+      bounds, confidence = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
+
+      hl_info = HeadlineMeta(None, section_type, confidence, self.doc.subdoc(bounds[0], bounds[1]))
+
+      put_if_better(section_by_index, section_type, hl_info, is_hl_more_confident)
+
       s = slice(bounds[0], bounds[1])
 
-  def find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
+  def _find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
     assert self.competence_v is not None
     assert self.headlines_attention_vector is not None
 
@@ -108,8 +119,8 @@ class CharterDocumentParser:
     debug_renderer(headline_pattern_prefix, self.doc.tokens_cc[dia], normalize(v[dia]))
 
     bounds = get_sentence_bounds_at_index(best_id, self.doc.tokens)
-
-    return bounds
+    confidence = v[best_id]
+    return bounds, confidence
 
   # ❤️ == GOOD HEART LINE ========================================================
 
