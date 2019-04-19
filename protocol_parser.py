@@ -1,4 +1,4 @@
-from legal_docs import deprecated
+from legal_docs import deprecated, get_sentence_bounds_at_index
 from ml_tools import *
 from patterns import FuzzyPattern
 from patterns import make_pattern_attention_vector
@@ -7,19 +7,14 @@ from patterns import make_pattern_attention_vector
 # ❤️ == GOOD HEART LINE ========================================================
 
 def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
+  assert attention_vector is not None
   if name is None:
     import random
     name = 's-meta-na-' + str(random.random())
 
   best_id = np.argmax(attention_vector)
-  print('make_smart_meta_click_pattern best_id', best_id)
-
   confidence = attention_vector[best_id]
-  print('make_smart_meta_click_pattern confidence', confidence)
-
   best_embedding_v = embeddings[best_id]
-  print('make_smart_meta_click_pattern best_embedding_v', best_embedding_v.shape)
-
   meta_pattern = FuzzyPattern(None, _name=name)
   meta_pattern.embeddings = np.array([best_embedding_v])
 
@@ -34,6 +29,7 @@ def make_smart_pattern_attention_vector(doc, vv, relu_th=0.8):
 # ❤️ == GOOD HEART LINE ========================================================
 
 def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
+  assert vv is not None
   meta_pattern, meta_pattern_confidence, best_id = make_smart_meta_click_pattern(vv, embeddings)
   meta_pattern_attention_v = make_pattern_attention_vector(meta_pattern, embeddings)
   meta_pattern_attention_v = relu(meta_pattern_attention_v, relu_th)
@@ -54,11 +50,16 @@ def make_improved_attention_vector(doc, pattern_prefix):
   return improved
 
 
-class CharterDocumentParser:
-  def __init__(self, doc):
-    self.doc = doc
+# ❤️ == GOOD HEART LINE =======================================================+
 
-    self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector(doc))
+class CharterDocumentParser:
+  def __init__(self):
+    pass
+
+  def parse(self, doc):
+    self.doc = doc
+    #     assert do
+    self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
 
     self.competence_v, c__ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'competence', 0.3)
     self.competence_v, c = improve_attention_vector(doc.embeddings, self.competence_v, mix=1)
@@ -91,7 +92,9 @@ class CharterDocumentParser:
     dia = slice(max(0, best_id - span), min(best_id + span, len(v)))
     debug_renderer(headline_pattern_prefix, self.doc.tokens_cc[dia], normalize(v[dia]))
 
-    return best_id
+    bounds = get_sentence_bounds_at_index(best_id, self.doc.tokens)
+
+    return bounds
 
   # ❤️ == GOOD HEART LINE ========================================================
 
