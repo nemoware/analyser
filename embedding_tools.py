@@ -140,7 +140,9 @@ class ElmoEmbedder(AbstractEmbedder):
 
     # with self.tf.Session(config=self.config) as sess:
     self.session.run(self.tf.global_variables_initializer())
-    embedding = self.session.run(embedding_tensor)
+    embedding_ = self.session.run(embedding_tensor)
+    embedding = np.array(embedding_)
+    del(embedding_)
     self.reset_maybe()
 
     #       sess.close()

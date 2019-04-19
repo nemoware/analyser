@@ -181,6 +181,16 @@ def momentum(x, decay=0.999):
   return innertia
 
 
+def momentum_reversed(x, decay=0.999):
+  innertia = np.zeros(len(x))
+  m = 0
+  for i in reversed(range(0, len(x))):
+    m = max(m, x[i])
+    innertia[i] = m
+    m *= decay
+
+  return innertia
+
 def onehot_column(a, mask=-2 ** 32, replacement=None):
   """
 
@@ -225,8 +235,8 @@ def remove_similar_indexes(indexes:List[int], min_section_size=20):
   return indexes_zipped
 
 
-def cut_above(x, threshold):
-  return threshold + relu(x * -1 + threshold) * -1
+def cut_above(x:List[float], threshold:float) -> List[float]:
+  return threshold + relu(x * -1.0 + threshold) * -1.0
 
 
 def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):

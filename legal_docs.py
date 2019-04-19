@@ -86,9 +86,10 @@ class LegalDocument(EmbeddableText):
     self.tokens_cc = None
     self.embeddings = None
     self.normal_text = None
-    self.distances_per_pattern_dict = None
+    self.distances_per_pattern_dict = {}
 
     self.sections = {}
+
 
     # subdocs
     self.start = None
