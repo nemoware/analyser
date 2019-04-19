@@ -10,6 +10,7 @@ Original file is located at
 """
 
 #@title ## Settings { run: "auto", vertical-output: true, form-width: "750px", display-mode: "form" }
+from parsing import clear_prof_data
 
 hyperparameters={}
 
@@ -93,11 +94,7 @@ elmo.__dict__
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/transaction_values.py  
 
 from transaction_values import *
-from patterns import *
-from text_tools import *
-from text_normalize import *
 from embedding_tools import *
-from ml_tools import *
 
 # from split import *
 
@@ -107,8 +104,6 @@ from ml_tools import *
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/legal_docs.py  
 from legal_docs import *
 from doc_structure import *
-
-import legal_docs as ld
 
 """# Code (common)"""
 
@@ -144,14 +139,12 @@ def deprecated(fn):
 
 """## FS utils"""
 
-import glob, os
-
 
 !pip install docx2txt
 !sudo apt-get install antiword
   
 
-import docx2txt, sys, os
+import docx2txt, os
 from google.colab import files
 
 
@@ -511,9 +504,7 @@ def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, p
 import math
 from typing import List
 
-import numpy as np
-
-from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, untokenize
+from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument
 from ml_tools import smooth_safe
 
 
@@ -764,9 +755,8 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 
 import numpy as np
 
-from doc_structure import get_tokenized_line_number
 from legal_docs import CharterDocument
-from ml_tools import relu, normalize, smooth
+from ml_tools import relu, normalize
 from text_tools import untokenize
 
  

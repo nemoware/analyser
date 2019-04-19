@@ -2,7 +2,8 @@ import numpy as np
 
 from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
   embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
-  deprecated, make_soft_attention_vector, org_types, ParsingContext
+  deprecated, make_soft_attention_vector, org_types
+from parsing import ParsingContext, ParsingConfig
 from ml_tools import split_by_token
 from patterns import AbstractPatternFactoryLowCase, AbstractPatternFactory, FuzzyPattern
 from renderer import *
@@ -10,6 +11,8 @@ from text_tools import find_ner_end
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 
+default_charter_parsing_config:ParsingConfig=ParsingConfig()
+default_charter_parsing_config.headline_attention_threshold = 1.4
 
 class CharterAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: AbstractRenderer):
@@ -23,6 +26,8 @@ class CharterAnlysingContext(ParsingContext):
     self.org = None
     self.constraints = None
     self.doc = None
+
+    self.config = default_charter_parsing_config
 
   def analyze_charter(self, txt, verbose=False):
 
@@ -49,7 +54,7 @@ class CharterAnlysingContext(ParsingContext):
     self._logstep("embedding headlines into semantic space")
 
     _charter_doc.sections = _charter_doc.find_sections_by_headlines_2(
-      self, self.hadlines_factory.headlines, embedded_headlines, 'headline.', 1.4)
+      self, self.hadlines_factory.headlines, embedded_headlines, 'headline.', self.config.headline_attention_threshold)
 
     self._logstep("extracting doc structure")
 

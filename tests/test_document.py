@@ -10,6 +10,7 @@ from demo_charter import CharterAnlysingContext
 from doc_structure import remove_similar_indexes_considering_weights
 from embedding_tools import AbstractEmbedder
 from legal_docs import *
+from parsing import print_prof_data
 from patterns import *
 
 
