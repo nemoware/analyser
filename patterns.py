@@ -3,18 +3,17 @@
 # coding=utf-8
 from typing import List
 
-
-load_punkt=True
-
+load_punkt = True
 
 from text_tools import *
-
 
 TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
 PATTERN_THRESHOLD = 0.75  # 0...1
+
+import numpy as np
 
 import sys
 
@@ -43,7 +42,6 @@ class EmbeddableText:
   def __init__(self):
     self.tokens = None
     self.embeddings = None
-
 
 
 class FuzzyPattern(EmbeddableText):
@@ -79,7 +77,7 @@ class FuzzyPattern(EmbeddableText):
     #   print('---ERROR: pattern: "{}" window:{} > len(_text):{} (padding={} mult={})'.format(self.name, window_size, len(_text), whd_padding, wnd_mult)  )
     #   return None
 
-    for word_index in range(0, len(_text) ):
+    for word_index in range(0, len(_text)):
       _fragment = _text[word_index: word_index + window_size]
       _distances[word_index] = dist_function(_fragment, _pat)
 
@@ -116,13 +114,13 @@ class FuzzyPattern(EmbeddableText):
     distances = self._eval_distances_multi_window(text_ebd)
     return distances
 
-  def find(self, text_ebd ):
+  def find(self, text_ebd):
     """
       text_ebd:  tensor of embeedings
     """
 
     sums = self._find_patterns(text_ebd)
-    min_i = min_index(sums )  # index of the word with minimum distance to the pattern
+    min_i = min_index(sums)  # index of the word with minimum distance to the pattern
 
     return min_i, sums
 
@@ -161,12 +159,9 @@ class ExclusivePattern(CompoundPattern):
 
     return a
 
-
   def calc_exclusive_distances(self, text_ebd):
 
-
-
-    distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd)  ))
+    distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd)))
 
     for pattern_index in range(len(self.patterns)):
       pattern = self.patterns[pattern_index]
@@ -218,12 +213,9 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     self.patterns[pat] = weight
 
   def find(self, text_ebd):
-
-
     sums = self._find_patterns(text_ebd)
 
     meaninful_sums = sums
-
 
     min_i = min_index(meaninful_sums)
     min = sums[min_i]
@@ -236,7 +228,6 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     return min_i, sums, confidence
 
   def _find_patterns(self, text_ebd):
-
     sums = np.zeros(len(text_ebd))
     total_weight = 0
     for p in self.patterns:
@@ -255,7 +246,7 @@ class AbstractPatternFactory:
 
   def __init__(self, embedder):
     self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
-    self.patterns:List[FuzzyPattern] = []
+    self.patterns: List[FuzzyPattern] = []
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
@@ -315,29 +306,16 @@ class AbstractPatternFactoryLowCase(AbstractPatternFactory):
 
   def create_pattern(self, pattern_name, ppp):
     _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
-    fp = FuzzyPattern(_ppp, pattern_name)
+    fp = FuzzyPattern(_ppp, _name=pattern_name)
 
     if pattern_name in self.patterns_dict:
-      #Let me be strict!
-      raise ValueError(f'Duplicated {pattern_name}')
+      # Let me be strict!
+      e=f'Duplicated {pattern_name}'
+      raise ValueError(e)
 
     self.patterns_dict[pattern_name] = fp
     self.patterns.append(fp)
     return fp
-
-
-
-
-
-
-
-import numpy as np
-
-from legal_docs import LegalDocument
-from patterns import AbstractPatternFactory, FuzzyPattern
-from text_tools import dist_mean_cosine
-
-DIST_FUNC = dist_mean_cosine
 
 
 def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=DIST_FUNC):
@@ -353,5 +331,3 @@ def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=D
     print('ERROR: calculate_distances_per_pattern ', e)
     dists = np.zeros(len(embeddings))
   return dists
-
-

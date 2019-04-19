@@ -325,13 +325,13 @@ class CharterHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.name.6', ('', 'полное', ''))
 
     cp('headline.head.all.1', (head_prfx, 'компетенции общего собрания акционеров', ''))
-    cp('headline.head.all.1', (head_prfx, 'компетенции общего собрания участников', 'общества'))
-    cp('headline.head.all.2', (head_prfx, 'собрание акционеров\n', ''))
+    cp('headline.head.all.2', (head_prfx, 'компетенции общего собрания участников', 'общества'))
+    cp('headline.head.all.3', (head_prfx, 'собрание акционеров\n', ''))
 
-    cp('headline.head.all.3', ('', 'компетенции', ''))
-    cp('headline.head.all.4', ('', 'собрания', ''))
-    cp('headline.head.all.5', ('', 'участников', ''))
-    cp('headline.head.all.6', ('', 'акционеров', ''))
+    cp('headline.head.all.4', ('', 'компетенции', ''))
+    cp('headline.head.all.5', ('', 'собрания', ''))
+    cp('headline.head.all.6', ('', 'участников', ''))
+    cp('headline.head.all.7', ('', 'акционеров', ''))
 
     cp('headline.head.directors.1', (head_prfx, 'компетенция совета директоров', 'общества'))
     cp('headline.head.directors.2', ('', 'совет директоров общества', ''))
