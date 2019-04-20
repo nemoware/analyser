@@ -80,6 +80,7 @@ class CharterDocumentParser:
     def is_hl_more_confident(a: HeadlineMeta, b: HeadlineMeta):
       return a.confidence > b.confidence
 
+
     #     assert do
     self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
 
@@ -94,13 +95,20 @@ class CharterDocumentParser:
       print('ddd', pattern_prefix)
       self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
 
+      # warning! these are the boundaries of the headline, not of the entire section
       bounds, confidence = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
 
       hl_info = HeadlineMeta(None, section_type, confidence, self.doc.subdoc(bounds[0], bounds[1]))
 
-      put_if_better(section_by_index, section_type, hl_info, is_hl_more_confident)
+      put_if_better(section_by_index, bounds[0], hl_info, is_hl_more_confident)
+    #end-for
+    # s = slice(bounds[0], bounds[1])
 
-      s = slice(bounds[0], bounds[1])
+    # section_by_in
+    # for s in section_by_index:
+    #
+
+    return section_by_index
 
   def _find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
     assert self.competence_v is not None

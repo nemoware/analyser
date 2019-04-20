@@ -1,17 +1,17 @@
 import numpy as np
 
-from charter_parser import default_charter_parsing_config
 from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
-  embedd_generic_tokenized_sentences, make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
+  make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
   deprecated, make_soft_attention_vector, org_types, embedd_generic_tokenized_sentences_2
 from ml_tools import split_by_token
-from parsing import ParsingContext
+from parsing import ParsingContext, ParsingConfig
 from patterns import AbstractPatternFactoryLowCase
 from renderer import *
 from text_tools import find_ner_end
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 
+default_charter_parsing_config:ParsingConfig=ParsingConfig()
 default_charter_parsing_config.headline_attention_threshold = 1.4
 
 
@@ -41,7 +41,7 @@ class CharterAnlysingContext(ParsingContext):
       self.factory = CharterPatternFactory(self.embedder)
 
     self._reset_context()
-    #0. parse
+    # 0. parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
 
@@ -66,7 +66,7 @@ class CharterAnlysingContext(ParsingContext):
     else:
       self.warning('Секция наименования компнании не найдена')
       self.warning('Попытаемся искать просто в начале документа')
-      org = self.detect_ners(_charter_doc.subdoc(0,3000))
+      org = self.detect_ners(_charter_doc.subdoc(0, 3000))
       # org = {
       #   'type': 'org_unknown',
       #   'name': "не определено",
@@ -215,7 +215,7 @@ class CharterAnlysingContext(ParsingContext):
     ssubdocs = embedd_generic_tokenized_sentences_2(sentenses_i, _embedd_factory.embedder)
 
     for ssubdoc in ssubdocs:
-      ssubdoc.calculate_distances_per_pattern(_embedd_factory,  pattern_prefix='sum_max.', merge=True)
+      ssubdoc.calculate_distances_per_pattern(_embedd_factory, pattern_prefix='sum_max.', merge=True)
       ssubdoc.calculate_distances_per_pattern(_embedd_factory, pattern_prefix='sum__', merge=True)
       ssubdoc.calculate_distances_per_pattern(_embedd_factory, pattern_prefix='d_order.', merge=True)
 
