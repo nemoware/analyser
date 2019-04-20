@@ -85,3 +85,12 @@ def print_prof_data():
 def clear_prof_data():
   global PROF_DATA
   PROF_DATA = {}
+
+
+head_types_dict = {'head.directors': 'Совет директоров',
+                   'head.all': 'Общее собрание участников/акционеров',
+                   'head.gen': 'Генеральный директор',
+                   #                      'shareholders':'Общее собрание акционеров',
+                   'head.pravlenie': 'Правление общества',
+                   'head.unknown': '*Неизвестный орган управления*'}
+head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']

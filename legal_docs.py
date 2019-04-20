@@ -247,16 +247,13 @@ class LegalDocument(EmbeddableText):
   def print_structured(self, numbered_only=False):
     self.structure.print_structured(self, numbered_only)
 
-  def subdoc(self, start, end):
-
+  def subdoc_slice(self, _s:slice):
     assert self.tokens is not None
-
-    _s = slice(start, end)
 
     klazz = self.__class__
     sub = klazz("REF")
-    sub.start = start
-    sub.end = end
+    sub.start = _s.start
+    sub.end = _s.stop
 
     if self.embeddings is not None:
       sub.embeddings = self.embeddings[_s]
@@ -269,6 +266,12 @@ class LegalDocument(EmbeddableText):
     sub.tokens = self.tokens[_s]
     sub.tokens_cc = self.tokens_cc[_s]
     return sub
+
+  @deprecated
+  def subdoc(self, start, end):
+    assert self.tokens is not None
+    _s = slice(start, end)
+    return self.subdoc_slice(_s)
 
   def normalize_sentences_bounds(self, text):
     """
@@ -852,7 +855,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
   return constraints
 
-
+@deprecated
 def make_constraints_attention_vectors(subdoc):
   # TODO: move to notebook, too much tuning
   value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',

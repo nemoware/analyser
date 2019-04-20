@@ -267,10 +267,10 @@ def _init_the_code():
   import matplotlib.pyplot as plt
   from renderer import AbstractRenderer, head_types_colors
   from transaction_values import ValueConstraint
-  
-  from demo_charter import head_types_dict, head_types
 
-  
+  from parsing import head_types
+  from parsing import head_types_dict
+
   class DemoRenderer(AbstractRenderer):
     
     def sign_to_text(self, sign: int):

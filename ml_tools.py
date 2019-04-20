@@ -4,7 +4,7 @@ import numpy as np
 
 
 class ProbableValue:
-  def __init__(self, value, confidence:float):
+  def __init__(self, value, confidence: float):
     self.confidence: float = confidence
     self.value = value
 
@@ -20,6 +20,20 @@ def split_by_token(tokens: List[str], token):
       sentence.append(i)
 
   res.append(sentence)
+  return res
+
+
+def split_by_token_into_ranges(tokens: List[str], token) ->List[slice]:
+  res = []
+
+  p = 0
+  for i in range(len(tokens)):
+    if tokens[i] == token:
+      res.append(slice(p, i + 1))
+      p = i + 1
+
+  if p != len(tokens):
+    res.append(slice(p, len(tokens)))
   return res
 
 
@@ -191,6 +205,7 @@ def momentum_reversed(x, decay=0.999):
 
   return innertia
 
+
 def onehot_column(a, mask=-2 ** 32, replacement=None):
   """
 
@@ -222,7 +237,7 @@ def most_popular_in(arr):
   return np.argmax(counts)
 
 
-def remove_similar_indexes(indexes:List[int], min_section_size=20):
+def remove_similar_indexes(indexes: List[int], min_section_size=20):
   if len(indexes) < 2:
     return indexes
 
@@ -235,7 +250,7 @@ def remove_similar_indexes(indexes:List[int], min_section_size=20):
   return indexes_zipped
 
 
-def cut_above(x:List[float], threshold:float) -> List[float]:
+def cut_above(x: List[float], threshold: float) -> List[float]:
   return threshold + relu(x * -1.0 + threshold) * -1.0
 
 
@@ -253,7 +268,8 @@ def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
 
   return _sum
 
-def put_if_better(dict:dict, key, x, is_better:staticmethod):
+
+def put_if_better(dict: dict, key, x, is_better: staticmethod):
   if key in dict:
     if is_better(x, dict[key]):
       dict[key] = x

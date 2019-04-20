@@ -4,7 +4,7 @@ from legal_docs import CharterDocument, HeadlineMeta, LegalDocument, \
   make_constraints_attention_vectors, extract_all_contraints_from_sentence, \
   deprecated, make_soft_attention_vector, org_types, embedd_generic_tokenized_sentences_2
 from ml_tools import split_by_token
-from parsing import ParsingContext, ParsingConfig
+from parsing import ParsingContext, ParsingConfig, head_types_dict
 from patterns import AbstractPatternFactoryLowCase
 from renderer import *
 from text_tools import find_ner_end
@@ -453,18 +453,12 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     cp('nerneg_3', ('на', 'английском', 'языке'))
 
   def _build_org_type_attention_vector(self, subdoc: CharterDocument):
+
+
     attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
     attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
     return attention_vector_neg
 
-
-head_types_dict = {'head.directors': 'Совет директоров',
-                   'head.all': 'Общее собрание участников/акционеров',
-                   'head.gen': 'Генеральный директор',
-                   #                      'shareholders':'Общее собрание акционеров',
-                   'head.pravlenie': 'Правление общества',
-                   'head.unknown': '*Неизвестный орган управления*'}
-head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
 
 # =======================
 # =======================
