@@ -120,6 +120,7 @@ class ElmoEmbedder(AbstractEmbedder):
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
+    print(f'🐌 Embedding {len(words)} words... it takes time (☕️?)..')
     embeddings = self.elmo(
       inputs={
         "tokens": words,
@@ -168,7 +169,7 @@ class ElmoEmbedder(AbstractEmbedder):
     print(gc.collect())
     gc.enable()
 
-    print('clean-up ---------------SLEEP: give it a time')
+    print('clean-up ------------- 🐌 -SLEEP: give it a time')
     time.sleep(10)
 
     self.elmo = self.create_module_method()
