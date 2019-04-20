@@ -25,7 +25,6 @@ class CharterConstraintsParser(ParsingSimpleContext):
     for head_type in sections:
       section = sections[head_type]
       rez[head_type] = self.extract_constraint_values_from_section(section)
-      self._logstep(f'detecting margin values  in: "{head_type}" section')
 
     return rez
 
@@ -215,8 +214,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     section_by_index = {}
     for section_type in section_types:
       # like ['name.', 'head.all.', 'head.gen.', 'head.directors.']:
-      pattern_prefix = f'{headlines_patterns_prefix}{section_type}'
-      print('ddd', pattern_prefix)
+      pattern_prefix = f'{headlines_patterns_prefix}{section_type}' 
       doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
 
       # warning! these are the boundaries of the headline, not of the entire section
