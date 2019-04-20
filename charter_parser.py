@@ -25,6 +25,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
     for head_type in sections:
       section = sections[head_type]
       rez[head_type] = self.extract_constraint_values_from_section(section)
+      self._logstep(f'detecting margin values  in: "{head_type}" section')
 
     return rez
 
@@ -107,6 +108,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     """
 
     self._reset_context()
+
     # 0. parse
     _charter_doc = CharterDocument(txt)
     _charter_doc.right_padding = 0
@@ -116,16 +118,31 @@ class CharterDocumentParser(CharterConstraintsParser):
     _charter_doc.embedd(self.pattern_factory)
     self.doc: CharterDocument = _charter_doc
 
-    org= self.ners()
-    rz=  self.find_contraints()
+    # 2. NERS
+    self.org = self.ners()
 
-    self.org = org
-    self.constraints = rz
+    # 3. constraints
+    self.constraints =  self.find_contraints()
+
+
 
     self.verbosity_level = 1
     self.log_warnings()
 
-    return org, rz
+    return self.org, self.constraints
+
+  def ners(self):
+    if 'name' in self.doc.sections:
+      section: HeadlineMeta = self.doc.sections['name']
+      org = self.detect_ners(section.body)
+      self._logstep("extracting NERs (named entities)")
+    else:
+      self.warning('Секция наименования компнании не найдена')
+      self.warning('Попытаемся искать просто в начале документа')
+      org = self.detect_ners(self.doc.subdoc(0, 3000))
+
+    """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
+    return org
 
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
@@ -152,21 +169,11 @@ class CharterDocumentParser(CharterConstraintsParser):
       if k[:len(prefix)] == prefix:
         sections_filtered[k] = self.doc.sections[k]
 
+    self._logstep(f'detecting sections: "{sections_filtered}" ')
     rz = self.extract_constraint_values_from_sections(sections_filtered)
     return rz
 
-  def ners(self):
-    if 'name' in self.doc.sections:
-      section: HeadlineMeta = self.doc.sections['name']
-      org = self.detect_ners(section.body)
-      self._logstep("extracting NERs (named entities)")
-    else:
-      self.warning('Секция наименования компнании не найдена')
-      self.warning('Попытаемся искать просто в начале документа')
-      org = self.detect_ners(self.doc.subdoc(0, 3000))
 
-    """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
-    return org
 
   def _do_nothing(self, head, a, b):
     pass  #
