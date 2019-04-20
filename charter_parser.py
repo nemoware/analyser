@@ -1,8 +1,9 @@
 # origin: charter_parser.py
 
-from legal_docs import get_sentence_bounds_at_index, HeadlineMeta
+from legal_docs import get_sentence_bounds_at_index, HeadlineMeta, LegalDocument, org_types, CharterDocument
 from ml_tools import *
-from patterns import FuzzyPattern
+from parsing import ParsingSimpleContext
+from patterns import FuzzyPattern, find_ner_end
 from patterns import make_pattern_attention_vector
 
 
@@ -58,15 +59,16 @@ def make_improved_attention_vector(doc, pattern_prefix):
 """ ❤️ == GOOD CharterDocumentParser  ====================================================== """
 
 
-class CharterDocumentParser:
+class CharterDocumentParser(ParsingSimpleContext):
   def __init__(self, pattern_factory):
+    ParsingSimpleContext.__init__(self)
     self.pattern_factory = pattern_factory
     pass
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
 
-  def parse(self, doc):
-    self.doc = doc
+  def parse(self, doc:CharterDocument):
+    self.doc:CharterDocument = doc
 
     self.deal_attention = None  # make_improved_attention_vector(self.doc, 'd_order_')
     # 💵 💵 💰
@@ -74,6 +76,19 @@ class CharterDocumentParser:
     # 💰
     self.currency_attention_vector = None  # make_improved_attention_vector(self.doc, 'currency')
     self.competence_v = None
+
+  def ners(self):
+    if 'name' in self.doc.sections:
+      section: HeadlineMeta = self.doc.sections['name']
+      org = self.detect_ners(section.body)
+      self._logstep("extracting NERs (named entities)")
+    else:
+      self.warning('Секция наименования компнании не найдена')
+      self.warning('Попытаемся искать просто в начале документа')
+      org = self.detect_ners(self.doc.subdoc(0, 3000))
+
+    """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
+    return org
 
   def _do_nothing(self, head, a, b):
     pass  #
@@ -142,7 +157,7 @@ class CharterDocumentParser:
       section_by_type[section.type] = section
 
     # end-for
-    doc.sections = sections
+    doc.sections = section_by_type
     return section_by_type
 
   """ ❤️ == GOOD HEART LINE ====================================================== """
@@ -192,3 +207,64 @@ class CharterDocumentParser:
     return relu(headline_attention_vector)
 
   # =======================
+
+  def detect_ners(self, section):
+    """
+    XXX: TODO: 🚷🔥 moved from demo_charter.py
+    :param section:
+    :return:
+    """
+    assert section is not None
+    factory = self.pattern_factory
+
+    section.calculate_distances_per_pattern(factory, pattern_prefix='org_', merge=True)
+    section.calculate_distances_per_pattern(factory, pattern_prefix='ner_org', merge=True)
+    section.calculate_distances_per_pattern(factory, pattern_prefix='nerneg_', merge=True)
+
+    org_by_type_dict, org_type = self._detect_org_type_and_name(section)
+
+    start = org_by_type_dict[org_type][0]
+    start = start + len(factory.patterns_dict[org_type].embeddings)
+    end = 1 + find_ner_end(section.tokens, start)
+
+    orgname_sub_section: LegalDocument = section.subdoc(start, end)
+    org_name = orgname_sub_section.untokenize_cc()
+
+    rez = {
+      'type': org_type,
+      'name': org_name,
+      'type_name': org_types[org_type],
+      'tokens': section.tokens_cc,
+      'attention_vector': section.distances_per_pattern_dict[org_type]
+    }
+
+    return rez
+
+  def _detect_org_type_and_name(self, section):
+    """
+        XXX: TODO: 🚷🔥 moved from demo_charter.py
+
+    """
+    s_attention_vector_neg = self.pattern_factory._build_org_type_attention_vector(section)
+
+    org_by_type = {}
+    best_org_type = None
+    _max = 0
+    for org_type in org_types.keys():
+
+      vector = section.distances_per_pattern_dict[org_type] * s_attention_vector_neg
+      if self.verbosity_level > 2:
+        print('_detect_org_type_and_name, org_type=', org_type, section.distances_per_pattern_dict[org_type][0:10])
+
+      idx = np.argmax(vector)
+      val = section.distances_per_pattern_dict[org_type][idx]
+      if val > _max:
+        _max = val
+        best_org_type = org_type
+
+      org_by_type[org_type] = [idx, val]
+
+    if self.verbosity_level > 2:
+      print('_detect_org_type_and_name', org_by_type)
+
+    return org_by_type, best_org_type

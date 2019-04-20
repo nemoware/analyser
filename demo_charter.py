@@ -90,7 +90,13 @@ class CharterAnlysingContext(ParsingContext):
     return org, rz
 
   # ------------------------------------------------------------------------------
+  @deprecated
   def detect_ners(self, section):
+    """
+    XXX: TODO: 🚷🔥 moved to charter_parser.py
+    :param section:
+    :return:
+    """
     assert section is not None
 
     section.embedd(self.factory)
@@ -129,7 +135,12 @@ class CharterAnlysingContext(ParsingContext):
     return rez
 
   # ------------------------------------------------------------------------------
+  @deprecated
   def _detect_org_type_and_name(self, section):
+    """
+        XXX: TODO: 🚷🔥 moved to charter_parser.py
+
+    """
     s_attention_vector_neg = self.factory._build_org_type_attention_vector(section)
 
     org_by_type = {}

@@ -8,14 +8,12 @@ PROF_DATA = {}
 
 class ParsingConfig:
   def __init__(self):
-    self.headline_attention_threshold=1.0
+    self.headline_attention_threshold = 1.0
 
-class ParsingContext:
-  def __init__(self, embedder, renderer: AbstractRenderer):
-    assert embedder is not None
-    assert renderer is not None
-    self.renderer = renderer
-    self.embedder = embedder
+
+class ParsingSimpleContext:
+  def __init__(self):
+
     # ---
     self.verbosity_level = 2
     self.__step = 0
@@ -45,6 +43,15 @@ class ParsingContext:
 
       for w in self.warnings:
         print('\t\t', w)
+
+
+class ParsingContext(ParsingSimpleContext):
+  def __init__(self, embedder, renderer: AbstractRenderer):
+    ParsingSimpleContext.__init__(self)
+    assert embedder is not None
+    assert renderer is not None
+    self.renderer = renderer
+    self.embedder = embedder
 
 
 def profile(fn):
