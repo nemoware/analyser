@@ -16,6 +16,8 @@ class CharterConstraintsParser(ParsingSimpleContext):
     self.pattern_factory = pattern_factory
     pass
 
+
+
   ##---------------------------------------
   def extract_constraint_values_from_sections(self, sections):
     rez = {}
@@ -97,8 +99,25 @@ class CharterConstraintsParser(ParsingSimpleContext):
 class CharterDocumentParser(CharterConstraintsParser):
   def __init__(self, pattern_factory):
     CharterConstraintsParser.__init__(self, pattern_factory)
-    # self.pattern_factory = pattern_factory
-    pass
+
+  def analyze_charter(self, txt, verbose=False):
+    """
+    🚀
+    :param txt:
+    """
+
+    self._reset_context()
+    # 0. parse
+    _charter_doc = CharterDocument(txt)
+    _charter_doc.right_padding = 0
+
+    # 1. find top level structure
+    _charter_doc.parse()
+    self.doc: CharterDocument = _charter_doc
+
+    self.ners()
+    self.find_contraints()
+
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
 

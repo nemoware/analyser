@@ -120,7 +120,7 @@ class ElmoEmbedder(AbstractEmbedder):
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
-    print(f'🐌 Embedding {len(np.nansum(lens))} words... it takes time (☕️?)..')
+    print(f'🐌 Embedding { np.nansum(lens) } words... it takes time (☕️?)..')
     embeddings = self.elmo(
       inputs={
         "tokens": words,
