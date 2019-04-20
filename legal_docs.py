@@ -26,6 +26,8 @@ class HeadlineMeta:
     self.subdoc: LegalDocument = subdoc
     self.body: LegalDocument = None
 
+    self.attention:List[float] = None #optional
+
 
 def deprecated(fn):
   @wraps(fn)

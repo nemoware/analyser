@@ -1,4 +1,3 @@
-
 # origin: charter_parser.py
 
 from legal_docs import get_sentence_bounds_at_index, HeadlineMeta
@@ -32,7 +31,8 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   return meta_pattern, confidence, best_id
 
 
-# ❤️ == GOOD HEART LINE ========================================================
+""" 💔🛐  ===========================📈=================================  ✂️ """
+
 
 def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
   assert vv is not None
@@ -44,9 +44,10 @@ def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
   return meta_pattern_attention_v, best_id
 
 
-""" ❤️  == GOOD HEART LINE ==========📈============================================  ✂️ """
+""" ❤️  =============================📈=================================  ✂️ """
 
 from legal_docs import rectifyed_sum_by_pattern_prefix
+
 
 def make_improved_attention_vector(doc, pattern_prefix):
   _max_hit_attention, _ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix)
@@ -56,26 +57,26 @@ def make_improved_attention_vector(doc, pattern_prefix):
 
 """ ❤️ == GOOD CharterDocumentParser  ====================================================== """
 
+
 class CharterDocumentParser:
   def __init__(self, pattern_factory):
     self.pattern_factory = pattern_factory
     pass
 
-
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
+
   def parse(self, doc):
     self.doc = doc
 
-    self.deal_attention = None# make_improved_attention_vector(self.doc, 'd_order_')
+    self.deal_attention = None  # make_improved_attention_vector(self.doc, 'd_order_')
     # 💵 💵 💰
-    self.value_attention = None# make_improved_attention_vector(self.doc, 'sum__')
+    self.value_attention = None  # make_improved_attention_vector(self.doc, 'sum__')
     # 💰
-    self.currency_attention_vector = None# make_improved_attention_vector(self.doc, 'currency')
+    self.currency_attention_vector = None  # make_improved_attention_vector(self.doc, 'currency')
     self.competence_v = None
 
-  def _do_nothing(self, a, b):
+  def _do_nothing(self, head, a, b):
     pass  #
-
 
   """ 📃️ 🐌 == find_charter_sections_starts ====================================================== """
 
@@ -117,16 +118,17 @@ class CharterDocumentParser:
       doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
 
       # warning! these are the boundaries of the headline, not of the entire section
-      bounds, confidence = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
+      bounds, confidence, attention = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
 
       hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc(bounds[0], bounds[1]))
-
+      hl_info.attention = attention
       put_if_better(section_by_index, bounds[0], hl_info, is_hl_more_confident)
     # end-for
     # s = slice(bounds[0], bounds[1])
 
     sorted_starts = [i for i in sorted(section_by_index.keys())]
     sorted_starts.append(len(doc.tokens))
+    section_by_type = {}
     for i in range(len(sorted_starts) - 1):
       index = sorted_starts[i]
       section: HeadlineMeta = section_by_index[index]
@@ -135,13 +137,16 @@ class CharterDocumentParser:
 
       section_len = min(end - start, 5000)  #
 
-      section.subdoc = doc.subdoc(start, start + section_len)
+      section.body = doc.subdoc(start, start + section_len)
+      section.attention = section.attention[start: start + section_len]
+      section_by_type[section.type] = section
 
     # end-for
-
-    return section_by_index
+    doc.sections = sections
+    return section_by_type
 
   """ ❤️ == GOOD HEART LINE ====================================================== """
+
   def _find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
     assert self.competence_v is not None
     assert self.headlines_attention_vector is not None
@@ -160,10 +165,10 @@ class CharterDocumentParser:
 
     bounds = get_sentence_bounds_at_index(best_id, self.doc.tokens)
     confidence = v[best_id]
-    return bounds, confidence
-
+    return bounds, confidence, v
 
   """ ❤️ == GOOD HEART LINE ====================================================== """
+
   def make_headline_attention_vector(self):
     level_by_line = [max(i._possible_levels) for i in self.doc.structure.structure]
 
