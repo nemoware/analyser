@@ -131,6 +131,7 @@ class ElmoEmbedder(AbstractEmbedder):
 
     self.session.run(self.tf.global_variables_initializer())
     out = self.session.run(embeddings)
+    print(f'Embedding complete 🐌 ; the shape is { out.shape }')
     self.reset_maybe()
 
     return out, words

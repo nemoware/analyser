@@ -118,6 +118,8 @@ class CharterDocumentParser(CharterConstraintsParser):
     _charter_doc.embedd(self.pattern_factory)
     self.doc: CharterDocument = _charter_doc
 
+    self.find_charter_sections_starts(self.pattern_factory.headlines)
+
     # 2. NERS
     self.org = self.ners()
 

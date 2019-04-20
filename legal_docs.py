@@ -54,7 +54,7 @@ class LegalDocument(EmbeddableText):
     self.normal_text = None
     self.distances_per_pattern_dict = {}
 
-    self.sections = {}
+    self.sections = None
 
     # subdocs
     self.start = None
