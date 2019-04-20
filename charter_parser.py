@@ -7,7 +7,7 @@ from patterns import FuzzyPattern, find_ner_end
 from patterns import make_pattern_attention_vector
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
-
+from legal_docs import rectifyed_sum_by_pattern_prefix
 
 class CharterConstraintsParser(ParsingSimpleContext):
 
@@ -34,9 +34,9 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     body = section.body
 
-    body.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='sum_max.', merge=True)
+    body.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='sum_max', merge=True)
     body.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='sum__', merge=True)
-    body.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='d_order.', merge=True)
+    body.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='d_order_', merge=True)
 
     a_vectors = make_constraints_attention_vectors(body)
     body.distances_per_pattern_dict = {**body.distances_per_pattern_dict, **a_vectors}
@@ -365,8 +365,6 @@ def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
 
 
 """ ❤️  =============================📈=================================  ✂️ """
-
-from legal_docs import rectifyed_sum_by_pattern_prefix
 
 
 def make_improved_attention_vector(doc, pattern_prefix):
