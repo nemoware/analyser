@@ -213,7 +213,7 @@ class CharterDocumentParser(CharterConstraintsParser):
       # warning! these are the boundaries of the headline, not of the entire section
       bounds, confidence, attention = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
       sl = slice(bounds[0], bounds[1])
-      hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name='section_type'))
+      hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name=section_type))
       hl_info.attention = attention
       put_if_better(section_by_index, sl.start, hl_info, is_hl_more_confident)
     # end-for
@@ -228,7 +228,10 @@ class CharterDocumentParser(CharterConstraintsParser):
       start = index  # todo: probably take the end of the caption
       end = sorted_starts[i + 1]
 
-      section_len = min(end - start, 5000)  #
+      section_len = end - start
+      if section_len > 5000:
+        self.warning(f'Section "{section.subdoc.untokenize_cc()[:100]}" is probably way too large {section_len}, timming to 5000 ')
+        section_len = 5000  #
 
       section.body = doc.subdoc(start, start + section_len)
       section.attention = section.attention[start: start + section_len]
