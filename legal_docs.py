@@ -55,13 +55,13 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict = {}
 
     self.sections = None
-
+    self.name="legal_doc"
     # subdocs
     self.start = None
     self.end = None
 
   def __del__(self):
-    print("----------------- LegalDocument deleted. Ciao bella!")
+    print("----------------- LegalDocument {self.name} deleted. Ciao bella!")
 
   def find_sections_by_headlines_2(self, context: ParsingContext, head_types_list,
                                    embedded_headlines: List['LegalDocument'], pattern_prefix,
@@ -247,7 +247,7 @@ class LegalDocument(EmbeddableText):
   def print_structured(self, numbered_only=False):
     self.structure.print_structured(self, numbered_only)
 
-  def subdoc_slice(self, _s:slice):
+  def subdoc_slice(self, _s:slice,  name='undef'):
     assert self.tokens is not None
 
     klazz = self.__class__
@@ -265,6 +265,7 @@ class LegalDocument(EmbeddableText):
 
     sub.tokens = self.tokens[_s]
     sub.tokens_cc = self.tokens_cc[_s]
+    sub.name = f'{self.name}.{name}'
     return sub
 
   @deprecated

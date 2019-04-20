@@ -1,13 +1,14 @@
 # origin: charter_parser.py
 from legal_docs import get_sentence_bounds_at_index, HeadlineMeta, LegalDocument, org_types, CharterDocument, \
   make_constraints_attention_vectors, extract_all_contraints_from_sentence
+from legal_docs import rectifyed_sum_by_pattern_prefix
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
 from patterns import FuzzyPattern, find_ner_end
 from patterns import make_pattern_attention_vector
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
-from legal_docs import rectifyed_sum_by_pattern_prefix
+
 
 class CharterConstraintsParser(ParsingSimpleContext):
 
@@ -15,8 +16,6 @@ class CharterConstraintsParser(ParsingSimpleContext):
     ParsingSimpleContext.__init__(self)
     self.pattern_factory = pattern_factory
     pass
-
-
 
   ##---------------------------------------
   def extract_constraint_values_from_sections(self, sections):
@@ -57,7 +56,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
       sum = extract_sum(__line)
 
       if sum is not None:
-        ss_subdoc = body.subdoc_slice(r)
+        ss_subdoc = body.subdoc_slice(r, name=f'sentence:{r.start}')
         sentenses_having_values.append(ss_subdoc)
 
       if self.verbosity_level > 2:
@@ -75,7 +74,6 @@ class CharterConstraintsParser(ParsingSimpleContext):
   def __extract_constraint_values_from_region(self, sentenses_i: List[LegalDocument]):
     if sentenses_i is None or len(sentenses_i) == 0:
       return []
-
 
     sentences = []
     for sentence_subdoc in sentenses_i:
@@ -123,9 +121,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     self.org = self.ners()
 
     # 3. constraints
-    self.constraints =  self.find_contraints()
-
-
+    self.constraints = self.find_contraints()
 
     self.verbosity_level = 1
     self.log_warnings()
@@ -140,11 +136,10 @@ class CharterDocumentParser(CharterConstraintsParser):
     else:
       self.warning('Секция наименования компнании не найдена')
       self.warning('Попытаемся искать просто в начале документа')
-      org = self.detect_ners(self.doc.subdoc(0, 3000))
+      org = self.detect_ners(self.doc.subdoc_slice(slice(0, 3000), name='name_section'))
 
     """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
     return org
-
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
 
@@ -173,8 +168,6 @@ class CharterDocumentParser(CharterConstraintsParser):
     self._logstep(f'detecting sections: "{sections_filtered}" ')
     rz = self.extract_constraint_values_from_sections(sections_filtered)
     return rz
-
-
 
   def _do_nothing(self, head, a, b):
     pass  #
@@ -214,15 +207,15 @@ class CharterDocumentParser(CharterConstraintsParser):
     section_by_index = {}
     for section_type in section_types:
       # like ['name.', 'head.all.', 'head.gen.', 'head.directors.']:
-      pattern_prefix = f'{headlines_patterns_prefix}{section_type}' 
+      pattern_prefix = f'{headlines_patterns_prefix}{section_type}'
       doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
 
       # warning! these are the boundaries of the headline, not of the entire section
       bounds, confidence, attention = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
-
-      hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc(bounds[0], bounds[1]))
+      sl = slice(bounds[0], bounds[1])
+      hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name='section_type'))
       hl_info.attention = attention
-      put_if_better(section_by_index, bounds[0], hl_info, is_hl_more_confident)
+      put_if_better(section_by_index, sl.start, hl_info, is_hl_more_confident)
     # end-for
     # s = slice(bounds[0], bounds[1])
 
@@ -321,7 +314,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     return rez
 
-  def _detect_org_type_and_name(self, section:LegalDocument):
+  def _detect_org_type_and_name(self, section: LegalDocument):
     """
         XXX: TODO: 🚷🔥 moved from demo_charter.py
 
