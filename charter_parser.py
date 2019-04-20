@@ -313,7 +313,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     return rez
 
-  def _detect_org_type_and_name(self, section):
+  def _detect_org_type_and_name(self, section:LegalDocument):
     """
         XXX: TODO: 🚷🔥 moved from demo_charter.py
 

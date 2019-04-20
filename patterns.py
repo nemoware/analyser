@@ -61,6 +61,7 @@ class FuzzyPattern(EmbeddableText):
     self.embeddings = pattern_embedding
 
   def _eval_distances(self, _text, dist_function=DIST_FUNC, whd_padding=0, wnd_mult=1):
+    assert self.embeddings is not None
     """
       For each token in the given sentences, it calculates the semantic distance to
       each and every pattern in _pattens arg.
@@ -86,6 +87,7 @@ class FuzzyPattern(EmbeddableText):
     return _distances
 
   def _eval_distances_multi_window(self, _text, dist_function=DIST_FUNC):
+    assert self.embeddings is not None
     distances = []
     distances.append(self._eval_distances(_text, dist_function, whd_padding=0, wnd_mult=1))
 

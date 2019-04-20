@@ -238,7 +238,7 @@ class LegalDocument(EmbeddableText):
   @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
                                       verbosity=1, merge=False, pattern_prefix=None):
-
+    assert self.embeddings is not None
     self.distances_per_pattern_dict = calculate_distances_per_pattern(self, pattern_factory, dist_function, merge=merge,
                                                                       verbosity=verbosity, pattern_prefix=pattern_prefix)
 
