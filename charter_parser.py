@@ -113,6 +113,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # 1. find top level structure
     _charter_doc.parse()
+    _charter_doc.embedd(self.pattern_factory)
     self.doc: CharterDocument = _charter_doc
 
     org= self.ners()
