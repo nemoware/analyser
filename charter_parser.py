@@ -115,8 +115,16 @@ class CharterDocumentParser(CharterConstraintsParser):
     _charter_doc.parse()
     self.doc: CharterDocument = _charter_doc
 
-    self.ners()
-    self.find_contraints()
+    org= self.ners()
+    rz=  self.find_contraints()
+
+    self.org = org
+    self.constraints = rz
+
+    self.verbosity_level = 1
+    self.log_warnings()
+
+    return org, rz
 
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
