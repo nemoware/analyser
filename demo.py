@@ -17,7 +17,7 @@ subject_types = {
   'charity': 'благотворительность'.upper(),
   'comm': 'коммерческая сделка'.upper(),
   'comm_estate': 'недвижемость'.upper(),
-  'comm_service': 'оаказание услуг'.upper()
+  'comm_service': 'оказание услуг'.upper()
 }
 
 subject_types_dict = {**subject_types, **{'unknown': 'предмет догоовора не ясен'}}
