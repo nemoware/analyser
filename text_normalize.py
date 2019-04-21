@@ -95,7 +95,7 @@ table_of_contents_regex = [
 ]
 
 # replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
-replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex + table_of_contents_regex
+replacements_regex = table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 def normalize_text(_t, replacements_regex):
     t = _t
