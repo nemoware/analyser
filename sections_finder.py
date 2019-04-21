@@ -148,7 +148,7 @@ class FocusingSectionsFinder(SectionsFinder):
     if additional_attention is not None:
       additional_attention_s = smooth_safe(additional_attention, 6)
       v += additional_attention_s
-    v = improve_attention_vector(doc.embeddings, v, relu_th=0.5)
+    v, _ = improve_attention_vector(doc.embeddings, v, relu_th=0.5)
     v *= headlines_attention_vector
 
     span = 100
