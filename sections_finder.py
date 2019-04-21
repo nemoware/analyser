@@ -83,11 +83,11 @@ class FocusingSectionsFinder(SectionsFinder):
     # s = slice(bounds[0], bounds[1])
     # now slicing the doc
     sorted_starts = [i for i in sorted(section_by_index.keys())]
-    sorted_starts.append(len(doc.tokens))
+    # // sorted_starts.append(len(doc.tokens))
 
     section_by_type = {}
 
-    for i in range(len(sorted_starts) ):
+    for i in range(len(sorted_starts)  ):
       index = sorted_starts[i]
       section: HeadlineMeta = section_by_index[index]
       start = index  # todo: probably take the end of the caption
