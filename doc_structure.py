@@ -262,10 +262,48 @@ class DocumentStructure:
     self.structure = self.fix_structure(structure)
 
     self.headline_indexes = self._find_headlines(tokens, tokens_cc)
-    # self. headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(headline_indexes)
+    self.headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(self.headline_indexes)
     return tokens, tokens_cc
 
-  # ddddddd
+
+
+  #     del _charter_doc.structure.structure[i]
+
+  def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes) -> List[int]:
+    indexes_to_remove = []
+
+    slines = self.structure
+
+    line_i = 0
+    while line_i < len(headline_indexes) - 1:
+      i_this = headline_indexes[line_i]
+      i_next = headline_indexes[line_i + 1]
+
+      sline: StructureLine = slines[i_this]
+      sline_next: StructureLine = slines[i_next]
+
+      section_size = sline_next.span[0] - sline.span[1]
+
+      if section_size < 20:
+        self._merge_headlines(headline_indexes, line_i, line_i + 1, indexes_to_remove)
+      else:
+        line_i += 1
+
+    return headline_indexes
+
+  def _merge_headlines(self, headline_indexes, line_i, line_i_next, indexes_to_remove):
+
+    i_this =  headline_indexes[line_i]
+    i_next =  headline_indexes[line_i_next]
+
+    sline: StructureLine = self.structure[i_this]
+    sline_next: StructureLine = self.structure[i_next]
+
+    sline.span = (sline.span[0], sline_next.span[1])
+
+    del headline_indexes[line_i_next]
+    for i in range(i_this + 1, i_next + 1):
+      indexes_to_remove.append(i)
 
   def _find_headlines(self, tokens, tokens_cc) -> List[int]:
 
