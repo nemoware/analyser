@@ -67,6 +67,7 @@ class ContractAnlysingContext(ParsingContext):
 
     self._logstep("parsing document and detecting document high-level structure")
 
+    self.contract.embedd(self.hadlines_factory)
     self.sections_finder.find_sections(doc, self.hadlines_factory, self.hadlines_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
@@ -124,7 +125,7 @@ class ContractAnlysingContext(ParsingContext):
       subj_ = subj_section.body
 
       # ===================
-      subj_.embedd(self.subj_factory)
+      # subj_.embedd(self.subj_factory)
       subj_.calculate_distances_per_pattern(self.subj_factory)
       subj_.reset_embeddings()
       prefixes = [f't_{st}_' for st in subject_types]
@@ -293,7 +294,7 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.price.2', (PRFX, 'СТОИМОСТЬ', 'РАБОТ'))
     cp('headline.price.3', (PRFX, ' Расчеты', 'по договору'))
     cp('headline.price.4', (PRFX, 'Оплата', 'услуг'))
-    cp('headline.price.4',
+    cp('headline.price.5',
        ('порядок и сроки', 'оплаты', 'согласовываются Сторонами в Дополнительных соглашениях к настоящему'))
 
     cp('headline.pricecond.1', ('УСЛОВИЯ ', 'ПЛАТЕЖЕЙ', ''))
@@ -301,9 +302,9 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ', 'УСЛУГ, ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
     cp('headline.pricecond.5', (' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
 
-    cp('headline.dates', (PRFX, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ.Порядок выполнения работ.'))
+    cp('headline.dates.1', (PRFX, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ.Порядок выполнения работ.'))
 
-    cp('headline.dates', (PRFX, 'СРОК',
+    cp('headline.dates.2', (PRFX, 'СРОК',
                           'ДЕЙСТВИЯ. \n настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
     cp('headline.break', (PRFX, 'Расторжение',
                           'договора. \n досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
@@ -410,7 +411,7 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 
 def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List[
   ProbableValue]:
-  value_section.embedd(factory)
+  # value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
 
   # context._logstep(f'embedding for transaction values in section  "{ section_name }"')
