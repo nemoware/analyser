@@ -1,11 +1,10 @@
 # origin: charter_parser.py
-from legal_docs import get_sentence_bounds_at_index, HeadlineMeta, LegalDocument, org_types, CharterDocument, \
+from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
   make_constraints_attention_vectors, extract_all_contraints_from_sentence
-from legal_docs import rectifyed_sum_by_pattern_prefix
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
 from patterns import FuzzyPattern, find_ner_end
-from patterns import make_pattern_attention_vector
+from sections_finder import SectionsFinder, FocusingSectionsFinder
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 
@@ -98,6 +97,8 @@ class CharterDocumentParser(CharterConstraintsParser):
   def __init__(self, pattern_factory):
     CharterConstraintsParser.__init__(self, pattern_factory)
 
+    self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
+
   def analyze_charter(self, txt, verbose=False):
     """
     🚀
@@ -114,7 +115,10 @@ class CharterDocumentParser(CharterConstraintsParser):
     _charter_doc.embedd(self.pattern_factory)
     self.doc: CharterDocument = _charter_doc
 
-    self.find_charter_sections_starts(self.pattern_factory.headlines)
+    # self.find_charter_sections_starts(self.pattern_factory.headlines)
+
+    self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
+                                       headline_patterns_prefix='headline.')
 
     # 2. NERS
     self.org = self.ners()
@@ -172,120 +176,6 @@ class CharterDocumentParser(CharterConstraintsParser):
     pass  #
 
   """ 📃️ 🐌 == find_charter_sections_starts ====================================================== """
-
-  def find_charter_sections_starts(self, section_types: str, headlines_patterns_prefix='headline.',
-                                   debug_renderer=None):
-    """
-    Fuzziy Finds sections in the doc
-    TODO: try it on Contracts and Protocols as well
-    TODO: if well, move from here
-
-    🍄 🍄 🍄 🍄 🍄 Keep in in the dark and feed it sh**
-
-    :param section_types:
-    :param headlines_patterns_prefix:
-    :param debug_renderer: a method for displaying results, default is None (do_nothing)
-    :return:
-
-    """
-    if debug_renderer == None:
-      debug_renderer = self._do_nothing
-
-    def is_hl_more_confident(a: HeadlineMeta, b: HeadlineMeta):
-      return a.confidence > b.confidence
-
-    doc = self.doc
-
-    #     assert do
-    self.headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector())
-
-    doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
-    self.competence_v, c__ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'competence', 0.3)
-    self.competence_v, c = improve_attention_vector(doc.embeddings, self.competence_v, mix=1)
-
-    section_by_index = {}
-    for section_type in section_types:
-      # like ['name.', 'head.all.', 'head.gen.', 'head.directors.']:
-      pattern_prefix = f'{headlines_patterns_prefix}{section_type}'
-      doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix=pattern_prefix, merge=True)
-
-      # warning! these are the boundaries of the headline, not of the entire section
-      bounds, confidence, attention = self._find_charter_section_start(pattern_prefix, debug_renderer=debug_renderer)
-      sl = slice(bounds[0], bounds[1])
-      hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name=section_type))
-      hl_info.attention = attention
-      put_if_better(section_by_index, sl.start, hl_info, is_hl_more_confident)
-    # end-for
-    # s = slice(bounds[0], bounds[1])
-
-    sorted_starts = [i for i in sorted(section_by_index.keys())]
-    sorted_starts.append(len(doc.tokens))
-    section_by_type = {}
-    for i in range(len(sorted_starts) - 1):
-      index = sorted_starts[i]
-      section: HeadlineMeta = section_by_index[index]
-      start = index  # todo: probably take the end of the caption
-      end = sorted_starts[i + 1]
-
-      section_len = end - start
-      if section_len > 5000:
-        self.warning(f'Section "{section.subdoc.untokenize_cc()[:100]}" is probably way too large {section_len}, timming to 5000 ')
-        section_len = 5000  #
-
-      sli = slice( start, start + section_len)
-      section.body = doc.subdoc_slice ( sli, name=section.type)
-      section.attention = section.attention[sli]
-      section_by_type[section.type] = section
-
-    # end-for
-    doc.sections = section_by_type
-    return section_by_type
-
-  """ ❤️ == GOOD HEART LINE ====================================================== """
-
-  def _find_charter_section_start(self, headline_pattern_prefix, debug_renderer):
-    assert self.competence_v is not None
-    assert self.headlines_attention_vector is not None
-
-    competence_s = smooth(self.competence_v, 6)
-
-    v, c__ = rectifyed_sum_by_pattern_prefix(self.doc.distances_per_pattern_dict, headline_pattern_prefix, 0.3)
-    v += competence_s
-
-    v *= self.headlines_attention_vector
-
-    span = 100
-    best_id = np.argmax(v)
-    dia = slice(max(0, best_id - span), min(best_id + span, len(v)))
-    debug_renderer(headline_pattern_prefix, self.doc.tokens_cc[dia], normalize(v[dia]))
-
-    bounds = get_sentence_bounds_at_index(best_id, self.doc.tokens)
-    confidence = v[best_id]
-    return bounds, confidence, v
-
-  """ ❤️ == GOOD HEART LINE ====================================================== """
-
-  def make_headline_attention_vector(self):
-    level_by_line = [max(i._possible_levels) for i in self.doc.structure.structure]
-
-    headlines_attention_vector = []
-    for i in self.doc.structure.structure:
-      l = i.span[1] - i.span[0]
-      headlines_attention_vector += [level_by_line[i.line_number]] * l
-
-    return np.array(headlines_attention_vector)
-
-    """ ❤️ == GOOD HEART LINE ====================================================== """
-
-  def normalize_headline_attention_vector(self, headline_attention_vector_pure):
-    # XXX: test it
-    #   _max_head_threshold = max(headline_attention_vector_pure) * 0.75
-    _max_head_threshold = 1  # max(headline_attention_vector_pure) * 0.75
-    # XXX: test it
-    #   print(_max_head)
-    headline_attention_vector = cut_above(headline_attention_vector_pure, _max_head_threshold)
-    #   headline_attention_vector /= 2 # 5 is the maximum points a headline may gain during headlne detection : TODO:
-    return relu(headline_attention_vector)
 
   # =======================
 
@@ -380,25 +270,3 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
-
-
-""" 💔🛐  ===========================📈=================================  ✂️ """
-
-
-def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
-  assert vv is not None
-  meta_pattern, meta_pattern_confidence, best_id = make_smart_meta_click_pattern(vv, embeddings)
-  meta_pattern_attention_v = make_pattern_attention_vector(meta_pattern, embeddings)
-  meta_pattern_attention_v = relu(meta_pattern_attention_v, relu_th)
-
-  meta_pattern_attention_v = meta_pattern_attention_v * mix + vv * (1.0 - mix)
-  return meta_pattern_attention_v, best_id
-
-
-""" ❤️  =============================📈=================================  ✂️ """
-
-
-def make_improved_attention_vector(doc, pattern_prefix):
-  _max_hit_attention, _ = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix)
-  improved = improve_attention_vector(doc.embeddings, _max_hit_attention, mix=1)
-  return improved

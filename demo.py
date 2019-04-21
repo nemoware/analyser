@@ -41,6 +41,17 @@ class ContractAnlysingContext(ParsingContext):
 
     self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
 
+  def _reset_context(self):
+    super(ContractAnlysingContext, self)._reset_context()
+
+    if self.contract is not None:
+      del self.contract
+      self.contract=None
+
+    if self.contract_values is not None:
+      del self.contract_values
+      self.contract_values=None
+
   def analyze_contract(self, contract_text):
     self._reset_context()
     """
@@ -280,9 +291,10 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
 
     cp('headline.pricecond.1', (PRFX, 'УСЛОВИЯ ПЛАТЕЖЕЙ', ''))
     cp('headline.pricecond.2', (PRFX, 'Оплата услуг', ''))
-    cp('headline.pricecond.3', (PRFX, 'Условия и порядок расчетов.', ''))
+    cp('headline.pricecond.3', (PRFX+' Условия и порядок', 'расчетов.', ''))
     cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ УСЛУГ', ', ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
-    cp('headline.pricecond.5', (PRFX, 'АРЕНДНАЯ ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
+    cp('headline.pricecond.5', (PRFX+' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
+
 
     cp('headline.terms', (PRFX, 'СРОКИ ВЫПОЛНЕНИЯ РАБОТ.', 'Порядок выполнения работ.'))
 

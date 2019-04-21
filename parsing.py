@@ -20,6 +20,8 @@ class ParsingSimpleContext:
 
     self.warnings = []
 
+    self.config: ParsingConfig = None
+
   def _reset_context(self):
     self.warnings = []
     self.__step = 0
@@ -54,7 +56,7 @@ class ParsingContext(ParsingSimpleContext):
     self.embedder = embedder
 
 
-    self.config:ParsingConfig = None
+
 
 
 def profile(fn):

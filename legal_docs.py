@@ -6,7 +6,7 @@ from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
   ProbableValue, rectifyed_sum, filter_values_by_key_prefix
-from parsing import ParsingContext, profile, print_prof_data
+from parsing import ParsingContext, profile, print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
@@ -81,7 +81,7 @@ class LegalDocument(EmbeddableText):
   def __del__(self):
     print(f"----------------- LegalDocument {self.name} deleted. Ciao bella!")
 
-  def find_sections_by_headlines_2(self, context: ParsingContext, head_types_list,
+  def find_sections_by_headlines_2(self, context: ParsingSimpleContext, head_types_list,
                                    embedded_headlines: List['LegalDocument'], pattern_prefix,
                                    threshold) -> dict:
 

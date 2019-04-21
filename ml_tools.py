@@ -118,7 +118,7 @@ def smooth(x, window_len=11, window='hanning'):
   return y[(halflen - 1):-halflen]
 
 
-def relu(x, relu_th=0):
+def relu(x, relu_th: float = 0.0):
   assert type(x) is np.ndarray
 
   relu = x * (x > relu_th)
@@ -290,7 +290,7 @@ def rectifyed_sum(vectors, relu_th: float = 0.0):
   return sum
 
 
-def filter_values_by_key_prefix(dictionary:dict, prefix:str)->dict:
+def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> List[float]:
   vectors = []
   for p in dictionary:
     if p.startswith(prefix):
