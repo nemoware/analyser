@@ -4,12 +4,13 @@
 
 
 from legal_docs import LegalDocument, HeadlineMeta
-from parsing import ParsingContext, ParsingConfig
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
 from ml_tools import *
+from parsing import ParsingContext, ParsingConfig
 from patterns import AbstractPatternFactoryLowCase
 from renderer import AbstractRenderer
+from sections_finder import SectionsFinder, DefaultSectionsFinder
 from transaction_values import ValueConstraint
 
 subject_types = {
@@ -21,9 +22,9 @@ subject_types = {
 
 subject_types_dict = {**subject_types, **{'unknown': 'предмет догоовора не ясен'}}
 
-
-default_contract_parsing_config:ParsingConfig=ParsingConfig()
+default_contract_parsing_config: ParsingConfig = ParsingConfig()
 default_contract_parsing_config.headline_attention_threshold = 0.9
+
 
 class ContractAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: AbstractRenderer):
@@ -36,7 +37,9 @@ class ContractAnlysingContext(ParsingContext):
     self.contract = None
     self.contract_values = None
 
-    self.config=default_contract_parsing_config
+    self.config = default_contract_parsing_config
+
+    self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
 
   def analyze_contract(self, contract_text):
     self._reset_context()
@@ -49,14 +52,11 @@ class ContractAnlysingContext(ParsingContext):
     doc = ContractDocument2(contract_text)
     doc.parse()
     self.contract = doc
+
     self._logstep("parsing document and detecting document high-level structure")
 
-    embedded_headlines = doc.embedd_headlines(self.hadlines_factory)
-
-    doc.sections = doc.find_sections_by_headlines_2(
-      self, self.hadlines_factory.headlines, embedded_headlines, 'headline.', self.config.headline_attention_threshold)
-
-    self._logstep("embedding headlines into semantic space")
+    self.sections_finder.find_sections(doc, self.hadlines_factory, self.hadlines_factory.headlines,
+                                       headline_patterns_prefix='headline.')
 
     # -------------------------------values
     values = self.fetch_value_from_contract(doc)

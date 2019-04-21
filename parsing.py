@@ -54,6 +54,9 @@ class ParsingContext(ParsingSimpleContext):
     self.embedder = embedder
 
 
+    self.config:ParsingConfig = None
+
+
 def profile(fn):
   @wraps(fn)
   @wraps(fn)
