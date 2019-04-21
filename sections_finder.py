@@ -6,7 +6,7 @@ from legal_docs import LegalDocument, deprecated, HeadlineMeta, get_sentence_bou
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
   rectifyed_sum, smooth_safe
 from parsing import ParsingContext, ParsingSimpleContext
-from patterns import AbstractPatternFactory, improve_attention_vector
+from patterns import AbstractPatternFactory
 
 
 class SectionsFinder:
@@ -16,7 +16,7 @@ class SectionsFinder:
     pass
 
   def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.') -> dict:
+                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
     raise NotImplementedError()
 
 
@@ -26,7 +26,7 @@ class DefaultSectionsFinder(SectionsFinder):
 
   @deprecated
   def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.') -> dict:
+                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
     embedded_headlines = doc.embedd_headlines(factory)
 
     doc.sections = doc.find_sections_by_headlines_2(
@@ -42,7 +42,7 @@ class FocusingSectionsFinder(SectionsFinder):
     SectionsFinder.__init__(self, ctx)
 
   def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.') -> dict:
+                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
 
     """
     Fuzziy Finds sections in the doc
@@ -61,12 +61,6 @@ class FocusingSectionsFinder(SectionsFinder):
     #     assert do
     headlines_attention_vector = self.normalize_headline_attention_vector(self.make_headline_attention_vector(doc))
 
-    doc.calculate_distances_per_pattern(factory, pattern_prefix='competence', merge=True)
-
-    filtered = filter_values_by_key_prefix(doc.distances_per_pattern_dict, 'competence')
-    competence_v, c__ = rectifyed_sum(filtered, 0.3)
-    competence_v, c = improve_attention_vector(doc.embeddings, competence_v, mix=1)
-
     section_by_index = {}
     for section_type in headlines:
       # like ['name.', 'head.all.', 'head.gen.', 'head.directors.']:
@@ -75,7 +69,7 @@ class FocusingSectionsFinder(SectionsFinder):
 
       # warning! these are the boundaries of the headline, not of the entire section
       bounds, confidence, attention = self._find_charter_section_start(doc, pattern_prefix, headlines_attention_vector,
-                                                                       competence_v)
+                                                                       additional_attention)
       sl = slice(bounds[0], bounds[1])
       hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name=section_type))
       hl_info.attention = attention
@@ -133,15 +127,16 @@ class FocusingSectionsFinder(SectionsFinder):
 
   """ ❤️ == GOOD HEART LINE ====================================================== """
 
-  def _find_charter_section_start(self, doc, headline_pattern_prefix, headlines_attention_vector, competence_v):
-    assert competence_v is not None
-    assert headlines_attention_vector is not None
+  def _find_charter_section_start(self, doc, headline_pattern_prefix, headlines_attention_vector, additional_attention):
 
-    competence_s = smooth_safe(competence_v, 6)
+    assert headlines_attention_vector is not None
 
     vectors = filter_values_by_key_prefix(doc.distances_per_pattern_dict, headline_pattern_prefix)
     v, c__ = rectifyed_sum(vectors, 0.3)
-    v += competence_s
+
+    if additional_attention is not None:
+      additional_attention_s = smooth_safe(additional_attention, 6)
+      v += additional_attention_s
 
     v *= headlines_attention_vector
 

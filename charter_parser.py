@@ -3,7 +3,7 @@ from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, 
   make_constraints_attention_vectors, extract_all_contraints_from_sentence
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
-from patterns import FuzzyPattern, find_ner_end
+from patterns import FuzzyPattern, find_ner_end, improve_attention_vector
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
@@ -117,8 +117,13 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # self.find_charter_sections_starts(self.pattern_factory.headlines)
 
+    self.pattern_factory.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
+    filtered = filter_values_by_key_prefix(self.pattern_factory.distances_per_pattern_dict, 'competence')
+    competence_v, c__ = rectifyed_sum(filtered, 0.3)
+    competence_v, c = improve_attention_vector(self.doc.embeddings, competence_v, mix=1)
+
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
-                                       headline_patterns_prefix='headline.')
+                                       headline_patterns_prefix='headline.', additional_attention=competence_v)
 
     # 2. NERS
     self.org = self.ners()
