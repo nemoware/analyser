@@ -132,7 +132,7 @@ class FocusingSectionsFinder(SectionsFinder):
     assert headlines_attention_vector is not None
 
     vectors = filter_values_by_key_prefix(doc.distances_per_pattern_dict, headline_pattern_prefix)
-    v, c__ = rectifyed_sum(vectors, 0.3)
+    v = rectifyed_sum(vectors, 0.3)
 
     if additional_attention is not None:
       additional_attention_s = smooth_safe(additional_attention, 6)
