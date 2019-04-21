@@ -10,7 +10,7 @@ from ml_tools import *
 from parsing import ParsingContext, ParsingConfig
 from patterns import AbstractPatternFactoryLowCase
 from renderer import AbstractRenderer
-from sections_finder import SectionsFinder, DefaultSectionsFinder
+from sections_finder import SectionsFinder, FocusingSectionsFinder
 from transaction_values import ValueConstraint
 
 subject_types = {
@@ -39,18 +39,19 @@ class ContractAnlysingContext(ParsingContext):
 
     self.config = default_contract_parsing_config
 
-    self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
+    # self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
+    self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
 
   def _reset_context(self):
     super(ContractAnlysingContext, self)._reset_context()
 
     if self.contract is not None:
       del self.contract
-      self.contract=None
+      self.contract = None
 
     if self.contract_values is not None:
       del self.contract_values
-      self.contract_values=None
+      self.contract_values = None
 
   def analyze_contract(self, contract_text):
     self._reset_context()
@@ -265,15 +266,13 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
     #                   'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
 
-    self.headlines = ['subj', 'contract',   'price.', 'pricecond', 'dates',
-                      'resp', 'forcemajor', 'confidence',   'appl', 'addresses', 'conficts']
+    self.headlines = ['subj', 'contract', 'price.', 'pricecond', 'dates',
+                      'resp', 'forcemajor', 'confidence', 'appl', 'addresses', 'conficts']
 
     AbstractPatternFactoryLowCase.__init__(self, embedder)
 
     self._build_head_patterns()
     self.embedd()
-
-
 
   def _build_head_patterns(self):
     def cp(name, tuples):
@@ -285,8 +284,8 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
                              '\n город, месяц, год \n общество с ограниченной ответственностью, в лице, действующего на основании, именуемое далее, заключили настоящий договор о нижеследующем'))
     cp('headline.def', (PRFX, 'Термины и определения', 'толкования'))
 
-
-    cp('headline.subj.1', ('договора заключили настоящий Договор нижеследующем:', 'Предмет ', 'договора:\n Исполнитель обязуется, заказчик поручает'))
+    cp('headline.subj.1', ('договора заключили настоящий Договор нижеследующем:', 'Предмет ',
+                           'договора:\n Исполнитель обязуется, заказчик поручает'))
     cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ', 'ДОГОВОРА'))
     cp('headline.subj.3', ('заключили настоящий договор о нижеследующем', 'Общие положения', ''))
 
@@ -294,14 +293,13 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.price.2', (PRFX, 'СТОИМОСТЬ', 'РАБОТ'))
     cp('headline.price.3', (PRFX, ' Расчеты', 'по договору'))
     cp('headline.price.4', (PRFX, 'Оплата', 'услуг'))
-    cp('headline.price.4', ('порядок и сроки', 'оплаты', 'согласовываются Сторонами в Дополнительных соглашениях к настоящему'))
-
+    cp('headline.price.4',
+       ('порядок и сроки', 'оплаты', 'согласовываются Сторонами в Дополнительных соглашениях к настоящему'))
 
     cp('headline.pricecond.1', ('УСЛОВИЯ ', 'ПЛАТЕЖЕЙ', ''))
     cp('headline.pricecond.3', ('Условия и порядок', 'расчетов.', ''))
     cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ', 'УСЛУГ, ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
     cp('headline.pricecond.5', (' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
-
 
     cp('headline.dates', (PRFX, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ.Порядок выполнения работ.'))
 
@@ -441,10 +439,7 @@ class ContractDocument2(LegalDocument):
     return tokenize_text(_txt)
 
 
-
 ##---------------------------------------##---------------------------------------##---------------------------------------
-
-
 
 
 class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
