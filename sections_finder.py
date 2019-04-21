@@ -4,9 +4,9 @@ import numpy as np
 
 from legal_docs import LegalDocument, deprecated, HeadlineMeta, get_sentence_bounds_at_index
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
-  rectifyed_sum, smooth_safe
+  smooth_safe, max_exclusive_pattern
 from parsing import ParsingContext, ParsingSimpleContext
-from patterns import AbstractPatternFactory,improve_attention_vector
+from patterns import AbstractPatternFactory
 
 
 class SectionsFinder:
@@ -143,12 +143,14 @@ class FocusingSectionsFinder(SectionsFinder):
     assert headlines_attention_vector is not None
 
     vectors = filter_values_by_key_prefix(doc.distances_per_pattern_dict, headline_pattern_prefix)
-    v = rectifyed_sum(vectors, 0.3)
+    # v = rectifyed_sum(vectors, 0.3)
+    v = max_exclusive_pattern(vectors)
+    v = relu(v, 0.4)
 
     if additional_attention is not None:
       additional_attention_s = smooth_safe(additional_attention, 6)
       v += additional_attention_s
-    v, _ = improve_attention_vector(doc.embeddings, v, relu_th=0.5)
+    # v, _ = improve_attention_vector(doc.embeddings, v, relu_th=0.5)
     v *= headlines_attention_vector
 
     span = 100

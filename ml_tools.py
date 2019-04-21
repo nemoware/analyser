@@ -254,21 +254,6 @@ def cut_above(x: List[float], threshold: float) -> List[float]:
   return threshold + relu(x * -1.0 + threshold) * -1.0
 
 
-def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
-  _sum = None
-
-  for p in distances_per_pattern_dict:
-    if p.startswith(prefix):
-      x = distances_per_pattern_dict[p]
-
-      if _sum is None:
-        _sum = np.zeros(len(x))
-
-      _sum = np.maximum(_sum, x)
-
-  return _sum
-
-
 def put_if_better(dict: dict, key, x, is_better: staticmethod):
   if key in dict:
     if is_better(x, dict[key]):
@@ -290,10 +275,27 @@ def rectifyed_sum(vectors, relu_th: float = 0.0):
   return sum
 
 
-def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> List[float]:
+def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> List[List[float]]:
   vectors = []
   for p in dictionary:
     if p.startswith(prefix):
       x = dictionary[p]
       vectors.append(x)
   return vectors
+
+
+def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
+  vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
+
+  return max_exclusive_pattern(vectors)
+
+
+def max_exclusive_pattern(vectors: List[List[float]]) -> List[float]:
+  _sum = None
+  for x in vectors:
+    if _sum is None:
+      _sum = np.zeros(len(x))
+
+    _sum = np.maximum(_sum, x)
+
+  return _sum
