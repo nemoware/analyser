@@ -262,13 +262,18 @@ class ContractAnlysingContext(ParsingContext):
 class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
+    # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
+    #                   'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
+
+    self.headlines = ['subj', 'contract',   'price.', 'pricecond', 'terms', 'dates',
+                      'resp', 'forcemajor', 'confidence',   'appl', 'addresses', 'conficts']
+
     AbstractPatternFactoryLowCase.__init__(self, embedder)
 
     self._build_head_patterns()
     self.embedd()
 
-    self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
-                      'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
+
 
   def _build_head_patterns(self):
     def cp(name, tuples):
@@ -280,10 +285,11 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
                              '\n город, месяц, год \n общество с ограниченной ответственностью, в лице, действующего на основании, именуемое далее, заключили настоящий договор о нижеследующем'))
     cp('headline.def', (PRFX, 'Термины и определения', 'толкования'))
 
-    cp('headline.subj.1', ('заключили настоящий Договор нижеследующем:\n' + PRFX, 'Предмет договора.\n',
+
+    cp('headline.subj.1', ('заключили настоящий Договор нижеследующем:' 'Предмет договора',
                            'Исполнитель обязуется, заказчик поручает'))
-    cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ ДОГОВОРА', ''))
-    cp('headline.subj.3', (PRFX, 'Общие положения', ''))
+    cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ', 'ДОГОВОРА'))
+    cp('headline.subj.3', ('заключили настоящий договор о нижеследующем', 'Общие положения', ''))
 
     cp('headline.price.1', (PRFX, 'цена договора', ''))
     cp('headline.price.2', (PRFX, 'СТОИМОСТЬ РАБОТ', ''))
