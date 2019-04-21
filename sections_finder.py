@@ -6,7 +6,7 @@ from legal_docs import LegalDocument, deprecated, HeadlineMeta, get_sentence_bou
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
   smooth_safe, max_exclusive_pattern
 from parsing import ParsingContext, ParsingSimpleContext
-from patterns import AbstractPatternFactory
+from patterns import AbstractPatternFactory, improve_attention_vector
 
 
 class SectionsFinder:
@@ -70,10 +70,12 @@ class FocusingSectionsFinder(SectionsFinder):
       # warning! these are the boundaries of the headline, not of the entire section
       bounds, confidence, attention = self._find_charter_section_start(doc, pattern_prefix, headlines_attention_vector,
                                                                        additional_attention)
-      sl = slice(bounds[0], bounds[1])
-      hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name=section_type))
-      hl_info.attention = attention
-      put_if_better(section_by_index, sl.start, hl_info, is_hl_more_confident)
+
+      if confidence > 0.5:
+        sl = slice(bounds[0], bounds[1])
+        hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name=section_type))
+        hl_info.attention = attention
+        put_if_better(section_by_index, key=sl.start, x=hl_info, is_better=is_hl_more_confident)
     # end-for
     # s = slice(bounds[0], bounds[1])
 
@@ -145,18 +147,22 @@ class FocusingSectionsFinder(SectionsFinder):
     vectors = filter_values_by_key_prefix(doc.distances_per_pattern_dict, headline_pattern_prefix)
     # v = rectifyed_sum(vectors, 0.3)
     v = max_exclusive_pattern(vectors)
-    v = relu(v, 0.4)
+    v = relu(v, 0.6)
 
     if additional_attention is not None:
       additional_attention_s = smooth_safe(additional_attention, 6)
       v += additional_attention_s
-    # v, _ = improve_attention_vector(doc.embeddings, v, relu_th=0.5)
-    v *= headlines_attention_vector
 
-    span = 100
+    #   v, _ = improve_attention_vector(doc.embeddings, v, relu_th=0.1)
+    v *= (headlines_attention_vector + 0.1)
+    if max(v) > 0.75:
+      v, _ = improve_attention_vector(doc.embeddings, v, relu_th=0.0)
+
+    doc.distances_per_pattern_dict["ha$." + headline_pattern_prefix] = v
+
+    # span = 100
     best_id = np.argmax(v)
-    dia = slice(max(0, best_id - span), min(best_id + span, len(v)))
-    # debug_renderer(headline_pattern_prefix, self.doc.tokens_cc[dia], normalize(v[dia]))
+    # dia = slice(max(0, best_id - span), min(best_id + span, len(v)))
 
     bounds = get_sentence_bounds_at_index(best_id, doc.tokens)
     confidence = v[best_id]
