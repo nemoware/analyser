@@ -265,7 +265,7 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
     #                   'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
 
-    self.headlines = ['subj', 'contract',   'price.', 'pricecond', 'terms', 'dates',
+    self.headlines = ['subj', 'contract',   'price.', 'pricecond', 'dates',
                       'resp', 'forcemajor', 'confidence',   'appl', 'addresses', 'conficts']
 
     AbstractPatternFactoryLowCase.__init__(self, embedder)
@@ -290,23 +290,25 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ', 'ДОГОВОРА'))
     cp('headline.subj.3', ('заключили настоящий договор о нижеследующем', 'Общие положения', ''))
 
-    cp('headline.price.1', (PRFX, 'цена договора', ''))
-    cp('headline.price.2', (PRFX, 'СТОИМОСТЬ РАБОТ', ''))
-    cp('headline.price.3', (PRFX, ' Расчеты по договору', ''))
-    cp('headline.price.4', (PRFX, 'Оплата услуг', ''))
-
-    cp('headline.pricecond.1', (PRFX, 'УСЛОВИЯ ПЛАТЕЖЕЙ', ''))
-    cp('headline.pricecond.3', (PRFX+' Условия и порядок', 'расчетов.', ''))
-    cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ УСЛУГ', ', ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
-    cp('headline.pricecond.5', (PRFX+' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
+    cp('headline.price.1', (PRFX, 'цена', 'договора'))
+    cp('headline.price.2', (PRFX, 'СТОИМОСТЬ', 'РАБОТ'))
+    cp('headline.price.3', (PRFX, ' Расчеты', 'по договору'))
+    cp('headline.price.4', (PRFX, 'Оплата', 'услуг'))
+    cp('headline.price.4', ('порядок и сроки', 'оплаты', 'согласовываются Сторонами в Дополнительных соглашениях к настоящему'))
 
 
-    cp('headline.terms', (PRFX, 'СРОКИ ВЫПОЛНЕНИЯ РАБОТ.', 'Порядок выполнения работ.'))
+    cp('headline.pricecond.1', ('УСЛОВИЯ ', 'ПЛАТЕЖЕЙ', ''))
+    cp('headline.pricecond.3', ('Условия и порядок', 'расчетов.', ''))
+    cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ', 'УСЛУГ, ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
+    cp('headline.pricecond.5', (' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
 
-    cp('headline.dates', (PRFX, 'СРОК ДЕЙСТВИЯ',
-                          'настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
-    cp('headline.break', (PRFX, 'Расторжение договора',
-                          'досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
+
+    cp('headline.dates', (PRFX, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ.Порядок выполнения работ.'))
+
+    cp('headline.dates', (PRFX, 'СРОК',
+                          'ДЕЙСТВИЯ. \n настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
+    cp('headline.break', (PRFX, 'Расторжение',
+                          'договора. \n досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
 
     cp('headline.rights.1', (PRFX, 'права и обязанности', 'сторон.\n'))
     cp('headline.obl.1', (PRFX, 'ОБЯЗАТЕЛЬСТВА', 'сторон.\n'))
@@ -324,7 +326,8 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.special.2', (PRFX, 'ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ.', ''))
 
     cp('headline.appl', (PRFX, 'ПРИЛОЖЕНИЯ', 'К ДОГОВОРУ'))
-    cp('headline.addresses', (PRFX, 'РЕКВИЗИТЫ СТОРОН', 'ЮРИДИЧЕСКИЕ АДРЕСА'))
+    cp('headline.addresses.1', (PRFX, 'РЕКВИЗИТЫ СТОРОН', 'ЮРИДИЧЕСКИЕ АДРЕСА'))
+    cp('headline.addresses.2', (PRFX, 'ЮРИДИЧЕСКИЕ АДРЕСА', 'РЕКВИЗИТЫ СТОРОН'))
 
     cp('headline.conficts', (PRFX, 'Споры и разногласия.', ''))
 
@@ -438,13 +441,10 @@ class ContractDocument2(LegalDocument):
     return tokenize_text(_txt)
 
 
-# ------------------------------
-
 
 ##---------------------------------------##---------------------------------------##---------------------------------------
 
 
-# self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
 
 
 class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):
