@@ -23,7 +23,7 @@ def split_by_token(tokens: List[str], token):
   return res
 
 
-def split_by_token_into_ranges(tokens: List[str], token) ->List[slice]:
+def split_by_token_into_ranges(tokens: List[str], token) -> List[slice]:
   res = []
 
   p = 0
@@ -275,3 +275,25 @@ def put_if_better(dict: dict, key, x, is_better: staticmethod):
       dict[key] = x
   else:
     dict[key] = x
+
+
+def rectifyed_sum(vectors, relu_th: float = 0.0):
+  assert len(vectors) > 0
+
+  sum = None
+
+  for x in vectors:
+    if sum is None:
+      sum = np.zeros(len(x))
+    sum += relu(x, relu_th)
+
+  return sum
+
+
+def filter_values_by_key_prefix(dictionary:dict, prefix:str)->dict:
+  vectors = []
+  for p in dictionary:
+    if p.startswith(prefix):
+      x = dictionary[p]
+      vectors.append(x)
+  return vectors

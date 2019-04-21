@@ -109,18 +109,18 @@ class ElmoEmbedder(AbstractEmbedder):
     self.config = tf.ConfigProto()
     self.config.gpu_options.allow_growth = True
 
+
     self.layer_name = layer_name
     self.tf = tf
 
     self.session = tf.Session(config=self.config)
 
-
-    # self.session = tf.Session()
     self.sessionruns = 0
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
     print(f'🐌 Embedding { np.nansum(lens) } words... it takes time (☕️?)..')
+
     embeddings = self.elmo(
       inputs={
         "tokens": words,

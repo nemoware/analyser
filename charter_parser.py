@@ -108,7 +108,6 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # 0. parse
     _charter_doc = CharterDocument(txt)
-    _charter_doc.right_padding = 0
 
     # 1. find top level structure
     _charter_doc.parse()
@@ -233,8 +232,9 @@ class CharterDocumentParser(CharterConstraintsParser):
         self.warning(f'Section "{section.subdoc.untokenize_cc()[:100]}" is probably way too large {section_len}, timming to 5000 ')
         section_len = 5000  #
 
-      section.body = doc.subdoc(start, start + section_len)
-      section.attention = section.attention[start: start + section_len]
+      sli = slice( start, start + section_len)
+      section.body = doc.subdoc_slice ( sli, name=section.type)
+      section.attention = section.attention[sli]
       section_by_type[section.type] = section
 
     # end-for

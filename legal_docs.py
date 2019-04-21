@@ -5,7 +5,7 @@ from functools import wraps
 from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
-  ProbableValue
+  ProbableValue, rectifyed_sum, filter_values_by_key_prefix
 from parsing import ParsingContext, profile, print_prof_data
 from patterns import *
 from patterns import AbstractPatternFactory
@@ -26,7 +26,7 @@ class HeadlineMeta:
     self.subdoc: LegalDocument = subdoc
     self.body: LegalDocument = None
 
-    self.attention:List[float] = None #optional
+    self.attention: List[float] = None  # optional
 
 
 def deprecated(fn):
@@ -45,7 +45,7 @@ def deprecated(fn):
 
 class LegalDocument(EmbeddableText):
 
-  def __init__(self, original_text=None):
+  def __init__(self, original_text=None, name="legal_doc"):
     self.original_text = original_text
     self.filename = None
     self.tokens = None
@@ -55,10 +55,28 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict = {}
 
     self.sections = None
-    self.name="legal_doc"
+    self.name = name
     # subdocs
     self.start = None
     self.end = None
+
+  def parse(self, txt=None):
+    if txt is None:
+      txt = self.original_text
+
+    assert txt is not None
+
+    self.normal_text = self.preprocess_text(txt)
+
+    self.structure = DocumentStructure()
+    self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
+
+    # self.tokens = self.tokenize(self.normal_text)
+    # self.tokens_cc = np.array(self.tokens)
+    return self.tokens
+
+  def preprocess_text(self, text):
+    return normalize_text(text, replacements_regex)
 
   def __del__(self):
     print(f"----------------- LegalDocument {self.name} deleted. Ciao bella!")
@@ -136,6 +154,7 @@ class LegalDocument(EmbeddableText):
 
     return subdoc
 
+  @deprecated
   def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
     'LegalDocument']:
 
@@ -198,7 +217,7 @@ class LegalDocument(EmbeddableText):
 
     return closest_headline_index, confidence_by_headline, attention_vectors_by_headline[closest_headline_index]
 
-  def _find_best_headline_by_pattern_prefix_2(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str ):
+  def _find_best_headline_by_pattern_prefix_2(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str):
 
     import math
 
@@ -240,14 +259,15 @@ class LegalDocument(EmbeddableText):
                                       verbosity=1, merge=False, pattern_prefix=None):
     assert self.embeddings is not None
     self.distances_per_pattern_dict = calculate_distances_per_pattern(self, pattern_factory, dist_function, merge=merge,
-                                                                      verbosity=verbosity, pattern_prefix=pattern_prefix)
+                                                                      verbosity=verbosity,
+                                                                      pattern_prefix=pattern_prefix)
 
     return self.distances_per_pattern_dict
 
   def print_structured(self, numbered_only=False):
     self.structure.print_structured(self, numbered_only)
 
-  def subdoc_slice(self, _s:slice,  name='undef'):
+  def subdoc_slice(self, _s: slice, name='undef'):
     assert self.tokens is not None
 
     klazz = self.__class__
@@ -315,31 +335,6 @@ class LegalDocument(EmbeddableText):
 
     return sparse_words
 
-  # def parse(self, txt=None):
-  #   if txt is None: txt = self.original_text
-  #   self.normal_text = self.preprocess_text(txt)
-  #
-  #   self.tokens = self.tokenize(self.normal_text)
-  #   self.tokens_cc = np.array(self.tokens)
-  #
-  #   return self.tokens
-
-  def parse(self, txt=None):
-    if txt is None:
-      txt = self.original_text
-
-    self.normal_text = self.preprocess_text(txt)
-
-    self.structure = DocumentStructure()
-    self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
-
-    # self.tokens = self.tokenize(self.normal_text)
-    # self.tokens_cc = np.array(self.tokens)
-    return self.tokens
-
-  def preprocess_text(self, text):
-    return normalize_text(text, replacements_regex)
-
   def reset_embeddings(self):
 
     del self.embeddings
@@ -400,45 +395,19 @@ class LegalDocument(EmbeddableText):
     self.tokens = tokens
 
 
-class LegalDocumentLowCase(LegalDocument):
 
+class ContractDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-  def parse(self, txt=None):
-    if txt is None: txt = self.original_text
-    self.normal_text = self.preprocess_text(txt)
 
-    self.tokens_cc = self.tokenize(self.normal_text)
-
-    self.normal_text = self.normal_text.lower()
-
-    self.tokens = self.tokenize(self.normal_text)
-
-    return self.tokens
-
-
-class ContractDocument(LegalDocumentLowCase):
-  def __init__(self, original_text):
-    LegalDocumentLowCase.__init__(self, original_text)
-
-
+@deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
-  c = 0
-  sum = None
-
-  for p in distances_per_pattern_dict:
-    if p.startswith(prefix):
-      x = distances_per_pattern_dict[p]
-      if sum is None:
-        sum = np.zeros(len(x))
-
-      sum += relu(x, relu_th)
-      c += 1
-  #   deal/=c
-  return sum, c
+  vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
+  return rectifyed_sum(vectors, relu_th), len(vectors)
 
 
+@deprecated
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
   #     print('mean_by_pattern_prefix', prefix, relu_th)
   sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
@@ -615,8 +584,8 @@ def mask_sections(section_name_to_weight_dict, doc):
 
 
 class CharterDocument(LegalDocument):
-  def __init__(self, original_text):
-    LegalDocument.__init__(self, original_text)
+  def __init__(self, original_text, name="charter"):
+    LegalDocument.__init__(self, original_text, name)
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
@@ -856,6 +825,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
   return constraints
 
+
 @deprecated
 def make_constraints_attention_vectors(subdoc):
   # TODO: move to notebook, too much tuning
@@ -888,6 +858,7 @@ def make_constraints_attention_vectors(subdoc):
     'margin_attention_vector': margin_attention_vector,
     'margin_value_attention_vector': margin_value_attention_vector
   }
+
 
 @deprecated
 def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
@@ -957,7 +928,6 @@ def embedd_generic_tokenized_sentences_2(strings: List[str], embedder) -> \
     embedded_docs[i].tokens = tokens
     embedded_docs[i].tokens_cc = tokens
     embedded_docs[i].embeddings = line_emb
-
 
   return embedded_docs
 
