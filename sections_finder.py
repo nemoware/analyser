@@ -6,7 +6,7 @@ from legal_docs import LegalDocument, deprecated, HeadlineMeta, get_sentence_bou
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
   rectifyed_sum, smooth_safe
 from parsing import ParsingContext, ParsingSimpleContext
-from patterns import AbstractPatternFactory
+from patterns import AbstractPatternFactory,improve_attention_vector
 
 
 class SectionsFinder:
@@ -148,7 +148,7 @@ class FocusingSectionsFinder(SectionsFinder):
     if additional_attention is not None:
       additional_attention_s = smooth_safe(additional_attention, 6)
       v += additional_attention_s
-
+    v = improve_attention_vector(doc.embeddings, v, relu_th=0.5)
     v *= headlines_attention_vector
 
     span = 100
