@@ -259,7 +259,7 @@ class DocumentStructure:
           if s.roman:
             s.level = max(2, s.level)
 
-    self.structure = self.fix_structure(structure)
+    self.structure = self._fix_structure(structure)
 
     self.headline_indexes = self._find_headlines(tokens, tokens_cc)
     self.headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(self.headline_indexes)
@@ -268,6 +268,14 @@ class DocumentStructure:
 
 
   #     del _charter_doc.structure.structure[i]
+
+  def next_headline_after(self, start:int) -> int:
+    for si in self.headline_indexes:
+      line_start = self.structure[si].span[0]
+      if line_start > start:
+        return line_start
+
+    return self.structure[-1].span[-1] #end of the doc
 
   def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes) -> List[int]:
     indexes_to_remove = []
@@ -298,6 +306,7 @@ class DocumentStructure:
 
     sline: StructureLine = self.structure[i_this]
     sline_next: StructureLine = self.structure[i_next]
+
 
     sline.span = (sline.span[0], sline_next.span[1])
 
@@ -342,7 +351,7 @@ class DocumentStructure:
 
     return contrasted
 
-  def fix_structure(self, structure, verbose=False):
+  def _fix_structure(self, structure, verbose=False):
 
     numbered = self._get_numbered_lines(structure)
     if len(numbered) == 0:
@@ -360,7 +369,7 @@ class DocumentStructure:
 
     return structure
 
-  def find_min_level(self, structure):
+  def _find_min_level(self, structure):
     min_level = structure[0].level
     for s in structure:
       if s.level < min_level:
@@ -368,7 +377,7 @@ class DocumentStructure:
     return min_level
 
   def _normalize_levels(self, structure):
-    minlevel = self.find_min_level(structure)
+    minlevel = self._find_min_level(structure)
 
     for s in structure:
       s.level -= minlevel

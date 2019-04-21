@@ -76,23 +76,30 @@ class FocusingSectionsFinder(SectionsFinder):
         hl_info = HeadlineMeta(None, section_type, confidence, doc.subdoc_slice(sl, name=section_type))
         hl_info.attention = attention
         put_if_better(section_by_index, key=sl.start, x=hl_info, is_better=is_hl_more_confident)
+
+
+
     # end-for
     # s = slice(bounds[0], bounds[1])
-
+    # now slicing the doc
     sorted_starts = [i for i in sorted(section_by_index.keys())]
     sorted_starts.append(len(doc.tokens))
+
     section_by_type = {}
-    for i in range(len(sorted_starts) - 1):
+
+    for i in range(len(sorted_starts) ):
       index = sorted_starts[i]
       section: HeadlineMeta = section_by_index[index]
       start = index  # todo: probably take the end of the caption
-      end = sorted_starts[i + 1]
+      end = doc.structure.next_headline_after(start)
 
+      # end_alt = sorted_starts[i + 1]
+      #
       section_len = end - start
-      if section_len > 5000:
-        self.ctx.warning(
-          f'Section "{section.subdoc.untokenize_cc()[:100]}" is probably way too large {section_len}, timming to 5000 ')
-        section_len = 5000  #
+      # if section_len > 5000:
+      #   self.ctx.warning(
+      #     f'Section "{section.subdoc.untokenize_cc()[:100]}" is probably way too large {section_len}, timming to 5000 ')
+      #   section_len = 5000  #
 
       sli = slice(start, start + section_len)
       section.body = doc.subdoc_slice(sli, name=section.type)
