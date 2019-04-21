@@ -5,6 +5,8 @@
 
 import unittest
 
+from charter_parser import CharterDocumentParser
+from charter_patterns import CharterPatternFactory
 from demo import ContractAnlysingContext
 from demo_charter import CharterAnlysingContext
 from doc_structure import remove_similar_indexes_considering_weights
@@ -155,6 +157,18 @@ class LegalDocumentTestCase(unittest.TestCase):
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
     ctx = CharterAnlysingContext(emb, SilentRenderer())
+
+    ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
+
+    ctx._logstep("analyze_charter")
+    ctx._logstep("analyze_charter 2")
+
+  def test_charter_parser (self):
+    # from renderer import SilentRenderer
+    point1 = [1, 6, 4]
+
+    cpf = CharterPatternFactory(FakeEmbedder(point1))
+    ctx = CharterDocumentParser(cpf)
 
     ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
 

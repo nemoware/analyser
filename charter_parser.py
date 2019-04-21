@@ -117,9 +117,9 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # self.find_charter_sections_starts(self.pattern_factory.headlines)
 
-    self.pattern_factory.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
-    filtered = filter_values_by_key_prefix(self.pattern_factory.distances_per_pattern_dict, 'competence')
-    competence_v, c__ = rectifyed_sum(filtered, 0.3)
+    self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
+    filtered = filter_values_by_key_prefix(self.doc.distances_per_pattern_dict, 'competence')
+    competence_v = rectifyed_sum(filtered, 0.3)
     competence_v, c = improve_attention_vector(self.doc.embeddings, competence_v, mix=1)
 
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,

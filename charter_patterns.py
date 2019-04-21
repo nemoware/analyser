@@ -1,16 +1,16 @@
-from legal_docs import deprecated, org_types, CharterDocument, make_soft_attention_vector
+from legal_docs import org_types, make_soft_attention_vector, CharterDocument
 from patterns import AbstractPatternFactoryLowCase
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):
-  """
-  🏭
-  """
 
   def __init__(self, embedder):
     AbstractPatternFactoryLowCase.__init__(self, embedder)
 
+    self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
+
     self._build_head_patterns()
+
     self._build_order_patterns()
     self._build_sum_margin_extraction_patterns()
     self._build_sum_patterns()
@@ -19,13 +19,13 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
     self.embedd()
 
-    self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
-
   def _build_head_patterns(self):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
-    head_prfx = "статья 0"
+    head_prfx = "\n"
+
+    cp('competence', ('', 'компетенция', ''))
 
     cp('headline.name.1', ('Полное', 'фирменное наименование', 'общества на русском языке:'))
     cp('headline.name.2', ('', 'ОБЩИЕ ПОЛОЖЕНИЯ', ''))
@@ -34,30 +34,28 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.name.5', ('', 'языке', ''))
     cp('headline.name.6', ('', 'полное', ''))
 
-    cp('headline.head.all.1', (head_prfx, 'компетенции общего собрания акционеров', ''))
-    cp('headline.head.all.2', (head_prfx, 'компетенции общего собрания участников', 'общества'))
-    cp('headline.head.all.3', (head_prfx, 'собрание акционеров\n', ''))
+    #     cp('headline.head.all.comp.a', (head_prfx, 'компетенции', 'общего собрания акционеров общества'))
+    #     cp('headline.head.all.comp.p', (head_prfx, 'компетенции', 'общего собрания участников общества'))
+    cp('headline.head.all.n.a', ('', 'общее собрание акционеров', ''))
+    cp('headline.head.all.n.p', ('', 'общее собрание участников', ''))
 
-    cp('headline.head.all.4', ('', 'компетенции', ''))
-    cp('headline.head.all.5', ('', 'собрания', ''))
-    cp('headline.head.all.6', ('', 'участников', ''))
-    cp('headline.head.all.7', ('', 'акционеров', ''))
+    #     cp('headline.head.all.4', ('', 'компетенции', ''))
+    #     cp('headline.head.all.5', ('', 'собрания', ''))
+    #     cp('headline.head.all.6', ('', 'участников', ''))
+    #     cp('headline.head.all.7', ('', 'акционеров', ''))
 
-    cp('headline.head.directors.1', (head_prfx, 'компетенция совета директоров', 'общества'))
-    cp('headline.head.directors.2', ('', 'совет директоров общества', ''))
-    cp('headline.head.directors.3', ('', 'компетенции', ''))
-    cp('headline.head.directors.4', ('', 'совета', ''))
-    cp('headline.head.directors.5', ('', 'директоров', ''))
+    #     cp('headline.head.directors.comp', (head_prfx, 'компетенция', 'совета директоров общества. К компетенции Совета директоров относятся следующие вопросы'))
+    cp('headline.head.directors.n', ('', 'совет директоров общества', ''))
+    #     cp('headline.head.directors.3', ('', 'компетенции', ''))
+    #     cp('headline.head.directors.4', ('', 'совета', ''))
+    #     cp('headline.head.directors.5', ('', 'директоров', ''))
 
-    cp('headline.head.pravlenie.1', (head_prfx, 'компетенции правления', ''))
-    cp('headline.head.pravlenie.2', ('', 'компетенции', ''))
-    cp('headline.head.pravlenie.3', ('', 'правления', ''))
-    #     cp('d_head_pravlenie.2', ('', 'общества', ''))
+    #     cp('headline.head.pravlenie.comp', ('', 'компетенции', 'правления'))
+    cp('headline.head.pravlenie.n', ('', 'правление общества', ''))
+    #     cp('headline.head.pravlenie.2', ('', 'компетенции', ''))
 
-    cp('headline.head.gen.1', (head_prfx, 'компетенции генерального директора', ''))
-    cp('headline.head.gen.2', ('', 'компетенции', ''))
-    cp('headline.head.gen.3', ('', 'генерального', ''))
-    cp('headline.head.gen.4', ('', 'директора', ''))
+    #     cp('headline.head.gen.1', ('', 'компетенции', 'генерального директора'))
+    cp('headline.head.gen.2', ('', 'генеральный директор', ''))
 
   def _build_sum_patterns(self):
     def cp(name, tuples):
@@ -65,6 +63,8 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
     suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
     prefix = 'решений о совершении сделок '
+
+    cp('currency', (prefix + 'стоимость', '0', suffix))
 
     cp('sum_max1', (prefix + 'стоимость', 'не более 0', suffix))
     cp('sum_max2', (prefix + 'цена', 'не больше 0', suffix))
@@ -100,26 +100,18 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     self.create_pattern('sum__gt_3', (prefix + '', 'свыше 0', suffix))
     self.create_pattern('sum__gt_4', (prefix + '', 'сделка имеет стоимость, равную или превышающую 0', suffix))
 
-  @deprecated
-  def _build_order_patterns____OLD(self):
-    def cp(name, tuples):
-      return self.create_pattern(name, tuples)
-
-    cp('d_order_1', ('Порядок', 'одобрения сделок', 'в совершении которых имеется заинтересованность'))
-    cp('d_order_2', ('', 'принятие решений', 'о совершении сделок'))
-    cp('d_order_3',
-       ('', 'одобрение заключения', 'изменения или расторжения какой-либо сделки Общества'))
-    cp('d_order_4', ('', 'Сделки', 'стоимость которой равна или превышает'))
-    cp('d_order_5', ('', 'Сделки', 'стоимость которой составляет менее'))
-
   def _build_order_patterns(self):
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 
+    cp('d_order_consent', ('Порядок', 'одобрения сделок', 'в совершении которых имеется заинтересованность'))
+    cp('d_order_solution', ('', 'принятие решений', 'о совершении сделок'))
+    cp('d_order_consent_1', ('', 'одобрение заключения', 'изменения или расторжения какой-либо сделки Общества'))
+
     prefix = 'принятие решения о согласии на совершение или о последующем одобрении'
 
-    cp('d_order_4', (prefix, 'cделки', ', стоимость которой равна или превышает'))
-    cp('d_order_5', (prefix, 'cделки', ', стоимость которой составляет менее'))
+    cp('d_order_deal.1', (prefix, 'cделки', ', стоимость которой равна или превышает'))
+    cp('d_order_deal.2', (prefix, 'cделки', ', стоимость которой составляет менее'))
 
   def _build_ner_patterns(self):
     def cp(name, tuples):
@@ -142,8 +134,6 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     cp('nerneg_3', ('на', 'английском', 'языке'))
 
   def _build_org_type_attention_vector(self, subdoc: CharterDocument):
-
-
     attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
     attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
     return attention_vector_neg
