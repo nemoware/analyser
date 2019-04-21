@@ -103,13 +103,24 @@ class FocusingSectionsFinder(SectionsFinder):
 
   """ ❤️ == GOOD HEART LINE ====================================================== """
 
-  def make_headline_attention_vector(self, doc):
-    level_by_line = [max(i._possible_levels) for i in doc.structure.structure]
+  # def make_headline_attention_vector(self, doc):
+  #   level_by_line = [max(i._possible_levels) for i in doc.structure.structure]
+  #
+  #   headlines_attention_vector = []
+  #   for i in doc.structure.structure:
+  #     l = i.span[1] - i.span[0]
+  #     headlines_attention_vector += [level_by_line[i.line_number]] * l
+  #
+  #   return np.array(headlines_attention_vector)
 
-    headlines_attention_vector = []
-    for i in doc.structure.structure:
-      l = i.span[1] - i.span[0]
-      headlines_attention_vector += [level_by_line[i.line_number]] * l
+  def make_headline_attention_vector(self, doc):
+
+    headlines_attention_vector = np.zeros(len(doc.tokens))
+    for i in doc.structure.headline_indexes:
+      sl = doc.structure.structure[i]
+      l = slice(sl.span[0], sl.span[1])
+      level = max(sl._possible_levels)
+      headlines_attention_vector[l] = level
 
     return np.array(headlines_attention_vector)
 
