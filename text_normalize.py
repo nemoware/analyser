@@ -88,10 +88,12 @@ tables_regex = [
 ]
 
 table_of_contents_regex = [
-    (re.compile(r'содержание\s+(^.+?$)?\s+'
-                r'((^\d{1,3}\.\s*.+?\s+\d{1,5}$)\s+)+',
+    (re.compile(r'(содержание|оглавление)\s+(^.+?$)?\s+'
+								r'((^\s*(статья\s+)?\d{1,3}\.?\s*(.+?|(.+$\s*^.+?))\s+\d{1,5}$)\s*(^\.*?$))+',
                 re.IGNORECASE|re.MULTILINE),
-     '')
+     ''),
+
+ 
 ]
 
 # replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
