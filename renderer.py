@@ -118,3 +118,41 @@ class AbstractRenderer:
 
 class SilentRenderer(AbstractRenderer):
   pass
+
+
+import numpy as np
+def mixclr(color_map, dictionary, min_color=None, _slice=None):
+  reds = None
+  greens = None
+  blues = None
+
+  for c in dictionary:
+    vector = np.array(dictionary[c])
+    if _slice is not None:
+      vector = vector[_slice]
+
+    if reds is None:
+      reds = np.zeros(len(vector))
+    if greens is None:
+      greens = np.zeros(len(vector))
+    if blues is None:
+      blues = np.zeros(len(vector))
+
+    vector_color = color_map[c]
+
+    reds += vector * vector_color[0]
+    greens += vector * vector_color[1]
+    blues += vector * vector_color[2]
+
+
+  if min_color is not None:
+    reds += min_color[0]
+    greens += min_color[1]
+    blues += min_color[2]
+
+  def cut_(x):
+    up = [min(i, 1) for i in x]
+    down = [max(i, 0) for i in up]
+    return down
+
+  return np.array([cut_(reds), cut_(greens), cut_(blues)]).T
