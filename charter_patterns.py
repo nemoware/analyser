@@ -1,3 +1,4 @@
+from charity_finder import build_charity_patterns
 from legal_docs import org_types, make_soft_attention_vector, CharterDocument
 from patterns import AbstractPatternFactoryLowCase
 
@@ -16,6 +17,8 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     self._build_sum_patterns()
 
     self._build_ner_patterns()
+
+    build_charity_patterns(self)
 
     self.embedd()
 

@@ -11,6 +11,9 @@ head_types_colors = {'head.directors': 'crimson',
                      'head.unknown': '#999999'}
 
 
+def as_smaller(x):
+  return f'<span style="font-size:80%;">{x}</span>'
+
 def as_error_html(txt):
   return f'<div style="color:red">⚠️ {txt}</div>'
 

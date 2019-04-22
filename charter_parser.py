@@ -1,4 +1,5 @@
 # origin: charter_parser.py
+from charity_finder import find_charity_constraints
 from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
   make_constraints_attention_vectors, extract_all_contraints_from_sentence
 from ml_tools import *
@@ -7,6 +8,7 @@ from patterns import FuzzyPattern, find_ner_end, improve_attention_vector
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
+from violations import ViolationsFinder
 
 
 class CharterConstraintsParser(ParsingSimpleContext):
@@ -16,7 +18,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
     self.pattern_factory = pattern_factory
     pass
 
-  ##---------------------------------------
+  # ---------------------------------------
   def extract_constraint_values_from_sections(self, sections):
     rez = {}
 
@@ -26,7 +28,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     return rez
 
-  ##---------------------------------------
+  # ---------------------------------------
   def extract_constraint_values_from_section(self, section: HeadlineMeta):
 
     if self.verbosity_level > 1:
@@ -52,14 +54,14 @@ class CharterConstraintsParser(ParsingSimpleContext):
     for r in ranges:
 
       __line = untokenize(body.tokens[r])
-      sum = extract_sum(__line)
+      _sum = extract_sum(__line)
 
-      if sum is not None:
+      if _sum is not None:
         ss_subdoc = body.subdoc_slice(r, name=f'sentence:{r.start}')
         sentenses_having_values.append(ss_subdoc)
 
       if self.verbosity_level > 2:
-        print('-', sum, __line)
+        print('-', _sum, __line)
 
     r_by_head_type = {
       'section': head_types_dict[section.type],
@@ -70,7 +72,8 @@ class CharterConstraintsParser(ParsingSimpleContext):
     return r_by_head_type
 
   ##---------------------------------------
-  def __extract_constraint_values_from_region(self, sentenses_i: List[LegalDocument]):
+  @staticmethod
+  def __extract_constraint_values_from_region(sentenses_i: List[LegalDocument]):
     if sentenses_i is None or len(sentenses_i) == 0:
       return []
 
@@ -94,10 +97,18 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
 
 class CharterDocumentParser(CharterConstraintsParser):
+
   def __init__(self, pattern_factory):
     CharterConstraintsParser.__init__(self, pattern_factory)
 
     self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
+
+    self.org = None
+    self.doc = None
+    self.constraints = None
+    self.charity_constraints = None
+
+    self.violations_finder = ViolationsFinder()
 
   def analyze_charter(self, txt, verbose=False):
     """
@@ -117,10 +128,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # self.find_charter_sections_starts(self.pattern_factory.headlines)
 
-    self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
-    filtered = filter_values_by_key_prefix(self.doc.distances_per_pattern_dict, 'competence')
-    competence_v = rectifyed_sum(filtered, 0.3)
-    competence_v, c = improve_attention_vector(self.doc.embeddings, competence_v, mix=1)
+    competence_v = self._make_competence_attention_v()
 
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.', additional_attention=competence_v)
@@ -131,10 +139,20 @@ class CharterDocumentParser(CharterConstraintsParser):
     # 3. constraints
     self.constraints = self.find_contraints()
 
+    self.charity_constraints = find_charity_constraints(self.doc, self.pattern_factory, self._get_head_sections())
+
+    ##----end, logging, closing
     self.verbosity_level = 1
     self.log_warnings()
 
     return self.org, self.constraints
+
+  def _make_competence_attention_v(self):
+    self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
+    filtered = filter_values_by_key_prefix(self.doc.distances_per_pattern_dict, 'competence')
+    competence_v = rectifyed_sum(filtered, 0.3)
+    competence_v, c = improve_attention_vector(self.doc.embeddings, competence_v, mix=1)
+    return competence_v
 
   def ners(self):
     if 'name' in self.doc.sections:
@@ -159,23 +177,23 @@ class CharterDocumentParser(CharterConstraintsParser):
     # 💵 💵 💰
     # TODO: move to doc.dict
     self.value_attention = None  # make_improved_attention_vector(self.doc, 'sum__')
-    # 💰
-    # TODO: move to doc.dict
-    self.currency_attention_vector = None  # make_improved_attention_vector(self.doc, 'currency')
-    self.competence_v = None
 
   # ---------------------------------------
   def find_contraints(self):
     # 5. extract constraint values
-    sections_filtered = {}
-    prefix = 'head.'
-    for k in self.doc.sections:
-      if k[:len(prefix)] == prefix:
-        sections_filtered[k] = self.doc.sections[k]
+    sections_filtered = self._get_head_sections()
 
     self._logstep(f'detecting sections: "{sections_filtered}" ')
     rz = self.extract_constraint_values_from_sections(sections_filtered)
     return rz
+
+  def _get_head_sections(self, prefix='head.'):
+    sections_filtered = {}
+
+    for k in self.doc.sections:
+      if k[:len(prefix)] == prefix:
+        sections_filtered[k] = self.doc.sections[k]
+    return sections_filtered
 
   def _do_nothing(self, head, a, b):
     pass  #
@@ -248,8 +266,24 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     return org_by_type, best_org_type
 
+    # ==============
+    # VIOLATIONS
+
+  def find_ranges_by_group(self, charter_constraints, m_convert, verbose=False):
+    return self.violations_finder.find_ranges_by_group(charter_constraints, m_convert, verbose)
+    # ranges_by_group = {}
+    # for head_group in charter_constraints:
+    #   #     print('-' * 20)
+    #   group_c = charter_constraints[head_group]
+    #   data = self._combine_constraints_in_group(group_c, m_convert, verbose)
+    #   ranges_by_group[head_group] = data
+    # return ranges_by_group
+
 
 # ---
+
+
+# -----------
 
 
 def put_if_better(dict: dict, key, x, is_better: staticmethod):
