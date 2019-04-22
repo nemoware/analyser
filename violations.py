@@ -1,11 +1,10 @@
-from ml_tools import ProbableValue, np
+from ml_tools import ProbableValue, np, TokensWithAttention
 from renderer import as_warning, as_offset, as_error_html, as_msg, as_quote, as_currency
 from text_tools import untokenize
 from transaction_values import ValueConstraint
 
 
 class ViolationsFinder:
-
 
   def find_ranges_by_group(self, charter_constraints, m_convert, verbose=False):
     ranges_by_group = {}
@@ -64,10 +63,12 @@ class ViolationsFinder:
     return data
     # ==================================================================VIOLATIONS
 
+
 class VConstraint:
   def __init__(self, lower, upper, head_group):
-    self.lower = ProbableValue(ValueConstraint(0, 'RUB', +1, context=[["-"]]), 0)
-    self.upper = ProbableValue(ValueConstraint(np.inf, 'RUB', -1, context=[["-"]]), 0)
+    _emp = TokensWithAttention([''], [0])
+    self.lower = ProbableValue(ValueConstraint(0, 'RUB', +1, context=_emp), 0)
+    self.upper = ProbableValue(ValueConstraint(np.inf, 'RUB', -1, context=_emp), 0)
 
     if lower is not None:
       self.lower = lower
@@ -124,7 +125,7 @@ class VConstraint:
         html += as_warning("требуется одобрение...".upper())
         html += as_warning(
           f"сумма договора  {as_currency(v_converted)}  БОЛЬШЕ нижней пороговой {as_currency(lower_converted)} ")
-        html += as_quote(untokenize(lower_v.context[0]))
+        html += as_quote(untokenize(lower_v.context.tokens))
 
     if self.upper is not None:
 
@@ -142,9 +143,10 @@ class VConstraint:
         html += as_error_html(f'требуется одобрение со стороны "{head_name.upper()}"')
 
         if lower_v.context is not None:
-          html += as_quote(renderer.to_color_text(lower_v.context[0], lower_v.context[1], _range=[0, 1]))
+          html += as_quote(renderer.to_color_text(lower_v.context.tokens, lower_v.context.attention, _range=[0, 1]))
+
         if upper_v.context is not None:
           html += '<br>'
-          html += as_quote(renderer.to_color_text(upper_v.context[0], upper_v.context[1], _range=[0, 1]))
+          html += as_quote(renderer.to_color_text(upper_v.context.tokens, upper_v.context.attention, _range=[0, 1]))
 
     return html

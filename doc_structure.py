@@ -399,8 +399,8 @@ class DocumentStructure:
       if len(line.number) < 2:
         line.level = line.get_median_possible_level()
 
-      if verbose:
-        line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
+      # if verbose:
+      #   line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
 
   def _uplevel_non_numbered(self, structure: List[StructureLine]):
     for s in structure:
@@ -517,7 +517,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
   return value
 
-
+#XXXL
 def remove_similar_indexes_considering_weights(indexes: List[int], weights: List[float]) -> List[int]:
   hif = []
 

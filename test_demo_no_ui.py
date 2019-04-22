@@ -31,8 +31,6 @@ print(currency_converter)
 
 
 import os
-import sys
-
 
 
 def interactive_upload(filetype):
@@ -191,12 +189,9 @@ def _init_the_code(reset=False):
     print('👌 Code is alredy imported!')
     return
 
-  import matplotlib as mpl
-  from IPython.core.display import display, HTML
   import matplotlib.pyplot as plt
   from renderer import AbstractRenderer, head_types_colors
   from transaction_values import ValueConstraint
-  from legal_docs import org_types
   from parsing import head_types_dict, head_types
   
   class DemoRenderer(AbstractRenderer):
@@ -661,10 +656,7 @@ if False:
 # print(doc.distances_per_pattern_dict.keys())
 from legal_docs import rectifyed_sum_by_pattern_prefix
 
-from ml_tools import max_exclusive_pattern_by_prefix
-
-
-
+from ml_tools import max_exclusive_pattern_by_prefix, TokensWithAttention
 
 vv = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'headline.name.1')
 print(vv[0:10])
@@ -725,7 +717,7 @@ print('ok')
 # GLOBALS__['renderer'].render_color_text(subdoc.tokens_cc, subdoc.distances_per_pattern_dict['x_charity_1.2'], _range=(0,1))
 # x = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, 'x_charity_')
 import numpy as np
-from ml_tools import filter_values_by_key_prefix,max_exclusive_pattern, momentum, smooth_safe, smooth
+from ml_tools import filter_values_by_key_prefix,max_exclusive_pattern, momentum, smooth
 from patterns import improve_attention_vector
 vectors = filter_values_by_key_prefix(subdoc.distances_per_pattern_dict, 'x_charity_')
 vectors_i=[]
@@ -781,7 +773,6 @@ meta_pattern_attention = relu(meta_pattern_attention,  0.7)
 
 GLOBALS__['renderer'].render_color_text(doc.tokens_cc, meta_pattern_attention, _range=(0,1))
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 fig = plt.figure(figsize=(20, 6))
 ax = plt.axes()
@@ -1104,13 +1095,13 @@ def convert(v, currency_converter=currency_converter):
     return v
 
 
-from text_tools import untokenize
 import numpy as np
 
 class VConstraint:
   def __init__(self, lower, upper, head_group):
-    self.lower = ProbableValue( ValueConstraint(0, 'RUB', +1), 0 )
-    self.upper = ProbableValue( ValueConstraint(np.inf, 'RUB', -1), 0 )
+    empt=TokensWithAttention([''],[0])
+    self.lower = ProbableValue( ValueConstraint(0, 'RUB', +1, empt), 0 )
+    self.upper = ProbableValue( ValueConstraint(np.inf, 'RUB', -1, empt), 0 )
     
     if lower is not None:
       self.lower = lower
@@ -1451,7 +1442,6 @@ display(HTML(renderer.render_constraint_values(charter_constraints)))
 
 # violations
 
-from IPython.core.display import display, HTML
 def render_subj(self, doc):
       from demo import subject_types_dict
       subj=doc.subject

@@ -9,7 +9,8 @@ import math
 import re
 from typing import List
 
-from text_tools import np, Tokens
+from ml_tools import TokensWithAttention
+from text_tools import np
 from text_tools import to_float, untokenize
 
 currencly_map = {
@@ -22,12 +23,12 @@ currencly_map = {
 
 
 class ValueConstraint:
-  def __init__(self, value: float, currency: str, sign: int, context:List[Tokens]):
-    assert len(context)>0
+  def __init__(self, value: float, currency: str, sign: int, context: TokensWithAttention):
+    assert context is not None
     self.value = value
     self.currency = currency
     self.sign = sign
-    self.context = context
+    self.context: TokensWithAttention = context
 
 
 complete_re = re.compile(
@@ -43,7 +44,7 @@ complete_re = re.compile(
 )
 
 
-def extract_sum(sentence: str)->(float, str):
+def extract_sum(sentence: str) -> (float, str):
   r = complete_re.search(sentence)
 
   if r is None:
@@ -75,6 +76,11 @@ def extract_sum_from_tokens(sentence_tokens: List):
   return f, sentence
 
 
+def extract_sum_from_tokens_2(sentence_tokens: List):
+  f, __ = extract_sum_from_tokens(sentence_tokens)
+  return f
+
+
 _re_less_then = re.compile(r'(до|менее|не выше|не превыша[а-я]{2,4})')
 _re_greather_then = re.compile(r'(от|больше|более|свыше|выше|превыша[а-я]{2,4})')
 
@@ -93,7 +99,8 @@ def detect_sign(prefix: str):
 number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 
 
-def split_by_number_2(tokens: List[str], attention: List[float], threshold) -> (List[List[str]], List[int], List[slice]):
+def split_by_number_2(tokens: List[str], attention: List[float], threshold) -> (
+List[List[str]], List[int], List[slice]):
   indexes = []
   last_token_is_number = False
   for i in range(len(tokens)):
@@ -164,18 +171,19 @@ def extract_sum_and_sign(subdoc, region) -> ValueConstraint:
       currency = currencly_map[_sum[1]]
     value = _sum[0]
 
-  vc = ValueConstraint(value, currency, _sign, [subtokens] )
+  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([''], [0]))
 
   return vc
 
 
 def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
-  subtokens = subdoc.tokens_cc[region.start - VALUE_SIGN_MIN_TOKENS:region.stop]
+  _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
+  subtokens = subdoc.tokens_cc[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
   _prefix = untokenize(_prefix_tokens)
   _sign = detect_sign(_prefix)
   # ======================================
-  _sum, _ = extract_sum_from_tokens(subtokens)
+  _sum = extract_sum_from_tokens_2(subtokens)
   # ======================================
 
   currency = "UNDEF"
@@ -186,7 +194,7 @@ def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
       currency = currencly_map[_sum[1]]
     value = _sum[0]
 
-  vc = ValueConstraint(value, currency, _sign, [subtokens] )
+  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
 
   return vc
 
@@ -194,7 +202,7 @@ def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
 if __name__ == '__main__':
   print(extract_sum('\n2.1.  Общая сумма договора составляет 41752 руб. (Сорок одна т'
                     'ысяча семьсот пятьдесят два рубля) '
-   '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'))
+                    '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'))
   print(extract_sum('эквивалентной 25 миллионам долларов сша'))
 
   print(extract_sum('взаимосвязанных сделок в совокупности составляет от '

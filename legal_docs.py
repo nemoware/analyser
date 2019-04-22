@@ -2,7 +2,7 @@
 
 from functools import wraps
 
-from doc_structure import DocumentStructure, StructureLine
+from doc_structure import DocumentStructure, StructureLine, TokensWithAttention
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
   ProbableValue
@@ -11,7 +11,7 @@ from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, split_by_number_2 , extract_sum_and_sign_2
+from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2
 
 REPORTED_DEPRECATED = {}
 
@@ -19,10 +19,10 @@ import gc
 
 
 class HeadlineMeta:
-  def __init__(self, index, type, confidence: float, subdoc):
+  def __init__(self, index, _type, confidence: float, subdoc):
     self.index: int = index
     self.confidence: float = confidence
-    self.type: str = type
+    self.type: str = _type
     self.subdoc: LegalDocument = subdoc
     self.body: LegalDocument = None
 
@@ -46,6 +46,7 @@ def deprecated(fn):
 class LegalDocument(EmbeddableText):
 
   def __init__(self, original_text=None, name="legal_doc"):
+    super().__init__()
     self.original_text = original_text
     self.filename = None
     self.tokens = None
@@ -395,7 +396,6 @@ class LegalDocument(EmbeddableText):
     self.tokens = tokens
 
 
-
 class ContractDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
@@ -410,8 +410,8 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th:
 @deprecated
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
   #     print('mean_by_pattern_prefix', prefix, relu_th)
-  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
-  return normalize(sum)
+  _sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
+  return normalize(_sum)
 
 
 def rectifyed_normalized_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
@@ -420,9 +420,9 @@ def rectifyed_normalized_mean_by_pattern_prefix(distances_per_pattern_dict, pref
 
 def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.5):
   #     print('mean_by_pattern_prefix', prefix, relu_th)
-  sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
-  sum /= c
-  return sum
+  _sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
+  _sum /= c
+  return _sum
 
 
 class BasicContractDocument(LegalDocument):
@@ -560,7 +560,7 @@ class ProtocolDocument(LegalDocument):
 
 def find_section_by_caption(cap, subdocs):
   solution_section = None
-  mx = 0;
+  mx = 0
   for subdoc in subdocs:
     d = subdoc.distances_per_pattern_dict[cap]
     _mx = d.max()
@@ -602,8 +602,7 @@ def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=N
         x = np.array(x)
         x += attention_vector
 
-      max = x.argmax()
-      ret[p] = max
+      ret[p] = x.argmax()
 
   return ret
 
@@ -805,6 +804,10 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 #   }
 #
 #   return r
+
+def _expand_slice(s:slice, exp):
+  return slice(s.start-exp, s.stop+exp)
+
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
   tokens = sentence_subdoc.tokens
@@ -817,8 +820,9 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       vc = extract_sum_and_sign_2(sentence_subdoc, region)
-      vc.context = [tokens[region[0] - 10:region[1] + 10], attention_vector[region[0] - 10:region[1] + 10]]
-      confidence = attention_vector[region[0]]
+      _e = _expand_slice(region, 10)
+      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
+      confidence = attention_vector[region.start]
       pv = ProbableValue(vc, confidence)
 
       constraints.append(pv)
