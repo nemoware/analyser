@@ -1,5 +1,4 @@
 import re
-from typing import List
 
 from ml_tools import *
 from text_tools import tokenize_text, np, untokenize
@@ -113,7 +112,9 @@ class StructureLine():
     self.number = number
     self.level = level
     self.bullet = bullet
+    # @deprecated
     self.span = span
+    self.slice = slice(span[0], span[1])
     self.text_offset = text_offset
     self._possible_levels = []
     self.line_number = line_number
@@ -166,7 +167,7 @@ class StructureLine():
     return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
   def to_string(self, tokens):
-    return untokenize(self.subtokens(tokens))
+    return untokenize(tokens[self.slice])
 
   def subtokens(self, tokens):
     return tokens[self.span[0]: self.span[1]]
@@ -192,9 +193,6 @@ class DocumentStructure:
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
-
-
-
 
   def detect_document_structure(self, text):
     lines: List[str] = text.split('\n')
@@ -245,17 +243,8 @@ class DocumentStructure:
           roman=roman
         )
 
-        # HEADLINE?
-        # if __row[:15].upper() == __row[:15]:
-        #   section_meta.add_possible_level(0)
-
-        # p = headline_probability(line_tokens, line_tokens_cc, prev_sentence, prev_value)
-
         structure.append(section_meta)
-
         index = len(tokens)
-
-      # self.tokens_cc = tokens_cc  ## xxx: for debug only: TODO: remove this line
 
       if romans < 3:
         # not enough roman numbers, so these are not roman
@@ -270,15 +259,65 @@ class DocumentStructure:
           if s.roman:
             s.level = max(2, s.level)
 
-    self.structure = self.fix_structure(structure)
+    self.structure = self._fix_structure(structure)
 
-    self._find_headlines(tokens, tokens_cc)
-
+    self.headline_indexes = self._find_headlines(tokens, tokens_cc)
+    self.headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(self.headline_indexes)
     return tokens, tokens_cc
 
-  def _find_headlines(self, tokens, tokens_cc):
+
+
+  #     del _charter_doc.structure.structure[i]
+
+  def next_headline_after(self, start:int) -> int:
+    for si in self.headline_indexes:
+      line_start = self.structure[si].span[0]
+      if line_start > start:
+        return line_start
+
+    return self.structure[-1].span[-1] #end of the doc
+
+  def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes) -> List[int]:
+    indexes_to_remove = []
+
+    slines = self.structure
+
+    line_i = 0
+    while line_i < len(headline_indexes) - 1:
+      i_this = headline_indexes[line_i]
+      i_next = headline_indexes[line_i + 1]
+
+      sline: StructureLine = slines[i_this]
+      sline_next: StructureLine = slines[i_next]
+
+      section_size = sline_next.span[0] - sline.span[1]
+
+      if section_size < 20:
+        self._merge_headlines(headline_indexes, line_i, line_i + 1, indexes_to_remove)
+      else:
+        line_i += 1
+
+    return headline_indexes
+
+  def _merge_headlines(self, headline_indexes, line_i, line_i_next, indexes_to_remove):
+
+    i_this =  headline_indexes[line_i]
+    i_next =  headline_indexes[line_i_next]
+
+    sline: StructureLine = self.structure[i_this]
+    sline_next: StructureLine = self.structure[i_next]
+
+
+    sline.span = (sline.span[0], sline_next.span[1])
+
+    del headline_indexes[line_i_next]
+    for i in range(i_this + 1, i_next + 1):
+      indexes_to_remove.append(i)
+
+  def _find_headlines(self, tokens, tokens_cc) -> List[int]:
 
     headlines_probability = np.zeros(len(self.structure))
+
     prev_sentence = []
     prev_value = 0
     for i in range(len(self.structure)):
@@ -292,30 +331,11 @@ class DocumentStructure:
       prev_sentence = line_tokens
       prev_value = p
 
+    """ 🧠🕺 magic an brainfu** inside """
     _contrasted_probability = self._highlight_headlines_probability(headlines_probability)
     headline_indexes = sorted(np.nonzero(_contrasted_probability)[0])
 
-    # hif = []
-    # def is_index_far(i):
-    #   if i == 0: return True
-    #   return headline_indexes[i] - headline_indexes[i - 1] > 1
-    #
-    # def is_bigger_confidence(i):
-    #   id = headline_indexes[i]
-    #   id_p = hif[-1]
-    #   return _contrasted_probability[id] > _contrasted_probability[id_p]
-    #
-    # for i in range(len(headline_indexes)):
-    #   id = headline_indexes[i]
-    #
-    #   if is_index_far(i):
-    #     hif.append(id)
-    #   elif is_bigger_confidence(i):
-    #     # replace
-    #     hif[-1] = id
-    #
-    self.headline_indexes = remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
-    return self.headline_indexes
+    return remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
 
   def _highlight_headlines_probability(self, p_per_line):
 
@@ -323,24 +343,15 @@ class DocumentStructure:
       blur = 2 * int(len(x) / 20.0)
       blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
       delta = relu(x - blured, 0)
-      # r = normalize(delta)
-      r = delta
-      return r, blured
+      return delta, blured
 
     max = np.max(p_per_line)
     result = relu(p_per_line, max / 3.0)
     contrasted, smoothed = local_contrast(result)
 
-    # r = {
-    #   'line_probability': p_per_line,
-    #   'line_probability relu': relu(p_per_line),
-    #   'accents_smooth': smoothed,
-    #   'result': contrasted
-    # }
-
     return contrasted
 
-  def fix_structure(self, structure, verbose=False):
+  def _fix_structure(self, structure, verbose=False):
 
     numbered = self._get_numbered_lines(structure)
     if len(numbered) == 0:
@@ -358,7 +369,7 @@ class DocumentStructure:
 
     return structure
 
-  def find_min_level(self, structure):
+  def _find_min_level(self, structure):
     min_level = structure[0].level
     for s in structure:
       if s.level < min_level:
@@ -366,7 +377,7 @@ class DocumentStructure:
     return min_level
 
   def _normalize_levels(self, structure):
-    minlevel = self.find_min_level(structure)
+    minlevel = self._find_min_level(structure)
 
     for s in structure:
       s.level -= minlevel
@@ -388,8 +399,8 @@ class DocumentStructure:
       if len(line.number) < 2:
         line.level = line.get_median_possible_level()
 
-      if verbose:
-        line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
+      # if verbose:
+      #   line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
 
   def _uplevel_non_numbered(self, structure: List[StructureLine]):
     for s in structure:
@@ -412,7 +423,11 @@ class DocumentStructure:
 
 
 # ---------------
-def headline_probability(sentence:List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
+strange_symbols = re.compile(r'[_$@+]–')
+
+
+def headline_probability(sentence: List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence,
+                         prev_value) -> float:
   """
   _cc == original case
   """
@@ -426,27 +441,40 @@ def headline_probability(sentence:List[str], sentence_cc, sentence_meta: Structu
   if len(sentence) < 2:
     return NEG
 
-  if len(sentence) > 30:
+  if len(sentence) > 20:
     return NEG
+
+  if len(sentence) > 10:
+    value -= 2
+
+  # headline is short enough
+  if len(sentence) < 10:
+    value += 1
+
+  if 3 <= len(sentence) <= 6:
+    value += 1
 
   # headline may not go after another headline
   if prev_value > 0:
     value -= prev_value / 2
 
-  #if it ends with a number, it is a contents-line
+  # if it ends with a number, it is a contents-line
   if len(sentence) > 3:
-    r_off=2
-    if sentence[-r_off]=='.':
+    r_off = 2
+    if sentence[-r_off] == '.':
       r_off = 3
+
     if sentence[-r_off].isdigit():
       value -= 1.8
-
 
   # span = sentence_meta.span
   _level = sentence_meta.level
   # number, span, _level = get_tokenized_line_number(sentence, None)
   row = untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
   row = row.lstrip()
+
+  if strange_symbols.search(row) is not None:
+    value -= 2
 
   if sentence_meta.numbered:
 
@@ -474,26 +502,23 @@ def headline_probability(sentence:List[str], sentence_cc, sentence_meta: Structu
         return -_level
 
   # ------- any number
-  # headline DOES not starts from lowercase
+  # headline DOES not start from lowercase
   if len(row) > 0:
     if row.lower()[0] == row[0]:
-      value -= 1
-
-  # headline is short enough
-  if len(sentence) < 15:
-    value += 1
+      value -= 3
 
   # headline is UPPERCASE
   if row.upper() == row:
-    value += 2
+    if not row.isdigit(): #there some trash
+      value += 1.5
 
   if prev_sentence == ['\n'] and sentence != ['\n']:
     value += 1
 
   return value
 
-
-def remove_similar_indexes_considering_weights(indexes, weights):
+#XXXL
+def remove_similar_indexes_considering_weights(indexes: List[int], weights: List[float]) -> List[int]:
   hif = []
 
   def is_index_far(i):

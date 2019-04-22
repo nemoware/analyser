@@ -2,9 +2,11 @@ from typing import List
 
 import numpy as np
 
+from text_tools import Tokens
+
 
 class ProbableValue:
-  def __init__(self, value, confidence:float):
+  def __init__(self, value, confidence: float):
     self.confidence: float = confidence
     self.value = value
 
@@ -20,6 +22,20 @@ def split_by_token(tokens: List[str], token):
       sentence.append(i)
 
   res.append(sentence)
+  return res
+
+
+def split_by_token_into_ranges(tokens: List[str], token) -> List[slice]:
+  res = []
+
+  p = 0
+  for i in range(len(tokens)):
+    if tokens[i] == token:
+      res.append(slice(p, i + 1))
+      p = i + 1
+
+  if p != len(tokens):
+    res.append(slice(p, len(tokens)))
   return res
 
 
@@ -104,7 +120,7 @@ def smooth(x, window_len=11, window='hanning'):
   return y[(halflen - 1):-halflen]
 
 
-def relu(x, relu_th=0):
+def relu(x, relu_th: float = 0.0):
   assert type(x) is np.ndarray
 
   relu = x * (x > relu_th)
@@ -112,8 +128,7 @@ def relu(x, relu_th=0):
 
 
 def extremums(x):
-  extremums = []
-  extremums.append(0)
+  extremums = [0]
   for i in range(1, len(x) - 1):
     if x[i - 1] < x[i] > x[i + 1]:
       extremums.append(i)
@@ -181,6 +196,17 @@ def momentum(x, decay=0.999):
   return innertia
 
 
+def momentum_reversed(x, decay=0.999):
+  innertia = np.zeros(len(x))
+  m = 0
+  for i in reversed(range(0, len(x))):
+    m = max(m, x[i])
+    innertia[i] = m
+    m *= decay
+
+  return innertia
+
+
 def onehot_column(a, mask=-2 ** 32, replacement=None):
   """
 
@@ -212,12 +238,11 @@ def most_popular_in(arr):
   return np.argmax(counts)
 
 
-def remove_similar_indexes(indexes:List[int], min_section_size=20):
+def remove_similar_indexes(indexes: List[int], min_section_size=20):
   if len(indexes) < 2:
     return indexes
 
-  indexes_zipped = []
-  indexes_zipped.append(indexes[0])
+  indexes_zipped = [indexes[0]]
 
   for i in range(1, len(indexes)):
     if indexes[i] - indexes[i - 1] > min_section_size:
@@ -225,20 +250,59 @@ def remove_similar_indexes(indexes:List[int], min_section_size=20):
   return indexes_zipped
 
 
-def cut_above(x, threshold):
-  return threshold + relu(x * -1 + threshold) * -1
+def cut_above(x: List[float], threshold: float) -> List[float]:
+  return threshold + relu(x * -1.0 + threshold) * -1.0
+
+
+def put_if_better(dict: dict, key, x, is_better: staticmethod):
+  if key in dict:
+    if is_better(x, dict[key]):
+      dict[key] = x
+  else:
+    dict[key] = x
+
+
+def rectifyed_sum(vectors, relu_th: float = 0.0):
+  assert len(vectors) > 0
+
+  sum = None
+
+  for x in vectors:
+    if sum is None:
+      sum = np.zeros(len(x))
+    sum += relu(x, relu_th)
+
+  return sum
+
+
+def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> List[List[float]]:
+  vectors = []
+  for p in dictionary:
+    if p.startswith(prefix):
+      x = dictionary[p]
+      vectors.append(x)
+  return vectors
 
 
 def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
+  vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
+
+  return max_exclusive_pattern(vectors)
+
+
+def max_exclusive_pattern(vectors: List[List[float]]) -> List[float]:
   _sum = None
+  for x in vectors:
+    if _sum is None:
+      _sum = np.zeros(len(x))
 
-  for p in distances_per_pattern_dict:
-    if p.startswith(prefix):
-      x = distances_per_pattern_dict[p]
-
-      if _sum is None:
-        _sum = np.zeros(len(x))
-
-      _sum = np.maximum(_sum, x)
+    _sum = np.maximum(_sum, x)
 
   return _sum
+
+
+class TokensWithAttention:
+  def __init__(self, tokens: Tokens, attention: List[float]):
+    assert len(tokens) == len(attention)
+    self.tokens = tokens
+    self.attention = attention

@@ -7,55 +7,23 @@ from legal_docs import LegalDocument, HeadlineMeta
 from legal_docs import extract_all_contraints_from_sentence
 from legal_docs import rectifyed_sum_by_pattern_prefix, tokenize_text
 from ml_tools import *
+from parsing import ParsingContext, ParsingConfig
 from patterns import AbstractPatternFactoryLowCase
 from renderer import AbstractRenderer
+from sections_finder import SectionsFinder, FocusingSectionsFinder
 from transaction_values import ValueConstraint
 
 subject_types = {
   'charity': 'благотворительность'.upper(),
   'comm': 'коммерческая сделка'.upper(),
   'comm_estate': 'недвижемость'.upper(),
-  'comm_service': 'оаказание услуг'.upper()
+  'comm_service': 'оказание услуг'.upper()
 }
 
 subject_types_dict = {**subject_types, **{'unknown': 'предмет догоовора не ясен'}}
 
-
-class ParsingContext:
-  def __init__(self, embedder, renderer: AbstractRenderer):
-    assert embedder is not None
-    assert renderer is not None
-    self.renderer = renderer
-    self.embedder = embedder
-    # ---
-    self.verbosity_level = 2
-    self.__step = 0
-
-    self.warnings = []
-
-  def _reset_context(self):
-    self.warnings = []
-    self.__step = 0
-
-  def _logstep(self, name: str) -> None:
-    s = self.__step
-    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
-    self.__step += 1
-
-  def warning(self, text):
-    t_ = '⚠️ WARNING: - ' + text
-    self.warnings.append(t_)
-    print(t_)
-
-  def get_warings(self):
-    return '\n'.join(self.warnings)
-
-  def log_warnings(self):
-    if len(self.warnings) > 0:
-      print("Recent parsing warnings:")
-
-      for w in self.warnings:
-        print('\t\t', w)
+default_contract_parsing_config: ParsingConfig = ParsingConfig()
+default_contract_parsing_config.headline_attention_threshold = 0.9
 
 
 class ContractAnlysingContext(ParsingContext):
@@ -69,6 +37,22 @@ class ContractAnlysingContext(ParsingContext):
     self.contract = None
     self.contract_values = None
 
+    self.config = default_contract_parsing_config
+
+    # self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
+    self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
+
+  def _reset_context(self):
+    super(ContractAnlysingContext, self)._reset_context()
+
+    if self.contract is not None:
+      del self.contract
+      self.contract = None
+
+    if self.contract_values is not None:
+      del self.contract_values
+      self.contract_values = None
+
   def analyze_contract(self, contract_text):
     self._reset_context()
     """
@@ -80,13 +64,12 @@ class ContractAnlysingContext(ParsingContext):
     doc = ContractDocument2(contract_text)
     doc.parse()
     self.contract = doc
+
     self._logstep("parsing document and detecting document high-level structure")
 
-    embedded_headlines = doc.embedd_headlines(self.hadlines_factory)
-    hl_meta_by_index = doc.match_headline_types(self.hadlines_factory.headlines, embedded_headlines, 'headline.', 0.9)
-    doc.sections = doc.find_sections_by_headlines(hl_meta_by_index)
-
-    self._logstep("embedding headlines into semantic space")
+    self.contract.embedd(self.hadlines_factory)
+    self.sections_finder.find_sections(doc, self.hadlines_factory, self.hadlines_factory.headlines,
+                                       headline_patterns_prefix='headline.')
 
     # -------------------------------values
     values = self.fetch_value_from_contract(doc)
@@ -142,7 +125,7 @@ class ContractAnlysingContext(ParsingContext):
       subj_ = subj_section.body
 
       # ===================
-      subj_.embedd(self.subj_factory)
+      # subj_.embedd(self.subj_factory)
       subj_.calculate_distances_per_pattern(self.subj_factory)
       subj_.reset_embeddings()
       prefixes = [f't_{st}_' for st in subject_types]
@@ -281,13 +264,16 @@ class ContractAnlysingContext(ParsingContext):
 class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder):
+    # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
+    #                   'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
+
+    self.headlines = ['subj', 'contract', 'price.', 'pricecond', 'dates',
+                      'resp', 'forcemajor', 'confidence', 'appl', 'addresses', 'conficts']
+
     AbstractPatternFactoryLowCase.__init__(self, embedder)
 
     self._build_head_patterns()
     self.embedd()
-
-    self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
-                      'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
 
   def _build_head_patterns(self):
     def cp(name, tuples):
@@ -299,27 +285,29 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
                              '\n город, месяц, год \n общество с ограниченной ответственностью, в лице, действующего на основании, именуемое далее, заключили настоящий договор о нижеследующем'))
     cp('headline.def', (PRFX, 'Термины и определения', 'толкования'))
 
-    cp('headline.subj.1', ('заключили настоящий Договор нижеследующем:\n' + PRFX, 'Предмет договора.\n',
-                           'Исполнитель обязуется, заказчик поручает'))
-    cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ ДОГОВОРА', ''))
-    cp('headline.subj.3', (PRFX, 'Общие положения', ''))
+    cp('headline.subj.1', ('договора заключили настоящий Договор нижеследующем:', 'Предмет ',
+                           'договора:\n Исполнитель обязуется, заказчик поручает'))
+    cp('headline.subj.2', (PRFX, 'ПРЕДМЕТ', 'ДОГОВОРА'))
+    cp('headline.subj.3', ('заключили настоящий договор о нижеследующем', 'Общие положения', ''))
 
-    cp('headline.price.1', (PRFX, 'цена договора', ''))
-    cp('headline.price.2', (PRFX, 'СТОИМОСТЬ РАБОТ', ''))
-    cp('headline.price.3', (PRFX, ' Расчеты по договору', ''))
+    cp('headline.price.1', (PRFX, 'цена', 'договора'))
+    cp('headline.price.2', (PRFX, 'СТОИМОСТЬ', 'РАБОТ'))
+    cp('headline.price.3', (PRFX, ' Расчеты', 'по договору'))
+    cp('headline.price.4', (PRFX, 'Оплата', 'услуг'))
+    cp('headline.price.5',
+       ('порядок и сроки', 'оплаты', 'согласовываются Сторонами в Дополнительных соглашениях к настоящему'))
 
-    cp('headline.pricecond.1', (PRFX, 'УСЛОВИЯ ПЛАТЕЖЕЙ', ''))
-    cp('headline.pricecond.2', (PRFX, 'Оплата услуг', ''))
-    cp('headline.pricecond.3', (PRFX, 'Условия и порядок расчетов.', ''))
-    cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ УСЛУГ', ', ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
-    cp('headline.pricecond.5', (PRFX, 'АРЕНДНАЯ ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
+    cp('headline.pricecond.1', ('УСЛОВИЯ ', 'ПЛАТЕЖЕЙ', ''))
+    cp('headline.pricecond.3', ('Условия и порядок', 'расчетов.', ''))
+    cp('headline.pricecond.4', (PRFX, 'СТОИМОСТЬ', 'УСЛУГ, ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
+    cp('headline.pricecond.5', (' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
 
-    cp('headline.terms', (PRFX, 'СРОКИ ВЫПОЛНЕНИЯ РАБОТ.', 'Порядок выполнения работ.'))
+    cp('headline.dates.1', (PRFX, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ.Порядок выполнения работ.'))
 
-    cp('headline.dates', (PRFX, 'СРОК ДЕЙСТВИЯ ДОГОВОРА.\n',
-                          'настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
-    cp('headline.break', (PRFX, 'Расторжение договора',
-                          'досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
+    cp('headline.dates.2', (PRFX, 'СРОК',
+                          'ДЕЙСТВИЯ. \n настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
+    cp('headline.break', (PRFX, 'Расторжение',
+                          'договора. \n досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
 
     cp('headline.rights.1', (PRFX, 'права и обязанности', 'сторон.\n'))
     cp('headline.obl.1', (PRFX, 'ОБЯЗАТЕЛЬСТВА', 'сторон.\n'))
@@ -337,7 +325,8 @@ class ContractHeadlinesPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.special.2', (PRFX, 'ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ.', ''))
 
     cp('headline.appl', (PRFX, 'ПРИЛОЖЕНИЯ', 'К ДОГОВОРУ'))
-    cp('headline.addresses', (PRFX, 'РЕКВИЗИТЫ СТОРОН', 'ЮРИДИЧЕСКИЕ АДРЕСА'))
+    cp('headline.addresses.1', (PRFX, 'РЕКВИЗИТЫ СТОРОН', 'ЮРИДИЧЕСКИЕ АДРЕСА'))
+    cp('headline.addresses.2', (PRFX, 'ЮРИДИЧЕСКИЕ АДРЕСА', 'РЕКВИЗИТЫ СТОРОН'))
 
     cp('headline.conficts', (PRFX, 'Споры и разногласия.', ''))
 
@@ -422,7 +411,7 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 
 def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractValuePatternFactory) -> List[
   ProbableValue]:
-  value_section.embedd(factory)
+  # value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
 
   # context._logstep(f'embedding for transaction values in section  "{ section_name }"')
@@ -451,13 +440,7 @@ class ContractDocument2(LegalDocument):
     return tokenize_text(_txt)
 
 
-# ------------------------------
-
-
 ##---------------------------------------##---------------------------------------##---------------------------------------
-
-
-# self.headlines = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie', 'name']
 
 
 class ContractSubjPatternFactory(AbstractPatternFactoryLowCase):

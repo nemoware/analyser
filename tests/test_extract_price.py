@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import nltk
 from text_tools import untokenize
-from transaction_values import split_by_number
+from transaction_values import split_by_number_2
 from  transaction_values import extract_sum
 from text_normalize import *
 
@@ -140,7 +140,7 @@ class PriceExtractTestCase(unittest.TestCase):
         normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
         tokens = nltk.word_tokenize(normal_text)
 
-        a,b,c = split_by_number(tokens, np.ones(len(tokens)), 0.1)
+        a,b,c = split_by_number_2(tokens, np.ones(len(tokens)), 0.1)
         for t in a:
           restored=untokenize(t)
           print ('\t-', t)

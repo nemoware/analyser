@@ -8,13 +8,57 @@ import unittest
 import numpy as np
 
 from legal_docs import BasicContractDocument
-from ml_tools import remove_similar_indexes
+from ml_tools import *
 
 
 # from patterns import *
+from text_tools import untokenize
 
 
 class SplitSectionsTest(unittest.TestCase):
+
+    def test_split_by_token_into_ranges(self):
+        tokens = ['1', '2', '3', '\n', '4', '5', '6', '\n', '7', '\n', '8']
+        ranges =split_by_token_into_ranges(tokens, '\n')
+        print (ranges)
+        res =[]
+        for r in ranges:
+
+            print (tokens[r])
+            res.append(''.join(tokens[r]))
+
+
+        self.assertEqual(len(res), 4)
+        self.assertEqual(res[0], '123\n')
+        self.assertEqual(res[1], '456\n')
+        self.assertEqual(res[2], '7\n')
+        self.assertEqual(res[3], '8')
+
+    def test_split_by_token_into_ranges2(self):
+        tokens = [ '7', '\n']
+        ranges = split_by_token_into_ranges(tokens, '\n')
+        res = []
+        for r in ranges:
+
+            print(tokens[r])
+            res.append(''.join(tokens[r]))
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], '7\n')
+
+    def test_split_by_token_into_ranges3(self):
+        tokens = [ '7']
+        ranges = split_by_token_into_ranges(tokens, '\n')
+        res = []
+        for r in ranges:
+
+            print(tokens[r])
+            res.append(''.join(tokens[r]))
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0], '7')
+
+
 
     def test_find_sentence_beginnings(self):
         cd = BasicContractDocument()

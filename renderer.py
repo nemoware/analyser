@@ -11,6 +11,9 @@ head_types_colors = {'head.directors': 'crimson',
                      'head.unknown': '#999999'}
 
 
+def as_smaller(x):
+  return f'<span style="font-size:80%;">{x}</span>'
+
 def as_error_html(txt):
   return f'<div style="color:red">⚠️ {txt}</div>'
 
@@ -115,3 +118,64 @@ class AbstractRenderer:
 
 class SilentRenderer(AbstractRenderer):
   pass
+
+
+import numpy as np
+
+''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''
+
+def mixclr(color_map, dictionary, min_color=None, _slice=None):
+  reds = None
+  greens = None
+  blues = None
+
+  for c in dictionary:
+    vector = np.array(dictionary[c])
+    if _slice is not None:
+      vector = vector[_slice]
+
+    if reds is None:
+      reds = np.zeros(len(vector))
+    if greens is None:
+      greens = np.zeros(len(vector))
+    if blues is None:
+      blues = np.zeros(len(vector))
+
+    vector_color = color_map[c]
+
+    reds += vector * vector_color[0]
+    greens += vector * vector_color[1]
+    blues += vector * vector_color[2]
+
+
+  if min_color is not None:
+    reds += min_color[0]
+    greens += min_color[1]
+    blues += min_color[2]
+
+  def cut_(x):
+    up = [min(i, 1) for i in x]
+    down = [max(i, 0) for i in up]
+    return down
+
+  return np.array([cut_(reds), cut_(greens), cut_(blues)]).T
+
+
+
+def to_multicolor_text(tokens, vectors, colormap, min_color=None, _slice=None) -> str:
+  if _slice is not None:
+    tokens = tokens[_slice]
+
+  colors = mixclr(colormap, vectors, min_color=min_color, _slice=_slice)
+  html = ''
+  for i in range(len(tokens)):
+    c = colors[i]
+    r = int(255 * c[0])
+    g = int(255 * c[1])
+    b = int(255 * c[2])
+    if tokens[i] == '\n':
+      html += '<br>'
+    html += f'<span style="background:rgb({r},{g},{b})"> {tokens[i]} </span>'
+  return html
+
+''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''

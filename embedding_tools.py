@@ -109,17 +109,18 @@ class ElmoEmbedder(AbstractEmbedder):
     self.config = tf.ConfigProto()
     self.config.gpu_options.allow_growth = True
 
+
     self.layer_name = layer_name
     self.tf = tf
 
     self.session = tf.Session(config=self.config)
 
-
-    # self.session = tf.Session()
     self.sessionruns = 0
 
   def embedd_tokenized_text(self, words, lens):
     # with self.tf.Session(config=self.config) as sess:
+    print(f'🐌 Embedding { np.nansum(lens) } words... it takes time (☕️?)..')
+
     embeddings = self.elmo(
       inputs={
         "tokens": words,
@@ -130,6 +131,7 @@ class ElmoEmbedder(AbstractEmbedder):
 
     self.session.run(self.tf.global_variables_initializer())
     out = self.session.run(embeddings)
+    print(f'Embedding complete 🐌 ; the shape is { out.shape }')
     self.reset_maybe()
 
     return out, words
@@ -140,7 +142,9 @@ class ElmoEmbedder(AbstractEmbedder):
 
     # with self.tf.Session(config=self.config) as sess:
     self.session.run(self.tf.global_variables_initializer())
-    embedding = self.session.run(embedding_tensor)
+    embedding_ = self.session.run(embedding_tensor)
+    embedding = np.array(embedding_)
+    del(embedding_)
     self.reset_maybe()
 
     #       sess.close()
@@ -166,7 +170,7 @@ class ElmoEmbedder(AbstractEmbedder):
     print(gc.collect())
     gc.enable()
 
-    print('clean-up ---------------SLEEP: give it a time')
+    print('clean-up ------------- 🐌 -SLEEP: give it a time')
     time.sleep(10)
 
     self.elmo = self.create_module_method()
