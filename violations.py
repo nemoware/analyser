@@ -66,8 +66,8 @@ class ViolationsFinder:
 
 class VConstraint:
   def __init__(self, lower, upper, head_group):
-    self.lower = ProbableValue(ValueConstraint(0, 'RUB', +1), 0)
-    self.upper = ProbableValue(ValueConstraint(np.inf, 'RUB', -1), 0)
+    self.lower = ProbableValue(ValueConstraint(0, 'RUB', +1, context=[["-"]]), 0)
+    self.upper = ProbableValue(ValueConstraint(np.inf, 'RUB', -1, context=[["-"]]), 0)
 
     if lower is not None:
       self.lower = lower

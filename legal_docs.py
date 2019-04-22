@@ -4,14 +4,14 @@ from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, relu, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
-  ProbableValue, rectifyed_sum, filter_values_by_key_prefix
-from parsing import ParsingContext, profile, print_prof_data, ParsingSimpleContext
+from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
+  ProbableValue
+from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, split_by_number, extract_sum_and_sign
+from transaction_values import extract_sum_from_tokens, split_by_number_2 , extract_sum_and_sign_2
 
 REPORTED_DEPRECATED = {}
 
@@ -810,13 +810,13 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
   tokens = sentence_subdoc.tokens
   assert len(attention_vector) == len(tokens)
 
-  text_fragments, indexes, ranges = split_by_number(tokens, attention_vector, 0.2)
+  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
 
   constraints: List[ProbableValue] = []
   if len(indexes) > 0:
 
     for region in ranges:
-      vc = extract_sum_and_sign(sentence_subdoc, region)
+      vc = extract_sum_and_sign_2(sentence_subdoc, region)
       vc.context = [tokens[region[0] - 10:region[1] + 10], attention_vector[region[0] - 10:region[1] + 10]]
       confidence = attention_vector[region[0]]
       pv = ProbableValue(vc, confidence)
