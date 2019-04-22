@@ -3,7 +3,7 @@
 # coding=utf-8
 from typing import List
 
-from ml_tools import np
+from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 
 load_punkt = True
 
@@ -314,7 +314,7 @@ class AbstractPatternFactoryLowCase(AbstractPatternFactory):
 
     if pattern_name in self.patterns_dict:
       # Let me be strict!
-      e=f'Duplicated {pattern_name}'
+      e = f'Duplicated {pattern_name}'
       raise ValueError(e)
 
     self.patterns_dict[pattern_name] = fp
@@ -336,7 +336,10 @@ def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=D
     dists = np.zeros(len(embeddings))
   return dists
 
+
 import random
+
+
 def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   assert attention_vector is not None
   if name is None:
@@ -349,3 +352,26 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
+
+
+""" 💔🛐  ===========================📈=================================  ✂️ """
+
+
+def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
+  assert vv is not None
+  meta_pattern, meta_pattern_confidence, best_id = make_smart_meta_click_pattern(vv, embeddings)
+  meta_pattern_attention_v = make_pattern_attention_vector(meta_pattern, embeddings)
+  meta_pattern_attention_v = relu(meta_pattern_attention_v, relu_th)
+
+  meta_pattern_attention_v = meta_pattern_attention_v * mix + vv * (1.0 - mix)
+  return meta_pattern_attention_v, best_id
+
+
+""" ❤️  =============================📈=================================  ✂️ """
+
+
+def make_improved_attention_vector(distances_per_pattern_dict, embeddings, pattern_prefix, relu_th: float):
+  vvvvv = filter_values_by_key_prefix(distances_per_pattern_dict, pattern_prefix)
+  _max_hit_attention, _ = rectifyed_sum(vvvvv, relu_th)
+  improved = improve_attention_vector(embeddings, _max_hit_attention, mix=1)
+  return improved
