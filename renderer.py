@@ -121,6 +121,9 @@ class SilentRenderer(AbstractRenderer):
 
 
 import numpy as np
+
+''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''
+
 def mixclr(color_map, dictionary, min_color=None, _slice=None):
   reds = None
   greens = None
@@ -156,3 +159,23 @@ def mixclr(color_map, dictionary, min_color=None, _slice=None):
     return down
 
   return np.array([cut_(reds), cut_(greens), cut_(blues)]).T
+
+
+
+def to_multicolor_text(tokens, vectors, colormap, min_color=None, _slice=None) -> str:
+  if _slice is not None:
+    tokens = tokens[_slice]
+
+  colors = mixclr(colormap, vectors, min_color=min_color, _slice=_slice)
+  html = ''
+  for i in range(len(tokens)):
+    c = colors[i]
+    r = int(255 * c[0])
+    g = int(255 * c[1])
+    b = int(255 * c[2])
+    if tokens[i] == '\n':
+      html += '<br>'
+    html += f'<span style="background:rgb({r},{g},{b})"> {tokens[i]} </span>'
+  return html
+
+''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''
