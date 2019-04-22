@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-from typing import List
 
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 
@@ -88,8 +87,7 @@ class FuzzyPattern(EmbeddableText):
 
   def _eval_distances_multi_window(self, _text, dist_function=DIST_FUNC):
     assert self.embeddings is not None
-    distances = []
-    distances.append(self._eval_distances(_text, dist_function, whd_padding=0, wnd_mult=1))
+    distances = [self._eval_distances(_text, dist_function, whd_padding=0, wnd_mult=1)]
 
     if self.soft_sliding_window_borders:
       distances.append(self._eval_distances(_text, dist_function, whd_padding=2, wnd_mult=1))

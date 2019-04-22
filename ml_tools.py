@@ -2,6 +2,8 @@ from typing import List
 
 import numpy as np
 
+from text_tools import Tokens
+
 
 class ProbableValue:
   def __init__(self, value, confidence: float):
@@ -126,8 +128,7 @@ def relu(x, relu_th: float = 0.0):
 
 
 def extremums(x):
-  extremums = []
-  extremums.append(0)
+  extremums = [0]
   for i in range(1, len(x) - 1):
     if x[i - 1] < x[i] > x[i + 1]:
       extremums.append(i)
@@ -241,8 +242,7 @@ def remove_similar_indexes(indexes: List[int], min_section_size=20):
   if len(indexes) < 2:
     return indexes
 
-  indexes_zipped = []
-  indexes_zipped.append(indexes[0])
+  indexes_zipped = [indexes[0]]
 
   for i in range(1, len(indexes)):
     if indexes[i] - indexes[i - 1] > min_section_size:
@@ -299,3 +299,10 @@ def max_exclusive_pattern(vectors: List[List[float]]) -> List[float]:
     _sum = np.maximum(_sum, x)
 
   return _sum
+
+
+class TokensWithAttention:
+  def __init__(self, tokens: Tokens, attention: List[float]):
+    assert len(tokens) == len(attention)
+    self.tokens = tokens
+    self.attention = attention
