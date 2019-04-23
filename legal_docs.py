@@ -1,21 +1,85 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
+
 # legal_docs.py
 
 from functools import wraps
 
-from doc_structure import DocumentStructure, StructureLine, TokensWithAttention
+from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
-  ProbableValue
+from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
+  max_exclusive_pattern, TokensWithAttention
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2
+from text_tools import untokenize, np
+from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2, ValueConstraint, \
+  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map
 
 REPORTED_DEPRECATED = {}
 
 import gc
+
+
+class PatternSearchResult():
+  def __init__(self):
+    self.pattern_prefix: str = None
+    self.attention_vector_name: str = None
+    self.parent: LegalDocument = None
+    self.confidence: float = 0
+    self.region: slice = None
+
+  def get_index(self):
+    return self.region.start
+
+  def get_attention(self, name=None):
+    if name is None:
+      return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
+    else:
+      return self.parent.distances_per_pattern_dict[name][self.region]
+
+  def get_tokens(self):
+    return self.parent.tokens[self.region]
+
+  key_index = property(get_index)
+  tokens = property(get_tokens)
+
+
+PatternSearchResults = List[PatternSearchResult]
+
+
+class ConstraintsSearchResult:
+  def __init__(self):
+    self.constraints: List[ValueConstraint] = []
+    self.subdoc: PatternSearchResult = None
+
+
+from ml_tools import put_if_better
+
+
+def remove_sr_duplicates_conditionally(list: PatternSearchResults):
+  ret = []
+  dups = {}
+  for r in list:
+    put_if_better(dups, r.key_index, r, lambda a, b: a.confidence > b.confidence)
+
+  for x in dups.values():
+    ret.append(x)
+  del dups
+  return ret
+
+
+def substract_search_results(a: PatternSearchResults, b: PatternSearchResults) -> PatternSearchResults:
+  b_indexes = [x.key_index for x in b]
+  result: PatternSearchResults = []
+  for x in a:
+    if x.key_index not in b_indexes:
+      result.append(x)
+  return result
 
 
 class HeadlineMeta:
@@ -307,6 +371,68 @@ class LegalDocument(EmbeddableText):
 
     return '\n'.join(sents)
 
+  def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
+    # ---takes time
+    if recalc_distances:
+      calculate_distances_per_pattern(self, factory, merge=True, pattern_prefix=pattern_prefix)
+    # ---
+    vectors = filter_values_by_key_prefix(self.distances_per_pattern_dict, pattern_prefix)
+    vectors_i = []
+
+    attention_vector_name = '$at_' + pattern_prefix
+    attention_vector_name_soft = 'soft$.' + attention_vector_name
+
+    for v in vectors:
+      if max(v) > 0.6:
+        vector_i, _ = improve_attention_vector(self.embeddings, v, relu_th=0.6, mix=0.9)
+        vectors_i.append(vector_i)
+      else:
+        vectors_i.append(v)
+
+    x = max_exclusive_pattern(vectors_i)
+    self.distances_per_pattern_dict[attention_vector_name_soft] = x
+    x = relu(x, 0.8)
+
+    self.distances_per_pattern_dict[attention_vector_name] = x
+    return x, attention_vector_name
+
+  def find_sentences_by_pattern_prefix(self, factory, pattern_prefix) -> PatternSearchResults:
+    """
+
+    :param factory:
+    :param pattern_prefix:
+    :return:
+    """
+
+    attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
+
+    results: PatternSearchResults = []
+
+    for i in np.nonzero(attention)[0]:
+      _slice = get_sentence_slices_at_index(i, self.tokens)
+
+      sum_ = sum(attention[_slice])
+      #       confidence = np.mean( np.nonzero(x[sl]) )
+      nonzeros_count = len(np.nonzero(attention[_slice])[0])
+      confidence = 0
+
+      if nonzeros_count > 0:
+        confidence = sum_ / nonzeros_count
+
+      if confidence > 0.8:
+        r = PatternSearchResult()
+        r.attention_vector_name = attention_vector_name
+        r.pattern_prefix = pattern_prefix
+        r.confidence = confidence
+        r.parent = self
+        r.region = _slice
+
+        results.append(r)
+
+    results = remove_sr_duplicates_conditionally(results)
+
+    return results
+
   def read(self, name):
     print("reading...", name)
     self.filename = name
@@ -533,27 +659,6 @@ class ProtocolDocument(LegalDocument):
     mask = smooth(mask, window_len=12)
     return mask
 
-  def find_sum_in_section____(self):
-    assert self.subdocs is not None
-
-    sols = {}
-    for i in range(1, 5):
-      cap = 'p_cap_solution{}'.format(i)
-
-      solution_section = find_section_by_caption(cap, self.subdocs)
-      sols[solution_section] = cap
-
-    results = []
-    for solution_section in sols:
-      cap = sols[solution_section]
-      #             print(cap)
-      # TODO:
-      # render_color_text(solution_section.tokens, solution_section.distances_per_pattern_dict[cap])
-
-      x = extract_sum_from_doc(solution_section)
-      results.append(x)
-
-    return results
 
 
 # Support masking ==================
@@ -674,7 +779,7 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
 
 MIN_DOC_LEN = 5
 
-
+@deprecated
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
 
@@ -699,7 +804,7 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
 
   return attention_vector
 
-
+@deprecated
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
 
@@ -740,74 +845,11 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
   return res, attention_vector, maxes
 
 
-# # @at_github
-# @deprecated
-# def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
-#
-#
-#   def number_of_leading_spaces(_tokens):
-#     c_ = 0
-#     while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
-#       c_ += 1
-#     return c_
-#
-#   lines = np.zeros(len(TCD.structure.structure))
-#
-#   prev_sentence = []
-#   prev_value = 0
-#
-#   _struct = TCD.structure.structure
-#   for i in range(len(_struct)):
-#     line = _struct[i]
-#
-#     sentence = TCD.tokens[line.span[0]: line.span[1]]
-#     sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
-#
-#     if len(sentence_cc) > 1:
-#       tr = number_of_leading_spaces(sentence)
-#       if tr > 0:
-#         sentence = sentence[tr:]
-#         sentence_cc = sentence_cc[tr:]
-#
-#     p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
-#
-#     #     if line.level == 0:
-#     #       p += 1
-#
-#     prev_sentence = sentence
-#     lines[i] = p
-#     prev_value = p
-#
-#   return lines
+def _expand_slice(s: slice, exp):
+  return slice(s.start - exp, s.stop + exp)
 
-# @deprecated
-# def highlight_doc_structure(_doc: LegalDocument):
-#   print ('-WARNING- highlight_doc_structure is deprecated')
-#   p_per_line = _estimate_headline_probability_for_each_line(_doc)
-#
-#   def local_contrast(x):
-#     blur = 2 * int(len(x) / 20.0)
-#     blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
-#     delta = relu(x - blured, 0)
-#     r = normalize(delta)
-#     return r, blured
-#
-#   max = np.max(p_per_line)
-#   result = relu(p_per_line, max / 3.0)
-#   contrasted, smoothed = local_contrast(result)
-#
-#   r = {
-#     'line_probability': p_per_line,
-#     'line_probability relu': relu(p_per_line),
-#     'accents_smooth': smoothed,
-#     'result': contrasted
-#   }
-#
-#   return r
 
-def _expand_slice(s:slice, exp):
-  return slice(s.start-exp, s.stop+exp)
-
+@deprecated
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
   tokens = sentence_subdoc.tokens
@@ -820,6 +862,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       vc = extract_sum_and_sign_2(sentence_subdoc, region)
+
       _e = _expand_slice(region, 10)
       vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
       confidence = attention_vector[region.start]
@@ -830,38 +873,33 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
   return constraints
 
 
-@deprecated
-def make_constraints_attention_vectors(subdoc):
-  # TODO: move to notebook, too much tuning
-  value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
-                                                                relu_th=0.4)
-  value_attention_vector = cut_above(value_attention_vector, 1)
-  value_attention_vector = relu(value_attention_vector, 0.6)
-  value_attention_vector = momentum(value_attention_vector, 0.7)
+from transaction_values import complete_re
 
-  deal_attention_vector, _c2 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'd_order',
-                                                               relu_th=0.5)
-  deal_attention_vector = cut_above(deal_attention_vector, 1)
-  deal_attention_vector = momentum(deal_attention_vector, 0.993)
 
-  margin_attention_vector, _c3 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum__',
-                                                                 relu_th=0.5)
-  margin_attention_vector = cut_above(margin_attention_vector, 1)
-  margin_attention_vector = momentum(margin_attention_vector, 0.95)
-  margin_attention_vector = relu(margin_attention_vector, 0.65)
+def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[ProbableValue]:
+  def tokens_before_index(string, index):
+    return len(string[:index].split(' '))
 
-  margin_value_attention_vector = relu((margin_attention_vector + value_attention_vector) / 2, 0.6)
+  sentence = ' '.join(search_result.tokens)
+  all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
+  constraints: List[ProbableValue] = []
 
-  deal_value_attention_vector = (deal_attention_vector + margin_value_attention_vector) / 2
-  deal_value_attention_vector = relu(deal_value_attention_vector, 0.75)
+  for a in all:
+    # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
+    token_index_s = tokens_before_index(sentence, a.start) - 1
+    token_index_e = tokens_before_index(sentence, a.stop)
 
-  return {
-    'value_attention_vector': value_attention_vector,
-    'deal_attention_vector': deal_attention_vector,
-    'deal_value_attention_vector': deal_value_attention_vector,
-    'margin_attention_vector': margin_attention_vector,
-    'margin_value_attention_vector': margin_value_attention_vector
-  }
+    region = slice(token_index_s, token_index_e)
+
+    vc = extract_sum_and_sign_3(search_result, region)
+    _e = _expand_slice(region, 10)
+    vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
+    confidence = attention_vector[region.start]
+    pv = ProbableValue(vc, confidence)
+
+    constraints.append(pv)
+
+  return constraints
 
 
 @deprecated
@@ -976,3 +1014,100 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
   return distances_per_pattern_dict
+
+
+def extract_sum_and_sign_3(sr: PatternSearchResult, region: slice) -> ValueConstraint:
+  _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
+  subtokens = sr.tokens[_slice]
+  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
+  _prefix = untokenize(_prefix_tokens)
+  _sign = detect_sign(_prefix)
+  # ======================================
+  _sum = extract_sum_from_tokens_2(subtokens)
+  # ======================================
+
+  currency = "UNDEF"
+  value = np.nan
+  if _sum is not None:
+    currency = _sum[1]
+    if _sum[1] in currencly_map:
+      currency = currencly_map[_sum[1]]
+    value = _sum[0]
+
+  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
+
+  return vc
+
+
+
+
+#
+#
+# if __name__ == '__main__':
+#
+#   ex="""
+#   с учетом положений пункта 8.4.4 устава , одобрение заключения , изменения , продления , возобновления или расторжения обществом ( i ) любых договоров страхования , если стоимость соответствующего договора или нескольких взаимосвязанных договоров превышает 100 000 ( сто тысяч ) долларов сша ( или эквивалент этой суммы в рублях или иной валюте ) , либо ( ii ) договоров страхования , относящихся к операторскому договору 6к или связанных с операторским договором 6к до закрытия сделки 6к независимо от суммы ;
+#   """
+#   #
+#   # self.pattern_prefix: str = None
+#   # self.attention_vector_name: str = None
+#   # self.parent: LegalDocument = None
+#   # self.confidence: float = 0
+#   # self.region: slice = None
+#
+#   def extract_sum_and_sign_3(tokens:Tokens, region: slice) -> ValueConstraint:
+#     _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
+#     subtokens = tokens[_slice]
+#     _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
+#     _prefix = untokenize(_prefix_tokens)
+#     _sign = detect_sign(_prefix)
+#     # ======================================
+#     _sum = extract_sum_from_tokens_2(subtokens)
+#     # ======================================
+#
+#     currency = "UNDEF"
+#     value = np.nan
+#     if _sum is not None:
+#       currency = _sum[1]
+#       if _sum[1] in currencly_map:
+#         currency = currencly_map[_sum[1]]
+#       value = _sum[0]
+#
+#     vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
+#
+#     return vc
+#
+#
+#   def extract_all_contraints_from_sr( sentence ) :
+#
+#     tokens = sentence.split(' ')
+#     def tokens_before_index(string, index):
+#       return len(string[:index].split(' '))
+#
+#
+#     all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
+#     constraints: List[ProbableValue] = []
+#
+#     for a in all:
+#       print(tokens_before_index(sentence, a.start), 'from', sentence[a])
+#       token_index_s = tokens_before_index(sentence, a.start) - 1
+#       token_index_e = tokens_before_index(sentence, a.stop)
+#
+#       region = slice(token_index_s, token_index_e)
+#       print('region=', region)
+#
+#
+#       vc = extract_sum_and_sign_3(tokens, region)
+#       print(vc.sign)
+#       # _e = _expand_slice(region, 10)
+#       # vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
+#       # confidence = attention_vector[region.start]
+#       # pv = ProbableValue(vc, confidence)
+#       #
+#       # constraints.append(pv)
+#
+#     # return constraints
+#
+#
+#
+#   extract_all_contraints_from_sr(ex)

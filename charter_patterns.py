@@ -1,5 +1,8 @@
-from charity_finder import build_charity_patterns
-from legal_docs import org_types, make_soft_attention_vector, CharterDocument
+from typing import List
+
+from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, PatternSearchResult, \
+  rectifyed_sum_by_pattern_prefix
+from ml_tools import cut_above, relu, momentum
 from patterns import AbstractPatternFactoryLowCase
 
 
@@ -19,6 +22,7 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     self._build_ner_patterns()
 
     build_charity_patterns(self)
+    build_lawsuit_patterns(self)
 
     self.embedd()
 
@@ -140,3 +144,87 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
     attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
     return attention_vector_neg
+
+
+def build_charity_patterns(factory):
+  def cp(name, tuples):
+    return factory.create_pattern(name, tuples)
+
+  cp('x_charity_1', ('договор',
+                     'благотворительного',
+                     'пожертвования'))
+
+  cp('x_charity_1.1', ('одобрение внесения Обществом каких-либо вкладов или пожертвований на политические или',
+                       'благотворительные',
+                       'цели'))
+
+  cp('x_charity_1.2', ('одобрение внесения Обществом каких-либо вкладов или',
+                       'пожертвований',
+                       'на политические или благотворительные цели '))
+
+  cp('x_charity_2', ('предоставление',
+                     'безвозмездной',
+                     'помощи финансовой')),
+
+  cp('x_charity_3', ('согласование сделок',
+                     ' дарения ',
+                     ' '))
+
+
+def build_lawsuit_patterns(factory):
+  def cp(name, tuples):
+    return factory.create_pattern(name, tuples)
+
+  cp('x_lawsuit_1', ('начало/урегулирование любых', 'судебных',
+                     'споров, подписание мирового соглашения, признание иска, отказ от иска, а также любые другие  ',
+                     ))
+
+  cp('x_lawsuit_2', ('судебных споров, цена ',
+                     'иска',
+                     'по которым превышает'))
+
+
+@deprecated
+def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefix) -> dict:
+  quotes_by_head_type = {}
+  for section_name in head_sections:
+    subdoc = head_sections[section_name].body
+    bounds: List[PatternSearchResult] = subdoc.find_sentences_by_pattern_prefix(factory, pattern_prefix)
+    quotes_by_head_type[section_name] = bounds
+
+  return quotes_by_head_type
+
+
+@deprecated
+def make_constraints_attention_vectors(subdoc):
+  # TODO: move to notebook, too much tuning
+  value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
+                                                                relu_th=0.4)
+  value_attention_vector = cut_above(value_attention_vector, 1)
+  value_attention_vector = relu(value_attention_vector, 0.6)
+  value_attention_vector = momentum(value_attention_vector, 0.7)
+
+  deal_attention_vector, _c2 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'd_order',
+                                                               relu_th=0.5)
+  deal_attention_vector = cut_above(deal_attention_vector, 1)
+  deal_attention_vector = momentum(deal_attention_vector, 0.993)
+
+  margin_attention_vector, _c3 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum__',
+                                                                 relu_th=0.5)
+  margin_attention_vector = cut_above(margin_attention_vector, 1)
+  margin_attention_vector = momentum(margin_attention_vector, 0.95)
+  margin_attention_vector = relu(margin_attention_vector, 0.65)
+
+  margin_value_attention_vector = relu((margin_attention_vector + value_attention_vector) / 2, 0.6)
+
+  deal_value_attention_vector = (deal_attention_vector + margin_value_attention_vector) / 2
+  deal_value_attention_vector = relu(deal_value_attention_vector, 0.75)
+
+  return {
+    'value_attention_vector': value_attention_vector,
+    'deal_attention_vector': deal_attention_vector,
+    'margin_attention_vector': margin_attention_vector,
+    'margin_value_attention_vector': margin_value_attention_vector,
+
+    'deal_value_attention_vector': deal_value_attention_vector
+  }

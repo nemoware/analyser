@@ -250,16 +250,18 @@ def remove_similar_indexes(indexes: List[int], min_section_size=20):
   return indexes_zipped
 
 
-def cut_above(x: List[float], threshold: float) -> List[float]:
-  return threshold + relu(x * -1.0 + threshold) * -1.0
+def cut_above(x: np.ndarray, threshold: float) -> List[float]:
+  float___threshold = (x * float(-1.0)) + threshold
+
+  return threshold + relu(float___threshold) * -1.0
 
 
-def put_if_better(dict: dict, key, x, is_better: staticmethod):
-  if key in dict:
-    if is_better(x, dict[key]):
-      dict[key] = x
+def put_if_better(destination: dict, key, x, is_better: staticmethod):
+  if key in destination:
+    if is_better(x, destination[key]):
+      destination[key] = x
   else:
-    dict[key] = x
+    destination[key] = x
 
 
 def rectifyed_sum(vectors, relu_th: float = 0.0):

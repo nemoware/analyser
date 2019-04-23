@@ -227,6 +227,11 @@ def get_sentence_bounds_at_index(index, tokens):
   end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
   return start + 1, end
 
+def get_sentence_slices_at_index(index, tokens):
+  start = find_token_before_index(tokens, index, '\n', 0)
+  end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
+  return slice(start + 1, end)
+
 
 def min_index_per_row(rows):
   indexes = []
