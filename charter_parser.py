@@ -1,7 +1,7 @@
 # origin: charter_parser.py
-from charter_patterns import find_sentences_by_pattern_prefix
+from charter_patterns import find_sentences_by_pattern_prefix, make_constraints_attention_vectors
 from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
-  make_constraints_attention_vectors, extract_all_contraints_from_sentence
+  extract_all_contraints_from_sentence
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
 from patterns import FuzzyPattern, find_ner_end, improve_attention_vector

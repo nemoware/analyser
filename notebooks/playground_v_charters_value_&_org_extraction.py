@@ -2631,8 +2631,8 @@ from typing import List
 import nltk
 
 from embedding_tools import embedd_tokenized_sentences_list
-from legal_docs import LegalDocument, AbstractPatternFactory, make_constraints_attention_vectors, \
-  extract_all_contraints_from_sentence
+from legal_docs import LegalDocument, AbstractPatternFactory, extract_all_contraints_from_sentence
+from charter_patterns import make_constraints_attention_vectors
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 

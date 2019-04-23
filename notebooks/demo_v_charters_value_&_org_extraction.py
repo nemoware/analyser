@@ -81,11 +81,7 @@ elmo = hub.Module(_databases[_database], trainable=False) #twitter
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/transaction_values.py  
 
 from transaction_values import *
-from patterns import *
-from text_tools import *
-from text_normalize import *
 from embedding_tools import *
-from ml_tools import *
 
 # from split import *
 
@@ -95,8 +91,6 @@ from ml_tools import *
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/legal_docs.py  
 from legal_docs import *
 from doc_structure import *
-
-import legal_docs as ld
 
 """# Code (common)"""
 
@@ -116,8 +110,6 @@ def at_github(fn):
   return with_reporting
 
 """## FS utils"""
-
-import glob, os
 
 
 !pip install docx2txt
@@ -438,9 +430,7 @@ def find_best_headline_by_pattern_prefix(headline_indices, embedded_headlines, p
 import math
 from typing import List
 
-import numpy as np
-
-from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument, untokenize
+from legal_docs import rectifyed_sum_by_pattern_prefix, LegalDocument
 from ml_tools import smooth_safe
 
 
@@ -1057,8 +1047,8 @@ from typing import List
 import nltk
 
 from embedding_tools import embedd_tokenized_sentences_list
-from legal_docs import LegalDocument, AbstractPatternFactory, make_constraints_attention_vectors, \
-  extract_all_contraints_from_sentence
+from legal_docs import LegalDocument, AbstractPatternFactory, extract_all_contraints_from_sentence
+from charter_patterns import make_constraints_attention_vectors
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 
