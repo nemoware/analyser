@@ -81,8 +81,8 @@ def extract_sum_from_tokens_2(sentence_tokens: List):
   return f
 
 
-_re_less_then = re.compile(r'(до|менее|не выше|не превыша[а-я]{2,4})')
-_re_greather_then = re.compile(r'(от|больше|более|свыше|выше|превыша[а-я]{2,4})')
+_re_less_then = re.compile(r'(до|менее|не выше|не превыша[а-я]{2,4})', re.MULTILINE)
+_re_greather_then = re.compile(r'(от|больше|более|свыше|выше|превыша[а-я]{2,4})', re.MULTILINE)
 
 
 def detect_sign(prefix: str):
