@@ -2,7 +2,7 @@
 
 from functools import wraps
 
-from doc_structure import DocumentStructure, StructureLine, TokensWithAttention
+from doc_structure import DocumentStructure, StructureLine
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention
@@ -953,24 +953,30 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
   return constraints
 
 
-def extract_all_contraints_from_sr(sr: PatternSearchResult, attention_vector: List[float]) -> List[
-  ProbableValue]:
-  tokens = sr.tokens
-  assert len(attention_vector) == len(tokens)
+from transaction_values import complete_re
 
-  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
 
+def extract_all_contraints_from_sr(sr: PatternSearchResult, attention_vector: List[float]) -> List[ProbableValue]:
+  def tokens_before_index(string, index):
+    return len(string[:index].split(' '))
+
+  sentence = ' '.join(sr.tokens)
+  all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
   constraints: List[ProbableValue] = []
-  if len(indexes) > 0:
+  for a in all:
+    # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
+    token_index_s = tokens_before_index(sentence, a.start) - 1
+    token_index_e = tokens_before_index(sentence, a.stop)
 
-    for region in ranges:
-      vc = extract_sum_and_sign_3(sr, region)
-      _e = _expand_slice(region, 10)
-      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
-      confidence = attention_vector[region.start]
-      pv = ProbableValue(vc, confidence)
+    region = slice(token_index_s, token_index_e)
 
-      constraints.append(pv)
+    vc = extract_sum_and_sign_3(sr, region)
+    _e = _expand_slice(region, 10)
+    vc.context = TokensWithAttention(sr.tokens[_e], attention_vector[_e])
+    confidence = attention_vector[region.start]
+    pv = ProbableValue(vc, confidence)
+
+    constraints.append(pv)
 
   return constraints
 
@@ -1089,7 +1095,7 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
-def extract_sum_and_sign_3(sr:PatternSearchResult, region: slice) -> ValueConstraint:
+def extract_sum_and_sign_3(sr: PatternSearchResult, region: slice) -> ValueConstraint:
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = sr.tokens[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
