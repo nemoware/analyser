@@ -1,16 +1,12 @@
 from typing import List
 
-from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, PatternSearchResult, \
+from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, \
   rectifyed_sum_by_pattern_prefix
 from ml_tools import cut_above, relu, momentum
 from ml_tools import filter_values_by_key_prefix
-from patterns import AbstractPatternFactoryLowCase
+from patterns import AbstractPatternFactoryLowCase, PatternSearchResult
 from structures import ContractSubject
-
-known_subjects = [
-  ContractSubject.Charity,
-  ContractSubject.RealEstate,
-  ContractSubject.Lawsuit]
+from parsing import known_subjects
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):

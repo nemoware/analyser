@@ -1,18 +1,17 @@
 # origin: charter_parser.py
+
 from charter_patterns import find_sentences_by_pattern_prefix, make_constraints_attention_vectors
-from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, ConstraintsSearchResult, \
-  extract_all_contraints_from_sentence, deprecated, PatternSearchResults, substract_search_results, \
-  extract_all_contraints_from_sr, PatternSearchResult
+from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, extract_all_contraints_from_sentence, deprecated, \
+  extract_all_contraints_from_sr
 from ml_tools import *
-from parsing import ParsingSimpleContext, head_types_dict
-from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PREFIX
+from parsing import ParsingSimpleContext, head_types_dict, known_subjects
+from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
+  ConstraintsSearchResult, PatternSearchResults
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import *
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 from violations import ViolationsFinder
-
-from charter_patterns import known_subjects
 
 
 class CharterConstraintsParser(ParsingSimpleContext):
@@ -257,8 +256,10 @@ class CharterDocumentParser(CharterConstraintsParser):
           _max_conf = confidence
           _max_subj = subj
 
-      psr.subject_mapping['confidence'] = _max_conf
-      psr.subject_mapping['subj'] = _max_subj
+      psr.subject_mapping={
+        'confidence':_max_conf,
+        'subj':_max_subj
+      }
 
   def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
     """
@@ -389,3 +390,5 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
+
+

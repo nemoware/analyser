@@ -13,7 +13,7 @@ from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_i
   max_exclusive_pattern, TokensWithAttention
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
-from patterns import AV_SOFT, AV_PREFIX
+from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
 from text_normalize import *
 from text_tools import *
 from text_tools import untokenize, np
@@ -23,52 +23,6 @@ from transaction_values import extract_sum_from_tokens, split_by_number_2, extra
 REPORTED_DEPRECATED = {}
 
 import gc
-from structures import ContractSubject
-
-
-class PatternSearchResult():
-  def __init__(self, region):
-    assert region.stop - region.start > 0
-    self.pattern_prefix: str = None
-    self.attention_vector_name: str = None
-    self.parent: LegalDocument = None
-    self.confidence: float = 0
-    self.region: slice = region
-
-    self.subject_mapping = {
-      'subj': ContractSubject.Other,
-      'confidence': 0
-    }
-
-  def get_index(self):
-    return self.region.start
-
-  def get_attention(self, name=None):
-    if name is None:
-      return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
-    else:
-      return self.parent.distances_per_pattern_dict[name][self.region]
-
-  def get_tokens(self):
-    return self.parent.tokens[self.region]
-
-  key_index = property(get_index)
-  tokens = property(get_tokens)
-
-
-PatternSearchResults = List[PatternSearchResult]
-
-
-class ConstraintsSearchResult:
-  def __init__(self):
-    self.constraints: List[ValueConstraint] = []
-    self.subdoc: PatternSearchResult = None
-
-  def get_context(self) -> PatternSearchResult:  # alias
-    return self.subdoc
-
-  context = property(get_context)
-
 
 from ml_tools import put_if_better
 

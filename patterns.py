@@ -1,8 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
+from typing import List
 
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
+from structures import ContractSubject
+from transaction_values import ValueConstraint
 
 load_punkt = True
 
@@ -394,3 +397,47 @@ def estimate_confidence(vector: List[float]) -> (float, float, int, float):
 
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'
+
+
+class PatternSearchResult():
+  def __init__(self, region):
+    assert region.stop - region.start > 0
+    self.pattern_prefix: str = None
+    self.attention_vector_name: str = None
+    self.parent: 'LegalDocument' = None
+    self.confidence: float = 0
+    self.region: slice = region
+
+    self.subject_mapping = {
+      'subj': ContractSubject.Other,
+      'confidence': 0
+    }
+
+  def get_index(self):
+    return self.region.start
+
+  def get_attention(self, name=None):
+    if name is None:
+      return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
+    else:
+      return self.parent.distances_per_pattern_dict[name][self.region]
+
+  def get_tokens(self):
+    return self.parent.tokens[self.region]
+
+  key_index = property(get_index)
+  tokens = property(get_tokens)
+
+
+class ConstraintsSearchResult:
+  def __init__(self):
+    self.constraints: List[ValueConstraint] = []
+    self.subdoc: PatternSearchResult = None
+
+  def get_context(self) -> PatternSearchResult:  # alias
+    return self.subdoc
+
+  context = property(get_context)
+
+
+PatternSearchResults = List[PatternSearchResult]

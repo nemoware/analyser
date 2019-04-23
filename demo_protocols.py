@@ -80,8 +80,8 @@ class ProtocolDocument(BasicContractDocument):
 
 class ProtocolAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: ProtocolRenderer):
-    ParsingContext.__init__(self, embedder, renderer)
-
+    ParsingContext.__init__(self, embedder)
+    self.renderer: AbstractRenderer = renderer
     self.protocols_factory = None
 
     self.protocol: ProtocolDocument = None

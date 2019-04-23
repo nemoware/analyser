@@ -1,6 +1,6 @@
 from typing import List
 
-from legal_docs import ConstraintsSearchResult
+from patterns import ConstraintsSearchResult
 from ml_tools import ProbableValue, np, TokensWithAttention
 from renderer import as_warning, as_offset, as_error_html, as_msg, as_quote, as_currency
 from text_tools import untokenize

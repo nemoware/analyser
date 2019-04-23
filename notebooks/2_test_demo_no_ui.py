@@ -198,7 +198,6 @@ def _init_the_code(reset=False):
   from renderer import as_error_html
   from transaction_values import ValueConstraint
   from parsing import head_types_dict, head_types
-  from legal_docs import PatternSearchResults, ConstraintsSearchResult, PatternSearchResult
 
   def _as_smaller(txt):
     return f'<div font-size:12px">{txt}</div>'
@@ -402,7 +401,7 @@ def _init_the_code(reset=False):
     
 
     def render_constraint_values(self, doc, rz, charity_constraints):
-      from legal_docs import ConstraintsSearchResult
+      from charter_parser import ConstraintsSearchResult
 
       html = ''
       for head_type in rz.keys():
@@ -882,7 +881,7 @@ for head in lawsuits:
 
   display(HTML(html))
 
-from legal_docs import ConstraintsSearchResult
+from charter_parser import ConstraintsSearchResult
 from IPython.core.display import display, HTML
 from renderer import as_quote, to_multicolor_text
 
@@ -1080,7 +1079,7 @@ import numpy as np
 
 from legal_docs import calculate_distances_per_pattern
 from ml_tools import filter_values_by_key_prefix, max_exclusive_pattern, relu
-from patterns import improve_attention_vector
+from patterns import improve_attention_vector, PatternSearchResult, ConstraintsSearchResult, PatternSearchResults
 from text_tools import get_sentence_bounds_at_index
 
 
