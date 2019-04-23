@@ -1,5 +1,5 @@
 # origin: charter_parser.py
-from charter_patterns import find_charity_constraints
+from charter_patterns import find_sentences_by_pattern_prefix
 from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
   make_constraints_attention_vectors, extract_all_contraints_from_sentence
 from ml_tools import *
@@ -139,7 +139,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     # 3. constraints
     self.constraints = self.find_contraints()
 
-    self.charity_constraints = find_charity_constraints(self.doc, self.pattern_factory, self._get_head_sections())
+    self.charity_constraints = find_sentences_by_pattern_prefix(self.doc, self.pattern_factory, self._get_head_sections(), 'x_charity_')
 
     ##----end, logging, closing
     self.verbosity_level = 1

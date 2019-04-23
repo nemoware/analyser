@@ -18,6 +18,18 @@ REPORTED_DEPRECATED = {}
 import gc
 
 
+class PatternSearchResult():
+  def __init__(self):
+    self.pattern_prefix: str = None
+    self.attention_vector_name: str = None
+    self.parent: LegalDocument=None
+    self.confidence: float = 0
+    self.region = None
+
+
+PatternSearchResults = List[PatternSearchResult]
+
+
 class HeadlineMeta:
   def __init__(self, index, _type, confidence: float, subdoc):
     self.index: int = index
@@ -308,7 +320,7 @@ class LegalDocument(EmbeddableText):
     return '\n'.join(sents)
 
   def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
-    #---takes time
+    # ---takes time
     if recalc_distances:
       calculate_distances_per_pattern(self, factory, merge=True, pattern_prefix=pattern_prefix)
     # ---
@@ -332,7 +344,7 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
-  def find_sentences_by_pattern_prefix(self, factory, pattern_prefix) -> (List, str):
+  def find_sentences_by_pattern_prefix(self, factory, pattern_prefix) -> PatternSearchResults:
     """
 
     :param factory:
@@ -340,30 +352,36 @@ class LegalDocument(EmbeddableText):
     :return:
     """
 
+    attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
 
-    x, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
-
-    slices = []
+    results: PatternSearchResults = []
     dups = {}
-    for i in np.nonzero(x)[0]:
-      bounds = get_sentence_bounds_at_index(i, self.tokens)
 
-      if bounds[0] not in dups:
-        sl = slice(bounds[0], bounds[1])
-        sum_ = sum(x[sl])
+    for i in np.nonzero(attention)[0]:
+      _slice = get_sentence_slices_at_index(i, self.tokens)
+
+      if _slice.start not in dups:
+
+        sum_ = sum(attention[_slice])
         #       confidence = np.mean( np.nonzero(x[sl]) )
-        nonzeros_count = len(np.nonzero(x[sl])[0])
+        nonzeros_count = len(np.nonzero(attention[_slice])[0])
         confidence = 0
 
         if nonzeros_count > 0:
           confidence = sum_ / nonzeros_count
         if confidence > 0.8:
+          r = PatternSearchResult()
+          r.attention_vector_name = attention_vector_name
+          r.pattern_prefix = pattern_prefix
+          r.confidence = confidence
+          r.parent = self
+          r.region = _slice
 
-          slices.append((sl, confidence, sum_))
+          results.append(r)
 
-        dups[bounds[0]] = True
+        dups[_slice.start] = True
 
-    return slices, attention_vector_name
+    return results
 
   def read(self, name):
     print("reading...", name)

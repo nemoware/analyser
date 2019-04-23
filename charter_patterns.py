@@ -1,4 +1,6 @@
-from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated
+from typing import List
+
+from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, PatternSearchResult
 from patterns import AbstractPatternFactoryLowCase
 
 
@@ -166,11 +168,8 @@ def build_charity_patterns(factory):
                      ' '))
 
 
-
-
-
 @deprecated
-def find_charity_constraints(doc, factory, head_sections:dict ) -> dict :
+def find_sentences_by_pattern_prefix(doc, factory, head_sections: dict, pattern_prefix) -> dict:
   charity_quotes_by_head_type = {}
   for section_name in head_sections:
 
@@ -181,7 +180,7 @@ def find_charity_constraints(doc, factory, head_sections:dict ) -> dict :
       # subdoc.calculate_distances_per_pattern(TFAA)
 
       print(section_name)
-      bounds = subdoc.find_sentences_by_pattern_prefix(factory, 'x_charity_' )
+      bounds: List[PatternSearchResult] = subdoc.find_sentences_by_pattern_prefix(factory, pattern_prefix)
 
       charity_quotes_by_head_type[section_name] = bounds
 
