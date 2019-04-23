@@ -27,12 +27,13 @@ from structures import ContractSubject
 
 
 class PatternSearchResult():
-  def __init__(self):
+  def __init__(self, region):
+    assert region.stop - region.start > 0
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
     self.parent: LegalDocument = None
     self.confidence: float = 0
-    self.region: slice = None
+    self.region: slice = region
 
     self.subject_mapping = {
       'subj': ContractSubject.Other,
@@ -422,23 +423,24 @@ class LegalDocument(EmbeddableText):
     for i in np.nonzero(attention)[0]:
       _slice = get_sentence_slices_at_index(i, self.tokens)
 
-      sum_ = sum(attention[_slice])
-      #       confidence = np.mean( np.nonzero(x[sl]) )
-      nonzeros_count = len(np.nonzero(attention[_slice])[0])
-      confidence = 0
+      if _slice.stop != _slice.start:
 
-      if nonzeros_count > 0:
-        confidence = sum_ / nonzeros_count
+        sum_ = sum(attention[_slice])
+        #       confidence = np.mean( np.nonzero(x[sl]) )
+        nonzeros_count = len(np.nonzero(attention[_slice])[0])
+        confidence = 0
 
-      if confidence > 0.8:
-        r = PatternSearchResult()
-        r.attention_vector_name = attention_vector_name
-        r.pattern_prefix = pattern_prefix
-        r.confidence = confidence
-        r.parent = self
-        r.region = _slice
+        if nonzeros_count > 0:
+          confidence = sum_ / nonzeros_count
 
-        results.append(r)
+        if confidence > 0.8:
+          r = PatternSearchResult(_slice)
+          r.attention_vector_name = attention_vector_name
+          r.pattern_prefix = pattern_prefix
+          r.confidence = confidence
+          r.parent = self
+
+          results.append(r)
 
     results = remove_sr_duplicates_conditionally(results)
 

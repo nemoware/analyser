@@ -2,7 +2,7 @@
 from charter_patterns import find_sentences_by_pattern_prefix, make_constraints_attention_vectors
 from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, ConstraintsSearchResult, \
   extract_all_contraints_from_sentence, deprecated, PatternSearchResults, substract_search_results, \
-  extract_all_contraints_from_sr
+  extract_all_contraints_from_sr, PatternSearchResult
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
 from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PREFIX
@@ -240,10 +240,8 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     return constraints_by_head_type
 
-  def map_to_subject(self, s_values: PatternSearchResults):
+  def map_to_subject(self, s_values: List[PatternSearchResult]):
     from patterns import estimate_confidence
-
-
 
     for psr in s_values:
       _max_subj = ContractSubject.Other
@@ -252,9 +250,9 @@ class CharterDocumentParser(CharterConstraintsParser):
       for subj in known_subjects:
         pattern_prefix = f'x_{subj}'
 
-
         v = psr.get_attention(AV_PREFIX + pattern_prefix)
         confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
+
         if confidence > _max_conf:
           _max_conf = confidence
           _max_subj = subj

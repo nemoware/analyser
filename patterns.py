@@ -48,7 +48,7 @@ class EmbeddableText:
 class FuzzyPattern(EmbeddableText):
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
-    prefix_pattern_suffix_tuple is not None
+    # assert prefix_pattern_suffix_tuple is not None
     # assert prefix_pattern_suffix_tuple[1] != ''
     self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
     self.name = _name
@@ -376,7 +376,11 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
   return improved
 
 
-def estimate_confidence(vector: List[float]):
+def estimate_confidence(vector: List[float]) -> (float, float, int, float):
+  assert vector is not None
+  if len(vector) == 0:
+    return 0, 0, 0, 0
+
   sum_ = sum(vector)
   _max = np.max(np.nonzero(vector))
   nonzeros_count = len(np.nonzero(vector)[0])
