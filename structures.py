@@ -9,16 +9,17 @@ from enum import Enum, unique
 @unique
 class OrgStructuralLevel(Enum):
   ShareholdersGeneralMeeting = 0  # Генеральное собрание акционеров
-  BoardOfDirectors = 1            # Совет директоров
-  CEO = 2                         # Ген дир
-  BoardOfCompany = 3              # Правление общества
+  BoardOfDirectors = 1  # Совет директоров
+  CEO = 2  # Ген дир
+  BoardOfCompany = 3  # Правление общества
 
 
 @unique
 class ContractSubject(Enum):
   Transaction = 0  # Сделка
-  Сharity = 1      # Благотворительность
-  Other = 2        # Другое
+  Сharity = 1  # Благотворительность
+  Other = 2  # Другое
+
 
 class CharterConstraint:
   def __init__(self, upper, lower, subject: ContractSubject, level: OrgStructuralLevel) -> None:
@@ -28,7 +29,7 @@ class CharterConstraint:
 
 
 class Charter:
-  def __init__(self, org_name, constraints: List[CharterConstraint], date = None) -> None:
+  def __init__(self, org_name, constraints: List[CharterConstraint], date=None) -> None:
     self.org_name = org_name
     self.date = date
     # if not constraints:
@@ -38,11 +39,13 @@ class Charter:
 
     self.constraints = constraints
 
-  def find_constraint(self, subject: ContractSubject, level):
+  def find_constraint(self, subject: ContractSubject):
+    pass
 
 
 class Contract:
-  def __init__(self, org_name: str, subject: ContractSubject, sum: float, contractor_name: str = None, date = None) -> None:
+  def __init__(self, org_name: str, subject: ContractSubject, sum: float, contractor_name: str = None,
+               date=None) -> None:
     self.org_name = org_name
     self.subject = subject
     self.sum = sum
@@ -54,6 +57,7 @@ class Contract:
 class Protocol(Contract):
   pass
 
+
 class FinalViolationLog:
 
   def __init__(self, charter: Charter) -> None:
@@ -61,9 +65,7 @@ class FinalViolationLog:
 
   def check_contract(self, contract: Contract):
     self.contract = contract
-
-
-
+    pass
 
 
 if __name__ == '__main__':
