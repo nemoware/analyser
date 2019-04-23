@@ -221,13 +221,18 @@ class CharterDocumentParser(CharterConstraintsParser):
     for section_name in sections_filtered:
       section = sections_filtered[section_name].body
 
+      for subj in known_subjects:
+        pattern_prefix = f'x_{subj}'
+        attention, attention_vector_name = section.make_attention_vector(self.pattern_factory, pattern_prefix)
+
+
       s_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
-      s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
-                                                                                  f'x_{ContractSubject.Lawsuit}')
+      # s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
+      #                                                                             f'x_{ContractSubject.Lawsuit}')
 
-      s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
+      # s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
 
-      self.map_to_subject(s_values)
+      self.map_to_subject( s_values)
 
       constraints: List[ConstraintsSearchResult] = self.__extract_constraint_values_from_sr(s_values)
 
@@ -245,7 +250,10 @@ class CharterDocumentParser(CharterConstraintsParser):
       _max_conf = 0.001
 
       for subj in known_subjects:
-        v = psr.get_attention(AV_PREFIX + f'x_{subj}')
+        pattern_prefix = f'x_{subj}'
+
+
+        v = psr.get_attention(AV_PREFIX + pattern_prefix)
         confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
         if confidence > _max_conf:
           _max_conf = confidence

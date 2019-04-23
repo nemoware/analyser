@@ -7,7 +7,10 @@ from ml_tools import filter_values_by_key_prefix
 from patterns import AbstractPatternFactoryLowCase
 from structures import ContractSubject
 
-known_subjects = [ContractSubject.Charity, ContractSubject.RealEstate, ContractSubject.Lawsuit]
+known_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Lawsuit]
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):
