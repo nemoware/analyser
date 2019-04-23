@@ -379,10 +379,10 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
 def estimate_confidence(vector: List[float]) -> (float, float, int, float):
   assert vector is not None
   if len(vector) == 0:
-    return 0, 0, 0, 0
+    return 0, np.nan, 0, np.nan
 
   sum_ = sum(vector)
-  _max = np.max(np.nonzero(vector))
+  _max = np.max(vector)
   nonzeros_count = len(np.nonzero(vector)[0])
   confidence = 0
 
