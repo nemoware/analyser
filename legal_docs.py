@@ -4,13 +4,16 @@ from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine, TokensWithAttention
 from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, max_exclusive_pattern
+from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
+  max_exclusive_pattern, TokensWithAttention
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AbstractPatternFactory
 from text_normalize import *
 from text_tools import *
-from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2
+from text_tools import untokenize, np
+from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2, ValueConstraint, \
+  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map
 
 REPORTED_DEPRECATED = {}
 
@@ -21,12 +24,57 @@ class PatternSearchResult():
   def __init__(self):
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
-    self.parent: LegalDocument=None
+    self.parent: LegalDocument = None
     self.confidence: float = 0
-    self.region = None
+    self.region: slice = None
+
+  def get_index(self):
+    return self.region.start
+
+  def get_attention(self, name=None):
+    if name is None:
+      return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
+    else:
+      return self.parent.distances_per_pattern_dict[name][self.region]
+
+  def get_tokens(self):
+    return self.parent.tokens[self.region]
+
+  key_index = property(get_index)
+  tokens = property(get_tokens)
 
 
 PatternSearchResults = List[PatternSearchResult]
+
+
+class ConstraintsSearchResult:
+  def __init__(self):
+    self.constraints: List[ValueConstraint] = []
+    self.subdoc: PatternSearchResult = None
+
+
+from ml_tools import put_if_better
+
+
+def remove_sr_duplicates_conditionally(list: PatternSearchResults):
+  ret = []
+  dups = {}
+  for r in list:
+    put_if_better(dups, r.key_index, r, lambda a, b: a.confidence > b.confidence)
+
+  for x in dups.values():
+    ret.append(x)
+  del dups
+  return ret
+
+
+def substract_search_results(a: PatternSearchResults, b: PatternSearchResults) -> PatternSearchResults:
+  b_indexes = [x.key_index for x in b]
+  result: PatternSearchResults = []
+  for x in a:
+    if x.key_index not in b_indexes:
+      result.append(x)
+  return result
 
 
 class HeadlineMeta:
@@ -354,31 +402,29 @@ class LegalDocument(EmbeddableText):
     attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
 
     results: PatternSearchResults = []
-    dups = {}
 
     for i in np.nonzero(attention)[0]:
       _slice = get_sentence_slices_at_index(i, self.tokens)
 
-      if _slice.start not in dups:
+      sum_ = sum(attention[_slice])
+      #       confidence = np.mean( np.nonzero(x[sl]) )
+      nonzeros_count = len(np.nonzero(attention[_slice])[0])
+      confidence = 0
 
-        sum_ = sum(attention[_slice])
-        #       confidence = np.mean( np.nonzero(x[sl]) )
-        nonzeros_count = len(np.nonzero(attention[_slice])[0])
-        confidence = 0
+      if nonzeros_count > 0:
+        confidence = sum_ / nonzeros_count
 
-        if nonzeros_count > 0:
-          confidence = sum_ / nonzeros_count
-        if confidence > 0.8:
-          r = PatternSearchResult()
-          r.attention_vector_name = attention_vector_name
-          r.pattern_prefix = pattern_prefix
-          r.confidence = confidence
-          r.parent = self
-          r.region = _slice
+      if confidence > 0.8:
+        r = PatternSearchResult()
+        r.attention_vector_name = attention_vector_name
+        r.pattern_prefix = pattern_prefix
+        r.confidence = confidence
+        r.parent = self
+        r.region = _slice
 
-          results.append(r)
+        results.append(r)
 
-        dups[_slice.start] = True
+    results = remove_sr_duplicates_conditionally(results)
 
     return results
 
@@ -884,6 +930,7 @@ def _expand_slice(s: slice, exp):
   return slice(s.start - exp, s.stop + exp)
 
 
+@deprecated
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
   tokens = sentence_subdoc.tokens
@@ -896,6 +943,28 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       vc = extract_sum_and_sign_2(sentence_subdoc, region)
+      _e = _expand_slice(region, 10)
+      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
+      confidence = attention_vector[region.start]
+      pv = ProbableValue(vc, confidence)
+
+      constraints.append(pv)
+
+  return constraints
+
+
+def extract_all_contraints_from_sr(sr: PatternSearchResult, attention_vector: List[float]) -> List[
+  ProbableValue]:
+  tokens = sr.tokens
+  assert len(attention_vector) == len(tokens)
+
+  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
+
+  constraints: List[ProbableValue] = []
+  if len(indexes) > 0:
+
+    for region in ranges:
+      vc = extract_sum_and_sign_3(sr, region)
       _e = _expand_slice(region, 10)
       vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
       confidence = attention_vector[region.start]
@@ -1018,3 +1087,26 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
   return distances_per_pattern_dict
+
+
+def extract_sum_and_sign_3(sr:PatternSearchResult, region: slice) -> ValueConstraint:
+  _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
+  subtokens = sr.tokens[_slice]
+  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
+  _prefix = untokenize(_prefix_tokens)
+  _sign = detect_sign(_prefix)
+  # ======================================
+  _sum = extract_sum_from_tokens_2(subtokens)
+  # ======================================
+
+  currency = "UNDEF"
+  value = np.nan
+  if _sum is not None:
+    currency = _sum[1]
+    if _sum[1] in currencly_map:
+      currency = currencly_map[_sum[1]]
+    value = _sum[0]
+
+  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
+
+  return vc

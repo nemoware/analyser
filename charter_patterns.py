@@ -22,6 +22,7 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     self._build_ner_patterns()
 
     build_charity_patterns(self)
+    build_lawsuit_patterns(self)
 
     self.embedd()
 
@@ -170,24 +171,28 @@ def build_charity_patterns(factory):
                      ' '))
 
 
+def build_lawsuit_patterns(factory):
+  def cp(name, tuples):
+    return factory.create_pattern(name, tuples)
+
+  cp('x_lawsuit_1', ('начало/урегулирование любых', 'судебных',
+                     'споров, подписание мирового соглашения, признание иска, отказ от иска, а также любые другие  ',
+                     ))
+
+  cp('x_lawsuit_2', ('судебных споров, цена ',
+                     'иска',
+                     'по которым превышает'))
+
+
 @deprecated
-def find_sentences_by_pattern_prefix(doc, factory, head_sections: dict, pattern_prefix) -> dict:
-  charity_quotes_by_head_type = {}
+def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefix) -> dict:
+  quotes_by_head_type = {}
   for section_name in head_sections:
+    subdoc = head_sections[section_name].body
+    bounds: List[PatternSearchResult] = subdoc.find_sentences_by_pattern_prefix(factory, pattern_prefix)
+    quotes_by_head_type[section_name] = bounds
 
-    # section_name = section_prefix + head
-    # print(head, '->', section_name)
-    if section_name in doc.sections:
-      subdoc = doc.sections[section_name].body
-      # subdoc.calculate_distances_per_pattern(TFAA)
-
-      # print(section_name)
-      bounds: List[PatternSearchResult] = subdoc.find_sentences_by_pattern_prefix(factory, pattern_prefix)
-
-      charity_quotes_by_head_type[section_name] = bounds
-
-      # print('ok')
-  return charity_quotes_by_head_type
+  return quotes_by_head_type
 
 
 @deprecated

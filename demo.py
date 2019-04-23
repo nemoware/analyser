@@ -65,7 +65,7 @@ class ContractAnlysingContext(ParsingContext):
     doc.parse()
     self.contract = doc
 
-    self._logstep("parsing document and detecting document high-level structure")
+    self._logstep("parsing document 👞 and detecting document high-level structure")
 
     self.contract.embedd(self.hadlines_factory)
     self.sections_finder.find_sections(doc, self.hadlines_factory, self.hadlines_factory.headlines,
