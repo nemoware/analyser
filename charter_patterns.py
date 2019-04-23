@@ -1,5 +1,4 @@
-from charity_finder import build_charity_patterns
-from legal_docs import org_types, make_soft_attention_vector, CharterDocument
+from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated
 from patterns import AbstractPatternFactoryLowCase
 
 
@@ -140,3 +139,51 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     attention_vector_neg = make_soft_attention_vector(subdoc, 'nerneg_1', blur=80)
     attention_vector_neg = 1 + (1 - attention_vector_neg)  # normalize(attention_vector_neg * -1)
     return attention_vector_neg
+
+
+def build_charity_patterns(factory):
+  def cp(name, tuples):
+    return factory.create_pattern(name, tuples)
+
+  cp('x_charity_1', ('договор',
+                     'благотворительного',
+                     'пожертвования'))
+
+  cp('x_charity_1.1', ('одобрение внесения Обществом каких-либо вкладов или пожертвований на политические или',
+                       'благотворительные',
+                       'цели'))
+
+  cp('x_charity_1.2', ('одобрение внесения Обществом каких-либо вкладов или',
+                       'пожертвований',
+                       'на политические или благотворительные цели '))
+
+  cp('x_charity_2', ('предоставление',
+                     'безвозмездной',
+                     'помощи финансовой')),
+
+  cp('x_charity_3', ('согласование сделок',
+                     ' дарения ',
+                     ' '))
+
+
+
+
+
+@deprecated
+def find_charity_constraints(doc, factory, head_sections:dict ) -> dict :
+  charity_quotes_by_head_type = {}
+  for section_name in head_sections:
+
+    # section_name = section_prefix + head
+    # print(head, '->', section_name)
+    if section_name in doc.sections:
+      subdoc = doc.sections[section_name].body
+      # subdoc.calculate_distances_per_pattern(TFAA)
+
+      print(section_name)
+      bounds = subdoc.find_sentences_by_pattern_prefix(factory, 'x_charity_' )
+
+      charity_quotes_by_head_type[section_name] = bounds
+
+      # print('ok')
+  return charity_quotes_by_head_type

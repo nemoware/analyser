@@ -5,7 +5,7 @@ from functools import wraps
 from doc_structure import DocumentStructure, StructureLine, TokensWithAttention
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, cut_above, momentum, \
-  ProbableValue
+  ProbableValue, max_exclusive_pattern
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AbstractPatternFactory
@@ -306,6 +306,64 @@ class LegalDocument(EmbeddableText):
       s.replace('\n', ' ')
 
     return '\n'.join(sents)
+
+  def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
+    #---takes time
+    if recalc_distances:
+      calculate_distances_per_pattern(self, factory, merge=True, pattern_prefix=pattern_prefix)
+    # ---
+    vectors = filter_values_by_key_prefix(self.distances_per_pattern_dict, pattern_prefix)
+    vectors_i = []
+
+    attention_vector_name = '$at_' + pattern_prefix
+    attention_vector_name_soft = 'soft$.' + attention_vector_name
+
+    for v in vectors:
+      if max(v) > 0.6:
+        vector_i, _ = improve_attention_vector(self.embeddings, v, relu_th=0.6, mix=0.9)
+        vectors_i.append(vector_i)
+      else:
+        vectors_i.append(v)
+
+    x = max_exclusive_pattern(vectors_i)
+    self.distances_per_pattern_dict[attention_vector_name_soft] = x
+    x = relu(x, 0.8)
+
+    self.distances_per_pattern_dict[attention_vector_name] = x
+    return x, attention_vector_name
+
+  def find_sentences_by_pattern_prefix(self, factory, pattern_prefix) -> (List, str):
+    """
+
+    :param factory:
+    :param pattern_prefix:
+    :return:
+    """
+
+
+    x, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
+
+    slices = []
+    dups = {}
+    for i in np.nonzero(x)[0]:
+      bounds = get_sentence_bounds_at_index(i, self.tokens)
+
+      if bounds[0] not in dups:
+        sl = slice(bounds[0], bounds[1])
+        sum_ = sum(x[sl])
+        #       confidence = np.mean( np.nonzero(x[sl]) )
+        nonzeros_count = len(np.nonzero(x[sl])[0])
+        confidence = 0
+
+        if nonzeros_count > 0:
+          confidence = sum_ / nonzeros_count
+        if confidence > 0.8:
+
+          slices.append((sl, confidence, sum_))
+
+        dups[bounds[0]] = True
+
+    return slices, attention_vector_name
 
   def read(self, name):
     print("reading...", name)
@@ -805,8 +863,9 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
 #
 #   return r
 
-def _expand_slice(s:slice, exp):
-  return slice(s.start-exp, s.stop+exp)
+def _expand_slice(s: slice, exp):
+  return slice(s.start - exp, s.stop + exp)
+
 
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:

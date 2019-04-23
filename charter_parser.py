@@ -1,5 +1,5 @@
 # origin: charter_parser.py
-from charity_finder import find_charity_constraints
+from charter_patterns import find_charity_constraints
 from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
   make_constraints_attention_vectors, extract_all_contraints_from_sentence
 from ml_tools import *
