@@ -5,6 +5,8 @@ from typing import List
 
 from enum import Enum, unique
 
+from ml_tools import TokensWithAttention
+
 
 @unique
 class OrgStructuralLevel(Enum):
@@ -17,19 +19,26 @@ class OrgStructuralLevel(Enum):
 @unique
 class ContractSubject(Enum):
   Transaction = 0  # Сделка
-  Сharity = 1  # Благотворительность
+  Charity = 1  # Благотворительность
   Other = 2  # Другое
 
 
-class CharterConstraint:
-  def __init__(self, upper, lower, subject: ContractSubject, level: OrgStructuralLevel) -> None:
+class Citation:
+  def __init__(self, cite: TokensWithAttention) -> None:
+    self.citation = cite
+
+
+class CharterConstraint(Citation):
+  def __init__(self, upper, lower, subject: ContractSubject, level: OrgStructuralLevel, *args, **kwargs) -> None:
+    super(CharterConstraint, self).__init__(*args, **kwargs)
     self.upper, self.lower = upper, lower
     self.subject = subject
     self.level = level
 
 
-class Charter:
-  def __init__(self, org_name, constraints: List[CharterConstraint], date=None) -> None:
+class Charter(Citation):
+  def __init__(self, org_name, constraints: List[CharterConstraint], date=None, *args, **kwargs) -> None:
+    super(Charter, self).__init__( *args, **kwargs)
     self.org_name = org_name
     self.date = date
     # if not constraints:
@@ -43,9 +52,10 @@ class Charter:
     pass
 
 
-class Contract:
+class Contract(Citation):
   def __init__(self, org_name: str, subject: ContractSubject, sum: float, contractor_name: str = None,
-               date=None) -> None:
+               date=None, *args, **kwargs) -> None:
+    super(Contract, self).__init__( *args, **kwargs)
     self.org_name = org_name
     self.subject = subject
     self.sum = sum
@@ -55,7 +65,8 @@ class Contract:
 
 
 class Protocol(Contract):
-  pass
+  def __init__(self, *args, **kwargs) -> None:
+    super(Protocol, self).__init__( *args, **kwargs)
 
 
 class FinalViolationLog:
@@ -70,9 +81,9 @@ class FinalViolationLog:
 
 if __name__ == '__main__':
   l = [
-    CharterConstraint(1000, 100, 'subj3', OrgStructuralLevel.BoardOfCompany),
-    CharterConstraint(10, 1, 'subj1', OrgStructuralLevel.ShareholdersGeneralMeeting),
-    CharterConstraint(100, 10, 'subj2', OrgStructuralLevel.CEO),
+    CharterConstraint(1000, 100, ContractSubject.Charity, OrgStructuralLevel.BoardOfCompany),
+    CharterConstraint(10, 1, ContractSubject.Other, OrgStructuralLevel.ShareholdersGeneralMeeting),
+    CharterConstraint(100, 10, ContractSubject.Transaction, OrgStructuralLevel.CEO),
   ]
 
   c = Charter('dd', l)
