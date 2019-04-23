@@ -59,9 +59,9 @@ class Contract(Citation):
     self.org_name = org_name
     self.subject = subject
     self.sum = sum
-    
-    self.contractor_name = contractor_name # FFU
-    self.date = date                       # FFU
+
+    self.contractor_name = contractor_name  # FFU
+    self.date = date  # FFU
 
 
 class Protocol(Contract):
