@@ -18,9 +18,12 @@ class OrgStructuralLevel(Enum):
 
 @unique
 class ContractSubject(Enum):
-  Transaction = 0  # Сделка
+  Deal = 0  # Сделка
   Charity = 1  # Благотворительность
   Other = 2  # Другое
+  Lawsuit = 3
+  RealEstate = 4
+
 
 
 class Citation:

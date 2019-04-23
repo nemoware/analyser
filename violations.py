@@ -93,13 +93,13 @@ class VConstraint:
       html += as_offset(as_warning(f"примерно: {as_currency(v)} ~~  {as_currency(v_converted)}  "))
     return v, v_converted, html
 
-  def check_contract_value(self, _v: ProbableValue, convet_m, renderer):
+  def check_contract_value(self, contract_value: ProbableValue, convet_m, renderer):
     greather_lower = False
     greather_upper = False
 
-    if _v is None:
+    if contract_value is None:
       return as_error_html("сумма контракта неизвестна")
-    v: ValueConstraint = _v.value
+    v: ValueConstraint = contract_value.value
 
     if v is None:
       return as_error_html("сумма контракта не верна")
@@ -154,4 +154,4 @@ class VConstraint:
           html += '<br>'
           html += as_quote(renderer.to_color_text(upper_v.context.tokens, upper_v.context.attention, _range=[0, 1]))
 
-    return html
+    return html 

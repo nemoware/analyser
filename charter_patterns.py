@@ -4,6 +4,7 @@ from legal_docs import org_types, make_soft_attention_vector, CharterDocument, d
   rectifyed_sum_by_pattern_prefix
 from ml_tools import cut_above, relu, momentum
 from patterns import AbstractPatternFactoryLowCase
+from structures import ContractSubject
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):
@@ -147,44 +148,48 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
 
 def build_charity_patterns(factory):
-  def cp(name, tuples):
-    return factory.create_pattern(name, tuples)
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'x_{ContractSubject.Charity}.{cnt}', (a, p, c))
 
-  cp('x_charity_1', ('договор',
-                     'благотворительного',
-                     'пожертвования'))
+  cp('договор',
+     p='благотворительного',
+     c='пожертвования')
 
-  cp('x_charity_1.1', ('одобрение внесения Обществом каких-либо вкладов или пожертвований на политические или',
-                       'благотворительные',
-                       'цели'))
+  cp('одобрение внесения Обществом каких-либо вкладов или пожертвований на политические или',
+     p='благотворительные',
+     c='цели')
 
-  cp('x_charity_1.2', ('одобрение внесения Обществом каких-либо вкладов или',
-                       'пожертвований',
-                       'на политические или благотворительные цели '))
+  cp('одобрение внесения Обществом каких-либо вкладов или',
+     p='пожертвований',
+     c='на политические или благотворительные цели ')
 
-  cp('x_charity_2', ('предоставление',
-                     'безвозмездной',
-                     'помощи финансовой')),
+  cp('предоставление',
+     p='безвозмездной',
+     c='помощи финансовой')
 
-  cp('x_charity_3', ('согласование сделок',
-                     ' дарения ',
-                     ' '))
+  cp('согласование сделок',
+     'дарения')
 
 
 def build_lawsuit_patterns(factory):
-  def cp(name, tuples):
-    return factory.create_pattern(name, tuples)
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'x_{ContractSubject.Lawsuit}.{cnt}', (a, p, c))
 
-  cp('x_lawsuit_1', ('начало/урегулирование любых', 'судебных',
-                     'споров, подписание мирового соглашения, признание иска, отказ от иска, а также любые другие  ',
-                     ))
+  cp('начало/урегулирование любых',
+     'судебных',
+     'споров, подписание мирового соглашения, признание иска, отказ от иска, а также любые другие ')
 
-  cp('x_lawsuit_2', ('судебных споров, цена ',
-                     'иска',
-                     'по которым превышает'))
+  cp('судебных споров, цена ',
+     'иска',
+     'по которым превышает')
 
 
-@deprecated
 def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefix) -> dict:
   quotes_by_head_type = {}
   for section_name in head_sections:

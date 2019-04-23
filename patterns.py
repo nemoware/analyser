@@ -373,3 +373,19 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
   _max_hit_attention, _ = rectifyed_sum(vvvvv, relu_th)
   improved = improve_attention_vector(embeddings, _max_hit_attention, mix=1)
   return improved
+
+
+def estimate_confidence(vector: List[float]):
+  sum_ = sum(vector)
+  _max = np.max(np.nonzero(vector))
+  nonzeros_count = len(np.nonzero(vector)[0])
+  confidence = 0
+
+  if nonzeros_count > 0:
+    confidence = sum_ / nonzeros_count
+
+  return confidence, sum_, nonzeros_count, _max
+
+
+AV_SOFT = 'soft$.'
+AV_PREFIX = '$at_'

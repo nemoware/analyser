@@ -13,7 +13,7 @@ from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_i
   max_exclusive_pattern, TokensWithAttention
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
-from patterns import AbstractPatternFactory
+from patterns import AV_SOFT, AV_PREFIX
 from text_normalize import *
 from text_tools import *
 from text_tools import untokenize, np
@@ -23,6 +23,7 @@ from transaction_values import extract_sum_from_tokens, split_by_number_2, extra
 REPORTED_DEPRECATED = {}
 
 import gc
+from structures import ContractSubject
 
 
 class PatternSearchResult():
@@ -32,6 +33,11 @@ class PatternSearchResult():
     self.parent: LegalDocument = None
     self.confidence: float = 0
     self.region: slice = None
+
+    self.subject_mapping = {
+      'subj': ContractSubject.Other,
+      'confidence': 0
+    }
 
   def get_index(self):
     return self.region.start
@@ -56,6 +62,11 @@ class ConstraintsSearchResult:
   def __init__(self):
     self.constraints: List[ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
+
+  def get_context(self) -> PatternSearchResult:  # alias
+    return self.subdoc
+
+  context = property(get_context)
 
 
 from ml_tools import put_if_better
@@ -379,8 +390,8 @@ class LegalDocument(EmbeddableText):
     vectors = filter_values_by_key_prefix(self.distances_per_pattern_dict, pattern_prefix)
     vectors_i = []
 
-    attention_vector_name = '$at_' + pattern_prefix
-    attention_vector_name_soft = 'soft$.' + attention_vector_name
+    attention_vector_name = AV_PREFIX + pattern_prefix
+    attention_vector_name_soft = AV_SOFT + attention_vector_name
 
     for v in vectors:
       if max(v) > 0.6:
@@ -647,7 +658,6 @@ class ProtocolDocument(LegalDocument):
     LegalDocument.__init__(self, original_text)
 
   def make_solutions_mask(self):
-
     section_name_to_weight_dict = {}
     for i in range(1, 5):
       cap = 'p_cap_solution{}'.format(i)
@@ -658,7 +668,6 @@ class ProtocolDocument(LegalDocument):
 
     mask = smooth(mask, window_len=12)
     return mask
-
 
 
 # Support masking ==================
@@ -779,6 +788,7 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
 
 MIN_DOC_LEN = 5
 
+
 @deprecated
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
@@ -803,6 +813,7 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
     attention_vector = np.full(len(attention_vector), attention_vector[0])
 
   return attention_vector
+
 
 @deprecated
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
@@ -876,7 +887,8 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 from transaction_values import complete_re
 
 
-def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[ProbableValue]:
+def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[
+  ProbableValue]:
   def tokens_before_index(string, index):
     return len(string[:index].split(' '))
 
@@ -1037,9 +1049,6 @@ def extract_sum_and_sign_3(sr: PatternSearchResult, region: slice) -> ValueConst
   vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
 
   return vc
-
-
-
 
 #
 #

@@ -5,8 +5,9 @@ from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, 
   extract_all_contraints_from_sr
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
-from patterns import FuzzyPattern, find_ner_end, improve_attention_vector
+from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PREFIX
 from sections_finder import SectionsFinder, FocusingSectionsFinder
+from structures import *
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 from violations import ViolationsFinder
@@ -142,7 +143,8 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     """ 3. CHARITY 🙏  🤚 🚑  ==== ️"""
     self.charity_constraints = find_sentences_by_pattern_prefix(self.pattern_factory,
-                                                                self._get_head_sections(), 'x_charity_')
+                                                                self._get_head_sections(),
+                                                                f'x_{ContractSubject.Charity}')
 
     ##----end, logging, closing
     self.verbosity_level = 1
@@ -206,18 +208,24 @@ class CharterDocumentParser(CharterConstraintsParser):
   """
   🚷🔥
   """
+
   def find_contraints_2(self) -> dict:
+
     # 5. extract constraint values
     sections_filtered = self._get_head_sections()
 
     constraints_by_head_type = {}
+
     for section_name in sections_filtered:
       section = sections_filtered[section_name].body
 
-      s_values = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
-      s_lawsuits = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'x_lawsuit_')
+      s_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
+      s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
+                                                                                  f'x_{ContractSubject.Lawsuit}')
 
-      s_values = substract_search_results(s_values, s_lawsuits)
+      s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
+
+      self.map_to_subject(s_values)
 
       constraints: List[ConstraintsSearchResult] = self.__extract_constraint_values_from_sr(s_values)
 
@@ -225,6 +233,21 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     return constraints_by_head_type
 
+  def map_to_subject(self, s_values: PatternSearchResults):
+    from patterns import estimate_confidence
+
+    for psr in s_values:
+      _max_subj = ContractSubject.Other
+      _max_conf = 0
+      for subj in ContractSubject:
+        v = psr.get_attention(AV_PREFIX + f'x_{subj}')
+        confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
+        if confidence > _max_conf:
+          _max_conf = confidence
+          _max_subj = subj
+
+      psr.subject_mapping['confidence'] = _max_conf
+      psr.subject_mapping['subj'] = _max_subj
 
   def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
     """
