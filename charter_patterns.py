@@ -223,7 +223,8 @@ def make_constraints_attention_vectors(subdoc):
   return {
     'value_attention_vector': value_attention_vector,
     'deal_attention_vector': deal_attention_vector,
-    'deal_value_attention_vector': deal_value_attention_vector,
     'margin_attention_vector': margin_attention_vector,
-    'margin_value_attention_vector': margin_value_attention_vector
+    'margin_value_attention_vector': margin_value_attention_vector,
+
+    'deal_value_attention_vector': deal_value_attention_vector
   }

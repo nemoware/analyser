@@ -203,17 +203,18 @@ class CharterDocumentParser(CharterConstraintsParser):
         sections_filtered[k] = self.doc.sections[k]
     return sections_filtered
 
+  """
+  🚷🔥
+  """
   def find_contraints_2(self) -> dict:
     # 5. extract constraint values
     sections_filtered = self._get_head_sections()
 
     constraints_by_head_type = {}
     for section_name in sections_filtered:
-
-
       section = sections_filtered[section_name].body
-      s_values = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
 
+      s_values = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
       s_lawsuits = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'x_lawsuit_')
 
       s_values = substract_search_results(s_values, s_lawsuits)
@@ -222,8 +223,8 @@ class CharterDocumentParser(CharterConstraintsParser):
 
       constraints_by_head_type[section_name] = constraints
 
-    # rz = self.extract_constraint_values_from_sections(sections_filtered)  # TODO:remove
     return constraints_by_head_type
+
 
   def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
     """
@@ -234,16 +235,12 @@ class CharterDocumentParser(CharterConstraintsParser):
       return []
 
     sentences = []
-    for ps in sentenses_i:
-      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(ps, ps.get_attention())
+    for pattern_sr in sentenses_i:
+      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
 
       csr = ConstraintsSearchResult()
-      csr.subdoc = ps
+      csr.subdoc = pattern_sr
       csr.constraints = constraints
-      # sentence = {
-      #   'subdoc': sentence_subdoc,
-      #   'constraints': constraints
-      # }
 
       sentences.append(csr)
     return sentences

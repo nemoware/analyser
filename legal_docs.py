@@ -1,3 +1,8 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
+
 # legal_docs.py
 
 from functools import wraps
@@ -654,27 +659,6 @@ class ProtocolDocument(LegalDocument):
     mask = smooth(mask, window_len=12)
     return mask
 
-  def find_sum_in_section____(self):
-    assert self.subdocs is not None
-
-    sols = {}
-    for i in range(1, 5):
-      cap = 'p_cap_solution{}'.format(i)
-
-      solution_section = find_section_by_caption(cap, self.subdocs)
-      sols[solution_section] = cap
-
-    results = []
-    for solution_section in sols:
-      cap = sols[solution_section]
-      #             print(cap)
-      # TODO:
-      # render_color_text(solution_section.tokens, solution_section.distances_per_pattern_dict[cap])
-
-      x = extract_sum_from_doc(solution_section)
-      results.append(x)
-
-    return results
 
 
 # Support masking ==================
@@ -795,7 +779,7 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
 
 MIN_DOC_LEN = 5
 
-
+@deprecated
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
 
@@ -820,7 +804,7 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
 
   return attention_vector
 
-
+@deprecated
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
 
@@ -861,71 +845,6 @@ def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
   return res, attention_vector, maxes
 
 
-# # @at_github
-# @deprecated
-# def _estimate_headline_probability_for_each_line(TCD: LegalDocument):
-#
-#
-#   def number_of_leading_spaces(_tokens):
-#     c_ = 0
-#     while c_ < len(_tokens) and _tokens[c_] in ['', ' ', '\t', '\n']:
-#       c_ += 1
-#     return c_
-#
-#   lines = np.zeros(len(TCD.structure.structure))
-#
-#   prev_sentence = []
-#   prev_value = 0
-#
-#   _struct = TCD.structure.structure
-#   for i in range(len(_struct)):
-#     line = _struct[i]
-#
-#     sentence = TCD.tokens[line.span[0]: line.span[1]]
-#     sentence_cc = TCD.tokens_cc[line.span[0]: line.span[1]]
-#
-#     if len(sentence_cc) > 1:
-#       tr = number_of_leading_spaces(sentence)
-#       if tr > 0:
-#         sentence = sentence[tr:]
-#         sentence_cc = sentence_cc[tr:]
-#
-#     p = headline_probability(sentence, sentence_cc, prev_sentence, prev_value)
-#
-#     #     if line.level == 0:
-#     #       p += 1
-#
-#     prev_sentence = sentence
-#     lines[i] = p
-#     prev_value = p
-#
-#   return lines
-
-# @deprecated
-# def highlight_doc_structure(_doc: LegalDocument):
-#   print ('-WARNING- highlight_doc_structure is deprecated')
-#   p_per_line = _estimate_headline_probability_for_each_line(_doc)
-#
-#   def local_contrast(x):
-#     blur = 2 * int(len(x) / 20.0)
-#     blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
-#     delta = relu(x - blured, 0)
-#     r = normalize(delta)
-#     return r, blured
-#
-#   max = np.max(p_per_line)
-#   result = relu(p_per_line, max / 3.0)
-#   contrasted, smoothed = local_contrast(result)
-#
-#   r = {
-#     'line_probability': p_per_line,
-#     'line_probability relu': relu(p_per_line),
-#     'accents_smooth': smoothed,
-#     'result': contrasted
-#   }
-#
-#   return r
-
 def _expand_slice(s: slice, exp):
   return slice(s.start - exp, s.stop + exp)
 
@@ -943,6 +862,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 
     for region in ranges:
       vc = extract_sum_and_sign_2(sentence_subdoc, region)
+
       _e = _expand_slice(region, 10)
       vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
       confidence = attention_vector[region.start]
@@ -956,13 +876,14 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 from transaction_values import complete_re
 
 
-def extract_all_contraints_from_sr(sr: PatternSearchResult, attention_vector: List[float]) -> List[ProbableValue]:
+def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[ProbableValue]:
   def tokens_before_index(string, index):
     return len(string[:index].split(' '))
 
-  sentence = ' '.join(sr.tokens)
+  sentence = ' '.join(search_result.tokens)
   all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
   constraints: List[ProbableValue] = []
+
   for a in all:
     # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
     token_index_s = tokens_before_index(sentence, a.start) - 1
@@ -970,9 +891,9 @@ def extract_all_contraints_from_sr(sr: PatternSearchResult, attention_vector: Li
 
     region = slice(token_index_s, token_index_e)
 
-    vc = extract_sum_and_sign_3(sr, region)
+    vc = extract_sum_and_sign_3(search_result, region)
     _e = _expand_slice(region, 10)
-    vc.context = TokensWithAttention(sr.tokens[_e], attention_vector[_e])
+    vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
     confidence = attention_vector[region.start]
     pv = ProbableValue(vc, confidence)
 
@@ -1116,3 +1037,77 @@ def extract_sum_and_sign_3(sr: PatternSearchResult, region: slice) -> ValueConst
   vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
 
   return vc
+
+
+
+
+#
+#
+# if __name__ == '__main__':
+#
+#   ex="""
+#   с учетом положений пункта 8.4.4 устава , одобрение заключения , изменения , продления , возобновления или расторжения обществом ( i ) любых договоров страхования , если стоимость соответствующего договора или нескольких взаимосвязанных договоров превышает 100 000 ( сто тысяч ) долларов сша ( или эквивалент этой суммы в рублях или иной валюте ) , либо ( ii ) договоров страхования , относящихся к операторскому договору 6к или связанных с операторским договором 6к до закрытия сделки 6к независимо от суммы ;
+#   """
+#   #
+#   # self.pattern_prefix: str = None
+#   # self.attention_vector_name: str = None
+#   # self.parent: LegalDocument = None
+#   # self.confidence: float = 0
+#   # self.region: slice = None
+#
+#   def extract_sum_and_sign_3(tokens:Tokens, region: slice) -> ValueConstraint:
+#     _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
+#     subtokens = tokens[_slice]
+#     _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
+#     _prefix = untokenize(_prefix_tokens)
+#     _sign = detect_sign(_prefix)
+#     # ======================================
+#     _sum = extract_sum_from_tokens_2(subtokens)
+#     # ======================================
+#
+#     currency = "UNDEF"
+#     value = np.nan
+#     if _sum is not None:
+#       currency = _sum[1]
+#       if _sum[1] in currencly_map:
+#         currency = currencly_map[_sum[1]]
+#       value = _sum[0]
+#
+#     vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
+#
+#     return vc
+#
+#
+#   def extract_all_contraints_from_sr( sentence ) :
+#
+#     tokens = sentence.split(' ')
+#     def tokens_before_index(string, index):
+#       return len(string[:index].split(' '))
+#
+#
+#     all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
+#     constraints: List[ProbableValue] = []
+#
+#     for a in all:
+#       print(tokens_before_index(sentence, a.start), 'from', sentence[a])
+#       token_index_s = tokens_before_index(sentence, a.start) - 1
+#       token_index_e = tokens_before_index(sentence, a.stop)
+#
+#       region = slice(token_index_s, token_index_e)
+#       print('region=', region)
+#
+#
+#       vc = extract_sum_and_sign_3(tokens, region)
+#       print(vc.sign)
+#       # _e = _expand_slice(region, 10)
+#       # vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
+#       # confidence = attention_vector[region.start]
+#       # pv = ProbableValue(vc, confidence)
+#       #
+#       # constraints.append(pv)
+#
+#     # return constraints
+#
+#
+#
+#   extract_all_contraints_from_sr(ex)
