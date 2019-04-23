@@ -12,6 +12,8 @@ from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 from violations import ViolationsFinder
 
+from charter_patterns import known_subjects
+
 
 class CharterConstraintsParser(ParsingSimpleContext):
 
@@ -236,10 +238,13 @@ class CharterDocumentParser(CharterConstraintsParser):
   def map_to_subject(self, s_values: PatternSearchResults):
     from patterns import estimate_confidence
 
+
+
     for psr in s_values:
       _max_subj = ContractSubject.Other
-      _max_conf = 0
-      for subj in ContractSubject:
+      _max_conf = 0.001
+
+      for subj in known_subjects:
         v = psr.get_attention(AV_PREFIX + f'x_{subj}')
         confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
         if confidence > _max_conf:

@@ -3,8 +3,11 @@ from typing import List
 from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, PatternSearchResult, \
   rectifyed_sum_by_pattern_prefix
 from ml_tools import cut_above, relu, momentum
+from ml_tools import filter_values_by_key_prefix
 from patterns import AbstractPatternFactoryLowCase
 from structures import ContractSubject
+
+known_subjects = [ContractSubject.Charity, ContractSubject.RealEstate, ContractSubject.Lawsuit]
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):
@@ -24,7 +27,15 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
     build_charity_patterns(self)
     build_lawsuit_patterns(self)
+    _build_realestate_patterns(self)
+    # _build_deal_patterns(self)
+
     _build_margin_values_patterns(self)
+
+    for subj in known_subjects:
+      if subj is not ContractSubject.Other:
+        pb = filter_values_by_key_prefix(self.patterns_dict, f'x_{subj}')
+        assert len(pb) > 0, subj
 
     self.embedd()
 
@@ -220,6 +231,17 @@ def _build_margin_values_patterns(factory):
   cp(prefix + 'превышает', ' 0', suffix)
   cp(prefix + 'свыше', ' 0', suffix)
   cp(prefix + 'сделка имеет стоимость, равную или превышающую', ' 0', suffix)
+
+
+def _build_realestate_patterns(factory):
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'x_{ContractSubject.RealEstate}.{cnt}', (a, p, c))
+
+  cp('принятие решений о совершении сделок c ', 'имуществом', '')
+  cp('отчуждению активов общества ( включая', 'недвижимость', '', )
 
 
 def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefix) -> dict:
