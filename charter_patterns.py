@@ -24,6 +24,7 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
     build_charity_patterns(self)
     build_lawsuit_patterns(self)
+    _build_margin_values_patterns(self)
 
     self.embedd()
 
@@ -188,6 +189,37 @@ def build_lawsuit_patterns(factory):
   cp('судебных споров, цена ',
      'иска',
      'по которым превышает')
+
+
+def _build_margin_values_patterns(factory):
+  suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
+  prefix = 'совершение сделок '
+
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'margin_value.{cnt}', (a, p, c))
+
+  # less than
+  cp(prefix + 'стоимость не более ', '0', suffix)
+  cp(prefix + 'цена не больше ', '0', suffix)
+  cp(prefix + 'стоимость', '< 0', suffix)
+  cp(prefix + 'цена менее', '0', suffix)
+  cp(prefix + 'цена ниже', '0', suffix)
+  cp(prefix + 'стоимость не может превышать ', '0', suffix)
+  cp(prefix + 'лимит соглашения', '0', suffix)
+  cp(prefix + 'верхний лимит стоимости', '0', suffix)
+  cp(prefix, 'максимум 0', suffix)
+  cp(prefix, 'до 0', suffix)
+  cp(prefix, 'но не превышающую 0', suffix)
+  cp(prefix, 'совокупное пороговое значение 0', suffix)
+
+  # greather than
+  cp(prefix + 'составляет', 'более 0', suffix)
+  cp(prefix + 'превышает', ' 0', suffix)
+  cp(prefix + 'свыше', ' 0', suffix)
+  cp(prefix + 'сделка имеет стоимость, равную или превышающую', ' 0', suffix)
 
 
 def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefix) -> dict:

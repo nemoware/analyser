@@ -48,7 +48,8 @@ class EmbeddableText:
 class FuzzyPattern(EmbeddableText):
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
-
+    prefix_pattern_suffix_tuple is not None
+    assert prefix_pattern_suffix_tuple[1]!=''
     self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
     self.name = _name
     self.soft_sliding_window_borders = False
@@ -346,7 +347,7 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   best_id = np.argmax(attention_vector)
   confidence = attention_vector[best_id]
   best_embedding_v = embeddings[best_id]
-  meta_pattern = FuzzyPattern(None, _name=name)
+  meta_pattern = FuzzyPattern(('',' ',''), _name=name)
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
