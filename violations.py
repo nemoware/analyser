@@ -1,3 +1,6 @@
+from typing import List
+
+from legal_docs import ConstraintsSearchResult
 from ml_tools import ProbableValue, np, TokensWithAttention
 from renderer import as_warning, as_offset, as_error_html, as_msg, as_quote, as_currency
 from text_tools import untokenize
@@ -6,36 +9,35 @@ from transaction_values import ValueConstraint
 
 class ViolationsFinder:
 
-  def find_ranges_by_group(self, charter_constraints, m_convert, verbose=False):
+  def find_ranges_by_group(self, charter_constraints: dict, m_convert, verbose=False):
     ranges_by_group = {}
     for head_group in charter_constraints:
       #     print('-' * 20)
-      group_c = charter_constraints[head_group]
-      data = self._combine_constraints_in_group(group_c, m_convert, verbose)
+      group_c: List[ConstraintsSearchResult] = charter_constraints[head_group]
+      data = self._combine_constraints_in_group(head_group, group_c, m_convert, verbose)
       ranges_by_group[head_group] = data
     return ranges_by_group
 
   @staticmethod
-  def _combine_constraints_in_group(group_c, m_convert, verbose=False):
+  def _combine_constraints_in_group(head_group, group_c: List[ConstraintsSearchResult], m_convert, verbose=False):
     # print(group_c)
     # print(group_c['section'])
 
     data = {
-      'name': group_c['section'],
+      'name': head_group,
       'ranges': {}
     }
 
-    sentences = group_c['sentences']
     #   print (charter_constraints[head_group]['sentences'])
     sentence_id = 0
-    for sentence in sentences:
+    for sentence in group_c:
       constraint_low = None
       constraint_up = None
 
       sentence_id += 1
       #     print (sentence['constraints'])
 
-      s_constraints = sentence['constraints']
+      s_constraints = sentence.constraints
       # большие ищем
       maximals = [x for x in s_constraints if x.value.sign > 0]
 
