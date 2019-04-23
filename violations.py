@@ -6,6 +6,7 @@ from renderer import as_warning, as_offset, as_error_html, as_msg, as_quote, as_
 from text_tools import untokenize
 from transaction_values import ValueConstraint
 
+from parsing import head_types_dict
 
 class ViolationsFinder:
 
