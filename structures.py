@@ -3,28 +3,42 @@
 # coding=utf-8
 from typing import List
 
-from enum import Enum, unique
+from enum import Enum, unique, EnumMeta
 
 from ml_tools import TokensWithAttention
 
 
-@unique
-class OrgStructuralLevel(Enum):
-  ShareholdersGeneralMeeting = 0  # Генеральное собрание акционеров
-  BoardOfDirectors = 1  # Совет директоров
-  CEO = 2  # Ген дир
-  BoardOfCompany = 3  # Правление общества
+class DisplayStringEnumMeta(EnumMeta):
+  def __new__(mcs, name, bases, attrs):
+    obj = super().__new__(mcs, name, bases, attrs)
+    obj._value2member_map_ = {}
+    for m in obj:
+      value, display_string = m.value
+      m._value_ = value
+      m.display_string = display_string
+      obj._value2member_map_[value] = m
+
+    return obj
 
 
 @unique
-class ContractSubject(Enum):
-  Transaction = 0  # Сделка
-  Charity = 1  # Благотворительность
-  Other = 2  # Другое
+class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
+  ShareholdersGeneralMeeting = 0, 'Генеральное собрание акционеров'
+  BoardOfDirectors = 1,           'Совет директоров'
+  CEO = 2,                        'Генеральный директор'
+  BoardOfCompany = 3,             'Правление общества'
+
+@unique
+class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
+  Deal = 0,       'Сделка'
+  Charity = 1,    'Благотворительность'
+  Other = 2,      'Другое'
+  Lawsuit = 3,    'Судебные издержки'
+  RealEstate = 4, 'Недвижимость'
 
 
 class Citation:
-  def __init__(self, cite: TokensWithAttention) -> None:
+  def __init__(self, cite: TokensWithAttention = None) -> None:
     self.citation = cite
 
 
@@ -81,10 +95,19 @@ class FinalViolationLog:
 
 if __name__ == '__main__':
   l = [
-    CharterConstraint(1000, 100, ContractSubject.Charity, OrgStructuralLevel.BoardOfCompany),
-    CharterConstraint(10, 1, ContractSubject.Other, OrgStructuralLevel.ShareholdersGeneralMeeting),
-    CharterConstraint(100, 10, ContractSubject.Transaction, OrgStructuralLevel.CEO),
+    CharterConstraint(1000, 100, ContractSubject.Charity, OrgStructuralLevel.BoardOfCompany, cite = None),
+    CharterConstraint(10, 1, ContractSubject.Other, OrgStructuralLevel.ShareholdersGeneralMeeting, cite = None),
+    CharterConstraint(100, 10, ContractSubject.Deal, OrgStructuralLevel.CEO, cite = None),
   ]
 
-  c = Charter('dd', l)
+  c = Charter('dd', l, cite = None)
   print(c.constraints)
+
+  print(f'{ContractSubject.Charity.name}')
+  print(f'{ContractSubject.Charity.display_string}')
+  print('All:')
+  for subj in ContractSubject:
+    print(f'{subj.display_string}')
+
+  for level in OrgStructuralLevel:
+    print(f'{level.display_string}')
