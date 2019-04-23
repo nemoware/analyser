@@ -209,6 +209,8 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     constraints_by_head_type = {}
     for section_name in sections_filtered:
+
+
       section = sections_filtered[section_name].body
       s_values = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
 
