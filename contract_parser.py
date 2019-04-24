@@ -16,9 +16,10 @@ contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, Contra
 
 
 class ContractDocument3(LegalDocument):
+
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
-    self.subjects: [ProbableValue(ContractSubject.Other, 0.0)]
+    self.subjects: List[ProbableValue] = [ProbableValue(ContractSubject.Other, 0.0)]
     self.contract_values: [ProbableValue] = []
 
 
