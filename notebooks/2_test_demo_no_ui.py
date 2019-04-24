@@ -173,7 +173,7 @@ def _init_contracts():
     print('👌 Contracts-related tools are already inited ')
     return
 
-  from demo import ContractAnlysingContext
+  from contract_parser import ContractAnlysingContext
   GLOBALS__['ContractAnlysingContext'] = ContractAnlysingContext(GLOBALS__['elmo_embedder'], GLOBALS__['renderer'])
   print('❤️ DONE initing Contracts-related tools and models ')
 
@@ -607,7 +607,7 @@ def _init_the_code(reset=False):
 def find_and_show_violations():
   from IPython.core.display import display, HTML
 
-  from demo import ContractAnlysingContext
+  from contract_parser import ContractAnlysingContext
   from renderer import as_headline_2, as_error_html
 
   print('Поиск нарушений')
@@ -1577,7 +1577,7 @@ class VConstraint:
 def find_and_show_violations():
   from IPython.core.display import display, HTML
 
-  from demo import ContractAnlysingContext
+  from contract_parser import ContractAnlysingContext
   from renderer import as_headline_2, as_error_html
 
   charterAnlysingContext: CharterAnlysingContext = GLOBALS__['CharterAnlysingContext']

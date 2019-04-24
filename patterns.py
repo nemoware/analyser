@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-from typing import List
 
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject
@@ -402,28 +401,19 @@ AV_PREFIX = '$at_'
 
 from structures import OrgStructuralLevel
 
-class PatternSearchResult():
-  def __init__(self, org_level:OrgStructuralLevel, region):
+class PatternMatch ():
+  def __init__(self, region):
     assert region.stop - region.start > 0
-
-    self.org_level:OrgStructuralLevel = org_level
-
-    self.pattern_prefix: str = None
-    self.attention_vector_name: str = None
-    self.parent  = None # 'LegalDocument'
-    self.confidence: float = 0
-    self.region: slice = region
-
     self.subject_mapping = {
       'subj': ContractSubject.Other,
       'confidence': 0
     }
-
     self.constraints: List[ValueConstraint] = []
-
-
-  def get_index(self):
-    return self.region.start
+    self.region: slice = region
+    self.confidence: float = 0
+    self.pattern_prefix: str = None
+    self.attention_vector_name: str = None
+    self.parent  = None # 'LegalDocument'
 
   def get_attention(self, name=None):
     if name is None:
@@ -431,11 +421,21 @@ class PatternSearchResult():
     else:
       return self.parent.distances_per_pattern_dict[name][self.region]
 
+  def get_index(self):
+    return self.region.start
+
+  key_index = property(get_index)
+
   def get_tokens(self):
     return self.parent.tokens[self.region]
 
-  key_index = property(get_index)
   tokens = property(get_tokens)
+
+
+class PatternSearchResult(PatternMatch):
+  def __init__(self, org_level:OrgStructuralLevel, region):
+    super(PatternSearchResult, self).__init__(region)
+    self.org_level:OrgStructuralLevel = org_level
 
 
 class ConstraintsSearchResult:

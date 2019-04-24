@@ -7,7 +7,7 @@ import unittest
 
 from charter_parser import CharterDocumentParser
 from charter_patterns import CharterPatternFactory
-from demo import ContractAnlysingContext
+from contract_parser import ContractAnlysingContext
 
 from doc_structure import remove_similar_indexes_considering_weights
 from embedding_tools import AbstractEmbedder
