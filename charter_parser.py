@@ -205,38 +205,39 @@ class CharterDocumentParser(CharterConstraintsParser):
   🚷🔥
   """
 
-  def find_contraints_2(self) -> dict:
+  def find_contraints_2(self) -> None:
 
     # 5. extract constraint values
     sections_filtered = self._get_head_sections()
 
     for section_name in sections_filtered:
       section = sections_filtered[section_name].body
-      value_constraints, charity_constraints, all_margin_values, charity_constraints = self._find_constraints_in_section(section)
+      value_constraints, charity_constraints, all_margin_values, charity_constraints = self._find_constraints_in_section(
+        org_level=section_name, section=section)
 
       self.charter._charity_constraints_old[section_name] = charity_constraints
       self.charter._value_constraints_old[section_name] = value_constraints
 
-      self.charter.charity_constraints[section_name] = charity_constraints
-      self.charter.value_constraints[section_name] = all_margin_values
+      self.charter._constraints += charity_constraints
+      self.charter._constraints += all_margin_values
 
-    return self.charter.constraints
-
-  def _find_constraints_in_section(self, section):
+  def _find_constraints_in_section(self, org_level: str, section):
     for subj in known_subjects:
       pattern_prefix = f'x_{subj}'
       attention, attention_vector_name = section.make_attention_vector(self.pattern_factory, pattern_prefix)
 
     # TODO: try 'margin_value' prefix also
     # searching for everything having a numeric value
-    all_margin_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
+    all_margin_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(org_level, self.pattern_factory,
+                                                                                       'sum__')
 
     # s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
     #                                                                             f'x_{ContractSubject.Lawsuit}')
 
     # s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
 
-    charity_constraints = section.find_sentences_by_pattern_prefix(self.pattern_factory, f'x_{ContractSubject.Charity}')
+    charity_constraints = section.find_sentences_by_pattern_prefix(org_level, self.pattern_factory,
+                                                                   f'x_{ContractSubject.Charity}')
 
     self.map_to_subject(all_margin_values)
     self.map_to_subject(charity_constraints)
@@ -301,7 +302,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     for pattern_sr in sentenses_i:
       constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
 
-      #todo: ConstraintsSearchResult is deprecated
+      # todo: ConstraintsSearchResult is deprecated
       csr = ConstraintsSearchResult()
       csr.subdoc = pattern_sr
       csr.constraints = constraints

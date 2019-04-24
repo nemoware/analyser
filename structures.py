@@ -16,6 +16,17 @@ class OrgStructuralLevel(Enum):
   BoardOfCompany = 3  # Правление общества
 
 
+ORG_2_ORG = {
+  'all': OrgStructuralLevel.ShareholdersGeneralMeeting,
+  'gen':OrgStructuralLevel.CEO,
+  'directors':OrgStructuralLevel.BoardOfDirectors,
+  'pravlenie':OrgStructuralLevel.BoardOfCompany,
+  'head.all': OrgStructuralLevel.ShareholdersGeneralMeeting,
+  'head.gen':OrgStructuralLevel.CEO,
+  'head.directors':OrgStructuralLevel.BoardOfDirectors,
+  'head.pravlenie':OrgStructuralLevel.BoardOfCompany
+}
+
 @unique
 class ContractSubject(Enum):
   Deal = 0  # Сделка

@@ -400,14 +400,17 @@ def estimate_confidence(vector: List[float]) -> (float, float, int, float):
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'
 
+from structures import OrgStructuralLevel
 
 class PatternSearchResult():
-  def __init__(self, region):
+  def __init__(self, org_level:OrgStructuralLevel, region):
     assert region.stop - region.start > 0
+
+    self.org_level:OrgStructuralLevel = org_level
 
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
-    self.parent: 'LegalDocument' = None
+    self.parent  = None # 'LegalDocument'
     self.confidence: float = 0
     self.region: slice = region
 

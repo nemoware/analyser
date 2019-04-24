@@ -25,6 +25,9 @@ currencly_map = {
 class ValueConstraint:
   def __init__(self, value: float, currency: str, sign: int, context: TokensWithAttention):
     assert context is not None
+
+
+
     self.value = value
     self.currency = currency
     self.sign = sign

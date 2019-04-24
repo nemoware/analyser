@@ -13,12 +13,25 @@ head_types_colors = {'head.directors': 'crimson',
                      'head.shareholders': '#666600',
                      'head.pravlenie': '#0099cc',
                      'head.unknown': '#999999'}
+from structures import OrgStructuralLevel
+
+org_level_colors = {OrgStructuralLevel.BoardOfDirectors: 'crimson',
+                    OrgStructuralLevel.ShareholdersGeneralMeeting: 'orange',
+                    OrgStructuralLevel.CEO: 'blue',
+                    OrgStructuralLevel.BoardOfCompany: '#0099cc',
+                    None: '#999999'}
 
 known_subjects_dict = {
   ContractSubject.Charity: 'Благотворительность',
   ContractSubject.RealEstate: "Сделки с имушеством",
   ContractSubject.Lawsuit: "Судебные споры"
 }
+
+org_level_dict = {OrgStructuralLevel.BoardOfDirectors: 'Совет директоров',
+                  OrgStructuralLevel.ShareholdersGeneralMeeting: 'Общее собрание участников/акционеров',
+                  OrgStructuralLevel.CEO: 'Генеральный директор',
+                  OrgStructuralLevel.BoardOfCompany: 'Правление общества',
+                  None: '*Неизвестный орган управления*'}
 
 WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
@@ -88,7 +101,7 @@ class AbstractRenderer:
   def render_value_section_details(self, value_section_info):
     pass
 
-  def to_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None)->str:
+  def to_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None) -> str:
     pass
 
   def render_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
@@ -204,16 +217,18 @@ class HtmlRenderer(AbstractRenderer):
     return html
 
   def render_constraint_values_2(self, charter: CharterDocument) -> str:
+    from structures import OrgStructuralLevel
 
     html = ''
-    for head_type in charter.constraints.keys():
 
-      constraint_search_results: List[PatternSearchResult] = charter.constraints[head_type]
+    for level in OrgStructuralLevel:
+
+      constraint_search_results: List[PatternSearchResult] = charter.constraints_by_org_level(level)
 
       html += '<hr style="margin-top: 45px">'
 
-      html += f'<h2 style="color:{head_types_colors[head_type]}; ' \
-              f'padding:0; margin:0">{head_types_dict[head_type]}</h2>'
+      html += f'<h2 style="color:{org_level_colors[level]}; ' \
+              f'padding:0; margin:0">{org_level_dict[level]}</h2>'
 
       # html += as_quote(r_by_head_type.)
 

@@ -14,6 +14,7 @@ from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_i
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
+from structures import ORG_2_ORG
 from text_normalize import *
 from text_tools import *
 from text_tools import untokenize, np
@@ -362,7 +363,7 @@ class LegalDocument(EmbeddableText):
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
-  def find_sentences_by_pattern_prefix(self, factory, pattern_prefix) -> PatternSearchResults:
+  def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
     """
 
     :param factory:
@@ -388,7 +389,7 @@ class LegalDocument(EmbeddableText):
           confidence = sum_ / nonzeros_count
 
         if confidence > 0.8:
-          r = PatternSearchResult(_slice)
+          r = PatternSearchResult(ORG_2_ORG[org_level], _slice)
           r.attention_vector_name = attention_vector_name
           r.pattern_prefix = pattern_prefix
           r.confidence = confidence
@@ -657,7 +658,7 @@ class CharterDocument(LegalDocument):
   def __init__(self, original_text, name="charter"):
     LegalDocument.__init__(self, original_text, name)
 
-    self.charity_constraints = {}
+    self._constraints: List[PatternSearchResult] = []
     self.value_constraints = {}
 
     self.org = None
@@ -667,13 +668,14 @@ class CharterDocument(LegalDocument):
     self._value_constraints_old = {}
 
   def get_constraints_old(self):
-    return {**self._charity_constraints_old, **self._value_constraints_old}
+    return self._value_constraints_old
 
-  def get_constraints(self):
-    return {**self.charity_constraints, **self.value_constraints}
-
-  constraints = property(get_constraints)
   constraints_old = property(get_constraints_old)
+
+  def constraints_by_org_level(self, org_level: OrgStructuralLevel) -> List[PatternSearchResult]:
+    for p in self._constraints:
+      if p.org_level is org_level:
+        yield p
 
   def tokenize(self, _txt):
     return tokenize_text(_txt)
