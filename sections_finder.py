@@ -108,6 +108,8 @@ class FocusingSectionsFinder(SectionsFinder):
 
     # end-for
     doc.sections = section_by_type
+
+    self.ctx._logstep("Splitting Document into sections ✂️ 📃 -> 📄📄📄")
     return section_by_type
 
   """ ❤️ == GOOD HEART LINE ====================================================== """

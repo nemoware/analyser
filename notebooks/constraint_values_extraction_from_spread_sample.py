@@ -10,6 +10,7 @@ Original file is located at
 """
 
 #@title ## Settings { run: "auto", vertical-output: true, form-width: "750px", display-mode: "form" }
+from charter_patterns import make_constraints_attention_vectors
 
 hyperparameters={}
 
@@ -136,11 +137,7 @@ elmo = hub.Module(_databases[_database], trainable=False) #twitter
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/transaction_values.py  
 
 from transaction_values import *
-from patterns import *
-from text_tools import *
-from text_normalize import *
 from embedding_tools import *
-from ml_tools import *
 
 # from split import *
 
@@ -150,8 +147,6 @@ from ml_tools import *
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/structured_2/legal_docs.py  
 from legal_docs import *
 from doc_structure import *
-
-import legal_docs as ld
 
 """## tools"""
 

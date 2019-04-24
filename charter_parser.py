@@ -1,7 +1,8 @@
 # origin: charter_parser.py
-from charity_finder import find_charity_constraints
-from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
-  make_constraints_attention_vectors, extract_all_contraints_from_sentence
+from charter_patterns import find_sentences_by_pattern_prefix, make_constraints_attention_vectors
+from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, ConstraintsSearchResult, \
+  extract_all_contraints_from_sentence, deprecated, PatternSearchResults, substract_search_results, \
+  extract_all_contraints_from_sr
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict
 from patterns import FuzzyPattern, find_ner_end, improve_attention_vector
@@ -51,13 +52,13 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     ranges = split_by_token_into_ranges(body.tokens, '\n')
 
-    for r in ranges:
+    for _slice in ranges:
 
-      __line = untokenize(body.tokens[r])
+      __line = untokenize(body.tokens[_slice])
       _sum = extract_sum(__line)
 
       if _sum is not None:
-        ss_subdoc = body.subdoc_slice(r, name=f'sentence:{r.start}')
+        ss_subdoc = body.subdoc_slice(_slice, name=f'value_sent:{_slice.start}')
         sentenses_having_values.append(ss_subdoc)
 
       if self.verbosity_level > 2:
@@ -126,20 +127,22 @@ class CharterDocumentParser(CharterConstraintsParser):
     _charter_doc.embedd(self.pattern_factory)
     self.doc: CharterDocument = _charter_doc
 
-    # self.find_charter_sections_starts(self.pattern_factory.headlines)
+    """ 2. ✂️ 📃 -> 📄📄📄  finding headlines (& sections) ==== ️"""
 
     competence_v = self._make_competence_attention_v()
 
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.', additional_attention=competence_v)
 
-    # 2. NERS
+    """ 2. NERS 🏦 🏨 🏛==== ️"""
     self.org = self.ners()
 
-    # 3. constraints
-    self.constraints = self.find_contraints()
+    """ 3. CONSTRAINTS 💰 💵 ==== ️"""
+    self.constraints = self.find_contraints_2()
 
-    self.charity_constraints = find_charity_constraints(self.doc, self.pattern_factory, self._get_head_sections())
+    """ 3. CHARITY 🙏  🤚 🚑  ==== ️"""
+    self.charity_constraints = find_sentences_by_pattern_prefix(self.pattern_factory,
+                                                                self._get_head_sections(), 'x_charity_')
 
     ##----end, logging, closing
     self.verbosity_level = 1
@@ -158,11 +161,13 @@ class CharterDocumentParser(CharterConstraintsParser):
     if 'name' in self.doc.sections:
       section: HeadlineMeta = self.doc.sections['name']
       org = self.detect_ners(section.body)
-      self._logstep("extracting NERs (named entities)")
+
     else:
       self.warning('Секция наименования компнании не найдена')
-      self.warning('Попытаемся искать просто в начале документа')
+      self.warning('Попытаемся искать просто в начале документа 🚑')
       org = self.detect_ners(self.doc.subdoc_slice(slice(0, 3000), name='name_section'))
+
+    self._logstep("extracting NERs (named entities 🏦 🏨 🏛)")
 
     """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
     return org
@@ -179,11 +184,14 @@ class CharterDocumentParser(CharterConstraintsParser):
     self.value_attention = None  # make_improved_attention_vector(self.doc, 'sum__')
 
   # ---------------------------------------
+
+  @deprecated
   def find_contraints(self):
     # 5. extract constraint values
     sections_filtered = self._get_head_sections()
+    # value_containing_sections = find_sentences_by_pattern_prefix(self.doc, self.pattern_factory,
+    #                                                              self._get_head_sections(), 'x_charity_')
 
-    self._logstep(f'detecting sections: "{sections_filtered}" ')
     rz = self.extract_constraint_values_from_sections(sections_filtered)
     return rz
 
@@ -195,6 +203,48 @@ class CharterDocumentParser(CharterConstraintsParser):
         sections_filtered[k] = self.doc.sections[k]
     return sections_filtered
 
+  """
+  🚷🔥
+  """
+  def find_contraints_2(self) -> dict:
+    # 5. extract constraint values
+    sections_filtered = self._get_head_sections()
+
+    constraints_by_head_type = {}
+    for section_name in sections_filtered:
+      section = sections_filtered[section_name].body
+
+      s_values = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
+      s_lawsuits = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'x_lawsuit_')
+
+      s_values = substract_search_results(s_values, s_lawsuits)
+
+      constraints: List[ConstraintsSearchResult] = self.__extract_constraint_values_from_sr(s_values)
+
+      constraints_by_head_type[section_name] = constraints
+
+    return constraints_by_head_type
+
+
+  def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
+    """
+
+    :type sentenses_i: PatternSearchResults
+    """
+    if sentenses_i is None or len(sentenses_i) == 0:
+      return []
+
+    sentences = []
+    for pattern_sr in sentenses_i:
+      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
+
+      csr = ConstraintsSearchResult()
+      csr.subdoc = pattern_sr
+      csr.constraints = constraints
+
+      sentences.append(csr)
+    return sentences
+
   def _do_nothing(self, head, a, b):
     pass  #
 
@@ -204,7 +254,6 @@ class CharterDocumentParser(CharterConstraintsParser):
 
   def detect_ners(self, section):
     """
-    XXX: TODO: 🚷🔥 moved from demo_charter.py
     :param section:
     :return:
     """
@@ -231,10 +280,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     return rez
 
   def _detect_org_type_and_name(self, section: LegalDocument):
-    """
-        XXX: TODO: 🚷🔥 moved from demo_charter.py
 
-    """
     factory = self.pattern_factory
     vectors = section.distances_per_pattern_dict  # shortcut
 
@@ -286,12 +332,12 @@ class CharterDocumentParser(CharterConstraintsParser):
 # -----------
 
 
-def put_if_better(dict: dict, key, x, is_better: staticmethod):
-  if key in dict:
-    if is_better(x, dict[key]):
-      dict[key] = x
+def put_if_better(destination: dict, key, x, is_better: staticmethod):
+  if key in destination:
+    if is_better(x, destination[key]):
+      destination[key] = x
   else:
-    dict[key] = x
+    destination[key] = x
 
 
 # ❤️ == GOOD HEART LINE ========================================================

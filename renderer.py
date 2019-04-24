@@ -175,7 +175,7 @@ def to_multicolor_text(tokens, vectors, colormap, min_color=None, _slice=None) -
     b = int(255 * c[2])
     if tokens[i] == '\n':
       html += '<br>'
-    html += f'<span style="background:rgb({r},{g},{b})"> {tokens[i]} </span>'
+    html += f'<span style="background:rgb({r},{g},{b})">{tokens[i]} </span>'
   return html
 
 ''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''
