@@ -237,7 +237,7 @@ class HtmlRenderer(AbstractRenderer):
       rendered = 0
       for constraint_search_result in constraint_search_results:
         rendered += 1
-        html_i += self._render_sentence_2(constraint_search_result)
+        html_i += self.constraints_to_html(constraint_search_result)
 
       if rendered == 0:
         html_i += as_warning('Ограничения и пороговые суммы не обнаружены или не заданы')
@@ -246,28 +246,28 @@ class HtmlRenderer(AbstractRenderer):
 
     return html
 
-  def _render_sentence_2(self, search_result: PatternSearchResult):
-    html = ""
+  def constraints_to_html(self, search_result: PatternSearchResult):
+
     constraints: List[ValueConstraint] = search_result.constraints
 
+    html = ""
     html += "<br>"
-    for probable_v in constraints:
-      html += self.value_to_html(probable_v.value)
-
     html += '<div style="border-bottom:1px solid #ccc; margin-top:1em"></div>'
 
     subj_type = search_result.subject_mapping["subj"]
     if subj_type in known_subjects_dict:
       subj_type = known_subjects_dict[subj_type]
-
     html += as_headline_4(f'{subj_type} <sup>confidence={search_result.subject_mapping["confidence"]:.3f}')
+
+    for probable_v in constraints:
+      html += self.value_to_html(probable_v.value)
 
     attention_vectors = self.map_attention_vectors_to_colors(search_result)
 
-    html += as_c_quote(to_multicolor_text(search_result.tokens, attention_vectors,
-                                          v_color_map,
-                                          min_color=(0.3, 0.3, 0.33),
-                                          _slice=None))
+    html += as_offset(as_c_quote(to_multicolor_text(search_result.tokens, attention_vectors,
+                                                    v_color_map,
+                                                    min_color=(0.3, 0.3, 0.33),
+                                                    _slice=None)))
 
     return html
 
@@ -290,7 +290,7 @@ class HtmlRenderer(AbstractRenderer):
   def _render_sentence(self, sentence: ConstraintsSearchResult):
     # TODO: remove
     # ===========
-    print(WARN + f'{self._render_sentence} is deprecated, use {self._render_sentence_2}')
+    print(WARN + f'{self._render_sentence} is deprecated, use {self.constraints_to_html}')
     # ===========
 
     html = ""
