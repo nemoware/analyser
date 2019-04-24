@@ -1,5 +1,6 @@
 from typing import List
 
+from legal_docs import CharterDocument
 from ml_tools import ProbableValue
 from parsing import known_subjects, head_types_dict
 from patterns import AV_PREFIX, AV_SOFT, PatternSearchResult, ConstraintsSearchResult, PatternSearchResults
@@ -18,6 +19,8 @@ known_subjects_dict = {
   ContractSubject.RealEstate: "Сделки с имушеством",
   ContractSubject.Lawsuit: "Судебные споры"
 }
+
+WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 
 def as_smaller(x):
@@ -85,7 +88,7 @@ class AbstractRenderer:
   def render_value_section_details(self, value_section_info):
     pass
 
-  def to_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
+  def to_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None)->str:
     pass
 
   def render_color_text(self, tokens, weights, colormap='coolwarm', print_debug=False, _range=None):
@@ -167,6 +170,7 @@ class HtmlRenderer(AbstractRenderer):
     return html
 
   def render_constraint_values(self, doc, rz, charity_constraints):
+    print(WARN + f'{self.render_constraint_values} is deprecated, use {self.render_constraint_values_2}')
     from legal_docs import ConstraintsSearchResult
 
     html = ''
@@ -199,7 +203,86 @@ class HtmlRenderer(AbstractRenderer):
 
     return html
 
+  def render_constraint_values_2(self, charter: CharterDocument) -> str:
+
+    html = ''
+    for head_type in charter.constraints.keys():
+
+      constraint_search_results: List[PatternSearchResult] = charter.constraints[head_type]
+
+      html += '<hr style="margin-top: 45px">'
+
+      html += f'<h2 style="color:{head_types_colors[head_type]}; ' \
+              f'padding:0; margin:0">{head_types_dict[head_type]}</h2>'
+
+      # html += as_quote(r_by_head_type.)
+
+      # charity_constraints_by_head = charity_constraints[head_type]
+
+      html_i = ''
+      # html_i += self.html_charity_constraints_by_head(charity_constraints_by_head)
+
+      if True:
+        html_i += as_headline_3('Компетенции (и пороговые суммы):')
+
+        if len(constraint_search_results) > 0:
+          for constraint_search_result in constraint_search_results:
+            html_i += self._render_sentence_2(constraint_search_result)
+
+        else:
+          html_i += as_error_html('Ограничения и пороговые суммы не обнаружены или не заданы')
+
+      html += as_offset(html_i)
+
+    return html
+
+  def _render_sentence_2(self, search_result: PatternSearchResult):
+    print(WARN + f'{self._render_sentence} is deprecated, use {self._render_sentence_2}')
+    html = ""
+    constraints: List[ValueConstraint] = search_result.constraints
+
+    html += "<br>"
+    for probable_v in constraints:
+      html += self.value_to_html(probable_v.value)
+
+    if len(constraints) == 0:
+      return html
+
+    html += '<div style="border-bottom:1px solid #ccc; margin-top:1em"></div>'
+
+    subj_type = search_result.subject_mapping["subj"]
+    if subj_type in known_subjects_dict:
+      subj_type = known_subjects_dict[subj_type]
+
+    html += as_headline_4(f'{subj_type} <sup>confidence={search_result.subject_mapping["confidence"]:.3f}')
+
+    attention_vectors = self.map_attention_vectors_to_colors(search_result)
+
+    html += as_c_quote(to_multicolor_text(search_result.tokens, attention_vectors,
+                                          v_color_map,
+                                          min_color=(0.3, 0.3, 0.33),
+                                          _slice=None))
+
+    return html
+
+  def charter_parsing_results_to_html(self, charter: CharterDocument):
+
+    txt_html = self.to_color_text(charter.org['tokens'], charter.org['attention_vector'], _range=[0, 1])
+
+    html = ''
+    html += f'<div style="background:#eeeeff; padding:0.5em"> recognized NE(s): ' \
+            f'<br><br> ' \
+            f'org type:<h3 style="margin:0">{charter.org["type_name"]} </h3>' \
+            f'org full name:<h2 style="margin:0">  {charter.org["name"]}</h2> ' \
+            f'<br>quote: <div style="font-size:90%; background:white">{txt_html}</div> </div>'
+
+    # html+=txt_html
+    html += self.render_constraint_values_2(charter)
+
+    return html
+
   def _render_sentence(self, sentence: ConstraintsSearchResult):
+    print(WARN + f'{self._render_sentence} is deprecated, use {self._render_sentence_2}')
     html = ""
     constraints: List[ValueConstraint] = sentence.constraints
 
@@ -221,7 +304,6 @@ class HtmlRenderer(AbstractRenderer):
     html += as_headline_4(f'{subj_type} <sup>confidence={search_result.subject_mapping["confidence"]:.3f}')
 
     attention_vectors = self.map_attention_vectors_to_colors(search_result)
-
 
     html += as_c_quote(to_multicolor_text(search_result.tokens, attention_vectors,
                                           v_color_map,

@@ -660,6 +660,8 @@ class CharterDocument(LegalDocument):
     self.charity_constraints = {}
     self.value_constraints = {}
 
+    self.org = None
+
     # TODO:remove it
     self._charity_constraints_old = {}
     self._value_constraints_old = {}

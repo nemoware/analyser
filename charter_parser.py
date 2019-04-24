@@ -109,7 +109,6 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
 
-    self.org = None
     self.doc = None
 
     self.violations_finder = ViolationsFinder()
@@ -138,7 +137,7 @@ class CharterDocumentParser(CharterConstraintsParser):
                                        headline_patterns_prefix='headline.', additional_attention=competence_v)
 
     """ 2. NERS 🏦 🏨 🏛==== ️"""
-    self.org = self.ners()
+    self.charter.org = self.ners()
 
     """ 3. CONSTRAINTS 💰 💵 ==== ️"""
     self.find_contraints_2()
@@ -257,12 +256,17 @@ class CharterDocumentParser(CharterConstraintsParser):
     print(WARN + f'CharterParser.harity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints')
     return self.charter._charity_constraints_old
 
+  def get_org(self):
+    print(WARN + f'CharterParser.org is deprecated ☠️! \n Use CharterDocument.org')
+    return self.charter.org
+
   def get_charter(self):
     return self.doc
 
   charity_constraints = property(get_charity_constraints)
   constraints = property(get_constraints)
   charter = property(get_charter)
+  org = property(get_org)
 
   def map_to_subject(self, psearch_results: List[PatternSearchResult]):
     from patterns import estimate_confidence

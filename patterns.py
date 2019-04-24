@@ -21,7 +21,7 @@ import numpy as np
 
 import sys
 
-WARN='\033[1;31m======== Dear Artem, ACHTUNG'
+WARN='\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
 save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
