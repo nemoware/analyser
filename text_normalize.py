@@ -59,7 +59,7 @@ cleanup_regex = [
 
     (r'с одной стороны и\s*\n', 'с одной стороны и '),
 
-    (r'\n\s*(\d{1,2}[\.|)]?\.?\s?)+', '.\n — '),  # remove paragraph numbers
+    # (r'\n\s*(\d{1,2}[\.|)]?\.?\s?)+', '.\n — '),  # remove paragraph numbers
     (r'\.\s*\.', '.')
 
 ]

@@ -201,7 +201,8 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     finds average
     """
 
-    def __init__(self):
+    def __init__(self, name="no name"):
+        self.name = name
         self.patterns = {}
 
     def add_pattern(self, pat, weight=1.0):

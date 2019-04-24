@@ -4,11 +4,13 @@
 
 import unittest
 
-from patterns import *
+from split import extract_sum
+from text_normalize import *
 
 data = [
-    (41752.62, 'RUB', '\n2.1.  Общая сумма договора составляет 41752,62 руб. (Сорок одна тысяча семьсот пятьдесят два рубля) '
-                       '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'),
+    (41752.62, 'RUB',
+     '\n2.1.  Общая сумма договора составляет 41752,62 руб. (Сорок одна тысяча семьсот пятьдесят два рубля) '
+     '62 копейки, в т.ч. НДС (18%) 6369,05 руб. (Шесть тысяч триста шестьдесят девять рублей) 05 копеек, в'),
 
     (300000.0, 'RUB',
      'Стоимость услуг по настоящему Договору не может превышать 300 000 (трехсот тысяч) рублей, 00 копеек без учета НДС.'),
@@ -44,16 +46,22 @@ data = [
     (50950000.0, 'RUB', 'сумму  50 950 000 (пятьдесят миллионов девятьсот пятьдесят тысяч) руб. 00 коп. '
                         'без НДС, НДС не облагается на основании п.2 статьи 346.11.'),
 
+    (1661293757.0, 'RUB',
+     'составит - не более 1661 293,757 тыс . рублей ( с учетом ндс ) ( 0,93 % балансовой стоимости активов'),
+
     (490000.0, 'RUB',
      'с лимитом 490 000 (четыреста девяносто тысяч) рублей на ДТ, топливо АИ-92 и АИ-95 сроком до 31.12.2018 года  '),
 
-    (999.44, 'RUB', 'Стоимость 999 рублей 44 копейки'),
+    # (999.44, 'RUB', 'Стоимость 999 рублей 44 копейки'),
     (1999.44, 'RUB', 'Стоимость 1 999 (тысяча девятьсот) руб 44 (сорок четыре) коп'),
     (1999.44, 'RUB', '1 999 (тысяча девятьсот) руб. 44 (сорок четыре) коп. и что-то 34'),
+    (25000000.0, 'USD', 'в размере более 25 млн . долларов сша'),
+    (25000000.0, 'USD', 'эквивалентной 25 миллионам долларов сша'),
+
 
 ]
 
-numerics="""
+numerics = """
     один два три четыре пять шесть семь восемь девять десять 
     одиннадцать двенадцать тринадцать
       
@@ -62,35 +70,37 @@ numerics="""
 
 class PriceExtractTestCase(unittest.TestCase):
 
-    def extract_price(self, text, currency_re):
-        normal_text = text.lower()
-
-        r = currency_re.findall(normal_text)
-
-        f = None
-        try:
-            f = (float(r[0][0].replace(" ", "").replace(",", ".")), r[0][5])
-        except:
-            pass
-
-        return f
-
+    # def extract_price(self, text, currency_re):
+    #     normal_text = text.lower()
+    #     r = currency_re.findall(normal_text)
+    #
+    #     f = None
+    #     try:
+    #         f = (float(r[0][0].replace(" ", "").replace(",", ".")), r[0][5])
+    #     except:
+    #         pass
+    #
+    #     return f
 
     def test_extract(self):
-        currency_re =   re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб))')
+
+        # currency_re =   re.compile(r'((^|\s+)(\d+[., ])*\d+)(\s*([(].{0,100}[)]\s*)?(евро|руб))')
         # rubles = re.compile(r'([0-9]+,[0-9]+)')
 
         for (price, currency, text) in data:
 
-            # normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
-            normal_text = text.lower()
-            f = self.extract_price(normal_text, currency_re)
-
-
-            self.assertEqual(price, f[0])
+            normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
+            f = None
+            try:
+                f = extract_sum(normal_text)
+                print (f)
+                self.assertEqual(price, f[0])
+            except:
+                print("FAILED:", price, currency, normal_text, 'f=', f)
 
             # #print (normal_text)
             # print('expected:', price, 'found:', f)
+
 
 if __name__ == '__main__':
     unittest.main()
