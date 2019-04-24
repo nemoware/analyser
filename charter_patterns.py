@@ -1,9 +1,12 @@
 from typing import List
 
-from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, PatternSearchResult, \
+from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, \
   rectifyed_sum_by_pattern_prefix
 from ml_tools import cut_above, relu, momentum
-from patterns import AbstractPatternFactoryLowCase
+from ml_tools import filter_values_by_key_prefix
+from patterns import AbstractPatternFactoryLowCase, PatternSearchResult
+from structures import ContractSubject
+from parsing import known_subjects
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):
@@ -23,6 +26,15 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
     build_charity_patterns(self)
     build_lawsuit_patterns(self)
+    _build_realestate_patterns(self)
+    # _build_deal_patterns(self)
+
+    _build_margin_values_patterns(self)
+
+    for subj in known_subjects:
+      if subj is not ContractSubject.Other:
+        pb = filter_values_by_key_prefix(self.patterns_dict, f'x_{subj}')
+        assert len(pb) > 0, subj
 
     self.embedd()
 
@@ -147,44 +159,90 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
 
 
 def build_charity_patterns(factory):
-  def cp(name, tuples):
-    return factory.create_pattern(name, tuples)
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'x_{ContractSubject.Charity}.{cnt}', (a, p, c))
 
-  cp('x_charity_1', ('договор',
-                     'благотворительного',
-                     'пожертвования'))
+  cp('договор',
+     p='благотворительного',
+     c='пожертвования')
 
-  cp('x_charity_1.1', ('одобрение внесения Обществом каких-либо вкладов или пожертвований на политические или',
-                       'благотворительные',
-                       'цели'))
+  cp('одобрение внесения Обществом каких-либо вкладов или пожертвований на политические или',
+     p='благотворительные',
+     c='цели')
 
-  cp('x_charity_1.2', ('одобрение внесения Обществом каких-либо вкладов или',
-                       'пожертвований',
-                       'на политические или благотворительные цели '))
+  cp('одобрение внесения Обществом каких-либо вкладов или',
+     p='пожертвований',
+     c='на политические или благотворительные цели ')
 
-  cp('x_charity_2', ('предоставление',
-                     'безвозмездной',
-                     'помощи финансовой')),
+  cp('предоставление',
+     p='безвозмездной',
+     c='помощи финансовой')
 
-  cp('x_charity_3', ('согласование сделок',
-                     ' дарения ',
-                     ' '))
+  cp('согласование сделок',
+     'дарения')
 
 
 def build_lawsuit_patterns(factory):
-  def cp(name, tuples):
-    return factory.create_pattern(name, tuples)
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'x_{ContractSubject.Lawsuit}.{cnt}', (a, p, c))
 
-  cp('x_lawsuit_1', ('начало/урегулирование любых', 'судебных',
-                     'споров, подписание мирового соглашения, признание иска, отказ от иска, а также любые другие  ',
-                     ))
+  cp('начало/урегулирование любых',
+     'судебных',
+     'споров, подписание мирового соглашения, признание иска, отказ от иска, а также любые другие ')
 
-  cp('x_lawsuit_2', ('судебных споров, цена ',
-                     'иска',
-                     'по которым превышает'))
+  cp('судебных споров, цена ',
+     'иска',
+     'по которым превышает')
 
 
-@deprecated
+def _build_margin_values_patterns(factory):
+  suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
+  prefix = 'совершение сделок '
+
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'margin_value.{cnt}', (a, p, c))
+
+  # less than
+  cp(prefix + 'стоимость не более ', '0', suffix)
+  cp(prefix + 'цена не больше ', '0', suffix)
+  cp(prefix + 'стоимость', '< 0', suffix)
+  cp(prefix + 'цена менее', '0', suffix)
+  cp(prefix + 'цена ниже', '0', suffix)
+  cp(prefix + 'стоимость не может превышать ', '0', suffix)
+  cp(prefix + 'лимит соглашения', '0', suffix)
+  cp(prefix + 'верхний лимит стоимости', '0', suffix)
+  cp(prefix, 'максимум 0', suffix)
+  cp(prefix, 'до 0', suffix)
+  cp(prefix, 'но не превышающую 0', suffix)
+  cp(prefix, 'совокупное пороговое значение 0', suffix)
+
+  # greather than
+  cp(prefix + 'составляет', 'более 0', suffix)
+  cp(prefix + 'превышает', ' 0', suffix)
+  cp(prefix + 'свыше', ' 0', suffix)
+  cp(prefix + 'сделка имеет стоимость, равную или превышающую', ' 0', suffix)
+
+
+def _build_realestate_patterns(factory):
+  def cp(a, p, c=None):
+    cnt = len(factory.patterns)
+    if c is None:
+      c = ""
+    return factory.create_pattern(f'x_{ContractSubject.RealEstate}.{cnt}', (a, p, c))
+
+  cp('принятие решений о совершении сделок c ', 'имуществом', '')
+  cp('отчуждению активов общества ( включая', 'недвижимость', '', )
+
+
 def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefix) -> dict:
   quotes_by_head_type = {}
   for section_name in head_sections:

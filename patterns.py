@@ -1,8 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
+from typing import List
 
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
+from structures import ContractSubject
+from transaction_values import ValueConstraint
 
 load_punkt = True
 
@@ -17,6 +20,8 @@ PATTERN_THRESHOLD = 0.75  # 0...1
 import numpy as np
 
 import sys
+
+WARN='\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
 save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
@@ -48,7 +53,8 @@ class EmbeddableText:
 class FuzzyPattern(EmbeddableText):
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
-
+    # assert prefix_pattern_suffix_tuple is not None
+    # assert prefix_pattern_suffix_tuple[1] != ''
     self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
     self.name = _name
     self.soft_sliding_window_borders = False
@@ -346,7 +352,7 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   best_id = np.argmax(attention_vector)
   confidence = attention_vector[best_id]
   best_embedding_v = embeddings[best_id]
-  meta_pattern = FuzzyPattern(None, _name=name)
+  meta_pattern = FuzzyPattern(('', ' ', ''), _name=name)
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
@@ -373,3 +379,76 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
   _max_hit_attention, _ = rectifyed_sum(vvvvv, relu_th)
   improved = improve_attention_vector(embeddings, _max_hit_attention, mix=1)
   return improved
+
+
+def estimate_confidence(vector: List[float]) -> (float, float, int, float):
+  assert vector is not None
+  if len(vector) == 0:
+    return 0, np.nan, 0, np.nan
+
+  sum_ = sum(vector)
+  _max = np.max(vector)
+  nonzeros_count = len(np.nonzero(vector)[0])
+  confidence = 0
+
+  if nonzeros_count > 0:
+    confidence = sum_ / nonzeros_count
+
+  return confidence, sum_, nonzeros_count, _max
+
+
+AV_SOFT = 'soft$.'
+AV_PREFIX = '$at_'
+
+from structures import OrgStructuralLevel
+
+class PatternSearchResult():
+  def __init__(self, org_level:OrgStructuralLevel, region):
+    assert region.stop - region.start > 0
+
+    self.org_level:OrgStructuralLevel = org_level
+
+    self.pattern_prefix: str = None
+    self.attention_vector_name: str = None
+    self.parent  = None # 'LegalDocument'
+    self.confidence: float = 0
+    self.region: slice = region
+
+    self.subject_mapping = {
+      'subj': ContractSubject.Other,
+      'confidence': 0
+    }
+
+    self.constraints: List[ValueConstraint] = []
+
+
+  def get_index(self):
+    return self.region.start
+
+  def get_attention(self, name=None):
+    if name is None:
+      return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
+    else:
+      return self.parent.distances_per_pattern_dict[name][self.region]
+
+  def get_tokens(self):
+    return self.parent.tokens[self.region]
+
+  key_index = property(get_index)
+  tokens = property(get_tokens)
+
+
+class ConstraintsSearchResult:
+
+  def __init__(self):
+    print(WARN+'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
+    self.constraints: List[ValueConstraint] = []
+    self.subdoc: PatternSearchResult = None
+
+  def get_context(self) -> PatternSearchResult:  # alias
+    return self.subdoc
+
+  context = property(get_context)
+
+
+PatternSearchResults = List[PatternSearchResult]

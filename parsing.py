@@ -1,7 +1,7 @@
 import time
 from functools import wraps
 
-from renderer import AbstractRenderer
+from structures import ContractSubject
 
 PROF_DATA = {}
 
@@ -48,15 +48,11 @@ class ParsingSimpleContext:
 
 
 class ParsingContext(ParsingSimpleContext):
-  def __init__(self, embedder, renderer: AbstractRenderer):
+  def __init__(self, embedder):
     ParsingSimpleContext.__init__(self)
     assert embedder is not None
-    assert renderer is not None
-    self.renderer = renderer
+
     self.embedder = embedder
-
-
-
 
 
 def profile(fn):
@@ -99,3 +95,8 @@ head_types_dict = {'head.directors': 'Совет директоров',
                    'head.pravlenie': 'Правление общества',
                    'head.unknown': '*Неизвестный орган управления*'}
 head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
+
+known_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Lawsuit]

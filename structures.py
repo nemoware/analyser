@@ -28,6 +28,17 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
   CEO = 1,                        'Генеральный директор'
   BoardOfCompany = 0,             'Правление общества'
 
+ORG_2_ORG = {
+  'all': OrgStructuralLevel.ShareholdersGeneralMeeting,
+  'gen':OrgStructuralLevel.CEO,
+  'directors':OrgStructuralLevel.BoardOfDirectors,
+  'pravlenie':OrgStructuralLevel.BoardOfCompany,
+  'head.all': OrgStructuralLevel.ShareholdersGeneralMeeting,
+  'head.gen':OrgStructuralLevel.CEO,
+  'head.directors':OrgStructuralLevel.BoardOfDirectors,
+  'head.pravlenie':OrgStructuralLevel.BoardOfCompany
+}
+
 @unique
 class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   Deal = 0,       'Сделка'
@@ -135,6 +146,7 @@ class FinalViolationLog:
 
   def render(self):
     pass
+
 
 if __name__ == '__main__':
   l = [

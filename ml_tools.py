@@ -280,7 +280,7 @@ def rectifyed_sum(vectors, relu_th: float = 0.0):
 def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> List[List[float]]:
   vectors = []
   for p in dictionary:
-    if p.startswith(prefix):
+    if str(p).startswith(prefix):
       x = dictionary[p]
       vectors.append(x)
   return vectors

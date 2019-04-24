@@ -26,8 +26,8 @@ default_contract_parsing_config.headline_attention_threshold = 0.9
 
 class ContractAnlysingContext(ParsingContext):
   def __init__(self, embedder, renderer: AbstractRenderer):
-    ParsingContext.__init__(self, embedder, renderer)
-
+    ParsingContext.__init__(self, embedder)
+    self.renderer:AbstractRenderer =  renderer
     self.pattern_factory = ContractPatternFactory(embedder)
 
 
