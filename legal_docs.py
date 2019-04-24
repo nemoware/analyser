@@ -657,6 +657,22 @@ class CharterDocument(LegalDocument):
   def __init__(self, original_text, name="charter"):
     LegalDocument.__init__(self, original_text, name)
 
+    self.charity_constraints = {}
+    self.value_constraints = {}
+
+    # TODO:remove it
+    self._charity_constraints_old = {}
+    self._value_constraints_old = {}
+
+  def get_constraints_old(self):
+    return {**self._charity_constraints_old, **self._value_constraints_old}
+
+  def get_constraints(self):
+    return {**self.charity_constraints, **self.value_constraints}
+
+  constraints = property(get_constraints)
+  constraints_old = property(get_constraints_old)
+
   def tokenize(self, _txt):
     return tokenize_text(_txt)
 

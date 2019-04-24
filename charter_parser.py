@@ -1,7 +1,8 @@
 # origin: charter_parser.py
 
-from charter_patterns import find_sentences_by_pattern_prefix, make_constraints_attention_vectors
-from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, extract_all_contraints_from_sentence, deprecated, \
+from charter_patterns import make_constraints_attention_vectors
+from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, extract_all_contraints_from_sentence, \
+  deprecated, \
   extract_all_contraints_from_sr
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
@@ -12,6 +13,8 @@ from structures import *
 from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 from violations import ViolationsFinder
+
+WARN = '\033[1;31m'
 
 
 class CharterConstraintsParser(ParsingSimpleContext):
@@ -108,8 +111,6 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     self.org = None
     self.doc = None
-    self.constraints = None
-    self.charity_constraints = None
 
     self.violations_finder = ViolationsFinder()
 
@@ -140,12 +141,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     self.org = self.ners()
 
     """ 3. CONSTRAINTS 💰 💵 ==== ️"""
-    self.constraints = self.find_contraints_2()
-
-    """ 3. CHARITY 🙏  🤚 🚑  ==== ️"""
-    self.charity_constraints = find_sentences_by_pattern_prefix(self.pattern_factory,
-                                                                self._get_head_sections(),
-                                                                f'x_{ContractSubject.Charity}')
+    self.find_contraints_2()
 
     ##----end, logging, closing
     self.verbosity_level = 1
@@ -215,55 +211,83 @@ class CharterDocumentParser(CharterConstraintsParser):
     # 5. extract constraint values
     sections_filtered = self._get_head_sections()
 
-    constraints_by_head_type = {}
-
     for section_name in sections_filtered:
       section = sections_filtered[section_name].body
+      value_constraints, charity_constraints, all_margin_values, charity_constraints = self._find_constraints_in_section(section)
 
-      for subj in known_subjects:
-        pattern_prefix = f'x_{subj}'
-        attention, attention_vector_name = section.make_attention_vector(self.pattern_factory, pattern_prefix)
+      self.charter._charity_constraints_old[section_name] = charity_constraints
+      self.charter._value_constraints_old[section_name] = value_constraints
 
+      self.charter.charity_constraints[section_name] = charity_constraints
+      self.charter.value_constraints[section_name] = all_margin_values
 
-      s_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
-      # s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
-      #                                                                             f'x_{ContractSubject.Lawsuit}')
+    return self.charter.constraints
 
-      # s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
+  def _find_constraints_in_section(self, section):
+    for subj in known_subjects:
+      pattern_prefix = f'x_{subj}'
+      attention, attention_vector_name = section.make_attention_vector(self.pattern_factory, pattern_prefix)
 
-      self.map_to_subject( s_values)
+    # TODO: try 'margin_value' prefix also
+    # searching for everything having a numeric value
+    all_margin_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory, 'sum__')
 
-      constraints: List[ConstraintsSearchResult] = self.__extract_constraint_values_from_sr(s_values)
+    # s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
+    #                                                                             f'x_{ContractSubject.Lawsuit}')
 
-      constraints_by_head_type[section_name] = constraints
+    # s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
 
-    return constraints_by_head_type
+    charity_constraints = section.find_sentences_by_pattern_prefix(self.pattern_factory, f'x_{ContractSubject.Charity}')
 
-  def map_to_subject(self, s_values: List[PatternSearchResult]):
+    self.map_to_subject(all_margin_values)
+    self.map_to_subject(charity_constraints)
+    # TODO: if a PatternSearchResult in both charity_constraints & s_values,
+    # TODO:    this may re-write the found subject type
+
+    constraints_a: List[ConstraintsSearchResult] = self.__extract_constraint_values_from_sr(all_margin_values)
+    constraints_b: List[ConstraintsSearchResult] = self.__extract_constraint_values_from_sr(charity_constraints)
+
+    return constraints_a, constraints_b, all_margin_values, charity_constraints  # TODO: hope there is no intersection
+
+  def get_constraints(self):
+    print(WARN + f'CharterParser.constraints are deprecated ☠️! \n Use CharterDocument.value_constraints')
+    return self.charter.constraints_old
+
+  def get_charity_constraints(self):
+    print(WARN + f'CharterParser.harity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints')
+    return self.charter._charity_constraints_old
+
+  def get_charter(self):
+    return self.doc
+
+  charity_constraints = property(get_charity_constraints)
+  constraints = property(get_constraints)
+  charter = property(get_charter)
+
+  def map_to_subject(self, psearch_results: List[PatternSearchResult]):
     from patterns import estimate_confidence
 
-    for psr in s_values:
+    for psearch_result in psearch_results:
       _max_subj = ContractSubject.Other
       _max_conf = 0.001
 
       for subj in known_subjects:
         pattern_prefix = f'x_{subj}'
 
-        v = psr.get_attention(AV_PREFIX + pattern_prefix)
+        v = psearch_result.get_attention(AV_PREFIX + pattern_prefix)
         confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
 
         if confidence > _max_conf:
           _max_conf = confidence
           _max_subj = subj
 
-      psr.subject_mapping={
-        'confidence':_max_conf,
-        'subj':_max_subj
+      psearch_result.subject_mapping = {
+        'confidence': _max_conf,
+        'subj': _max_subj
       }
 
   def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
     """
-
     :type sentenses_i: PatternSearchResults
     """
     if sentenses_i is None or len(sentenses_i) == 0:
@@ -273,11 +297,14 @@ class CharterDocumentParser(CharterConstraintsParser):
     for pattern_sr in sentenses_i:
       constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
 
+      #todo: ConstraintsSearchResult is deprecated
       csr = ConstraintsSearchResult()
       csr.subdoc = pattern_sr
       csr.constraints = constraints
 
+      pattern_sr.constraints = constraints
       sentences.append(csr)
+
     return sentences
 
   def _do_nothing(self, head, a, b):
@@ -390,5 +417,3 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   meta_pattern.embeddings = np.array([best_embedding_v])
 
   return meta_pattern, confidence, best_id
-
-

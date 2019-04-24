@@ -21,6 +21,8 @@ import numpy as np
 
 import sys
 
+WARN='\033[1;31m======== Dear Artem, ACHTUNG'
+
 russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
 save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
 if sys.version_info[0] < 3:
@@ -402,6 +404,7 @@ AV_PREFIX = '$at_'
 class PatternSearchResult():
   def __init__(self, region):
     assert region.stop - region.start > 0
+
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
     self.parent: 'LegalDocument' = None
@@ -412,6 +415,9 @@ class PatternSearchResult():
       'subj': ContractSubject.Other,
       'confidence': 0
     }
+
+    self.constraints: List[ValueConstraint] = []
+
 
   def get_index(self):
     return self.region.start
@@ -430,7 +436,9 @@ class PatternSearchResult():
 
 
 class ConstraintsSearchResult:
+
   def __init__(self):
+    print(WARN+'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
     self.constraints: List[ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
