@@ -23,8 +23,9 @@ org_level_colors = {OrgStructuralLevel.BoardOfDirectors: 'crimson',
 
 known_subjects_dict = {
   ContractSubject.Charity: 'Благотворительность',
-  ContractSubject.RealEstate: "Сделки с имушеством",
-  ContractSubject.Lawsuit: "Судебные споры"
+  ContractSubject.RealEstate: "Сделки с имуществом",
+  ContractSubject.Lawsuit: "Судебные споры",
+  ContractSubject.Deal: "Соверщение сделки"
 }
 
 org_level_dict = {OrgStructuralLevel.BoardOfDirectors: 'Совет директоров',
