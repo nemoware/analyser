@@ -25,7 +25,8 @@ known_subjects_dict = {
   ContractSubject.Charity: 'Благотворительность',
   ContractSubject.RealEstate: "Сделки с имуществом",
   ContractSubject.Lawsuit: "Судебные споры",
-  ContractSubject.Deal: "Соверщение сделки"
+  ContractSubject.Deal: "Совершение сделки",
+  ContractSubject.Other: "Прочее"
 }
 
 org_level_dict = {OrgStructuralLevel.BoardOfDirectors: 'Совет директоров',
