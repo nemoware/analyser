@@ -183,6 +183,7 @@ class HtmlRenderer(AbstractRenderer):
     return html
 
   def render_constraint_values(self, doc, rz, charity_constraints):
+
     print(WARN + f'{self.render_constraint_values} is deprecated, use {self.render_constraint_values_2}')
     from legal_docs import ConstraintsSearchResult
 
@@ -246,16 +247,12 @@ class HtmlRenderer(AbstractRenderer):
     return html
 
   def _render_sentence_2(self, search_result: PatternSearchResult):
-    print(WARN + f'{self._render_sentence} is deprecated, use {self._render_sentence_2}')
     html = ""
     constraints: List[ValueConstraint] = search_result.constraints
 
     html += "<br>"
     for probable_v in constraints:
       html += self.value_to_html(probable_v.value)
-
-    if len(constraints) == 0:
-      return html
 
     html += '<div style="border-bottom:1px solid #ccc; margin-top:1em"></div>'
 
@@ -291,7 +288,11 @@ class HtmlRenderer(AbstractRenderer):
     return html
 
   def _render_sentence(self, sentence: ConstraintsSearchResult):
+    # TODO: remove
+    # ===========
     print(WARN + f'{self._render_sentence} is deprecated, use {self._render_sentence_2}')
+    # ===========
+
     html = ""
     constraints: List[ValueConstraint] = sentence.constraints
 

@@ -34,6 +34,8 @@ class ValueConstraint:
     self.context: TokensWithAttention = context
 
 
+
+
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
   r'(\d+([., ]\d+)*)'  # digits
