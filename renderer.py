@@ -230,22 +230,16 @@ class HtmlRenderer(AbstractRenderer):
       html += f'<h2 style="color:{org_level_colors[level]}; ' \
               f'padding:0; margin:0">{org_level_dict[level]}</h2>'
 
-      # html += as_quote(r_by_head_type.)
-
-      # charity_constraints_by_head = charity_constraints[head_type]
-
       html_i = ''
-      # html_i += self.html_charity_constraints_by_head(charity_constraints_by_head)
+      html_i += as_headline_3('Компетенции (и пороговые суммы):')
 
-      if True:
-        html_i += as_headline_3('Компетенции (и пороговые суммы):')
+      rendered = 0
+      for constraint_search_result in constraint_search_results:
+        rendered += 1
+        html_i += self._render_sentence_2(constraint_search_result)
 
-        if len(constraint_search_results) > 0:
-          for constraint_search_result in constraint_search_results:
-            html_i += self._render_sentence_2(constraint_search_result)
-
-        else:
-          html_i += as_error_html('Ограничения и пороговые суммы не обнаружены или не заданы')
+      if rendered == 0:
+        html_i += as_warning('Ограничения и пороговые суммы не обнаружены или не заданы')
 
       html += as_offset(html_i)
 

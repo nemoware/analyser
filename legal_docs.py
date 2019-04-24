@@ -672,9 +672,10 @@ class CharterDocument(LegalDocument):
 
   constraints_old = property(get_constraints_old)
 
-  def constraints_by_org_level(self, org_level: OrgStructuralLevel) -> List[PatternSearchResult]:
+  def constraints_by_org_level(self, org_level: OrgStructuralLevel, constraint_subj: ContractSubject = None) -> List[
+    PatternSearchResult]:
     for p in self._constraints:
-      if p.org_level is org_level:
+      if p.org_level is org_level and (constraint_subj is None or p.subject_mapping['subj'] == constraint_subj):
         yield p
 
   def tokenize(self, _txt):
