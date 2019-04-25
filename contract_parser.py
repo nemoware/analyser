@@ -165,12 +165,12 @@ class ContractAnlysingContext(ParsingContext):
 
     else:
       self.warning('раздел о предмете договора не найден')
-      try:
-        self.warning('ищем предмет договора в первых 1500 словах')
-        self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)))
-      except:
-        self.warning('поиск предмета договора полностью провален!')
-        return [ProbableValue(ContractSubject.Other, 0.0)]
+      # try:
+      self.warning('ищем предмет договора в первых 1500 словах')
+      self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)))
+      # except:
+      #   self.warning('поиск предмета договора полностью провален!')
+      #   return [ProbableValue(ContractSubject.Other, 0.0)]
 
   def fetch_value_from_contract(self, contract: LegalDocument) -> List[ProbableValue]:
 
