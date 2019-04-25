@@ -115,7 +115,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
   def analyze_charter(self, txt, verbose=False):
     """
-    🚀
+    🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀
     :param txt:
     """
 
@@ -212,6 +212,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     for section_name in sections_filtered:
       section = sections_filtered[section_name].body
+
       value_constraints, charity_constraints, all_margin_values, charity_constraints = self._find_constraints_in_section(
         org_level=section_name, section=section)
 
