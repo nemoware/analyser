@@ -140,7 +140,12 @@ class ContractAnlysingContext(ParsingContext):
 
     return x
 
-  def map_subject_to_type(self, section: LegalDocument):
+  def map_subject_to_type(self, section: LegalDocument, denominator: float = 1) -> List[ProbableValue]:
+    """
+    :param section:
+    :param denominator: confidence multiplyer
+    :return:
+    """
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
     all_mean = rectifyed_sum(all_subjects_vectors)
@@ -149,12 +154,13 @@ class ContractAnlysingContext(ParsingContext):
     for subject_kind in contract_subjects:
       x = self.make_subject_attention_vector_3(section, subject_kind, all_mean)
       confidence, sum_, nonzeros_count, _max = estimate_confidence(x)
+      confidence *= denominator
       pv = ProbableValue(subject_kind, confidence)
       subjects_mapping.append(pv)
 
     return subjects_mapping
 
-  def recognize_subject(self, doc):
+  def recognize_subject(self, doc) -> List[ProbableValue]:
 
     if 'subj' in doc.sections:
       subj_section = doc.sections['subj']
@@ -165,12 +171,13 @@ class ContractAnlysingContext(ParsingContext):
 
     else:
       self.warning('раздел о предмете договора не найден')
-      try:
-        self.warning('ищем предмет договора в первых 1500 словах')
-        self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)))
-      except:
-        self.warning('поиск предмета договора полностью провален!')
-        return [ProbableValue(ContractSubject.Other, 0.0)]
+      # try:
+      self.warning('ищем предмет договора в первых 1500 словах')
+
+      return self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)), denominator=0.7)
+      # except:
+      #   self.warning('поиск предмета договора полностью провален!')
+      #   return [ProbableValue(ContractSubject.Other, 0.0)]
 
   def fetch_value_from_contract(self, contract: LegalDocument) -> List[ProbableValue]:
 
@@ -201,7 +208,7 @@ class ContractAnlysingContext(ParsingContext):
         renderer.render_value_section_details(value_section_info)
         self._logstep(f'searching for transaction values in section  "{ section_name }"')
         # ------------
-        value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
+        # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
     else:
       self.warning('Раздел про стоимость сделки не найден!')
 
@@ -243,7 +250,7 @@ class ContractAnlysingContext(ParsingContext):
         # ------------
         for _r in result:
           _r.confidence *= 0.7
-        value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
+        # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
         if len(result) == 0:
           self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
 
@@ -260,7 +267,7 @@ class ContractAnlysingContext(ParsingContext):
       # decrease confidence:
       for _r in result:
         _r.confidence *= 0.6
-      value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
+      # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
 
     return result
 
