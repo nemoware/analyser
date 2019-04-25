@@ -85,6 +85,8 @@ class TestTextNormalization(unittest.TestCase):
         self._testNorm('в 2019  г. в г.  Урюпинск снег', 'в 2019 год в г. Урюпинск снег')
         self._testNorm('в 19г. в г.  Урюпинск снег', 'в 19 г. в г. Урюпинск снег')
 
+        self._testNorm('в г. Урюпинск снег 15(!!!) дюймов', 'в г. Урюпинск снег 15 (!!!) дюймов')
+
         self._testNorm('не позднее20 дней', 'не позднее 20 дней')
 
     def testSpace2(self):
@@ -94,6 +96,8 @@ class TestTextNormalization(unittest.TestCase):
         self._testNorm('Предложение  , в котором', 'Предложение, в котором')
         self._testNorm('Предложение  \n\n, в котором', 'Предложение, в котором')
         self._testNorm('Предложение  . Предложение. .25', 'Предложение. Предложение. 0.25')
+
+        self._testNorm('пункт 2.12', 'пункт 2.12')
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
