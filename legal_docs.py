@@ -431,7 +431,7 @@ class LegalDocument(EmbeddableText):
     return sparse_words
 
   def reset_embeddings(self):
-
+    print ('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
     del self.embeddings
     self.embeddings = None
     gc.collect()

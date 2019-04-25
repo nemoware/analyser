@@ -201,7 +201,7 @@ class ContractAnlysingContext(ParsingContext):
         renderer.render_value_section_details(value_section_info)
         self._logstep(f'searching for transaction values in section  "{ section_name }"')
         # ------------
-        value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
+        # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
     else:
       self.warning('Раздел про стоимость сделки не найден!')
 
@@ -243,7 +243,7 @@ class ContractAnlysingContext(ParsingContext):
         # ------------
         for _r in result:
           _r.confidence *= 0.7
-        value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
+        # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
         if len(result) == 0:
           self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
 
@@ -260,7 +260,7 @@ class ContractAnlysingContext(ParsingContext):
       # decrease confidence:
       for _r in result:
         _r.confidence *= 0.6
-      value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
+      # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
 
     return result
 
