@@ -302,7 +302,7 @@ def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vec
     return len(string[:index].split(' '))
 
   sentence = ' '.join(search_result.tokens)
-  print("SENT:", sentence)
+  # print("SENT:", sentence)
   all_values = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
   constraints: List[ProbableValue] = []
 
