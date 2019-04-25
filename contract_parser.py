@@ -136,7 +136,7 @@ class ContractAnlysingContext(ParsingContext):
     section.distances_per_pattern_dict[attention_vector_name] = x
 
     #   x = x-np.mean(x)
-    x = relu(x, 0.5)
+    x = relu(x, 0.6)
 
     return x
 
