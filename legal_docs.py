@@ -864,19 +864,20 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 from transaction_values import complete_re
 
 
-def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[
+def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector: List[float]) -> List[
   ProbableValue]:
-  def tokens_before_index(string, index):
+
+  def __tokens_before_index(string, index):
     return len(string[:index].split(' '))
 
   sentence = ' '.join(search_result.tokens)
-  all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
+  all_values = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
   constraints: List[ProbableValue] = []
 
-  for a in all:
+  for a in all_values:
     # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
-    token_index_s = tokens_before_index(sentence, a.start) - 1
-    token_index_e = tokens_before_index(sentence, a.stop)
+    token_index_s = __tokens_before_index(sentence, a.start) - 1
+    token_index_e = __tokens_before_index(sentence, a.stop)
 
     region = slice(token_index_s, token_index_e)
 
@@ -1005,7 +1006,7 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
-def extract_sum_and_sign_3(sr: PatternSearchResult, region: slice) -> ValueConstraint:
+def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = sr.tokens[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
