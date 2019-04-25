@@ -1,11 +1,12 @@
 from typing import List
 
 from contract_patterns import ContractPatternFactory
-from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated
+from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
+  extract_sum_and_sign_3, _expand_slice
 from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
-  rectifyed_sum
+  rectifyed_sum, TokensWithAttention
 from parsing import ParsingConfig, ParsingContext
-from patterns import AV_SOFT, AV_PREFIX, estimate_confidence
+from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import ContractSubject
@@ -136,9 +137,12 @@ class ContractAnlysingContext(ParsingContext):
     section.distances_per_pattern_dict[attention_vector_name] = x
 
     #   x = x-np.mean(x)
-    x = relu(x, 0.5)
+    x = relu(x, 0.6)
 
     return x
+
+  def estimate_confidence_2(self, x):
+    return np.mean(sorted(x)[-10:])
 
   def map_subject_to_type(self, section: LegalDocument, denominator: float = 1) -> List[ProbableValue]:
     """
@@ -153,7 +157,8 @@ class ContractAnlysingContext(ParsingContext):
     subjects_mapping = []
     for subject_kind in contract_subjects:
       x = self.make_subject_attention_vector_3(section, subject_kind, all_mean)
-      confidence, sum_, nonzeros_count, _max = estimate_confidence(x)
+      # confidence, sum_, nonzeros_count, _max = estimate_confidence(x)
+      confidence = self.estimate_confidence_2(x)
       confidence *= denominator
       pv = ProbableValue(subject_kind, confidence)
       subjects_mapping.append(pv)
@@ -200,7 +205,7 @@ class ContractAnlysingContext(ParsingContext):
       value_section_info: HeadlineMeta = sections['price.']
       value_section = value_section_info.body
       section_name = value_section_info.subdoc.untokenize_cc()
-      result = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+      result = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
       if len(result) == 0:
         self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
 
@@ -220,7 +225,7 @@ class ContractAnlysingContext(ParsingContext):
         value_section = value_section_info.body
         section_name = value_section_info.subdoc.untokenize_cc()
         print(f'- Ищем стоимость в разделе { section_name }')
-        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
 
         # decrease confidence:
         for _r in result:
@@ -242,7 +247,7 @@ class ContractAnlysingContext(ParsingContext):
         value_section = value_section_info.body
         section_name = value_section_info.subdoc.untokenize_cc()
         print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
-        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
         if self.verbosity_level > 0:
           print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
@@ -259,7 +264,7 @@ class ContractAnlysingContext(ParsingContext):
 
       #     trying to find sum in the entire doc
       value_section = contract
-      result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section(value_section, price_factory))
+      result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
       if self.verbosity_level > 1:
         print('ENTIRE DOC', '--' * 70)
         self._logstep(f'searching for transaction values in the entire document')
@@ -272,7 +277,56 @@ class ContractAnlysingContext(ParsingContext):
     return result
 
 
-def _try_to_fetch_value_from_section(value_section: LegalDocument, factory: ContractPatternFactory) -> List[
+def _try_to_fetch_value_from_section_2(value_section: LegalDocument, factory: ContractPatternFactory) -> List[
+  ProbableValue]:
+  value_section.calculate_distances_per_pattern(factory)
+
+  vectors = factory.make_contract_value_attention_vectors(value_section)
+
+  value_section.distances_per_pattern_dict = {**value_section.distances_per_pattern_dict, **vectors}
+
+  values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section,
+                                                                 value_section.distances_per_pattern_dict[
+                                                                   'value_attention_vector_tuned'])
+
+  return values
+
+
+from transaction_values import complete_re
+import re
+
+
+def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vector: List[float]) -> List[
+  ProbableValue]:
+  def __tokens_before_index(string, index):
+    return len(string[:index].split(' '))
+
+  sentence = ' '.join(search_result.tokens)
+  # print("SENT:", sentence)
+  all_values = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
+  constraints: List[ProbableValue] = []
+
+  for a in all_values:
+    # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
+    token_index_s = __tokens_before_index(sentence, a.start) - 1
+    token_index_e = __tokens_before_index(sentence, a.stop)
+
+    region = slice(token_index_s, token_index_e)
+
+    print('REG:', ' '.join(search_result.tokens[region]))
+
+    vc = extract_sum_and_sign_3(search_result, region)
+    _e = _expand_slice(region, 10)
+    vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
+    confidence = attention_vector[region.start]
+    pv = ProbableValue(vc, confidence)
+
+    constraints.append(pv)
+
+  return constraints
+
+
+def _try_to_fetch_value_from_section___(value_section: LegalDocument, factory: ContractPatternFactory) -> List[
   ProbableValue]:
   # value_section.embedd(factory)
   value_section.calculate_distances_per_pattern(factory)
