@@ -5,7 +5,7 @@ from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_
 from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
   rectifyed_sum
 from parsing import ParsingConfig, ParsingContext
-from patterns import AV_SOFT, AV_PREFIX, estimate_confidence
+from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import ContractSubject
@@ -140,6 +140,9 @@ class ContractAnlysingContext(ParsingContext):
 
     return x
 
+  def estimate_confidence_2(self, x):
+    return np.mean(sorted(x)[-10:])
+
   def map_subject_to_type(self, section: LegalDocument, denominator: float = 1) -> List[ProbableValue]:
     """
     :param section:
@@ -153,7 +156,8 @@ class ContractAnlysingContext(ParsingContext):
     subjects_mapping = []
     for subject_kind in contract_subjects:
       x = self.make_subject_attention_vector_3(section, subject_kind, all_mean)
-      confidence, sum_, nonzeros_count, _max = estimate_confidence(x)
+      # confidence, sum_, nonzeros_count, _max = estimate_confidence(x)
+      confidence = self.estimate_confidence_2(x)
       confidence *= denominator
       pv = ProbableValue(subject_kind, confidence)
       subjects_mapping.append(pv)
