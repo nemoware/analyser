@@ -140,7 +140,7 @@ class ContractAnlysingContext(ParsingContext):
 
     return x
 
-  def map_subject_to_type(self, section: LegalDocument):
+  def map_subject_to_type(self, section: LegalDocument) -> List[ProbableValue]:
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
     all_mean = rectifyed_sum(all_subjects_vectors)
@@ -154,7 +154,7 @@ class ContractAnlysingContext(ParsingContext):
 
     return subjects_mapping
 
-  def recognize_subject(self, doc):
+  def recognize_subject(self, doc) -> List[ProbableValue]:
 
     if 'subj' in doc.sections:
       subj_section = doc.sections['subj']
@@ -167,7 +167,7 @@ class ContractAnlysingContext(ParsingContext):
       self.warning('раздел о предмете договора не найден')
       # try:
       self.warning('ищем предмет договора в первых 1500 словах')
-      self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)))
+      return self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)))
       # except:
       #   self.warning('поиск предмета договора полностью провален!')
       #   return [ProbableValue(ContractSubject.Other, 0.0)]
