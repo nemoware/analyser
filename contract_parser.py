@@ -357,7 +357,7 @@ def match_contractor_aliases(_av, relu_th=0.9):
   alias_matcher.after('_quotes_open', 5, 0.5).before('_quotes_closing', 5, 0.5)
   alias_matcher.before('_deal_side_*', 5, 0.5)
 
-  alias_attention = alias_matcher.compile(p_threshold=0.4)
+  alias_attention = alias_matcher.compile(p_threshold=0.5)
 
   alias_attention = relu(alias_attention, relu_th)
   return alias_attention

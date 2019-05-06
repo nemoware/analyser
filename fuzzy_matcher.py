@@ -153,7 +153,7 @@ class FuzzyMatcher:
 
     return v
 
-  def extract_name(self, attention: FixedVector, tokens: Tokens) -> [slice]:
+  def extract_name(self, attention: FixedVector, tokens: Tokens, cut_threshold = 2) -> [slice]:
     best_indices = []
     #     best_indices = sorted(np.argsort(attention)[::-1][:20])
 
@@ -165,7 +165,7 @@ class FuzzyMatcher:
     if len(best_indices) == 0:
       return []
 
-    cut_threshold = 2
+
     slices = group_indices(best_indices, cut_threshold)
 
     _dict = {}
