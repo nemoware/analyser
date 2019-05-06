@@ -1,6 +1,7 @@
 from typing import List
 
 from contract_patterns import ContractPatternFactory
+from fuzzy_matcher import FuzzyMatcher
 from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
   extract_sum_and_sign_3, _expand_slice
 from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
@@ -342,3 +343,44 @@ def _try_to_fetch_value_from_section___(value_section: LegalDocument, factory: C
                                                                        'value_attention_vector_tuned'])
 
   return values
+
+
+def match_contractor_aliases(_av, relu_th=0.9):
+  alias_matcher = FuzzyMatcher(_av)
+
+  alias_matcher.after('_named_*', 10, 1)
+  alias_matcher.before('_in_face*', 5, 0.8)
+  alias_matcher.excluding('_named_*')
+  alias_matcher.excluding('_punkt')
+  alias_matcher.including('_alias_*')
+
+  alias_matcher.after('_quotes_open', 5, 0.5).before('_quotes_closing', 5, 0.5)
+  alias_matcher.before('_deal_side_*', 5, 0.5)
+
+  alias_attention = alias_matcher.compile(p_threshold=0.4)
+
+  alias_attention = relu(alias_attention, relu_th)
+  return alias_attention
+
+
+def make_company_names_fm(_av, relu_th=0.9):
+  alias_attention = match_contractor_aliases(_av, relu_th)
+  _av.add('alias_attention', alias_attention)
+
+  _fm = FuzzyMatcher(_av)
+  _fm.after('org_*', 20, 0.8)
+  _fm.before('_named_*', 20, 0.6)
+
+  _fm.before('_in_face*', 15, 0.5)
+  #   _fm.before('_deal_side_*', 5, 0.5)
+
+  _fm.after('_quotes_open', 5, 0.5).before('_quotes_closing', 5, 0.5).excluding('_punkt')
+  _fm.excluding('alias_attention')
+  _fm.excluding('org_*')
+  _fm.excluding('_named_*')
+  _fm.excluding('_in_face*')
+  _fm.excluding('_place*')
+
+  attention = _fm.compile(bias=0, p_threshold=0.5)
+  attention = relu(attention, relu_th)
+  return _fm, attention, alias_attention

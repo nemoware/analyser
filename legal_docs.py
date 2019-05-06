@@ -498,6 +498,7 @@ class ContractDocument(LegalDocument):
 @deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
+  vectors = [x for x in vectors]
   return rectifyed_sum(vectors, relu_th), len(vectors)
 
 
@@ -976,10 +977,12 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 
 org_types = {
   'org_unknown': 'undefined',
-  'org_ao': 'Акционерное общество',
+  'org_ao':  'Акционерное общество',
   'org_zao': 'Закрытое акционерное общество',
   'org_oao': 'Открытое акционерное общество',
-  'org_ooo': 'Общество с ограниченной ответственностью'}
+  'org_ooo': 'Общество с ограниченной ответственностью',
+  'org_nc':  'Некоммерческая организация'
+}
 
 
 def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: AbstractPatternFactory,

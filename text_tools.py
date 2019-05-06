@@ -244,3 +244,33 @@ def min_index_per_row(rows):
     indexes.append(np.argmin(row))
 
   return indexes
+
+
+def hot_quotes(tokens: Tokens) -> (np.ndarray, np.ndarray):
+  q_re_open = '\'\"«<{['
+  q_re_close = '\'\"»>]'
+  _quotes_open = np.zeros(len(tokens))
+  _quotes_closing = np.zeros(len(tokens))
+
+  quotes_attention = 1
+  for i in range(len(tokens)):
+    if tokens[i][0] in q_re_open:
+      _quotes_open[i] = quotes_attention
+    if tokens[i][0] in q_re_close:
+      _quotes_closing[i] = quotes_attention
+
+  return _quotes_open, _quotes_closing
+
+
+def hot_punkt(tokens: Tokens) -> np.ndarray:
+  _hot_punkt = np.zeros(len(tokens))
+
+  for i in range(len(tokens)):
+    if tokens[i][0] in my_punctuation + '–«»()[] ':
+      _hot_punkt[i] = 1
+
+  return _hot_punkt
+
+
+def acronym(n):
+  return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()

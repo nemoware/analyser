@@ -34,7 +34,7 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     for subj in known_subjects:
       if subj is not ContractSubject.Other:
         pb = filter_values_by_key_prefix(self.patterns_dict, f'x_{subj}')
-        assert len(pb) > 0, subj
+ 
 
     self.embedd()
 
