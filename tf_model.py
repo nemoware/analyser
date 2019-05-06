@@ -23,16 +23,6 @@ class PatternSearchModel:
     self.embedding_session = None
     self.make_embedding_session_and_graph()
 
-  def _center_weighted(self, x, weights):
-    # todo reduce sum or reduce mean? Does not matter because we normalize it
-    tf = self.tf
-
-    _weighted = tf.multiply(x, tf.expand_dims(weights, -1, name="expanded"), name='weighted')
-    _weighted_sum = self.tf.reduce_sum(_weighted, axis=0, name='weighted_sum')
-
-    _total_weight = self.tf.reduce_sum(weights, axis=0, name='total_weight')
-    return _weighted_sum / _total_weight
-
   def _center(self, x):
     return self.tf.reduce_mean(x, axis=0)
 
@@ -51,8 +41,6 @@ class PatternSearchModel:
     self.text_input = tf.placeholder(dtype=tf.string, name="text_input")
     self.text_lengths = tf.placeholder(dtype=tf.int32, name='text_lengths')
 
-    self.mask = tf.placeholder(dtype=tf.float32, name='p_weights')
-
     self.pattern_input = tf.placeholder(dtype=tf.string, name='pattern_input')
     self.pattern_lengths = tf.placeholder(dtype=tf.int32, name='pattern_lengths')
     self.pattern_slices = tf.placeholder(dtype=tf.int32, name='pattern_slices', shape=[None, 2])
@@ -62,7 +50,6 @@ class PatternSearchModel:
 
     number_of_patterns = tf.shape(self.pattern_input)[0]
 
-    self.weights_padded = self._pad_tensor(self.mask, patterns_max_len, tf.constant([0.001]), name='weights_padded')
     text_input_padded = [
       self._pad_tensor(self.text_input[0], patterns_max_len, tf.constant(['\n']), name='text_input_ext')]
 
@@ -81,7 +68,7 @@ class PatternSearchModel:
 
     self.cosine_similarities = tf.map_fn(
       lambda i: self.for_every_pattern((self.pattern_lengths[i], self.pattern_slices[i], _patterns_embeddings[i]),
-                                       _text_embedding, self.weights_padded,
+                                       _text_embedding,
                                        text_range), patterns_range, dtype=tf.float32, name='cosine_similarities')
 
     def improve_dist(attention_vector, pattern_len):
@@ -91,7 +78,7 @@ class PatternSearchModel:
       max_i = tf.math.argmax(attention_vector, output_type=tf.dtypes.int32)
       best_embedding_range = _text_embedding[max_i:max_i + pattern_len]  # metapattern
 
-      return self._convolve(text_range, _text_embedding, weights=self.weights_padded, pattern_emb_sliced=best_embedding_range,
+      return self._convolve(text_range, _text_embedding, pattern_emb_sliced=best_embedding_range,
                             name='improving')
 
     def find_best_embeddings():
@@ -104,15 +91,15 @@ class PatternSearchModel:
     unpadded_text_embedding_ = self._embed(elmo,
                                            self.text_input,
                                            [self.text_lengths[0]])[0]
-    text_center = self._center_weighted(unpadded_text_embedding_, self.mask)
+    text_center = self._center(unpadded_text_embedding_)
     self.distances_to_center = tf.map_fn(
-      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1], self.mask[i:i + 1],
+      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1],
                                                   text_center),
       text_range, dtype=tf.float32)
     word_text_center_i = tf.math.argmax(self.distances_to_center, output_type=tf.dtypes.int32)
     word_text_center = unpadded_text_embedding_[word_text_center_i]
     self.distances_to_local_center = tf.map_fn(
-      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1], self.mask[i:i + 1],
+      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1],
                                                   word_text_center), text_range, dtype=tf.float32)
 
   @staticmethod
@@ -136,19 +123,19 @@ class PatternSearchModel:
     b_norm = self._normalize(b)  # DO WE? TODO: try different norm
     return 1.0 - self.tf.losses.cosine_distance(a_norm, b_norm, axis=0)  # TODO: how on Earth Cosine could be > 1????
 
-  def get_matrix_vector_similarity(self, matrix, column_weights, vector):
-    m_center = self._center_weighted(matrix, column_weights)
+  def get_matrix_vector_similarity(self, matrix, vector):
+    m_center = self._center(matrix)
     return self.get_vector_similarity(vector, m_center)
 
-  def for_every_pattern(self, pattern_info, _text_embedding, weights, text_range):
+  def for_every_pattern(self, pattern_info, _text_embedding, text_range):
     pattern_slice = pattern_info[1]
 
     _patterns_embeddings = pattern_info[2]
     pattern_emb_sliced = _patterns_embeddings[pattern_slice[0]: pattern_slice[1]]
 
-    return self._convolve(text_range, _text_embedding, weights, pattern_emb_sliced, name='p_match')
+    return self._convolve(text_range, _text_embedding, pattern_emb_sliced, name='p_match')
 
-  def _convolve(self, text_range, _text_embedding, weights, pattern_emb_sliced, name=''):
+  def _convolve(self, text_range, _text_embedding, pattern_emb_sliced, name=''):
     tf = self.tf
 
     window_size = tf.shape(pattern_emb_sliced)[0]
@@ -157,11 +144,11 @@ class PatternSearchModel:
 
     _blurry = tf.map_fn(
       lambda i: self.get_matrix_vector_similarity(matrix=_text_embedding[i:i + window_size],
-                                                  column_weights=weights[i:i + window_size], vector=p_center),
+                                                  vector=p_center),
       text_range, dtype=tf.float32, name=name + '_sim_wnd')
 
     _sharp = tf.map_fn(
-      lambda i: self.get_matrix_vector_similarity(matrix=_text_embedding[i:i + 1], column_weights=weights[i:i + 1],
+      lambda i: self.get_matrix_vector_similarity(matrix=_text_embedding[i:i + 1],
                                                   vector=p_center),
       text_range, dtype=tf.float32, name=name + '_sim_w1')
 
@@ -187,7 +174,6 @@ class PatternSearchModel:
     d, dl = self.embedding_session.run(runz, feed_dict={
       self.text_input: [text_tokens],  # text_input
       self.text_lengths: [len(text_tokens)],  # text_lengths
-      self.mask: make_punkt_mask(text_tokens),
 
       self.pattern_input: [['a']],
       self.pattern_lengths: [1],
@@ -204,7 +190,6 @@ class PatternSearchModel:
     feed_dict = {
       self.text_input: [text_tokens],  # text_input
       self.text_lengths: [len(text_tokens)],  # text_lengths
-      self.mask: make_punkt_mask(text_tokens),
 
       self.pattern_input: patterns_tokens,
       self.pattern_lengths: patterns_lengths,
