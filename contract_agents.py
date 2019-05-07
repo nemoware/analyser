@@ -24,13 +24,12 @@ ORG_TYPES_re = [
   ru_cap('Некоммерческая организация'),
   ru_cap('организация'),
   ru_cap('Благотворительный фонд'),
+  ru_cap('Индивидуальный предприниматель'), 'ИП',
 
-  ru_cap('Фонд') + r_few_words_s,
+  r'[Фф]онд[а-я]{0,2}' + r_few_words_s,
   r_few_words_s + ru_cap('учреждение'),
-  ru_cap('Индивидуальный предприниматель'), 'ИП'
 
 ]
-
 
 r_types_ = '|'.join([x for x in ORG_TYPES_re])
 r_types = f'({r_types_})'
@@ -41,10 +40,13 @@ r_name = r'([–А-Яa-я\- ]{0,50})'
 r_quote_open = r'([«"<]|[\']{2})'
 r_quote_close = r'([»">]|[\']{2})'
 
-r_alter = r'(\s+\(.{1,40}\))?'
+r_alter = r'([(].{1,70}[)])?'
 
-complete_re = re.compile(r_types + r'\s*' + r_name_a + r_quote_open + r_name + r_quote_close + r_alter,
-                         re.MULTILINE)
+r_alias = r'((.{0,30}именуе[а-я]{1,3}\s+в\s+даль.{4,7}|далее\s*[–\-]?)\s*([«"][А-Яa-я]{0,20}[»"]))?'
+
+complete_re = re.compile(
+  r_types + r'\s*' + r_name_a + "(" + r_quote_open + r_name + r_quote_close + ")" + '\s*' + r_alter + '\s*' + r_alias,
+  re.MULTILINE)
 
 
 def find_org_names(txt):
@@ -56,26 +58,29 @@ def find_org_names(txt):
     return {
       '1_type': clean(_org[1]),
       '2_type_ext': clean(_org[2]),
-      '3_name': f'"{clean(_org[4])}"',
-      '4_alt_name': clean(_org[6])
+      '3_name': f'"{clean(_org[5])}"',
+      '4_alt_name': clean(_org[7]),
+      '5_alias': clean(_org[10])
     }
 
-  def find_from(start):
-    _next = txt[start:]
-    r = complete_re.search(_next)
+  def find_from(t):
+
+    r = complete_re.search(t)
     if r is not None:
-      return to_dict(r), start + r.span()[1]
+      return to_dict(r), t[r.span()[1]:]
     else:
-      return None, None
+      return None, t
 
   org_names = {}
-  r, end = find_from(0)
+  r, tail = find_from(txt)
+
   if r is not None:
     org_names[0] = r
 
-    r2, end = find_from(end)
+    r2, tail = find_from(tail)
+
     while r2 is not None and r2['3_name'].lower() == r['3_name'].lower():
-      r2, end = find_from(end)
+      r2, tail = find_from(tail)
 
     if r2 is not None:
       org_names[1] = r2
