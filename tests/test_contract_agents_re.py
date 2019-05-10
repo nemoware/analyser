@@ -6,6 +6,7 @@
 import unittest
 
 from contract_agents import *
+from text_normalize import ru_cap, r_alias_prefix, r_alias_quote_regex_replacer
 
 
 class TestTextNormalization(unittest.TestCase):

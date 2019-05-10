@@ -5,6 +5,33 @@
 
 import re
 
+
+def ru_cap(xx):
+  return '\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
+
+
+def r_group(x, name=None):
+  if name is not None:
+    return f'(?P<{name}>{x})'
+  else:
+    return f'({x})'
+
+
+def r_bracketed(x, name=None):
+  return r_group(r'[(]' + x + r'[)]', name)
+
+
+def r_quoted(x):
+  assert x is not None
+  return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
+
+
+r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
+r_alias_prefix = '' + r_group(''
+                              + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
+                              + r_group(r'далее\s?[–\-]?\s?'))
+r_alias_quote_regex_replacer = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
+
 spaces_regex = [
   (re.compile(r'\t'), ' '),
   (re.compile(r'[ ]{2}'), ' '),
@@ -76,11 +103,9 @@ numbers_regex = [
   (re.compile(r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})'), ''),  # 3.000 (Три тысячи)
 ]
 
-
 alias_quote_regex = [
-    (re.compile(r'(именуем[а-я]{1,3}\s*[в]?\s*дал[а-я]{1,9}\s+)(([А-Я][а-я]{1,25})([.,]|$|\s+))'), r'\1"\3"\4'),
+  r_alias_quote_regex_replacer
 ]
-
 
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
@@ -114,3 +139,7 @@ def normalize_text(_t, replacements_regex):
     t = reg.sub(to, t)
 
   return t
+
+
+r_quote_open = r_group(r'[«"<]\s?|[\'`]{2}\s?')
+r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
