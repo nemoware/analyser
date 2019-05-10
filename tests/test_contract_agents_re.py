@@ -6,7 +6,8 @@
 import unittest
 
 from contract_agents import *
-from text_normalize import ru_cap, r_alias_prefix, r_alias_quote_regex_replacer
+from text_normalize import ru_cap, r_alias_prefix, sub_alias_quote, r_human_full_name, r_human_abbr_name, \
+  r_human_name, sub_ip_quoter
 
 
 class TestTextNormalization(unittest.TestCase):
@@ -304,11 +305,11 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('Газпромнефть-Региональные продажи', x1['name'])
 
   def test_replace_alias(self):
-    r = r_alias_quote_regex_replacer
+    r = sub_alias_quote
 
     t = 'что-то именуемое в дальнейшем Жертвователь-какаха, и нечто, именуемое далее КАКАХА-ХА '
 
-    x = r_alias_quote_regex_replacer[0].search(t)
+    x = sub_alias_quote[0].search(t)
     for c in range(7):
       print(c, x[c])
 
@@ -385,7 +386,7 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('Мироздания Крупица', x['human_name'])
 
   def test_replace_ip(self):
-    r = r_ip_quoter
+    r = sub_ip_quoter
 
     replacer = r[1]
     pattern = r[0]

@@ -21,17 +21,31 @@ def r_bracketed(x, name=None):
   return r_group(r'[(]' + x + r'[)]', name)
 
 
+r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
+r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
+"""Puts name into qotes"""
+r_human_name_part = r_capitalized
+r_quote_open = r_group(r'[«"<]\s?|[\'`]{2}\s?')
+r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
+r_human_full_name = r_group(r_human_name_part + r'\s*' + r_human_name_part + '\s*' + r_human_name_part + '?\w')
+r_human_abbr_name = r_group(r_human_name_part + r'\s*' + '([А-ЯA-Z][.]\s?){1,2}')
+r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name')
+r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')
+
+"""Puts name into qotes"""
+sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
+
+
 def r_quoted(x):
   assert x is not None
   return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
 
 
-r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
-r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
 r_alias_prefix = r_group(''
-                              + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                              + r_group(r'далее\s?[–\-]?\s?'))
-r_alias_quote_regex_replacer = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
+                         + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
+                         + r_group(r'далее\s?[–\-]?\s?'))
+
+sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
 
 spaces_regex = [
   (re.compile(r'\t'), ' '),
@@ -74,7 +88,7 @@ syntax_regex = [
 
   (re.compile(r'(?<=\s)\.(?=\d+)'), '0.'),
   (re.compile(r'(?<=\S)*\s+\.(?=\s+)'), '.'),
-  (re.compile(r'(?<=\S)*\s+\,(?=\s+)'), ','),
+  (re.compile(r'(?<=\S)*\s+,(?=\s+)'), ','),
 
   (re.compile(r'(?<=\d)+г\.'), ' г.'),
   (re.compile(r'(?<=[ ])г\.(?=\S+)'), 'г. '),
@@ -85,8 +99,8 @@ syntax_regex = [
 
 cleanup_regex = [
 
-  (re.compile(r'[«|\"|\']Стороны[»|\"|\']'), 'Стороны'),
-  (re.compile(r'[«|\"|\']Сторона[»|\"|\']'), 'Сторона'),
+  (re.compile(r'[«\"\']Стороны[»\"\']'), 'Стороны'),
+  (re.compile(r'[«\"\']Сторона[»\"\']'), 'Сторона'),
 
   (re.compile(r'с одной стороны и\s*\n'), 'с одной стороны и '),
 
@@ -105,7 +119,8 @@ numbers_regex = [
 ]
 
 alias_quote_regex = [
-  r_alias_quote_regex_replacer
+  sub_alias_quote,
+  sub_ip_quoter
 ]
 
 fixtures_regex = [
@@ -140,7 +155,3 @@ def normalize_text(_t, replacements_regex):
     t = reg.sub(to, t)
 
   return t
-
-
-r_quote_open = r_group(r'[«"<]\s?|[\'`]{2}\s?')
-r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
