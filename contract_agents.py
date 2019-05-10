@@ -15,6 +15,7 @@ ORG_TYPES_re = [
   ru_cap('Открытое акционерное общество'), 'ОАО',
   ru_cap('Государственное автономное учреждение'),
   ru_cap('Муниципальное бюджетное учреждение'),
+  ru_cap('учреждение'),
   ru_cap('Общественная организация'),
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
   ru_cap('Некоммерческая организация'),
@@ -28,8 +29,9 @@ ORG_TYPES_re = [
 r_types_ = '|'.join([x for x in ORG_TYPES_re])
 r_types = r_group(f'{r_types_}', 'type')
 
-_r_name = r'[А-ЯA-Z][А-Яa-яA-Za-z\- –\[\] ]{0,40}[a-я]'
-r_name_a = r_group(r'[–А-Яa-я\- ]{0,30}', 'type_ext')
+_r_name = r'[А-ЯA-Z][А-Яa-яA-Za-z\- –\[\]. ]{0,40}[a-я.]'
+# r_type_ext = r_group(r'[А-Яa-я–\- ]{0,110}', 'type_ext')
+r_type_ext = r_group(r'[\w\s]*', 'type_ext')
 r_name = r_group(_r_name, 'name')
 r_name_alias = r_group(_r_name, 'alias')
 
@@ -38,11 +40,13 @@ r_quoted_name_alias = r_group(r_quoted(r_name_alias))
 
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
-r_type_and_name = r_types + r_name_a + r_quoted_name
+r_type_and_name = r_types + r_type_ext  + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
 complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
+#----------------------------------
 complete_re = re.compile(complete_re_str, re.MULTILINE)
+#----------------------------------
 
 """Puts name into qotes"""
 r_human_name_part = r_capitalized
@@ -50,7 +54,7 @@ r_human_full_name = r_group(r_human_name_part + r'\s*' + r_human_name_part + '\s
 r_human_abbr_name = r_group(r_human_name_part + r'\s*' + '([А-ЯA-Z][.]\s?){1,2}')
 r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name')
 
-r_ip = r_group(ru_cap('Индивидуальный предприниматель') + '\s*' + '|ИП\s*', 'ip')
+r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')
 r_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
 
 alias_quote_regex = [

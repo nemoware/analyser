@@ -25,10 +25,8 @@ class TestTextNormalization(unittest.TestCase):
     r = re.compile(r_type_and_name, re.MULTILINE)
 
     x = r.search('Общество с ограниченной ответственностью « Газпромнефть-Региональные продажи » и вообще')
-    for c in range(6):
-      print(c, x[c])
-    self.assertEqual('Общество с ограниченной ответственностью', x[1])
-    self.assertEqual('Газпромнефть-Региональные продажи', x[5])
+    self.assertEqual('Общество с ограниченной ответственностью', x['type'])
+    self.assertEqual('Газпромнефть-Региональные продажи', x['name'])
 
     x = r.search('Общество с ограниченной ответственностью и прочим « Газпромнефть-Региональные продажи » и вообще')
     self.assertEqual(x[1], 'Общество с ограниченной ответственностью')
@@ -49,6 +47,28 @@ class TestTextNormalization(unittest.TestCase):
     x = r.search('с большой Государственной автономной учрежденией  « УУУ »')
     self.assertEqual('УУУ', x[5])
     self.assertEqual('Государственной автономной учрежденией', x[1])
+
+    t = """
+       ООО «Газпромнефть-Региональные продажи» в дальнейшем «Благотворитель», с другой стороны
+       """
+    x = r.search(t)
+    for c in range(6):
+      print(c, x[c])
+    self.assertEqual('ООО', x['type'])
+    self.assertEqual('Газпромнефть-Региональные продажи', x['name'])
+
+  def test_r_type_and_name_2(self):
+
+    r = re.compile(r_type_and_name, re.MULTILINE)
+
+    t = """
+       ООО «Газпромнефть-Региональные продажи», в дальнейшем «Благотворитель», с другой стороны
+       """
+    x = r.search(t)
+    for c in range(6):
+      print(c, x[c])
+    self.assertEqual('ООО', x['type'])
+    self.assertEqual('Газпромнефть-Региональные продажи', x['name'])
 
   def test_org_re(self):
     r = re.compile(complete_re_str, re.MULTILINE)
@@ -80,7 +100,7 @@ class TestTextNormalization(unittest.TestCase):
     r = re.compile(complete_re_str, re.MULTILINE)
 
     t = """
-    ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о
+    ООО «Газпромнефть-Региональные продажи», в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о
     нижеследующем:
     """
     #
@@ -101,6 +121,13 @@ class TestTextNormalization(unittest.TestCase):
     t = """
     ООО «Газпромнефть-Региональные продажи» в дальнейшем «Благотворитель», с другой стороны
     """
+
+    r1 = re.compile(r_quoted_name, re.MULTILINE)
+    x1 = r1.search(t)
+    print(x1['name'])
+    # for c in range(16):
+    #   print(c, x1[c])
+
     #
     x = r.search(t)
     for c in range(16):
@@ -144,6 +171,35 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('ООО', r['type'][0])
     self.assertEqual('Газпромнефть-Региональные продажи', r['name'][0])
     self.assertEqual('Благотворитель', r['alias'][0])
+
+  def test_org_dict_4(self):
+    r = re.compile(complete_re_str, re.MULTILINE)
+
+    t = """
+    Сибирь , и Индивидуальный предприниматель « Петров В. В. » , именуемый в дальнейшем « Исполнитель » , с другой стороны , именуемые в дальнейшем совместно « Стороны » , а по отдельности - « Сторона » , заключили настоящий договор о нижеследующем : 
+    """
+
+    onames = find_org_names(t)
+    print(onames[0])
+    r = onames[0]
+    self.assertEqual('Индивидуальный предприниматель', r['type'][0])
+    self.assertEqual('Петров В. В.', r['name'][0])
+    self.assertEqual('Исполнитель', r['alias'][0])
+
+    t = """Автономная некоммерческая организация дополнительного профессионального образования «ООО», именуемое далее Исполнитель, в лице Директора Уткиной Е.В., действующей на основании Устава, с одной стороны,"""
+    onames = find_org_names(t)
+    print(onames[0])
+    r = onames[0]
+    self.assertEqual('некоммерческая организация', r['type'][0])
+    self.assertEqual('ООО', r['name'][0])
+    # self.assertEqual('Исполнитель', r['alias'][0])
+
+    t = """Государственное автономное  учреждение дополнительного профессионального образования Свердловской области «Армавирский учебно-технический центр»,  на основании Лицензии на право осуществления образовательной деятельности в лице директора  Птицына Евгения Георгиевича, действующего на основании Устава, с одной стороны, """
+    onames = find_org_names(t)
+    print(onames[0])
+    r = onames[0]
+    self.assertEqual('Государственное автономное  учреждение', r['type'][0])
+    self.assertEqual('Армавирский учебно-технический центр', r['name'][0])
 
   def test_org_dict(self):
     r = re.compile(complete_re_str, re.MULTILINE)
@@ -238,6 +294,15 @@ class TestTextNormalization(unittest.TestCase):
     x = rgc.search('что-то именуемое в дальнейшем «Жертвователь», и ')
     self.assertEqual('Жертвователь', x['alias'])
 
+    t = """
+        ООО «Газпромнефть-Региональные продажи» в дальнейшем «Благотворитель», с другой стороны
+        """
+
+    r1 = re.compile(r_quoted_name, re.MULTILINE)
+    x1 = r1.search(t)
+
+    self.assertEqual('Газпромнефть-Региональные продажи', x1['name'])
+
   def test_replace_alias(self):
     r = r_alias_quote_regex_replacer
 
@@ -278,7 +343,7 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual(None, x)
 
   def test_r_human_abbr_name(self):
-    r = re.compile(r_human_abbr_name, re.MULTILINE)
+    r = re.compile('\W' + r_human_abbr_name, re.MULTILINE)
 
     x = r.search('что-то Мироздания С.К., который был')
     self.assertEqual('Мироздания С.К.', x[1])
@@ -296,7 +361,7 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual(None, x)
 
   def test_r_human_name(self):
-    r = re.compile(r_human_name, re.MULTILINE)
+    r = re.compile('\W' + r_human_name, re.MULTILINE)
 
     x = r.search('что-то Мироздания С.К., который был')
     self.assertEqual('Мироздания С.К.', x['human_name'])
@@ -342,6 +407,15 @@ class TestTextNormalization(unittest.TestCase):
 
     xx = pattern.sub(replacer, 'некогда Индивидуальная предприниматель Мироздания Леонидыч Крупица')
     self.assertEqual('некогда Индивидуальная предприниматель «Мироздания Леонидыч Крупица»', xx)
+
+    xx = pattern.sub(replacer, 'некогда ПРИНЦИПАЛ Мироздания Леонидыч Крупица')
+    self.assertEqual('некогда ПРИНЦИПАЛ Мироздания Леонидыч Крупица', xx)
+
+    t = """директора Регион Сибирь, и Индивидуальный предприниматель Петров В.В., именуемый в дальнейшем «Исполнитель»"""
+    xx = pattern.sub(replacer, t)
+    self.assertEqual(
+      'директора Регион Сибирь, и Индивидуальный предприниматель «Петров В.В.», именуемый в дальнейшем «Исполнитель»',
+      xx)
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
