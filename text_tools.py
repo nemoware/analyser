@@ -54,16 +54,7 @@ def remove_empty_lines(original_text):
   return a.replace('\t', ' ')
 
 
-def tokenize_text(text):
-  sentences = text.split('\n')
-  result = []
-  for i in range(len(sentences)):
-    sentence = sentences[i]
-    result += nltk.word_tokenize(sentence)
-    if i < len(sentences) - 1:
-      result += ['\n']
 
-  return result
 
 
 # ----------------------------------------------------------------
@@ -207,15 +198,25 @@ my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 def untokenize(tokens: Tokens) -> str:
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
+def tokenize_text(text):
+  sentences = text.split('\n')
+  result = []
+  for i in range(len(sentences)):
+    sentence = sentences[i]
+    result += nltk.word_tokenize(sentence)
+    if i < len(sentences) - 1:
+      result += ['\n']
 
-def find_token_before_index(tokens, index, token, default_ret=-1):
+  return result
+
+def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):
   for i in reversed(range(index)):
     if tokens[i] == token:
       return i
   return default_ret
 
 
-def find_token_after_index(tokens, index, token, default_ret=-1):
+def find_token_after_index(tokens: Tokens, index, token, default_ret=-1):
   for i in range(index, len(tokens)):
     if tokens[i] == token:
       return i

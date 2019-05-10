@@ -76,6 +76,12 @@ numbers_regex = [
   (re.compile(r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})'), ''),  # 3.000 (Три тысячи)
 ]
 
+
+alias_quote_regex = [
+    (re.compile(r'(именуем[а-я]{1,3}\s*[в]?\s*дал[а-я]{1,9}\s+)(([А-Я][а-я]{1,25})([.,]|$|\s+))'), r'\1"\3"\4'),
+]
+
+
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
@@ -99,7 +105,7 @@ table_of_contents_regex = [
 ]
 
 # replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
-replacements_regex = table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
+replacements_regex = alias_quote_regex + table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 
 def normalize_text(_t, replacements_regex):
