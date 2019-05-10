@@ -34,9 +34,9 @@ def find_ner_end(tokens, start, max_len=20):
   return min(len(tokens), start + max_len)
 
 
-def to_float(str):
+def to_float(string):
   try:
-    return float(str.replace(" ", "").replace(",", "."))
+    return float(string.replace(" ", "").replace(",", "."))
   except:
     return np.nan
 
@@ -52,9 +52,6 @@ def replace_with_map(txt, replacements):
 def remove_empty_lines(original_text):
   a = "\n".join([ll.strip() for ll in original_text.splitlines() if ll.strip()])
   return a.replace('\t', ' ')
-
-
-
 
 
 # ----------------------------------------------------------------
@@ -117,8 +114,8 @@ For balance (symmetry) swap U & V and find the effort required to strech V sente
 
 
 def dist_frechet_cosine_directed(u, v):
-  D_ = distance.cdist(u, v, 'cosine')
-  return D_.min(0).sum()
+  d_ = distance.cdist(u, v, 'cosine')
+  return d_.min(0).sum()
 
 
 def dist_frechet_cosine_undirected(u, v):
@@ -128,8 +125,8 @@ def dist_frechet_cosine_undirected(u, v):
 
 
 def dist_frechet_eucl_directed(u, v):
-  D_ = distance.cdist(u, v, 'euclidean')
-  return D_.min(0).sum()
+  d_ = distance.cdist(u, v, 'euclidean')
+  return d_.min(0).sum()
 
 
 def dist_frechet_eucl_undirected(u, v):
@@ -143,8 +140,8 @@ def dist_mean_cosine_frechet(u, v):
 
 
 def dist_cosine_housedorff_directed(u, v):
-  D_ = distance.cdist(u, v, 'cosine')
-  return D_.min(0).max()
+  d_ = distance.cdist(u, v, 'cosine')
+  return d_.min(0).max()
 
 
 def dist_cosine_housedorff_undirected(u, v):
@@ -198,6 +195,7 @@ my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 def untokenize(tokens: Tokens) -> str:
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
+
 def tokenize_text(text):
   sentences = text.split('\n')
   result = []
@@ -208,6 +206,7 @@ def tokenize_text(text):
       result += ['\n']
 
   return result
+
 
 def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):
   for i in reversed(range(index)):
@@ -275,3 +274,17 @@ def hot_punkt(tokens: Tokens) -> np.ndarray:
 
 def acronym(n):
   return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
+
+
+def token_at_index(index: int, txt: str) -> int:
+  _txt = txt[0:index]
+  head_tokens = tokenize_text(_txt)
+  return len(head_tokens)
+
+
+def tokens_in_range(span: List[int], tokens: Tokens, txt: str = None) -> slice:
+  if txt is None:
+    txt = untokenize(tokens)
+  a = token_at_index(span[0], txt)
+  b = token_at_index(span[1], txt)
+  return slice(a, b)
