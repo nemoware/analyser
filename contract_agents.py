@@ -2,7 +2,7 @@ import re
 from typing import AnyStr, Match
 
 from text_normalize import ru_cap, r_group, r_bracketed, r_quoted, r_capitalized_ru, r_alias_prefix, \
-  r_alias_quote_regex_replacer
+  r_alias_quote_regex_replacer, r_capitalized
 
 sf = '[а-я]{1,3}'
 
@@ -28,8 +28,8 @@ ORG_TYPES_re = [
 r_types_ = '|'.join([x for x in ORG_TYPES_re])
 r_types = r_group(f'{r_types_}', 'type')
 
-r_name_a = r'([–А-Яa-я\- ]{0,30})'
 _r_name = r'[А-ЯA-Z][А-Яa-яA-Za-z\- –\[\] ]{0,40}[a-я]'
+r_name_a = r_group(r'[–А-Яa-я\- ]{0,30}', 'type_ext')
 r_name = r_group(_r_name, 'name')
 r_name_alias = r_group(_r_name, 'alias')
 
@@ -44,13 +44,19 @@ r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
 complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
 complete_re = re.compile(complete_re_str, re.MULTILINE)
 
+"""Puts name into qotes"""
+r_human_name_part = r_capitalized
+r_human_full_name = r_group(r_human_name_part + r'\s*' + r_human_name_part + '\s*' + r_human_name_part + '?\w')
+r_human_abbr_name = r_group(r_human_name_part + r'\s*' + '([А-ЯA-Z][.]\s?){1,2}')
+r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name')
+
+r_ip = r_group(ru_cap('Индивидуальный предприниматель') + '\s*' + '|ИП\s*', 'ip')
+r_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
+
 alias_quote_regex = [
   r_alias_quote_regex_replacer,
-
   (re.compile(r_quoted_name + '\s*' + r'([(])(' + r_types_ + r')([)])'), r'\6 «\3» '),
-  (re.compile(
-    r_group(ru_cap('Индивидуальный предприниматель') + '|ИП\s+') + r_group(r_group(r_capitalized_ru + '\s*') + r'{3}')),
-   r'\1«\2»'),
+  r_ip_quoter,
 ]
 
 
@@ -64,7 +70,7 @@ def find_org_names(txt):
 
     return {
       'type': (clean(m['type']), m.span('type')),
-      'type_ext': (clean(m[2]), m.span(2)),
+      'type_ext': (clean(m['type_ext']), m.span('type_ext')),
       'name': (clean(m['name']), m.span('name')),
       'alt_name': (clean(m['alt_name']), m.span('alt_name')),
       'alias': (clean(m['alias']), m.span('alias')),

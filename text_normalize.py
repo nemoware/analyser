@@ -27,7 +27,8 @@ def r_quoted(x):
 
 
 r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
-r_alias_prefix = '' + r_group(''
+r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
+r_alias_prefix = r_group(''
                               + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
                               + r_group(r'далее\s?[–\-]?\s?'))
 r_alias_quote_regex_replacer = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')

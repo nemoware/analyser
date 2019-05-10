@@ -238,8 +238,6 @@ class TestTextNormalization(unittest.TestCase):
     x = rgc.search('что-то именуемое в дальнейшем «Жертвователь», и ')
     self.assertEqual('Жертвователь', x['alias'])
 
-
-
   def test_replace_alias(self):
     r = r_alias_quote_regex_replacer
 
@@ -263,6 +261,87 @@ class TestTextNormalization(unittest.TestCase):
 
     xx = pattern.sub(replacer, 'далее - Благожертвователь-какаха, и нечто')
     self.assertEqual('далее - «Благожертвователь-какаха», и нечто', xx)
+
+  def test_r_human_full_name(self):
+    r = re.compile(r_human_full_name, re.MULTILINE)
+
+    x = r.search('что-то Мироздания Леонидыч Крупица, Который "был" таков')
+    self.assertEqual('Мироздания Леонидыч Крупица', x[1])
+
+    x = r.search('что-то Мироздания Крупица, который был')
+    self.assertEqual('Мироздания Крупица', x[1])
+
+    x = r.search('Мироздания Крупица , который был')
+    self.assertEqual('Мироздания Крупица', x[1])
+
+    x = r.search('что-то Абрам, который был')
+    self.assertEqual(None, x)
+
+  def test_r_human_abbr_name(self):
+    r = re.compile(r_human_abbr_name, re.MULTILINE)
+
+    x = r.search('что-то Мироздания С.К., который был')
+    self.assertEqual('Мироздания С.К.', x[1])
+
+    x = r.search('что-то Мироздания С. К., который был')
+    self.assertEqual('Мироздания С. К.', x[1])
+
+    x = r.search('что-то Мироздания С. , который был')
+    self.assertEqual('Мироздания С. ', x[1])
+
+    x = r.search('что-то  С. , который был')
+    self.assertEqual(None, x)
+
+    x = r.search('что-то друГое  С. R. , который был')
+    self.assertEqual(None, x)
+
+  def test_r_human_name(self):
+    r = re.compile(r_human_name, re.MULTILINE)
+
+    x = r.search('что-то Мироздания С.К., который был')
+    self.assertEqual('Мироздания С.К.', x['human_name'])
+
+    x = r.search('что-то Мироздания С. К., который был')
+    self.assertEqual('Мироздания С. К.', x['human_name'])
+
+    x = r.search('что-то Мироздания С. , который был')
+    self.assertEqual('Мироздания С. ', x['human_name'])
+
+    x = r.search('что-то  С. , который был')
+    self.assertEqual(None, x)
+
+    x = r.search('что-то друГое  С. R. , который был')
+    self.assertEqual(None, x)
+
+    x = r.search('что-то Мироздания Леонидыч Крупица, Который "был" таков')
+    self.assertEqual('Мироздания Леонидыч Крупица', x['human_name'])
+
+    x = r.search('что-то Мироздания Крупица, который был')
+    self.assertEqual('Мироздания Крупица', x['human_name'])
+
+  def test_replace_ip(self):
+    r = r_ip_quoter
+
+    replacer = r[1]
+    pattern = r[0]
+
+    xx = pattern.sub(replacer, 'ИП Петров В.К.')
+    self.assertEqual('ИП «Петров В.К.»', xx)
+
+    xx = pattern.sub(replacer, 'Индивидуальная предприниматель Петров В.К.')
+    self.assertEqual('Индивидуальная предприниматель «Петров В.К.»', xx)
+
+    xx = pattern.sub(replacer, 'некогда ИП Петров В.К.')
+    self.assertEqual('некогда ИП «Петров В.К.»', xx)
+
+    xx = pattern.sub(replacer, 'некогда Индивидуальная предприниматель Петров В.К.')
+    self.assertEqual('некогда Индивидуальная предприниматель «Петров В.К.»', xx)
+
+    xx = pattern.sub(replacer, 'некогда ИП Петров В.К.')
+    self.assertEqual('некогда ИП «Петров В.К.»', xx)
+
+    xx = pattern.sub(replacer, 'некогда Индивидуальная предприниматель Мироздания Леонидыч Крупица')
+    self.assertEqual('некогда Индивидуальная предприниматель «Мироздания Леонидыч Крупица»', xx)
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
