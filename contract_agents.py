@@ -1,13 +1,8 @@
 import re
 from typing import AnyStr, Match
 
-from text_normalize import ru_cap, r_group, r_bracketed, r_quoted, r_capitalized_ru, r_alias_prefix, \
-  sub_alias_quote, sub_ip_quoter
-
-sf = '[а-я]{1,3}'
-
-r_few_words = r'\s+[А-Я]{1}[а-я\-, ]{1,80}'
-r_few_words_s = r'\s+[А-Яа-я\-, ]{0,80}'
+from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
+  _r_name, r_quoted_name, replacements_regex, ru_cap, r_few_words_s, r_human_name
 
 ORG_TYPES_re = [
   ru_cap('Акционерное общество'), 'АО',
@@ -25,34 +20,30 @@ ORG_TYPES_re = [
   r'[Фф]онд[а-я]{0,2}' + r_few_words_s,
 
 ]
+_r_types_ = '|'.join([x for x in ORG_TYPES_re])
 
-r_types_ = '|'.join([x for x in ORG_TYPES_re])
-r_types = r_group(f'{r_types_}', 'type')
 
-_r_name = r'[А-ЯA-Z][А-Яa-яA-Za-z\- –\[\]. ]{0,40}[a-я.]'
+r_few_words = r'\s+[А-Я]{1}[а-я\-, ]{1,80}'
+
 r_type_ext = r_group(r'[\w\s]*', 'type_ext')
-r_name = r_group(_r_name, 'name')
 r_name_alias = r_group(_r_name, 'alias')
 
-r_quoted_name = r_group(r_quoted(r_name))
 r_quoted_name_alias = r_group(r_quoted(r_name_alias))
-
+r_alias_prefix = r_group(''
+                         + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
+                         + r_group(r'далее\s?[–\-]?\s?'))
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
+r_types = r_group(f'{_r_types_}', 'type')
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
 complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
 # ----------------------------------
 complete_re = re.compile(complete_re_str, re.MULTILINE)
+
+
 # ----------------------------------
-
-
-alias_quote_regex = [
-  sub_alias_quote,
-  (re.compile(r_quoted_name + '\s*' + r'([(])(' + r_types_ + r')([)])'), r'\6 «\3» '),
-  sub_ip_quoter,
-]
 
 
 def find_org_names(txt):
@@ -87,3 +78,23 @@ def find_org_names(txt):
 if __name__ == '__main__':
   print(r_group(r_capitalized_ru, 'alias'))
   pass
+
+
+def normalize_contract(_t):
+  t = _t
+  for (reg, to) in alias_quote_regex + replacements_regex:
+    t = reg.sub(to, t)
+
+  return t
+
+
+r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')
+sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
+sub_org_name_quoter = (re.compile(r_quoted_name + '\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
+
+sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
+alias_quote_regex = [
+  sub_alias_quote,
+  sub_ip_quoter,
+  sub_org_name_quoter
+]

@@ -6,8 +6,6 @@
 import re
 
 
-def ru_cap(xx):
-  return '\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
 
 
 def r_group(x, name=None):
@@ -17,23 +15,33 @@ def r_group(x, name=None):
     return f'({x})'
 
 
+r_quote_open = r_group(r'[«"<]\s?|[\'`]{2}\s?')
+r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
+
+
+def ru_cap(xx):
+  return '\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
+
+
 def r_bracketed(x, name=None):
   return r_group(r'[(]' + x + r'[)]', name)
 
 
+r_few_words_s = r'\s+[А-Яа-я\-, ]{0,80}'
+
 r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
 r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
+_r_name = r'[А-ЯA-Z][А-Яa-яA-Za-z\- –\[\]. ]{0,40}[a-я.]'
+r_name = r_group(_r_name, 'name')
+
 """Puts name into qotes"""
 r_human_name_part = r_capitalized
-r_quote_open = r_group(r'[«"<]\s?|[\'`]{2}\s?')
-r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
+
 r_human_full_name = r_group(r_human_name_part + r'\s*' + r_human_name_part + '\s*' + r_human_name_part + '?\w')
 r_human_abbr_name = r_group(r_human_name_part + r'\s*' + '([А-ЯA-Z][.]\s?){1,2}')
 r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name')
-r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')
 
 """Puts name into qotes"""
-sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
 
 
 def r_quoted(x):
@@ -41,11 +49,9 @@ def r_quoted(x):
   return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
 
 
-r_alias_prefix = r_group(''
-                         + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                         + r_group(r'далее\s?[–\-]?\s?'))
+r_quoted_name = r_group(r_quoted(r_name))
 
-sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
+
 
 spaces_regex = [
   (re.compile(r'\t'), ' '),
@@ -118,10 +124,7 @@ numbers_regex = [
   (re.compile(r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})'), ''),  # 3.000 (Три тысячи)
 ]
 
-alias_quote_regex = [
-  sub_alias_quote,
-  sub_ip_quoter
-]
+
 
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
@@ -146,7 +149,7 @@ table_of_contents_regex = [
 ]
 
 # replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
-replacements_regex = alias_quote_regex + table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
+replacements_regex =  table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 
 def normalize_text(_t, replacements_regex):
