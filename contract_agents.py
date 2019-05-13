@@ -45,7 +45,7 @@ complete_re = re.compile(complete_re_str, re.MULTILINE)
 
 # ----------------------------------
 
-
+entities_types = ['type', 'name', 'alt_name', 'alias', 'type_ext']
 def find_org_names(txt):
   def clean(x):
     if x is None:

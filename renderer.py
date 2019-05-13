@@ -399,7 +399,7 @@ def mixclr(color_map, dictionary, min_color=None, _slice=None):
   greens = None
   blues = None
 
-  fallback = (1, 1, 1)
+  fallback = (0.5, 0.5, 0.5)
 
   for c in dictionary:
     vector = np.array(dictionary[c])
