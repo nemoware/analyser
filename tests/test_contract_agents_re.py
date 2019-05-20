@@ -6,9 +6,7 @@
 import unittest
 
 from contract_agents import *
-from contract_agents import r_types, sub_ip_quoter
-from text_normalize import ru_cap,  r_human_full_name, r_human_abbr_name, \
-  r_human_name, r_quoted_name
+from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat
 
 
 def n(x):
@@ -25,7 +23,17 @@ class TestTextNormalization(unittest.TestCase):
     x = ru_cap('автономной учрежденией')
     self.assertEqual('[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
 
+  def test_r_name(self):
 
+    r = re.compile(_r_name_ru, re.MULTILINE)
+    x = r.search('УУУ')
+    print(x)
+    x = r.search('ННН')
+    print(x)
+
+    r = re.compile(_r_name_lat, re.MULTILINE)
+    x = r.search('YYy')
+    print(x)
 
   def test_r_type_and_name(self):
 
@@ -40,11 +48,11 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual(x[5], 'Газпромнефть-Региональные продажи')
 
     x = r.search(n('Общество с ограниченной ответственностью и прочим «Меццояха» и вообще'))
-    self.assertEqual(x[1], 'Общество с ограниченной ответственностью')
-    self.assertEqual(x[5], 'Меццояха')
+    self.assertEqual(x['type'], 'Общество с ограниченной ответственностью')
+    self.assertEqual(x['name'], 'Меццояха')
 
     x = r.search('с ООО «УУУ»')
-    self.assertEqual(x[1], 'ООО')
+    self.assertEqual(x['type'], 'ООО')
     self.assertEqual(x[5], 'УУУ')
 
     x = r.search(n('с большой Акционерной обществой  « УУУ » и вообще'))
@@ -205,8 +213,20 @@ class TestTextNormalization(unittest.TestCase):
     onames = find_org_names(t)
     print(onames[0])
     r = onames[0]
-    self.assertEqual('Государственное автономное  учреждение', r['type'][0])
+    self.assertEqual('Государственное автономное учреждение', r['type'][0])
     self.assertEqual('Армавирский учебно-технический центр', r['name'][0])
+
+  def test_augment_contract(self):
+    t = """
+        Муниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем
+        «Благополучатель», в лице директора Соляной Марины Александровны, действующая на основании
+        Устава, с одной стороны, и 
+
+        ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о нижеследующем:
+        """
+    onames = find_org_names(t)
+    x,y = augment_contract(t, onames)
+    print(x, y)
 
   def test_org_dict(self):
     r = re.compile(complete_re_str, re.MULTILINE)
@@ -252,8 +272,13 @@ class TestTextNormalization(unittest.TestCase):
     x = r.search('Общество с ограниченной ответственностью и прочим « Газпромнефть-Региональные продажи »')
     self.assertEqual(x[0], 'Общество с ограниченной ответственностью')
 
+    x = r.search('ООО « Газпромнефть-Региональные продажи »')
+    self.assertEqual(x[0], 'ООО')
+
     x = r.search('с большой Государственной автономной учрежденией')
     self.assertEqual(x[0], 'Государственной автономной учрежденией')
+
+
 
     x = r.search('акционерное Общество с ограниченной ответственностью и прочим « Газпромнефть-Региональные продажи »')
     self.assertEqual(x[0], 'акционерное Общество')

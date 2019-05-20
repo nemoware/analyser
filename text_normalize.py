@@ -6,8 +6,6 @@
 import re
 
 
-
-
 def r_group(x, name=None):
   if name is not None:
     return f'(?P<{name}>{x})'
@@ -31,7 +29,10 @@ r_few_words_s = r'\s+[А-Яа-я\-, ]{0,80}'
 
 r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
 r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
-_r_name = r'[А-ЯA-Z][А-Яa-яA-Za-z\- –\[\]. ]{0,40}[a-я.]'
+# _r_name = r'[А-ЯA-Z][А-Яа-яA-Za-z\-–\[\]. ]{0,40}[а-яa-z.]'
+_r_name_ru = r'[А-Я][А-Яа-я\-–\[\].\s]{0,40}[А-Яа-я.,]'
+_r_name_lat = r'[A-Z][A-Za-z\-–\[\].\s]{0,40}[A-Za-z,]'
+_r_name = r_group(_r_name_ru) + '|' + r_group(_r_name_lat)
 r_name = r_group(_r_name, 'name')
 
 """Puts name into qotes"""
@@ -50,8 +51,6 @@ def r_quoted(x):
 
 
 r_quoted_name = r_group(r_quoted(r_name))
-
-
 
 spaces_regex = [
   (re.compile(r'\t'), ' '),
@@ -124,8 +123,6 @@ numbers_regex = [
   (re.compile(r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})'), ''),  # 3.000 (Три тысячи)
 ]
 
-
-
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
@@ -149,7 +146,7 @@ table_of_contents_regex = [
 ]
 
 # replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
-replacements_regex =  table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
+replacements_regex = table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 
 def normalize_text(_t, replacements_regex):
