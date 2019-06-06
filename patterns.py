@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-
+from documents import EmbeddableText
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject
 from transaction_values import ValueConstraint
@@ -10,7 +10,6 @@ load_punkt = True
 
 from text_tools import *
 
-TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
@@ -41,12 +40,6 @@ if load_punkt:
 
   ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
   print(ru_tokenizer)
-
-
-class EmbeddableText:
-  def __init__(self):
-    self.tokens = None
-    self.embeddings = None
 
 
 class FuzzyPattern(EmbeddableText):

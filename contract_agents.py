@@ -1,5 +1,10 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
+
 import re
-from typing import AnyStr, Match
+from typing import AnyStr, Match, Dict, List
 
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, replacements_regex, ru_cap, r_few_words_s, r_human_name
@@ -22,10 +27,9 @@ ORG_TYPES_re = [
 ]
 _r_types_ = '|'.join([x for x in ORG_TYPES_re])
 
-
 r_few_words = r'\s+[А-Я]{1}[а-я\-, ]{1,80}'
 
-r_type_ext = r_group(r'[\w\s]*', 'type_ext')
+r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias))
@@ -42,45 +46,53 @@ complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
 # ----------------------------------
 complete_re = re.compile(complete_re_str, re.MULTILINE)
 
-
 # ----------------------------------
 
 entities_types = ['type', 'name', 'alt_name', 'alias', 'type_ext']
-def find_org_names(txt):
-  def clean(x):
+import random
+
+
+def make_rnanom_name(lenn) -> str:
+  return ''.join(random.choices('АБВГДЕЖЗИКЛМН', k=1) + random.choices('абвгдежопа ', k=lenn))
+
+
+def augment_contract(txt: str, org_infos: List[Dict]):
+  txt_a = txt
+  for org in org_infos:
+    for e in ['name', 'alias']:
+      substr = org[e][0]
+      r = re.compile(substr)
+      txt_a = re.sub(r, make_rnanom_name(10), txt_a)
+
+  return txt_a, find_org_names(txt_a)
+
+
+def find_org_names(txt: str) -> List[Dict]:
+  def _clean(x):
     if x is None:
       return x
-    return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-')
+    return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()
 
-  def to_dict(m: Match[AnyStr]):
+  def _to_dict(m: Match[AnyStr]):
+    d = {}
+    for entity_type in entities_types:
+      d[entity_type] = (m[entity_type], m.span(entity_type))
 
-    return {
-      'type': (clean(m['type']), m.span('type')),
-      'type_ext': (clean(m['type_ext']), m.span('type_ext')),
-      'name': (clean(m['name']), m.span('name')),
-      'alt_name': (clean(m['alt_name']), m.span('alt_name')),
-      'alias': (clean(m['alias']), m.span('alias')),
-    }
+    return d
 
   org_names = {}
-
-  i = 0
   for r in re.finditer(complete_re, txt):
-    org = to_dict(r)
-    _name = org['name'][0]
+    org = _to_dict(r)
+
+    # filter similar out
+    _name = _clean(org['name'][0])
     if _name not in org_names:
       org_names[_name] = org
-    i += 1
 
   return list(org_names.values())
 
 
-if __name__ == '__main__':
-  print(r_group(r_capitalized_ru, 'alias'))
-  pass
-
-
-def normalize_contract(_t):
+def normalize_contract(_t: str) -> str:
   t = _t
   for (reg, to) in alias_quote_regex + replacements_regex:
     t = reg.sub(to, t)
@@ -98,3 +110,7 @@ alias_quote_regex = [
   sub_ip_quoter,
   sub_org_name_quoter
 ]
+
+if __name__ == '__main__':
+  print(r_group(r_capitalized_ru, 'alias'))
+  pass

@@ -12,6 +12,8 @@ Original file is located at
 import tensorflow as tf
 import tensorflow_hub as hub
 
+from documents import TEXT_PADDING_SYMBOL
+
 print(tf.__version__)
 elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_2013-01_2018-04_600k_steps.tar.gz', trainable=False) #twitter
 # elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz', trainable=False) #Russian WMT News
@@ -25,27 +27,20 @@ elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_20
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/resonance/text_normalize.py  
 !wget https://raw.githubusercontent.com/compartia/nlp_tools/resonance/patterns.py  
 # !wget https://raw.githubusercontent.com/compartia/nlp_tools/protocols/split.py  
-  
-  
-from patterns import *
-from text_tools import *
-from text_normalize import *
+
+
 from embedding_tools import *
 from ml_tools import *
 # from split import *
 
 """# Code (common)"""
 
-import glob, os
-
 
 !pip install docx2txt
 !sudo apt-get install antiword
   
 
-import docx2txt, sys, os
-from google.colab import files
-
+import docx2txt
 
 
 def read_doc(fn):
@@ -68,11 +63,8 @@ def read_doc(fn):
 
 !sudo apt-get install antiword
 !pip install docx2txt
-import docx2txt, sys, os
+import docx2txt
 
-from google.colab import files
-
- 
 
 def interactive_upload():
   print('select .docx files:')
@@ -323,7 +315,6 @@ def render_sections(doc, weights):
 
 import time
 from functools import wraps
-from typing import List
 
 from patterns import *
 from text_normalize import *
@@ -1578,7 +1569,7 @@ def process_charter(txt, verbose=False):
 # org, rz, charter = process_charter(txt, verbose=False)
 # html = render_charter_parsing_results(org, rz)
 
-import glob, os
+import glob
 
 
 !pip install docx2txt

@@ -12,6 +12,8 @@ Original file is located at
 import tensorflow as tf
 import tensorflow_hub as hub
 
+from documents import TEXT_PADDING_SYMBOL
+
 print(tf.__version__)
 elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_2013-01_2018-04_600k_steps.tar.gz',
                   trainable=False)  # twitter
@@ -230,7 +232,6 @@ tables_regex = [
 ]
 
 from functools import wraps
-from typing import List
 
 from patterns import *
 from text_normalize import *

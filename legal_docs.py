@@ -79,10 +79,7 @@ class LegalDocument(EmbeddableText):
   def __init__(self, original_text=None, name="legal_doc"):
     super().__init__()
     self.original_text = original_text
-    self.filename = None
-    self.tokens = None
-    self.tokens_cc = None
-    self.embeddings = None
+
     self.normal_text = None
     self.distances_per_pattern_dict = {}
 
@@ -273,12 +270,6 @@ class LegalDocument(EmbeddableText):
       attention_vectors_by_headline[i] = headline_name_av
 
     return confidence_by_headline
-
-  def untokenize_cc(self):
-    return untokenize(self.tokens_cc)
-
-  def untokenize(self):
-    return untokenize(self.tokens)
 
   def find_sum_in_section(self):
     raise Exception('not implemented')
