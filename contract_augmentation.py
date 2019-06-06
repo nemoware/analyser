@@ -40,8 +40,6 @@ def augment_dropout_words_d(d: MarkedDoc, rate):
 
 def augment_trim(doc: MarkedDoc, max_to_trim=40):
   _slice = slice( randint(0, max_to_trim), -randint(1, max_to_trim))
-  print(_slice)
-
   doc.trim(_slice)
 
 
