@@ -86,3 +86,19 @@ if __name__ == '__main__':
   augment_dropout_chars_d(doc, 0.5)
   print(doc.tokens)
   pass
+
+
+def make_random_word(lenn) -> str:
+  return ''.join(random.choices('АБВГДЕЖЗИКЛМН', k=1) + random.choices('абвгдежопа', k=max(1, lenn)))
+
+
+def make_random_name(lenn) -> str:
+  #   nwords = int(1+(lenn/8))
+  #   words = [  ]
+  return ''.join(random.choices('АБВГДЕЖЗИКЛМН', k=1) + random.choices('абвгдежопа ', k=lenn))
+
+
+def make_random_name_random_len(new_len, maxlen=30) -> str:
+  new_len += random.randint(int(-new_len / 2), int(new_len / 2))
+  new_len = min(new_len, maxlen)
+  return make_random_name(new_len)
