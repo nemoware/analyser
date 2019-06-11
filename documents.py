@@ -33,6 +33,7 @@ class TokenizedText:
     self.categories_vector = self.categories_vector[sl]
 
 
+
 class EmbeddableText(TokenizedText):
   def __init__(self):
     super().__init__()

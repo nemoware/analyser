@@ -188,7 +188,7 @@ class DocumentStructure:
 
   def __init__(self):
     self.structure: List[StructureLine] = None
-    self.headline_indexes = []
+    self.headline_indexes:List[int] = []
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
@@ -263,8 +263,8 @@ class DocumentStructure:
 
     self.headline_indexes = self._find_headlines(tokens, tokens_cc)
     self.headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(self.headline_indexes)
-    return tokens, tokens_cc
 
+    return tokens, tokens_cc
 
 
   #     del _charter_doc.structure.structure[i]

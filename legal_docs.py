@@ -104,6 +104,15 @@ class LegalDocument(EmbeddableText):
     # self.tokens_cc = np.array(self.tokens)
     return self.tokens
 
+
+  def tokens_in_range(self, span: List[int]) -> slice:
+
+    a = token_at_index(span[0], self.normal_text)
+    b = token_at_index(span[1], self.normal_text)
+    return slice(a, b)
+
+
+
   def preprocess_text(self, text):
     return normalize_text(text, replacements_regex)
 
