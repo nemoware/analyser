@@ -11,6 +11,10 @@ import scipy.spatial.distance as distance
 
 nltk.download('punkt')
 
+from nltk.tokenize import _treebank_word_tokenizer
+
+nltk_treebank_word_tokenizer = _treebank_word_tokenizer
+
 Tokens = List[str]
 
 
