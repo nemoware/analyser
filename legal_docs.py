@@ -113,8 +113,10 @@ class LegalDocument(EmbeddableText):
 
 
 
-  def preprocess_text(self, text):
-    return normalize_text(text, replacements_regex)
+  def preprocess_text(self, txt):
+    if txt is None:
+      txt = self.original_text
+    return normalize_text(txt, replacements_regex)
 
   def __del__(self):
     print(f"----------------- LegalDocument {self.name} deleted. Ciao bella!")
