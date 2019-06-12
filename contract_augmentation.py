@@ -1,6 +1,11 @@
 import random
 from random import randint
 
+import rstr
+
+from contract_agents import find_org_names, r_alter
+from contract_parser import ContractDocument3
+
 from documents import MarkedDoc
 from text_tools import Tokens
 
@@ -102,3 +107,71 @@ def make_random_name_random_len(new_len, maxlen=30) -> str:
   new_len += random.randint(int(-new_len / 2), int(new_len / 2))
   new_len = min(new_len, maxlen)
   return make_random_name(new_len)
+
+
+ORG_TYPES = [
+  'Акционерное общество', 'АО',
+  'Закрытое акционерное общество', 'ЗАО',
+  'Открытое акционерное общество', 'ОАО',
+  'Государственное автономное учреждение',
+  'Муниципальное бюджетное учреждение',
+  'Общественная организация',
+  'Общество с ограниченной ответственностью',
+  'Некоммерческая организация',
+  'Благотворительный фонд',
+  'Индивидуальный предприниматель', 'ИП'
+]
+
+
+def obfuscate_org_types(doc: ContractDocument3, rate=0.5) -> ContractDocument3:
+  txt_a = doc.normal_text
+
+  for org in doc.agent_infos:
+    if random.random() < rate:
+      substr = org['type'][0]
+      txt_a = txt_a.replace(substr, random.choice(ORG_TYPES))
+
+  new_org_infos = find_org_names(txt_a)
+  assert len(doc.agent_infos) == len(new_org_infos)
+  new_doc = ContractDocument3(txt_a)
+  new_doc.parse()
+  new_doc.agent_infos = new_org_infos
+  return new_doc
+
+
+def obfuscate_contract(doc: ContractDocument3, rate=0.5):
+  new_doc = obfuscate_org_types(doc, rate)
+  txt_a = new_doc.normal_text
+
+  for org in new_doc.agent_infos:
+
+    for e in ['name', 'alias']:
+
+      substr = org[e][0]
+
+      if substr and substr != '' and random.random() < rate:
+        repl = make_random_name_random_len(len(substr))
+        #         print('obfuscating:', substr, '--->', repl)
+        txt_a = txt_a.replace(substr, repl)
+
+        new_org_infos = find_org_names(txt_a)
+        # try:
+        #   assert len(new_doc.agent_infos) <= len(new_org_infos)
+        # except:
+        #   print(new_org_infos)
+        #   print(txt_a)
+        #   raise ValueError('cannot replace ' + substr + ' with ' + repl)
+
+  for org in new_doc.agent_infos:
+    substr = org['alt_name'][0]
+    rstr.xeger(r_alter)
+    if substr is not None and substr != '' and random.random() < rate:
+      repl = rstr.xeger(r_alter)
+      txt_a = txt_a.replace(substr, repl)
+
+  # return txt_a, find_org_names(txt_a)
+
+  new_doc = ContractDocument3(txt_a)
+  new_doc.parse()
+  new_doc.agent_infos = find_org_names(txt_a)
+  return new_doc

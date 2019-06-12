@@ -6,8 +6,10 @@
 import re
 from typing import AnyStr, Match, Dict, List
 
+from contract_parser import ContractDocument3
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, replacements_regex, ru_cap, r_few_words_s, r_human_name
+from text_tools import tokens_in_range
 
 ORG_TYPES_re = [
   ru_cap('Акционерное общество'), 'АО',
@@ -90,6 +92,26 @@ def find_org_names(txt: str) -> List[Dict]:
       org_names[_name] = org
 
   return list(org_names.values())
+
+
+def find_org_names_spans(doc: ContractDocument3):
+  agent_infos = find_org_names(doc.normal_text)
+  doc.agent_infos = agent_infos
+
+  _convert_char_slices_to_tokens(doc)
+  return doc
+
+
+def _convert_char_slices_to_tokens(doc: ContractDocument3):
+  for org in doc.agent_infos:
+    for ent in org:
+      span = org[ent][1]
+
+      if span[0] > 0:
+        tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.normal_text)
+        org[ent] = (org[ent][0], org[ent][1], tokens_slice)
+      else:
+        org[ent] = (org[ent][0], None, None)
 
 
 def normalize_contract(_t: str) -> str:
