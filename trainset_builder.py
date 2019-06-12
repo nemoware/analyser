@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 
-from contract_agents import entities_types, find_org_names_spans
+from contract_agents import entities_types
 from contract_augmentation import *
 from contract_parser import ContractDocument3
 
@@ -15,7 +15,6 @@ def categories_vector_to_onehot_matrix(vector, height=10, add_none_category=True
       val = vector[i]
       #     if val != 0:
       m[i][int(val)] = 1.0
-
 
   else:
     m = np.zeros((len(vector), int(height)))
@@ -58,10 +57,10 @@ def preprocess_contract(txt) -> ContractDocument3:
   return _pdoc
 
 
-def parse_contracts(contracts, data) -> (List[ContractDocument3], List[ContractDocument3]):
+def parse_contracts(contracts, filenames) -> (List[ContractDocument3], List[ContractDocument3]):
   _parsed = []
   _failed = []
-  for fn in data:
+  for fn in filenames:
     _doc: ContractDocument3 = preprocess_contract(contracts[fn])
     _doc.filename = fn
     try:
@@ -89,12 +88,12 @@ def parse_contracts(contracts, data) -> (List[ContractDocument3], List[ContractD
 #         org[ent] = (org[ent][0], None, None)
 
 
-def make_categories_vector(_pdoc:ContractDocument3) -> np.ndarray:
-  vector = np.zeros(_pdoc.get_len())
+def make_categories_vector(_doc: ContractDocument3) -> np.ndarray:
+  vector = np.zeros(_doc.get_len())
 
   e = 1
   for agent_n in range(2):
-    org = _pdoc.agent_infos[agent_n]
+    org = _doc.agent_infos[agent_n]
     for entity_type in entities_types:
       if entity_type in org:
         text_slice = org[entity_type][2]
@@ -126,17 +125,14 @@ def to_categories_vector(_pdoc: ContractDocument3):
   return categories_vector
 
 
-NUM_AUGMENTED = 20
-
-
-def prepare_train_data(contracts, add_none_category=False):
+def prepare_train_data(contracts, add_none_category=True, augmenented_n=5, obfuscated_n=3):
   data = list(contracts.keys())
 
   # 1. parse available docs with regex
   _parsed, _failed = parse_contracts(contracts, data)
 
   print(f'Extending trainset with obfuscated contracts;  docs: {len(_parsed)}')
-  _parsed: List[ContractDocument3] = _extend_trainset_with_obfuscated_contracts(_parsed)
+  _parsed: List[ContractDocument3] = _extend_trainset_with_obfuscated_contracts(_parsed, n=obfuscated_n)
 
   TOKENS = []
   vectors = []
@@ -148,7 +144,7 @@ def prepare_train_data(contracts, add_none_category=False):
     vectors.append(categories_vector)
     TOKENS.append(pdoc.tokens_cc)
 
-    for i in range(NUM_AUGMENTED):
+    for i in range(augmenented_n):
       new_tokens, new_categories_vector = augment_contract(pdoc.tokens_cc, categories_vector)
       vectors.append(new_categories_vector)
       TOKENS.append(new_tokens)

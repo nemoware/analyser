@@ -3,9 +3,8 @@ from random import randint
 
 import rstr
 
-from contract_agents import find_org_names, r_alter
+from contract_agents import find_org_names_spans, r_alter
 from contract_parser import ContractDocument3
-
 from documents import MarkedDoc
 from text_tools import Tokens
 
@@ -28,7 +27,7 @@ def augment_dropout_chars_d(d: MarkedDoc, rate):
     if random.random() < rate:
       ntoken = remove_random_char(token)
 
-    return (ntoken, clazz)
+    return ntoken, clazz
 
   d.filter(_rm)
 
@@ -38,17 +37,17 @@ def augment_dropout_words_d(d: MarkedDoc, rate):
     if random.random() < rate:
       return None
 
-    return (token, clazz)
+    return token, clazz
 
   d.filter(_rm)
 
 
-def augment_trim(doc: MarkedDoc, max_to_trim=40):
-  _slice = slice( randint(0, max_to_trim), -randint(1, max_to_trim))
-  doc.trim(_slice)
+def augment_trim(_doc: MarkedDoc, max_to_trim=40):
+  _slice = slice(randint(0, max_to_trim), -randint(1, max_to_trim))
+  _doc.trim(_slice)
 
 
-def augment_alter_case_d(doc: MarkedDoc, rate):
+def augment_alter_case_d(_doc: MarkedDoc, rate):
   def _alter_case(t, c):
 
     if random.random() < rate:
@@ -57,32 +56,32 @@ def augment_alter_case_d(doc: MarkedDoc, rate):
       else:
         t = t.lower()
 
-    return (t, c)
+    return t, c
 
-  return doc.filter(_alter_case)
+  return _doc.filter(_alter_case)
 
 
-def augment_dropout_punctuation_d(doc: MarkedDoc, rate):
+def augment_dropout_punctuation_d(_doc: MarkedDoc, rate):
   def _drop_punkt(t, c):
 
     if t in ',."«-»–()' and random.random() < rate:
       return None
     else:
-      return (t, c)
+      return t, c
 
-  return doc.filter(_drop_punkt)
+  return _doc.filter(_drop_punkt)
 
 
 def augment_contract(tokens_: Tokens, categories_vector_):
-  doc = MarkedDoc(tokens_, categories_vector_)
+  _doc = MarkedDoc(tokens_, categories_vector_)
 
-  augment_dropout_words_d(doc, 0.05)
-  augment_dropout_punctuation_d(doc, 0.15)
-  augment_dropout_chars_d(doc, 0.02)
-  augment_alter_case_d(doc, 0.15)
-  augment_trim(doc, 30)
+  augment_dropout_words_d(_doc, 0.05)
+  augment_dropout_punctuation_d(_doc, 0.15)
+  augment_dropout_chars_d(_doc, 0.02)
+  augment_alter_case_d(_doc, 0.15)
+  augment_trim(_doc, 30)
 
-  return doc.tokens, doc.categories_vector
+  return _doc.tokens, _doc.categories_vector
 
 
 if __name__ == '__main__':
@@ -123,24 +122,23 @@ ORG_TYPES = [
 ]
 
 
-def obfuscate_org_types(doc: ContractDocument3, rate=0.5) -> ContractDocument3:
-  txt_a = doc.normal_text
+def obfuscate_org_types(_doc: ContractDocument3, rate=0.5) -> ContractDocument3:
+  txt_a = _doc.normal_text
 
-  for org in doc.agent_infos:
+  for org in _doc.agent_infos:
     if random.random() < rate:
       substr = org['type'][0]
       txt_a = txt_a.replace(substr, random.choice(ORG_TYPES))
 
-  new_org_infos = find_org_names(txt_a)
-  assert len(doc.agent_infos) == len(new_org_infos)
   new_doc = ContractDocument3(txt_a)
   new_doc.parse()
-  new_doc.agent_infos = new_org_infos
+  find_org_names_spans(new_doc)
+  assert len(_doc.agent_infos) == len(new_doc.agent_infos)
   return new_doc
 
 
-def obfuscate_contract(doc: ContractDocument3, rate=0.5):
-  new_doc = obfuscate_org_types(doc, rate)
+def obfuscate_contract(_doc: ContractDocument3, rate=0.5):
+  new_doc = obfuscate_org_types(_doc, rate)
   txt_a = new_doc.normal_text
 
   for org in new_doc.agent_infos:
@@ -154,7 +152,7 @@ def obfuscate_contract(doc: ContractDocument3, rate=0.5):
         #         print('obfuscating:', substr, '--->', repl)
         txt_a = txt_a.replace(substr, repl)
 
-        new_org_infos = find_org_names(txt_a)
+        # new_org_infos = find_org_names(txt_a)
         # try:
         #   assert len(new_doc.agent_infos) <= len(new_org_infos)
         # except:
@@ -173,5 +171,5 @@ def obfuscate_contract(doc: ContractDocument3, rate=0.5):
 
   new_doc = ContractDocument3(txt_a)
   new_doc.parse()
-  new_doc.agent_infos = find_org_names(txt_a)
+  find_org_names_spans(new_doc)
   return new_doc
