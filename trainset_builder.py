@@ -88,7 +88,7 @@ def parse_contracts(contracts, filenames) -> (List[ContractDocument3], List[Cont
 #         org[ent] = (org[ent][0], None, None)
 
 
-def make_categories_vector(_doc: ContractDocument3) -> np.ndarray:
+def _make_categories_vector(_doc: ContractDocument3) -> np.ndarray:
   vector = np.zeros(_doc.get_len())
 
   e = 1
@@ -117,15 +117,15 @@ def mark_headlines(_pdoc, destination, value):
   # return headlines_markup_vector
 
 
-def to_categories_vector(_pdoc: ContractDocument3):
-  categories_vector = make_categories_vector(_pdoc)
-  mx = categories_vector.max()
-  mark_headlines(_pdoc, categories_vector, mx + 1)
+def _to_categories_vector(_pdoc: ContractDocument3, headlines_index=11):
+  categories_vector = _make_categories_vector(_pdoc)
+  #   mx = categories_vector.max()
+  mark_headlines(_pdoc, categories_vector, headlines_index)
 
   return categories_vector
 
 
-def prepare_train_data(contracts, add_none_category=True, augmenented_n=5, obfuscated_n=3):
+def prepare_train_data__(contracts, augmenented_n=5, obfuscated_n=3):
   data = list(contracts.keys())
 
   # 1. parse available docs with regex
@@ -134,32 +134,38 @@ def prepare_train_data(contracts, add_none_category=True, augmenented_n=5, obfus
   print(f'Extending trainset with obfuscated contracts;  docs: {len(_parsed)}')
   _parsed: List[ContractDocument3] = _extend_trainset_with_obfuscated_contracts(_parsed, n=obfuscated_n)
 
-  TOKENS = []
+  _tokenized_texts = []
   vectors = []
 
   print(f'Augmenting trainset; docs: {len(_parsed)}')
   for pdoc in _parsed:
 
-    categories_vector = to_categories_vector(pdoc)
+    categories_vector = _to_categories_vector(pdoc)
     vectors.append(categories_vector)
-    TOKENS.append(pdoc.tokens_cc)
+    _tokenized_texts.append(pdoc.tokens_cc)
 
     for i in range(augmenented_n):
       new_tokens, new_categories_vector = augment_contract(pdoc.tokens_cc, categories_vector)
       vectors.append(new_categories_vector)
-      TOKENS.append(new_tokens)
+      _tokenized_texts.append(new_tokens)
 
-  LABELS = []
-  LENS = [len(x) for x in TOKENS]
-  _maxlen = max(LENS)
+  n_items = len(_tokenized_texts)
 
-  for i in range(len(TOKENS)):
-    padding = (_maxlen - len(TOKENS[i]))
-    TOKENS[i] = TOKENS[i] + ['PAD'] * padding
+  _lengths = [len(x) for x in _tokenized_texts]
+  _maxlen = max(_lengths)
+  cat_height = 12
+
+  _labels = np.zeros(shape=(n_items, _maxlen, cat_height), dtype=np.uint8)
+  print('_labels.shape=', _labels.shape)
+
+  for i in range(n_items):
+    padding = (_maxlen - len(_tokenized_texts[i]))
+    _tokenized_texts[i] = _tokenized_texts[i] + ['PAD'] * padding
 
     v_padded = np.concatenate([vectors[i], [0] * padding])
 
-    m = categories_vector_to_onehot_matrix(v_padded, height=v_padded.max() + 1, add_none_category=add_none_category)
-    LABELS.append(m)
+    m = categories_vector_to_onehot_matrix(v_padded, height=11, add_none_category=True)
+    print('m.shape=', m.shape)
+    _labels[i, :, :] = m
 
-  return TOKENS, np.array(LABELS), LENS
+  return _tokenized_texts, _labels, _lengths, _failed
