@@ -156,7 +156,6 @@ def prepare_train_data__(contracts, augmenented_n=5, obfuscated_n=3):
   cat_height = 12
 
   _labels = np.zeros(shape=(n_items, _maxlen, cat_height), dtype=np.uint8)
-  print('_labels.shape=', _labels.shape)
 
   for i in range(n_items):
     padding = (_maxlen - len(_tokenized_texts[i]))
@@ -165,7 +164,11 @@ def prepare_train_data__(contracts, augmenented_n=5, obfuscated_n=3):
     v_padded = np.concatenate([vectors[i], [0] * padding])
 
     m = categories_vector_to_onehot_matrix(v_padded, height=11, add_none_category=True)
-    print('m.shape=', m.shape)
+
     _labels[i, :, :] = m
 
   return _tokenized_texts, _labels, _lengths, _failed
+
+
+
+prepare_train_data = prepare_train_data__
