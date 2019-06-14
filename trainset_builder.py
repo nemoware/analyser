@@ -36,7 +36,7 @@ def _extend_trainset_with_obfuscated_contracts(parsed: List[ContractDocument3], 
 
     for i in range(n):
       try:
-        o_doc = obfuscate_contract(_pdoc)
+        o_doc = obfuscate_contract(_pdoc, rate=1)
         _parsed.append(o_doc)
       except:
         pass
