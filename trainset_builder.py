@@ -27,12 +27,12 @@ def categories_vector_to_onehot_matrix(vector, height=10, add_none_category=True
   return m
 
 
-def _extend_trainset_with_obfuscated_contracts(parsed: List[ContractDocument3], n=10):
+def _extend_trainset_with_obfuscated_contracts(parsed: List[ContractDocument3], n=10, include_originals=True):
   _parsed = []
 
   for _pdoc in parsed:
-
-    _parsed.append(_pdoc)  # take original
+    if include_originals:
+      _parsed.append(_pdoc)  # take original
 
     for i in range(n):
       try:
@@ -48,8 +48,10 @@ def validate_find_patterns_in_contract_results(d):
   assert len(d) == 2
 
 
-def preprocess_contract(txt) -> ContractDocument3:
+def preprocess_contract(txt, trim=0) -> ContractDocument3:
   trimmed = txt  # txt[0:1500]
+  if trim > 0:
+    trimmed = txt[0:trim]
   # normalized_contract = normalize_contract(trimmed)
   # normalized_contract = re.sub(r'\n{2,}', '\n\n', normalized_contract)
   _pdoc = ContractDocument3(trimmed)
@@ -57,11 +59,12 @@ def preprocess_contract(txt) -> ContractDocument3:
   return _pdoc
 
 
-def parse_contracts(contracts, filenames) -> (List[ContractDocument3], List[ContractDocument3]):
+def parse_contracts(contracts, filenames, trim=0) -> (List[ContractDocument3], List[ContractDocument3]):
   _parsed = []
   _failed = []
+
   for fn in filenames:
-    _doc: ContractDocument3 = preprocess_contract(contracts[fn])
+    _doc: ContractDocument3 = preprocess_contract(contracts[fn], trim)
     _doc.filename = fn
     try:
       find_org_names_spans(_doc)
@@ -125,14 +128,15 @@ def _to_categories_vector(_pdoc: ContractDocument3, headlines_index=11):
   return categories_vector
 
 
-def prepare_train_data__(contracts, augmenented_n=5, obfuscated_n=3):
+def prepare_train_data(contracts, augmenented_n=5, obfuscated_n=3, trim=0, include_originals=True):
   data = list(contracts.keys())
 
   # 1. parse available docs with regex
-  _parsed, _failed = parse_contracts(contracts, data)
+  _parsed, _failed = parse_contracts(contracts, data, trim)
 
   print(f'Extending trainset with obfuscated contracts;  docs: {len(_parsed)}')
-  _parsed: List[ContractDocument3] = _extend_trainset_with_obfuscated_contracts(_parsed, n=obfuscated_n)
+  _parsed: List[ContractDocument3] = _extend_trainset_with_obfuscated_contracts(_parsed, n=obfuscated_n,
+                                                                                include_originals=include_originals)
 
   _tokenized_texts = []
   vectors = []
@@ -168,7 +172,3 @@ def prepare_train_data__(contracts, augmenented_n=5, obfuscated_n=3):
     _labels[i, :, :] = m
 
   return _tokenized_texts, _labels, _lengths, _failed
-
-
-
-prepare_train_data = prepare_train_data__
