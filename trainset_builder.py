@@ -74,21 +74,10 @@ def parse_contracts(contracts, filenames, trim=0) -> (List[ContractDocument3], L
 
     except:
       print(f'failed parsing: {fn}')
+      # _doc: ContractDocument3 = preprocess_contract(contracts[fn], 0)
       _failed.append(_doc)
 
   return _parsed, _failed
-
-
-# def _convert_char_slices_to_tokens(doc: ContractDocument3):
-#   for org in doc.agent_infos:
-#     for ent in org:
-#       span = org[ent][1]
-#
-#       if span[0] > 0:
-#         tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.normal_text)
-#         org[ent] = (org[ent][0], org[ent][1], tokens_slice)
-#       else:
-#         org[ent] = (org[ent][0], None, None)
 
 
 def _make_categories_vector(_doc: ContractDocument3) -> np.ndarray:
@@ -129,6 +118,63 @@ def _to_categories_vector(_pdoc: ContractDocument3, headlines_index=11):
 
 
 def prepare_train_data(contracts, augmenented_n=5, obfuscated_n=3, trim=0, include_originals=True):
+  vectors, _tokenized_texts, _failed = mark_contracts(contracts, augmenented_n, obfuscated_n, trim, include_originals)
+  _tokenized_texts, _lengths, _padded_vectors = add_padding_to_max(_tokenized_texts, vectors)
+  _labels = categories_vectors_to_onehot_matrices(_padded_vectors, 12)
+
+  return _tokenized_texts, _labels, _lengths, _failed
+
+
+def categories_vectors_to_onehot_matrices(vectors, matrix_heights):
+  n_items = len(vectors)
+  _labels = np.zeros(shape=(n_items, len(vectors[0]), matrix_heights), dtype=np.uint8)
+  for i in range(n_items):
+    _labels[i, :, :] = categories_vector_to_onehot_matrix(vectors[i], height=matrix_heights - 1,
+                                                          add_none_category=True)
+  return _labels
+
+
+def add_padding_to_max(_tokenized_texts, mark_up_vectors=None, pad_symbol='PAD'):
+  if mark_up_vectors is not None:
+    assert len(_tokenized_texts) == len(mark_up_vectors)
+
+  _lengths = [len(x) for x in _tokenized_texts]
+  print('_lengths=', _lengths)
+  _maxlen = max(_lengths)
+  _padded_vectors = []
+
+  for i in range(len(_tokenized_texts)):
+    padding = (_maxlen - len(_tokenized_texts[i]))
+
+    _tokenized_texts[i] = _tokenized_texts[i] + [pad_symbol] * padding
+
+    if mark_up_vectors is not None:
+      v_padded = np.concatenate([mark_up_vectors[i], [0] * padding])
+      _padded_vectors.append(v_padded)
+
+  return _tokenized_texts, _lengths, _padded_vectors
+
+
+def random_widow(windowlen, textlen) -> slice:
+  start = random.randint(0, textlen - windowlen)
+  return slice(start, start + windowlen)
+
+
+def prepare_train_data_pieces(num, size, contracts, augmenented_n=5, obfuscated_n=3, include_originals=True):
+  _vectors, _tokenized_texts, _failed = mark_contracts(contracts, augmenented_n, obfuscated_n, trim=0,
+                                                       include_originals=include_originals)
+
+  print('number of augmened contracts =', len(_tokenized_texts))
+
+  pieces, _labels, _lengths = split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts)
+
+  return pieces, _labels, _lengths, _failed
+
+
+# ////
+
+
+def mark_contracts(contracts, augmenented_n=5, obfuscated_n=3, trim=0, include_originals=True):
   data = list(contracts.keys())
 
   # 1. parse available docs with regex
@@ -142,8 +188,8 @@ def prepare_train_data(contracts, augmenented_n=5, obfuscated_n=3, trim=0, inclu
   vectors = []
 
   print(f'Augmenting trainset; docs: {len(_parsed)}')
-  for pdoc in _parsed:
 
+  for pdoc in _parsed:
     categories_vector = _to_categories_vector(pdoc)
     vectors.append(categories_vector)
     _tokenized_texts.append(pdoc.tokens_cc)
@@ -153,22 +199,40 @@ def prepare_train_data(contracts, augmenented_n=5, obfuscated_n=3, trim=0, inclu
       vectors.append(new_categories_vector)
       _tokenized_texts.append(new_tokens)
 
-  n_items = len(_tokenized_texts)
+  return vectors, _tokenized_texts, _failed
 
-  _lengths = [len(x) for x in _tokenized_texts]
-  _maxlen = max(_lengths)
-  cat_height = 12
 
-  _labels = np.zeros(shape=(n_items, _maxlen, cat_height), dtype=np.uint8)
+def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
+  print('number of augmened contracts =', len(_tokenized_texts))
 
-  for i in range(n_items):
-    padding = (_maxlen - len(_tokenized_texts[i]))
-    _tokenized_texts[i] = _tokenized_texts[i] + ['PAD'] * padding
+  pieces = []
+  vectors = []
 
-    v_padded = np.concatenate([vectors[i], [0] * padding])
+  txt = ''
 
-    m = categories_vector_to_onehot_matrix(v_padded, height=11, add_none_category=True)
+  for n in range(num):
+    attempt = 0
+    random_index = random.randint(0, len(_tokenized_texts) - 1)
 
-    _labels[i, :, :] = m
+    while len(txt) < size and attempt < 10:
+      attempt += 1
+      random_index = random.randint(0, len(_tokenized_texts) - 1)
+      txt = _tokenized_texts[random_index]
+      vec = _vectors[random_index]
 
-  return _tokenized_texts, _labels, _lengths, _failed
+    assert len(txt) > size, f'{len(txt)} < {size}'
+
+    wnd = random_widow(size, len(txt) - 1)
+
+    piece = txt[wnd]
+    vector = vec[wnd]
+
+    assert len(piece) == size, f' {len(piece)} <> {size} '
+    assert len(vector) == size, f' {len(vector)} <> {size} '
+    vectors.append(vector)
+    pieces.append(piece)
+
+  pieces, _lengths, _padded_vectors = add_padding_to_max(pieces, vectors)
+  _labels = categories_vectors_to_onehot_matrices(_padded_vectors, 12)
+
+  return pieces, _labels, _lengths
