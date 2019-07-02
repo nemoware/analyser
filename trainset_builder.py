@@ -184,19 +184,22 @@ def mark_contracts(contracts, augmenented_n=5, obfuscated_n=3, trim=0, include_o
   _parsed: List[ContractDocument3] = _extend_trainset_with_obfuscated_contracts(_parsed, n=obfuscated_n,
                                                                                 include_originals=include_originals)
 
-  docs = []
+  _tokenized_texts = []
+  vectors = []
 
   print(f'Augmenting trainset; docs: {len(_parsed)}')
 
   for pdoc in _parsed:
-    pdoc.categories_vector = _to_categories_vector(pdoc)
-    docs.append(pdoc)
+    categories_vector = _to_categories_vector(pdoc)
+    vectors.append(categories_vector)
+    _tokenized_texts.append(pdoc.tokens_cc)
 
     for i in range(augmenented_n):
-      augmenented_doc = augment_contract_2(pdoc)
-      docs.append(augmenented_doc)
+      new_tokens, new_categories_vector = augment_contract(pdoc.tokens_cc, categories_vector)
+      vectors.append(new_categories_vector)
+      _tokenized_texts.append(new_tokens)
 
-  return docs, _failed
+  return vectors, _tokenized_texts, _failed
 
 
 def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
