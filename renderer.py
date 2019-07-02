@@ -5,6 +5,7 @@ from ml_tools import ProbableValue
 from parsing import known_subjects, head_types_dict
 from patterns import AV_PREFIX, AV_SOFT, PatternSearchResult, ConstraintsSearchResult, PatternSearchResults
 from structures import ContractSubject
+from text_tools import Tokens
 from transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
@@ -434,7 +435,7 @@ def mixclr(color_map, dictionary, min_color=None, _slice=None):
   return np.array([cut_(reds), cut_(greens), cut_(blues)]).T
 
 
-def to_multicolor_text(tokens, vectors, colormap, min_color=None, _slice=None) -> str:
+def to_multicolor_text(tokens:Tokens, vectors, colormap, min_color=None, _slice=None) -> str:
   if _slice is not None:
     tokens = tokens[_slice]
 
@@ -445,9 +446,11 @@ def to_multicolor_text(tokens, vectors, colormap, min_color=None, _slice=None) -
     r = int(255 * c[0])
     g = int(255 * c[1])
     b = int(255 * c[2])
-    if tokens[i] == '\n':
+    token = tokens[i]
+    token = token.replace('▁',' ')
+    if token == '\n':
       html += '<br>'
-    html += f'<span style="background:rgb({r},{g},{b})">{tokens[i]} </span>'
+    html += f'<span style="background:rgb({r},{g},{b})">{token}</span>'
   return html
 
 
