@@ -110,7 +110,7 @@ def _convert_char_slices_to_tokens(doc: ContractDocument3):
       span = org[ent][1]
 
       if span[0] > 0:
-        tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.normal_text)
+        tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.tokenizer, doc.normal_text)
         org[ent] = (org[ent][0], org[ent][1], tokens_slice)
       else:
         org[ent] = (org[ent][0], None, None)
