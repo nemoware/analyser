@@ -257,9 +257,18 @@ def acronym(n):
   return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
 
 
+def token_at_index_(index: int, tokens: Tokens, tokenizer) -> int:
+
+  for i in range(len(tokens)):
+    fragment = tokenizer.untokenize(tokens[0:i + 1])
+    if len(fragment) > index:
+      return i
+
+  return 0
+
 def token_at_index(index: int, txt: str, tokenizer) -> int:
   tokens = tokenizer.tokenize(txt)
-  
+
   for i in range(len(tokens)):
     fragment = tokenizer.untokenize(tokens[0:i + 1])
     if len(fragment) > index:
@@ -271,9 +280,8 @@ def token_at_index(index: int, txt: str, tokenizer) -> int:
   # return len(head_tokens) - 1
 
 
-def tokens_in_range(span: List[int], tokens: Tokens, tokenizer, txt: str = None) -> slice:
-  if txt is None:
-    txt = tokenizer.untokenize(tokens)
-  a = token_at_index(span[0], txt, tokenizer)
-  b = token_at_index(span[1], txt, tokenizer)
+def tokens_in_range(span: List[int], tokens: Tokens, tokenizer ) -> slice:
+
+  a = token_at_index_(span[0], tokens, tokenizer)
+  b = token_at_index_(span[1], tokens, tokenizer)
   return slice(a, b)
