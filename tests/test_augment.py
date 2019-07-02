@@ -25,20 +25,24 @@ class TestAugm(unittest.TestCase):
     tz = SpmGTokenizer()
     txt = u"""как   ныне 
     сбирается вещий чувак 
+    
     отмстить \n отмстить отмстить xdfg отмстить
     ненасытным баранам"""
     # char_index=5
     tokens = tz.tokenize(txt)
     # tokens[0]='как'
-    print(tokens)
+    print(len(tokens), tokens)
     restored = tz.untokenize(tokens)
     self.assertEqual(txt, restored)
 
 
   def test_char_to_token(self):
     tz = SpmGTokenizer()
-    txt = """как ныне
+    txt = """как     ныне
     сбирается вещий чувак
+    
+    
+    
     отмстить
     ненасытным баранам"""
     # char_index=5

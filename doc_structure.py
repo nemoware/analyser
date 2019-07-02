@@ -211,7 +211,8 @@ class DocumentStructure:
     maxroman = 0
     for __row in lines:
 
-      line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
+      # line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
+      line_tokens_cc = self.tokenize(__row) + ['\n']
 
       line_tokens = [s.lower() for s in line_tokens_cc]
       tokens_cc += line_tokens_cc
@@ -222,7 +223,7 @@ class DocumentStructure:
       if len(line_tokens) > 0:
         # not empty
         number, span, _level, roman = get_tokenized_line_number(line_tokens, last_level_known)
-
+        #XXX: TODO: roman is not one token!! split by spaces first!!!
         if roman: romans += 1
 
         if number is None:
