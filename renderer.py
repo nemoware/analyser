@@ -277,7 +277,7 @@ class HtmlRenderer(AbstractRenderer):
       if word == ' ':
         word = '&nbsp;_ '
       word = word.replace('▁', ' ')
-      html += '<span title="{} {:.4f}" style="background-color:{}">{} </span>'.format(
+      html += '<span title="{} {:.4f}" style="background-color:{}">{}</span>'.format(
         d,
         weights[d],
         mpl.colors.to_hex(cmap(norm(weights[d]))),

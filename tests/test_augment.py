@@ -7,9 +7,10 @@ import unittest
 
 from contract_agents import *
 from contract_augmentation import *
-from documents import MarkedDoc
-
+from documents import MarkedDoc, SpmGTokenizer
 # from text_tools import nltk_treebank_word_tokenizer
+from text_tools import token_at_index
+
 
 def n(x):
   return normalize_contract(x)
@@ -17,10 +18,25 @@ def n(x):
 
 class TestAugm(unittest.TestCase):
 
-
   # def test_remove_char_d(self):
   #   print(nltk_treebank_word_tokenizer.span_tokenize('sfdsf dsf'))
 
+  def test_char_to_token(self):
+    tz = SpmGTokenizer()
+    txt = 'как ныне сбирается вещий чувак отмстить ненасытным баранам'
+    # char_index=5
+    tokens1 = tz.tokenize(txt)
+    # print(tokens1)
+    # print('txt[char_index]=', txt[char_index])
+    # token_n = token_at_index(char_index, txt, tz)
+    # print('token_n=', token_n, tokens1[token_n])
+
+    for char_index in range(0, len(txt)):
+      charr = txt[char_index]
+      token_n = token_at_index(char_index, txt, tz)
+      token = tokens1[token_n].replace('▁', ' ')
+      print(f'char_index={char_index} \t token=[{token}] \t char=[{charr}] \t token_n={token_n}')
+      print(charr, token.index(charr))
 
   def test_remove_char(self):
     doc = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])
@@ -59,10 +75,8 @@ class TestAugm(unittest.TestCase):
     self.assertGreaterEqual(doc.get_len(), 3)
 
     for c in range(5):
-
       augment_trim(doc, 1)
       print('augment_trim', doc.tokens, doc.categories_vector)
-
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

@@ -110,7 +110,6 @@ class LegalDocument(EmbeddableText):
     return self.tokens
 
   def tokens_in_range(self, span: List[int]) -> slice:
-
     a = token_at_index(span[0], self.normal_text, self.tokenizer)
     b = token_at_index(span[1], self.normal_text, self.tokenizer)
     return slice(a, b)

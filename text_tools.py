@@ -5,11 +5,8 @@
 
 from typing import List
 
-
 import numpy as np
 import scipy.spatial.distance as distance
-
-
 
 Tokens = List[str]
 
@@ -192,8 +189,6 @@ def sentence_similarity_matrix(emb, distance_function):
 my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 
 
-
-
 def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):
   for i in reversed(range(index)):
     if tokens[i] == token:
@@ -263,9 +258,16 @@ def acronym(n):
 
 
 def token_at_index(index: int, txt: str, tokenizer) -> int:
-  _txt = txt[0:index]
-  head_tokens = tokenizer.tokenize (_txt)
-  return len(head_tokens)
+  tokens = tokenizer.tokenize(txt)
+  for i in range(len(tokens)):
+    fragment = tokenizer.untokenize(tokens[0:i + 1])
+    if len(fragment) > index:
+      return i
+
+  return 0
+  # _txt = txt[0:index]
+  # head_tokens = tokenizer.tokenize(_txt)
+  # return len(head_tokens) - 1
 
 
 def tokens_in_range(span: List[int], tokens: Tokens, tokenizer, txt: str = None) -> slice:

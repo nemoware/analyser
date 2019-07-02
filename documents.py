@@ -22,9 +22,9 @@ class SpmGTokenizer(GTokenizer):
   def __init__(self):
     super().__init__()
     __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    print(__location__)
     self.sp = spm.SentencePieceProcessor()
     p = os.path.join(__location__, 'vocab', 'm.model')
+    print('loading tokenization model', p)
     self.sp.load(p)
 
     # # encode: text => id
