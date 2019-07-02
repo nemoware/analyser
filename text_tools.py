@@ -259,6 +259,7 @@ def acronym(n):
 
 def token_at_index(index: int, txt: str, tokenizer) -> int:
   tokens = tokenizer.tokenize(txt)
+  
   for i in range(len(tokens)):
     fragment = tokenizer.untokenize(tokens[0:i + 1])
     if len(fragment) > index:

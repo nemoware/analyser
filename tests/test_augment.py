@@ -21,9 +21,26 @@ class TestAugm(unittest.TestCase):
   # def test_remove_char_d(self):
   #   print(nltk_treebank_word_tokenizer.span_tokenize('sfdsf dsf'))
 
+  def test_tokenizer(self):
+    tz = SpmGTokenizer()
+    txt = u"""как   ныне 
+    сбирается вещий чувак 
+    отмстить \n отмстить отмстить xdfg отмстить
+    ненасытным баранам"""
+    # char_index=5
+    tokens = tz.tokenize(txt)
+    # tokens[0]='как'
+    print(tokens)
+    restored = tz.untokenize(tokens)
+    self.assertEqual(txt, restored)
+
+
   def test_char_to_token(self):
     tz = SpmGTokenizer()
-    txt = 'как ныне сбирается вещий чувак отмстить ненасытным баранам'
+    txt = """как ныне
+    сбирается вещий чувак
+    отмстить
+    ненасытным баранам"""
     # char_index=5
     tokens1 = tz.tokenize(txt)
     # print(tokens1)
@@ -35,8 +52,12 @@ class TestAugm(unittest.TestCase):
       charr = txt[char_index]
       token_n = token_at_index(char_index, txt, tz)
       token = tokens1[token_n].replace('▁', ' ')
+
+      # try:
+      token.index(charr)
       print(f'char_index={char_index} \t token=[{token}] \t char=[{charr}] \t token_n={token_n}')
-      print(charr, token.index(charr))
+      # except:
+      #   print(f'ERROR: char_index={char_index} \t token=[{token}] \t char=[{charr}] \t token_n={token_n}')
 
   def test_remove_char(self):
     doc = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])

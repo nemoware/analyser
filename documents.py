@@ -7,7 +7,7 @@ from text_tools import Tokens, my_punctuation
 TEXT_PADDING_SYMBOL = ' '
 
 import sentencepiece as spm
-
+import sentencepiece_pb2
 
 class GTokenizer:
   def tokenize(self, s) -> Tokens:
@@ -26,16 +26,45 @@ class SpmGTokenizer(GTokenizer):
     p = os.path.join(__location__, 'vocab', 'm.model')
     print('loading tokenization model', p)
     self.sp.load(p)
+    self.spt = sentencepiece_pb2.SentencePieceText()
+
+    # self.sp.set_encode_extra_options('bos:eos')
+    # self.sp.set_decode_extra_options('bos:eos')
+
 
     # # encode: text => id
     # print(sp.encode_as_pieces('Лихо Рыбу мыл Вадим'))
     # print(sp.encode_as_ids('Лихо Рыбу мыл Вадим'))
 
-  def tokenize(self, s) -> Tokens:
-    return self.sp.encode_as_pieces(s)
+  def tokenize(self, text) -> Tokens:
+    # # return self.sp.encode_as_ids(text)
+    # sentences = text.split('\n')
+    # result = []
+    # for i in range(len(sentences)):
+    #   sentence = sentences[i]
+    #   result += self.sp.encode_as_pieces(sentence)
+    #   if i < len(sentences) - 1:
+    #     result += ['\n']
+    #
+    # return result
+
+    _txt_bytes = text.encode('utf-8')
+    spt = sentencepiece_pb2.SentencePieceText()
+    spt.ParseFromString(self.sp.encode_as_serialized_proto(text))  # Full width hello
+
+    tokens = []
+
+    for p in spt.pieces:
+      b = p.begin
+      e = p.end
+      token = _txt_bytes[b:e].decode()
+      tokens.append(token)
+
+    return tokens
 
   def untokenize(self, t: Tokens) -> str:
-    return self.sp.decode_pieces(t)
+    return ''.join(t)# self.sp.decode_pieces(t)
+    # pieces(t)
 
 
 import nltk
