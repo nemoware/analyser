@@ -3,7 +3,8 @@ from typing import List
 from patterns import ConstraintsSearchResult
 from ml_tools import ProbableValue, np, TokensWithAttention
 from renderer import as_warning, as_offset, as_error_html, as_msg, as_quote, as_currency
-from text_tools import untokenize
+from text_tools import untokenize__
+
 from transaction_values import ValueConstraint
 
 from parsing import head_types_dict
@@ -130,7 +131,7 @@ class VConstraint:
         html += as_warning("требуется одобрение...".upper())
         html += as_warning(
           f"сумма договора  {as_currency(v_converted)}  БОЛЬШЕ нижней пороговой {as_currency(lower_converted)} ")
-        html += as_quote(untokenize(lower_v.context.tokens))
+        html += as_quote(untokenize__(lower_v.context.tokens))
 
     if self.upper is not None:
 

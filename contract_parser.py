@@ -317,7 +317,7 @@ def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vec
 
     print('REG:', ' '.join(search_result.tokens[region]))
 
-    vc = extract_sum_and_sign_3(search_result, region)
+    vc = extract_sum_and_sign_3(search_result, region, search_result.tokenizer)
     _e = _expand_slice(region, 10)
     vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
     confidence = attention_vector[region.start]

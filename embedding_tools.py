@@ -1,9 +1,10 @@
 import gc
+import time
 from abc import abstractmethod
 
-from text_tools import *
+import numpy as np
 
-import time
+from documents import GTokenizer
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
@@ -30,6 +31,8 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
 
 
 class AbstractEmbedder:
+  def __init__(self, tokenizer: GTokenizer):
+    self.tokenizer = tokenizer
 
   @abstractmethod
   def get_embedding_tensor(self, tokenized_sentences_list):
@@ -40,7 +43,7 @@ class AbstractEmbedder:
     pass
 
   def embedd_sentence(self, _str):
-    words = tokenize_text(_str)
+    words = self.tokenizer.tokenize(_str)
     return self.embedd_tokenized_text([words], [len(words)])
 
   def embedd_contextualized_patterns(self, patterns):
@@ -53,9 +56,9 @@ class AbstractEmbedder:
     for (ctx_prefix, pattern, ctx_postfix) in patterns:
       sentence = ' '.join((ctx_prefix, pattern, ctx_postfix))
 
-      prefix_tokens = tokenize_text(ctx_prefix)
-      pattern_tokens = tokenize_text(pattern)
-      suffix_tokens = tokenize_text(ctx_postfix)
+      prefix_tokens = self.tokenizer.tokenize(ctx_prefix)
+      pattern_tokens = self.tokenizer.tokenize(pattern)
+      suffix_tokens = self.tokenizer.tokenize(ctx_postfix)
 
       start = len(prefix_tokens)
       end = start + len(pattern_tokens)
@@ -103,12 +106,13 @@ class AbstractEmbedder:
 
 class ElmoEmbedder(AbstractEmbedder):
 
-  def __init__(self, elmo, tf, layer_name, create_module_method):
+  def __init__(self, elmo, tf, layer_name, create_module_method, tokenizer):
+    super().__init__(tokenizer)
+
     self.create_module_method = create_module_method
     self.elmo = elmo
     self.config = tf.ConfigProto()
     self.config.gpu_options.allow_growth = True
-
 
     self.layer_name = layer_name
     self.tf = tf
@@ -136,7 +140,6 @@ class ElmoEmbedder(AbstractEmbedder):
 
     return out, words
 
-
   def get_embedding_tensor(self, str, signature="default"):
     embedding_tensor = self.elmo(str, signature=signature, as_dict=True)[self.layer_name]
 
@@ -144,7 +147,7 @@ class ElmoEmbedder(AbstractEmbedder):
     self.session.run(self.tf.global_variables_initializer())
     embedding_ = self.session.run(embedding_tensor)
     embedding = np.array(embedding_)
-    del(embedding_)
+    del (embedding_)
     self.reset_maybe()
 
     #       sess.close()
@@ -156,8 +159,6 @@ class ElmoEmbedder(AbstractEmbedder):
 
     if self.sessionruns > 14:
       self.reset()
-
-
 
   def reset(self):
     self.session.close()
@@ -176,7 +177,6 @@ class ElmoEmbedder(AbstractEmbedder):
     self.elmo = self.create_module_method()
     self.session = self.tf.Session(config=self.config)
     # self.session.run(self.tf.global_variables_initializer())
-
 
     self.sessionruns = 0
     # self.session = self.tf.Session(config=self.config)

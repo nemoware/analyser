@@ -11,7 +11,7 @@ from typing import List
 
 from ml_tools import TokensWithAttention
 from text_tools import np
-from text_tools import to_float, untokenize
+from text_tools import to_float
 
 currencly_map = {
   'руб': 'RUB',
@@ -74,14 +74,14 @@ def extract_sum(sentence: str) -> (float, str):
   return number, currencly_map[curr.lower()]
 
 
-def extract_sum_from_tokens(sentence_tokens: List):
-  sentence = untokenize(sentence_tokens).lower().strip()
+def extract_sum_from_tokens(sentence_tokens: List,  tokenizer):
+  sentence = tokenizer.untokenize(sentence_tokens).lower().strip()
   f = extract_sum(sentence)
   return f, sentence
 
 
-def extract_sum_from_tokens_2(sentence_tokens: List):
-  f, __ = extract_sum_from_tokens(sentence_tokens)
+def extract_sum_from_tokens_2(sentence_tokens: List, tokenizer):
+  f, __ = extract_sum_from_tokens(sentence_tokens, tokenizer)
   return f
 
 
@@ -166,7 +166,7 @@ VALUE_SIGN_MIN_TOKENS = 4
 def extract_sum_and_sign(subdoc, region) -> ValueConstraint:
   subtokens = subdoc.tokens_cc[region[0] - VALUE_SIGN_MIN_TOKENS:region[1]]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
+  _prefix = subdoc.tokenizer.untokenize(_prefix_tokens)
   _sign = detect_sign(_prefix)
   # ======================================
   _sum = extract_sum_from_tokens(subtokens)[0]
@@ -189,10 +189,10 @@ def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = subdoc.tokens_cc[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
+  _prefix = subdoc.tokenizer.untokenize(_prefix_tokens)
   _sign = detect_sign(_prefix)
   # ======================================
-  _sum = extract_sum_from_tokens_2(subtokens)
+  _sum = extract_sum_from_tokens_2(subtokens, subdoc.tokenizer)
   # ======================================
 
   currency = "UNDEF"

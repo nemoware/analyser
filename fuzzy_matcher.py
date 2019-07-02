@@ -1,9 +1,9 @@
 from typing import Dict
 
+from documents import GTokenizer
 from ml_tools import *
 # ==============================================================================
 from patterns import FuzzyPattern
-from text_tools import tokenize_text
 
 
 def select_best_attention_and_relu_it(original, improved, relu_th=0.8):
@@ -153,7 +153,7 @@ class FuzzyMatcher:
 
     return v
 
-  def extract_name(self, attention: FixedVector, tokens: Tokens, cut_threshold = 2) -> [slice]:
+  def extract_name(self, attention: FixedVector, tokens: Tokens, cut_threshold=2) -> [slice]:
     best_indices = []
     #     best_indices = sorted(np.argsort(attention)[::-1][:20])
 
@@ -164,7 +164,6 @@ class FuzzyMatcher:
 
     if len(best_indices) == 0:
       return []
-
 
     slices = group_indices(best_indices, cut_threshold)
 
@@ -221,7 +220,7 @@ class FuzzyMatcher:
     return m_result
 
 
-def prepare_patters_for_embedding(patterns):
+def prepare_patters_for_embedding(patterns, tokenizer: GTokenizer):
   tokenized_sentences_list = []
   regions = []
 
@@ -232,9 +231,9 @@ def prepare_patters_for_embedding(patterns):
 
     sentence = ' '.join((ctx_prefix, pattern, ctx_postfix))
 
-    prefix_tokens = tokenize_text(ctx_prefix)
-    pattern_tokens = tokenize_text(pattern)
-    suffix_tokens = tokenize_text(ctx_postfix)
+    prefix_tokens = tokenizer.tokenize(ctx_prefix)
+    pattern_tokens = tokenizer.tokenize(pattern)
+    suffix_tokens = tokenizer.tokenize(ctx_postfix)
 
     start = len(prefix_tokens)
     end = start + len(pattern_tokens)

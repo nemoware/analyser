@@ -196,11 +196,11 @@ def sentence_similarity_matrix(emb, distance_function):
 my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 
 
-def untokenize(tokens: Tokens) -> str:
+def untokenize__(tokens: Tokens) -> str:
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
 
-def tokenize_text(text):
+def tokenize_text__(text)->Tokens:
   sentences = text.split('\n')
   result = []
   for i in range(len(sentences)):
@@ -280,15 +280,15 @@ def acronym(n):
   return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
 
 
-def token_at_index(index: int, txt: str) -> int:
+def token_at_index(index: int, txt: str, tokenizer) -> int:
   _txt = txt[0:index]
-  head_tokens = tokenize_text(_txt)
+  head_tokens = tokenizer.tokenize (_txt)
   return len(head_tokens)
 
 
-def tokens_in_range(span: List[int], tokens: Tokens, txt: str = None) -> slice:
+def tokens_in_range(span: List[int], tokens: Tokens, tokenizer, txt: str = None) -> slice:
   if txt is None:
     txt = untokenize(tokens)
-  a = token_at_index(span[0], txt)
-  b = token_at_index(span[1], txt)
+  a = token_at_index(span[0], txt, tokenizer)
+  b = token_at_index(span[1], txt, tokenizer)
   return slice(a, b)

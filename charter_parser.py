@@ -10,7 +10,7 @@ from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PR
   ConstraintsSearchResult, PatternSearchResults
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import *
-from text_tools import untokenize
+
 from transaction_values import extract_sum, ValueConstraint
 from violations import ViolationsFinder
 
@@ -59,7 +59,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     for _slice in ranges:
 
-      __line = untokenize(body.tokens[_slice])
+      __line = body.tokenizer.untokenize(body.tokens[_slice])
       _sum = extract_sum(__line)
 
       if _sum is not None:
@@ -71,10 +71,10 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     r_by_head_type = {
       'section': head_types_dict[section.type],
-      'caption': untokenize(section.subdoc.tokens_cc),
+      'caption': body.tokenizer.untokenize(section.subdoc.tokens_cc),
       'sentences': self.__extract_constraint_values_from_region(sentenses_having_values)
     }
-    self._logstep(f"Finding margin transaction values in section {untokenize(section.subdoc.tokens_cc)}")
+    self._logstep(f"Finding margin transaction values in section {body.tokenizer.untokenize(section.subdoc.tokens_cc)}")
     return r_by_head_type
 
   ##---------------------------------------
@@ -109,7 +109,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
 
-    self.doc = None
+    self.doc: CharterDocument = None
 
     self.violations_finder = ViolationsFinder()
 
@@ -301,7 +301,8 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     sentences = []
     for pattern_sr in sentenses_i:
-      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
+      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention(),
+                                                                          self.doc.tokenizer)
 
       # todo: ConstraintsSearchResult is deprecated
       csr = ConstraintsSearchResult()

@@ -12,7 +12,7 @@ Original file is located at
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from documents import TEXT_PADDING_SYMBOL
+
 
 print(tf.__version__)
 elmo = hub.Module('http://files.deeppavlov.ai/deeppavlov_data/elmo_ru-twitter_2013-01_2018-04_600k_steps.tar.gz', trainable=False) #twitter
@@ -471,22 +471,7 @@ class LegalDocument(EmbeddableText):
     self.embeddings = None
     self.normal_text = None
 
-  def tokenize(self, _txt=None):
-    if _txt is None: _txt = self.normal_text
 
-    _words = tokenize_text(_txt)
-
-    sparse_words = []
-    end = len(_words)
-    last_cr_index = 0
-    for i in range(end):
-      if (_words[i] == '\n') or i == end - 1:
-        chunk = _words[last_cr_index:i + 1]
-        chunk.extend([TEXT_PADDING_SYMBOL] * self.right_padding)
-        sparse_words += chunk
-        last_cr_index = i + 1
-
-    return sparse_words
 
   def parse(self, txt=None):
     if txt is None: txt = self.original_text

@@ -6,8 +6,10 @@ import unittest
 import sys
 
 import numpy as np
-import nltk
-from text_tools import untokenize
+# import nltk
+
+from documents import TOKENIZER_DEFAULT
+# from text_tools import untokenize
 from transaction_values import split_by_number_2
 from  transaction_values import extract_sum
 from text_normalize import *
@@ -145,7 +147,7 @@ class PriceExtractTestCase(unittest.TestCase):
       """
       numbers = numbers_str.split('\n')
       for n in numbers:
-        tokens = nltk.word_tokenize(n)
+        tokens = TOKENIZER_DEFAULT.tokenize(n)
         print (tokens)
         for t in tokens:
           ff = number_re.findall(t)
@@ -153,15 +155,15 @@ class PriceExtractTestCase(unittest.TestCase):
           # self.assertTrue(len(ff)>0 )
 
     def test_split_by_number(self):
-      import nltk
+
       for (price, currency, text) in data:
 
         normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
-        tokens = nltk.word_tokenize(normal_text)
+        tokens = TOKENIZER_DEFAULT.tokenize(normal_text)
 
         a,b,c = split_by_number_2(tokens, np.ones(len(tokens)), 0.1)
         for t in a:
-          restored=untokenize(t)
+          restored = TOKENIZER_DEFAULT.untokenize(t)
           print ('\t-', t)
           self.assertTrue(restored[0].isdigit())
 

@@ -245,6 +245,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
 class AbstractPatternFactory:
 
   def __init__(self, embedder):
+
     self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
     self.patterns: List[FuzzyPattern] = []
     self.patterns_dict = {}
@@ -262,7 +263,7 @@ class AbstractPatternFactory:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb = self.embedder.embedd_contextualized_patterns(arr)
+    patterns_emb = self.embedder.embedd_contextualized_patterns(arr )
     assert len(patterns_emb) == len(self.patterns)
     # =========
 

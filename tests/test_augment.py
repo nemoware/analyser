@@ -46,11 +46,11 @@ class TestAugm(unittest.TestCase):
     augment_dropout_punctuation_d(doc, 1)
     print(doc.tokens, doc.categories_vector)
 
-  def test_concat (self):
-    doc = MarkedDoc([',', 'AAA', '"', 'BBB', '.'], [1, 2, 3, 4, 5])
-    doc2 = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])
-    doc.concat(doc2)
-    print(doc.tokens, doc.categories_vector)
+  # def test_concat (self):
+  #   doc = MarkedDoc([',', 'AAA', '"', 'BBB', '.'], [1, 2, 3, 4, 5])
+  #   doc2 = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])
+  #   doc.concat(doc2)
+  #   print(doc.tokens, doc.categories_vector)
 
   def test_trim(self):
     doc = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])

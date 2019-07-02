@@ -711,9 +711,6 @@ class ContractDocument2(LegalDocument):
     LegalDocument.__init__(self, original_text)
     self.right_padding = 0
 
-  def tokenize(self, _txt):
-    return tokenize_text(_txt)
-
 doc = ContractDocument2(docs[0])
 doc.parse()
 

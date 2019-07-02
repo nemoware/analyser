@@ -2,6 +2,7 @@ from typing import List
 
 import numpy as np
 
+from documents import GTokenizer
 from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding
 from patterns import FuzzyPattern
 from text_tools import Tokens, hot_punkt
@@ -13,11 +14,12 @@ def make_punkt_mask(tokens: Tokens) -> np.ndarray:
 
 class PatternSearchModel:
 
-  def __init__(self, tf, hub,
+  def __init__(self, tf, hub, tokenizer: GTokenizer,
                module_url='https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
     self.tf = tf
     self.hub = hub
     self.module_url = module_url
+    self.tokenizer = tokenizer
 
     # cosine_similarities, cosine_similarities_improved
     self.embedding_session = None
@@ -186,7 +188,7 @@ class PatternSearchModel:
   # ------
 
   def _fill_dict(self, text_tokens: Tokens, patterns: List[FuzzyPattern]):
-    patterns_tokens, patterns_lengths, pattern_slices, _ = prepare_patters_for_embedding(patterns)
+    patterns_tokens, patterns_lengths, pattern_slices, _ = prepare_patters_for_embedding(patterns, self.tokenizer)
     feed_dict = {
       self.text_input: [text_tokens],  # text_input
       self.text_lengths: [len(text_tokens)],  # text_lengths

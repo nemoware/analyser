@@ -8,6 +8,7 @@
 from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
+from documents import GTokenizer, TOKENIZER_DEFAULT
 from embedding_tools import embedd_tokenized_sentences_list
 from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention
@@ -16,8 +17,7 @@ from patterns import *
 from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
 from structures import ORG_2_ORG
 from text_normalize import *
-from text_tools import *
-from text_tools import untokenize, np
+from text_tools import np
 from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2, ValueConstraint, \
   VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map
 
@@ -76,8 +76,9 @@ def deprecated(fn):
 
 class LegalDocument(EmbeddableText):
 
-  def __init__(self, original_text=None, name="legal_doc"):
-    super().__init__()
+  def __init__(self, original_text=None, name="legal_doc", tokenizer: GTokenizer = TOKENIZER_DEFAULT):
+    super().__init__(tokenizer)
+
     self.original_text = original_text
 
     self.normal_text = None
@@ -89,6 +90,10 @@ class LegalDocument(EmbeddableText):
     self.start = None
     self.end = None
 
+  def tokenize(self, _txt=None):
+    if _txt is None: _txt = self.normal_text
+    return super().tokenize(_txt)
+
   def parse(self, txt=None):
     if txt is None:
       txt = self.original_text
@@ -97,7 +102,7 @@ class LegalDocument(EmbeddableText):
 
     self.normal_text = self.preprocess_text(txt)
 
-    self.structure = DocumentStructure()
+    self.structure = DocumentStructure(self.tokenizer)
     self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
 
     # self.tokens = self.tokenize(self.normal_text)
@@ -106,8 +111,8 @@ class LegalDocument(EmbeddableText):
 
   def tokens_in_range(self, span: List[int]) -> slice:
 
-    a = token_at_index(span[0], self.normal_text)
-    b = token_at_index(span[1], self.normal_text)
+    a = token_at_index(span[0], self.normal_text, self.tokenizer)
+    b = token_at_index(span[1], self.normal_text, self.tokenizer)
     return slice(a, b)
 
   def preprocess_text(self, txt):
@@ -302,6 +307,7 @@ class LegalDocument(EmbeddableText):
     sub = klazz("REF")
     sub.start = _s.start
     sub.end = _s.stop
+    sub.tokenizer = self.tokenizer
 
     if self.embeddings is not None:
       sub.embeddings = self.embeddings[_s]
@@ -410,21 +416,21 @@ class LegalDocument(EmbeddableText):
     self.embeddings = None
     self.normal_text = None
 
-  def tokenize(self, _txt):
-
-    _words = tokenize_text(_txt)
-
-    sparse_words = []
-    end = len(_words)
-    last_cr_index = 0
-    for i in range(end):
-      if (_words[i] == '\n') or i == end - 1:
-        chunk = _words[last_cr_index:i + 1]
-
-        sparse_words += chunk
-        last_cr_index = i + 1
-
-    return sparse_words
+  # def tokenize(self, _txt):
+  #
+  #   _words = tokenize_text(_txt)
+  #
+  #   sparse_words = []
+  #   end = len(_words)
+  #   last_cr_index = 0
+  #   for i in range(end):
+  #     if (_words[i] == '\n') or i == end - 1:
+  #       chunk = _words[last_cr_index:i + 1]
+  #
+  #       sparse_words += chunk
+  #       last_cr_index = i + 1
+  #
+  #   return sparse_words
 
   def reset_embeddings(self):
     print('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
@@ -675,9 +681,6 @@ class CharterDocument(LegalDocument):
       if p.org_level is org_level and (constraint_subj is None or p.subject_mapping['subj'] == constraint_subj):
         yield p
 
-  def tokenize(self, _txt):
-    return tokenize_text(_txt)
-
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
   ret = {}
@@ -861,7 +864,7 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 from transaction_values import complete_re
 
 
-def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector: List[float]) -> List[
+def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector: List[float], tokenizer) -> List[
   ProbableValue]:
   def __tokens_before_index(string, index):
     return len(string[:index].split(' '))
@@ -877,7 +880,7 @@ def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector
 
     region = slice(token_index_s, token_index_e)
 
-    vc = extract_sum_and_sign_3(search_result, region)
+    vc = extract_sum_and_sign_3(search_result, region, tokenizer)
     _e = _expand_slice(region, 10)
     vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
     confidence = attention_vector[region.start]
@@ -1004,14 +1007,15 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
-def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
+def extract_sum_and_sign_3(sr: PatternMatch, region: slice, tokenizer) -> ValueConstraint:
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = sr.tokens[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
+  # TODO: do not use untokenize, use GTokenizer
+  _prefix = tokenizer.untokenize(_prefix_tokens)
   _sign = detect_sign(_prefix)
   # ======================================
-  _sum = extract_sum_from_tokens_2(subtokens)
+  _sum = extract_sum_from_tokens_2(subtokens, tokenizer)
   # ======================================
 
   currency = "UNDEF"

@@ -1,7 +1,8 @@
 import re
 
+from documents import GTokenizer
 from ml_tools import *
-from text_tools import tokenize_text, np, untokenize
+from text_tools import np
 
 
 def _strip_left(tokens):
@@ -41,9 +42,9 @@ def roman_might_be(wrd):
     return None
 
 
-def string_to_ip(str):
+def string_to_ip(str_):
   ret = []
-  n = str.split('.')
+  n = str_.split('.')
   for c in n:
     try:
       ret.append(int(c))
@@ -140,7 +141,7 @@ class StructureLine():
   def add_possible_level(self, l):
     self._possible_levels.append(l)
 
-  def print(self, tokens_cc, suffix='', line_number=None):
+  def print(self, tokens_cc, tokenizer, suffix='', line_number=None):
 
     offset = '  .  ' * self.level
 
@@ -152,7 +153,7 @@ class StructureLine():
     #         print(offset, number_str, (self.tokens_cc[span[0] + number_tokens:span[1]]))
     values = "not text so far"
     if tokens_cc is not None:
-      values = self.to_string_no_number(tokens_cc)
+      values = self.to_string_no_number(tokens_cc, tokenizer=tokenizer)
 
     ln = self.line_number
     if line_number is not None:
@@ -163,11 +164,11 @@ class StructureLine():
     #       se=str(self.sequence_end)
     print('ds>{}\t {}\t'.format(ln, se), offset, number_str, values, suffix)
 
-  def to_string_no_number(self, tokens_cc):
-    return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
+  def to_string_no_number(self, tokens_cc, tokenizer:GTokenizer):
+    return tokenizer.untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
-  def to_string(self, tokens):
-    return untokenize(tokens[self.slice])
+  def to_string(self, tokens, tokenizer:GTokenizer):
+    return tokenizer.untokenize(tokens[self.slice])
 
   def subtokens(self, tokens):
     return tokens[self.span[0]: self.span[1]]
@@ -186,13 +187,14 @@ class StructureLine():
 
 class DocumentStructure:
 
-  def __init__(self):
+  def __init__(self, tokenizer: GTokenizer):
+    self.tokenizer = tokenizer
     self.structure: List[StructureLine] = None
-    self.headline_indexes:List[int] = []
+    self.headline_indexes: List[int] = []
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
-    return tokenize_text(_txt)
+    return self.tokenizer.tokenize(_txt)
 
   def detect_document_structure(self, text):
     lines: List[str] = text.split('\n')
@@ -261,21 +263,20 @@ class DocumentStructure:
 
     self.structure = self._fix_structure(structure)
 
-    self.headline_indexes = self._find_headlines(tokens, tokens_cc)
+    self.headline_indexes = self._find_headlines(tokens, tokens_cc, self.tokenizer)
     self.headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(self.headline_indexes)
 
     return tokens, tokens_cc
 
-
   #     del _charter_doc.structure.structure[i]
 
-  def next_headline_after(self, start:int) -> int:
+  def next_headline_after(self, start: int) -> int:
     for si in self.headline_indexes:
       line_start = self.structure[si].span[0]
       if line_start > start:
         return line_start
 
-    return self.structure[-1].span[-1] #end of the doc
+    return self.structure[-1].span[-1]  # end of the doc
 
   def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes) -> List[int]:
     indexes_to_remove = []
@@ -301,12 +302,11 @@ class DocumentStructure:
 
   def _merge_headlines(self, headline_indexes, line_i, line_i_next, indexes_to_remove):
 
-    i_this =  headline_indexes[line_i]
-    i_next =  headline_indexes[line_i_next]
+    i_this = headline_indexes[line_i]
+    i_next = headline_indexes[line_i_next]
 
     sline: StructureLine = self.structure[i_this]
     sline_next: StructureLine = self.structure[i_next]
-
 
     sline.span = (sline.span[0], sline_next.span[1])
 
@@ -314,7 +314,7 @@ class DocumentStructure:
     for i in range(i_this + 1, i_next + 1):
       indexes_to_remove.append(i)
 
-  def _find_headlines(self, tokens, tokens_cc) -> List[int]:
+  def _find_headlines(self, tokens, tokens_cc, tokenizer:GTokenizer) -> List[int]:
 
     headlines_probability = np.zeros(len(self.structure))
 
@@ -325,7 +325,7 @@ class DocumentStructure:
       line_tokens = line.subtokens(tokens)
       line_tokens_cc = line.subtokens(tokens_cc)
 
-      p = headline_probability(line_tokens, line_tokens_cc, line, prev_sentence, prev_value)
+      p = headline_probability(line_tokens, line_tokens_cc, line, prev_sentence, prev_value, tokenizer)
       headlines_probability[i] = p
       line.add_possible_level(p)
       prev_sentence = line_tokens
@@ -345,8 +345,8 @@ class DocumentStructure:
       delta = relu(x - blured, 0)
       return delta, blured
 
-    max = np.max(p_per_line)
-    result = relu(p_per_line, max / 3.0)
+    _max = np.max(p_per_line)
+    result = relu(p_per_line, _max / 3.0)
     contrasted, smoothed = local_contrast(result)
 
     return contrasted
@@ -426,8 +426,7 @@ class DocumentStructure:
 strange_symbols = re.compile(r'[_$@+]–')
 
 
-def headline_probability(sentence: List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence,
-                         prev_value) -> float:
+def headline_probability(sentence: List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value, tokenizer:GTokenizer) -> float:
   """
   _cc == original case
   """
@@ -470,7 +469,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
   # span = sentence_meta.span
   _level = sentence_meta.level
   # number, span, _level = get_tokenized_line_number(sentence, None)
-  row = untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
+  row =tokenizer. untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
   row = row.lstrip()
 
   if strange_symbols.search(row) is not None:
@@ -509,7 +508,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
   # headline is UPPERCASE
   if row.upper() == row:
-    if not row.isdigit(): #there some trash
+    if not row.isdigit():  # there some trash
       value += 1.5
 
   if prev_sentence == ['\n'] and sentence != ['\n']:
@@ -517,26 +516,27 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
   return value
 
-#XXXL
-def remove_similar_indexes_considering_weights(indexes: List[int], weights: List[float]) -> List[int]:
+
+# XXXL
+def remove_similar_indexes_considering_weights(indexes: List[int], weights ) -> List[int]:
   hif = []
 
-  def is_index_far(i):
-    if i == 0: return True
-    return indexes[i] - indexes[i - 1] > 1
+  def is_index_far(ix):
+    if ix == 0: return True
+    return indexes[ix] - indexes[ix - 1] > 1
 
-  def is_bigger_confidence(i):
-    id = indexes[i]
+  def is_bigger_confidence(ix):
+    _id = indexes[ix]
     id_p = hif[-1]
-    return weights[id] > weights[id_p]
+    return weights[_id] > weights[id_p]
 
   for i in range(len(indexes)):
-    id = indexes[i]
+    id_ = indexes[i]
 
     if is_index_far(i):
-      hif.append(id)
+      hif.append(id_)
     elif is_bigger_confidence(i):
       # replace
-      hif[-1] = id
+      hif[-1] = id_
 
   return hif
