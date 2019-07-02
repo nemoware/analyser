@@ -9,7 +9,7 @@ from contract_agents import *
 from contract_augmentation import *
 from documents import MarkedDoc
 
-from text_tools import nltk_treebank_word_tokenizer
+# from text_tools import nltk_treebank_word_tokenizer
 
 def n(x):
   return normalize_contract(x)
@@ -18,8 +18,8 @@ def n(x):
 class TestAugm(unittest.TestCase):
 
 
-  def test_remove_char_d(self):
-    print(nltk_treebank_word_tokenizer.span_tokenize('sfdsf dsf'))
+  # def test_remove_char_d(self):
+  #   print(nltk_treebank_word_tokenizer.span_tokenize('sfdsf dsf'))
 
 
   def test_remove_char(self):

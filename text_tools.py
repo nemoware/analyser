@@ -5,15 +5,11 @@
 
 from typing import List
 
-import nltk
+
 import numpy as np
 import scipy.spatial.distance as distance
 
-nltk.download('punkt')
 
-from nltk.tokenize import _treebank_word_tokenizer
-
-nltk_treebank_word_tokenizer = _treebank_word_tokenizer
 
 Tokens = List[str]
 
@@ -196,20 +192,6 @@ def sentence_similarity_matrix(emb, distance_function):
 my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 
 
-def untokenize__(tokens: Tokens) -> str:
-  return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
-
-
-def tokenize_text__(text)->Tokens:
-  sentences = text.split('\n')
-  result = []
-  for i in range(len(sentences)):
-    sentence = sentences[i]
-    result += nltk.word_tokenize(sentence)
-    if i < len(sentences) - 1:
-      result += ['\n']
-
-  return result
 
 
 def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):

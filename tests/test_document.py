@@ -66,20 +66,20 @@ class LegalDocumentTestCase(unittest.TestCase):
     # self.assertEqual(1, len(fp2.embeddings))
     # self.assertEqual(3, len(fp3.embeddings))
 
-  def test_normalize_sentences_bounds(self):
-    d = LegalDocument()
-
-    text = ""
-    self.assertEqual(text, d.normalize_sentences_bounds(text))
-
-    text = "A"
-    self.assertEqual(text, d.normalize_sentences_bounds(text))
-
-    text = "A."
-    self.assertEqual(text, d.normalize_sentences_bounds(text))
-
-    text = "Ай да А.С. Пушкин! Ай да сукин сын!"
-    print(d.normalize_sentences_bounds(text))
+  # def test_normalize_sentences_bounds(self):
+  #   d = LegalDocument()
+  #
+  #   text = ""
+  #   self.assertEqual(text, d.normalize_sentences_bounds(text))
+  #
+  #   text = "A"
+  #   self.assertEqual(text, d.normalize_sentences_bounds(text))
+  #
+  #   text = "A."
+  #   self.assertEqual(text, d.normalize_sentences_bounds(text))
+  #
+  #   text = "Ай да А.С. Пушкин! Ай да сукин сын!"
+  #   print(d.normalize_sentences_bounds(text))
 
   def test_parse(self):
     d = LegalDocument("a")
@@ -236,7 +236,7 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     print('-' * 50, 'headline_indexes2 len', len(headline_indexes2))
     for i in headline_indexes2:
-      TCD.structure.structure[i].print(TCD.tokens_cc)
+      TCD.structure.structure[i].print(TCD.tokens_cc, TCD.tokenizer)
       # print(f'[{l}]')
 
     # # point1 = [1, 6, 4]

@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from text_tools import Tokens, untokenize__, tokenize_text__
+from text_tools import Tokens, my_punctuation
 
 TEXT_PADDING_SYMBOL = ' '
 
@@ -38,14 +38,30 @@ class SpmGTokenizer(GTokenizer):
     return self.sp.decode_pieces(t)
 
 
+import nltk
+
+
 class DefaultGTokenizer(GTokenizer):
 
-  def tokenize(self, s) -> Tokens:
-    return tokenize_text__(s)
+  def __init__(self):
 
-  def untokenize(self, t: Tokens) -> str:
-    return untokenize__(t)
+    nltk.download('punkt')
+    from nltk.tokenize import _treebank_word_tokenizer
+    nltk_treebank_word_tokenizer = _treebank_word_tokenizer
 
+  def tokenize(self, text) -> Tokens:
+    sentences = text.split('\n')
+    result = []
+    for i in range(len(sentences)):
+      sentence = sentences[i]
+      result += nltk.word_tokenize(sentence)
+      if i < len(sentences) - 1:
+        result += ['\n']
+
+    return result
+
+  def untokenize(self, tokens: Tokens) -> str:
+    return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
 
 TOKENIZER_DEFAULT = SpmGTokenizer()
@@ -72,8 +88,6 @@ class TokenizedText:
 
   def tokenize(self, _txt):
     return self.tokenizer.tokenize(_txt)
-
-
 
   def trim(self, sl: slice):
     self.tokens = self.tokens[sl]

@@ -164,10 +164,10 @@ class StructureLine():
     #       se=str(self.sequence_end)
     print('ds>{}\t {}\t'.format(ln, se), offset, number_str, values, suffix)
 
-  def to_string_no_number(self, tokens_cc, tokenizer:GTokenizer):
+  def to_string_no_number(self, tokens_cc, tokenizer: GTokenizer):
     return tokenizer.untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
-  def to_string(self, tokens, tokenizer:GTokenizer):
+  def to_string(self, tokens, tokenizer: GTokenizer):
     return tokenizer.untokenize(tokens[self.slice])
 
   def subtokens(self, tokens):
@@ -314,7 +314,7 @@ class DocumentStructure:
     for i in range(i_this + 1, i_next + 1):
       indexes_to_remove.append(i)
 
-  def _find_headlines(self, tokens, tokens_cc, tokenizer:GTokenizer) -> List[int]:
+  def _find_headlines(self, tokens, tokens_cc, tokenizer: GTokenizer) -> List[int]:
 
     headlines_probability = np.zeros(len(self.structure))
 
@@ -426,7 +426,8 @@ class DocumentStructure:
 strange_symbols = re.compile(r'[_$@+]–')
 
 
-def headline_probability(sentence: List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value, tokenizer:GTokenizer) -> float:
+def headline_probability(sentence: Tokens, sentence_cc, sentence_meta: StructureLine, prev_sentence, prev_value,
+                         tokenizer: GTokenizer) -> float:
   """
   _cc == original case
   """
@@ -437,20 +438,22 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
   if sentence == ['\n']:
     return NEG
 
-  if len(sentence) < 2:
+  slen = len(tokenizer.untokenize(sentence).split(' '))
+
+  if slen < 2:
     return NEG
 
-  if len(sentence) > 20:
+  if slen > 20:
     return NEG
 
-  if len(sentence) > 10:
+  if slen > 10:
     value -= 2
 
   # headline is short enough
-  if len(sentence) < 10:
+  if slen < 10:
     value += 1
 
-  if 3 <= len(sentence) <= 6:
+  if 3 <= slen <= 6:
     value += 1
 
   # headline may not go after another headline
@@ -458,7 +461,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
     value -= prev_value / 2
 
   # if it ends with a number, it is a contents-line
-  if len(sentence) > 3:
+  if slen > 3:
     r_off = 2
     if sentence[-r_off] == '.':
       r_off = 3
@@ -469,7 +472,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
   # span = sentence_meta.span
   _level = sentence_meta.level
   # number, span, _level = get_tokenized_line_number(sentence, None)
-  row =tokenizer. untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
+  row = tokenizer.untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
   row = row.lstrip()
 
   if strange_symbols.search(row) is not None:
@@ -518,7 +521,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
 
 # XXXL
-def remove_similar_indexes_considering_weights(indexes: List[int], weights ) -> List[int]:
+def remove_similar_indexes_considering_weights(indexes: List[int], weights) -> List[int]:
   hif = []
 
   def is_index_far(ix):

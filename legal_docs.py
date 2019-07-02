@@ -328,18 +328,6 @@ class LegalDocument(EmbeddableText):
     _s = slice(start, end)
     return self.subdoc_slice(_s)
 
-  def normalize_sentences_bounds(self, text):
-    """
-        splits text into sentences, join sentences with \n
-        :param text:
-        :return:
-        """
-    sents = ru_tokenizer.tokenize(text)
-    for s in sents:
-      s.replace('\n', ' ')
-
-    return '\n'.join(sents)
-
   def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
     # ---takes time
     if recalc_distances:

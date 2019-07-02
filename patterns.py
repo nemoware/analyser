@@ -6,7 +6,7 @@ from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject
 from transaction_values import ValueConstraint
 
-load_punkt = True
+load_punkt = False
 
 from text_tools import *
 
@@ -19,21 +19,24 @@ import numpy as np
 
 import sys
 
-WARN='\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
-
-russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
-save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
-if sys.version_info[0] < 3:
-  russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
-  save_nltk_dir = 'nltk_data_download/tokenizers/punkt'
+WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 import urllib.request
 import os
 
-if not os.path.exists(save_nltk_dir):
-  os.makedirs(save_nltk_dir)
-
 if load_punkt:
+
+  russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
+  save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
+  if sys.version_info[0] < 3:
+    russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
+    save_nltk_dir = 'nltk_data_download/tokenizers/punkt'
+
+  if not os.path.exists(save_nltk_dir):
+    os.makedirs(save_nltk_dir)
+
+  import nltk
+
   russian_punkt = urllib.request.urlopen(russian_punkt_url)
   with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
     output.write(russian_punkt.read())
@@ -263,7 +266,7 @@ class AbstractPatternFactory:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb = self.embedder.embedd_contextualized_patterns(arr )
+    patterns_emb = self.embedder.embedd_contextualized_patterns(arr)
     assert len(patterns_emb) == len(self.patterns)
     # =========
 
@@ -395,7 +398,8 @@ AV_PREFIX = '$at_'
 
 from structures import OrgStructuralLevel
 
-class PatternMatch ():
+
+class PatternMatch():
   def __init__(self, region):
     assert region.stop - region.start > 0
     self.subject_mapping = {
@@ -407,7 +411,7 @@ class PatternMatch ():
     self.confidence: float = 0
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
-    self.parent  = None # 'LegalDocument'
+    self.parent = None  # 'LegalDocument'
 
   def get_attention(self, name=None):
     if name is None:
@@ -427,15 +431,15 @@ class PatternMatch ():
 
 
 class PatternSearchResult(PatternMatch):
-  def __init__(self, org_level:OrgStructuralLevel, region):
+  def __init__(self, org_level: OrgStructuralLevel, region):
     super(PatternSearchResult, self).__init__(region)
-    self.org_level:OrgStructuralLevel = org_level
+    self.org_level: OrgStructuralLevel = org_level
 
 
 class ConstraintsSearchResult:
 
   def __init__(self):
-    print(WARN+'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
+    print(WARN + 'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
     self.constraints: List[ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
