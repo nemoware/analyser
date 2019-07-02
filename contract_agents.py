@@ -6,13 +6,10 @@
 import re
 from typing import AnyStr, Match, Dict, List
 
-
 from contract_parser import ContractDocument3
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, replacements_regex, ru_cap, r_few_words_s, r_human_name
 from text_tools import tokens_in_range
-
-
 
 ORG_TYPES_re = [
   ru_cap('Акционерное общество'), 'АО',
@@ -61,7 +58,6 @@ def make_rnanom_name(lenn) -> str:
   return ''.join(random.choices('АБВГДЕЖЗИКЛМН', k=1) + random.choices('абвгдежопа ', k=lenn))
 
 
-
 # def augment_contract(txt: str, org_infos: List[Dict]):
 #   txt_a = txt
 #   for org in org_infos:
@@ -101,7 +97,6 @@ def find_org_names_spans(doc: ContractDocument3) -> None:
   agent_infos = _find_org_names(doc.normal_text)
   doc.agent_infos = agent_infos
   _convert_char_slices_to_tokens(doc)
-
 
 
 def _convert_char_slices_to_tokens(doc: ContractDocument3):

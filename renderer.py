@@ -273,9 +273,10 @@ class HtmlRenderer(AbstractRenderer):
 
     for d in range(0, len(weights)):
       word = tokens[d]
+
       if word == ' ':
         word = '&nbsp;_ '
-
+      word = word.replace('▁', ' ')
       html += '<span title="{} {:.4f}" style="background-color:{}">{} </span>'.format(
         d,
         weights[d],
