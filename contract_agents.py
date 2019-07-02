@@ -94,7 +94,7 @@ def _find_org_names(txt: str) -> List[Dict]:
 
 
 def find_org_names_spans(doc: ContractDocument3) -> None:
-  agent_infos = _find_org_names(doc.normal_text)
+  agent_infos = _find_org_names(doc.untokenize())
   doc.agent_infos = agent_infos
   _convert_char_slices_to_tokens(doc)
 
@@ -105,7 +105,7 @@ def _convert_char_slices_to_tokens(doc: ContractDocument3):
       span = org[ent][1]
 
       if span[0] > 0:
-        tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.tokenizer, doc.normal_text)
+        tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.tokenizer)
         org[ent] = (org[ent][0], org[ent][1], tokens_slice)
       else:
         org[ent] = (org[ent][0], None, None)
