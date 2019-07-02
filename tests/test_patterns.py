@@ -47,14 +47,9 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
   def test_tokenize_doc(self):
     doc = LegalDocument(tokenizer=_tokenizer)
-    tokens = doc.tokenize('aa bb cc')
+    tokens = doc.tokenizer.tokenize('aa bb cc')
     print(tokens)
 
-  def test_tokenize_doc_custom_padding(self):
-    doc = LegalDocument(tokenizer=_tokenizer)
-
-    tokens = doc.tokenize('aa bb cc')
-    print(tokens)
 
   def test_eval_distances_soft_pattern2(self):
     point1 = [1, 3]

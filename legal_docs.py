@@ -91,8 +91,10 @@ class LegalDocument(EmbeddableText):
     self.end = None
 
   def tokenize(self, _txt=None):
-    if _txt is None: _txt = self.normal_text
-    return super().tokenize(_txt)
+    raise NotImplementedError()
+
+    # if _txt is None: _txt = self.normal_text
+    # return super().tokenize(_txt)
 
   def parse(self, txt=None):
     if txt is None:
@@ -104,6 +106,8 @@ class LegalDocument(EmbeddableText):
 
     self.structure = DocumentStructure(self.tokenizer)
     self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
+
+    self.normal_text = self.untokenize_cc()
 
     # self.tokens = self.tokenize(self.normal_text)
     # self.tokens_cc = np.array(self.tokens)
