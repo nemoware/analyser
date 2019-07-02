@@ -111,7 +111,7 @@ class LegalDocument(EmbeddableText):
 
     # self.tokens = self.tokenize(self.normal_text)
     # self.tokens_cc = np.array(self.tokens)
-    #return self.tokens
+    # return self.tokens
 
   def tokens_in_range(self, span: List[int]) -> slice:
     a = token_at_index_(span[0], self.tokens_cc, self.tokenizer)

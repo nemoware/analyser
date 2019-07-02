@@ -9,7 +9,7 @@ from contract_agents import *
 from contract_augmentation import *
 from documents import MarkedDoc, SpmGTokenizer
 # from text_tools import nltk_treebank_word_tokenizer
-from text_tools import token_at_index
+from text_tools import token_at_index, token_at_index_
 
 
 def n(x):
@@ -38,14 +38,23 @@ class TestAugm(unittest.TestCase):
 
   def test_char_to_token(self):
     tz = SpmGTokenizer()
-    txt = """как     ныне
-    сбирается вещий чувак
+    txt = """
+    
+    
+    
+    как     ныне
+    сбирается вещий чувак    ЧТОТОТОТОТТОТОТО
     
     
     
     отмстить
-    ненасытным баранам"""
+    ненасытным баранам
+    
+    ч
+    
+    """
     # char_index=5
+    txt = txt.strip()
     tokens1 = tz.tokenize(txt)
     # print(tokens1)
     # print('txt[char_index]=', txt[char_index])
@@ -54,7 +63,7 @@ class TestAugm(unittest.TestCase):
 
     for char_index in range(0, len(txt)):
       charr = txt[char_index]
-      token_n = token_at_index(char_index, txt, tz)
+      token_n = token_at_index_(char_index, tokens1, tz)
       token = tokens1[token_n].replace('▁', ' ')
 
       # try:

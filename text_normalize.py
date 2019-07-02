@@ -149,8 +149,8 @@ table_of_contents_regex = [
 replacements_regex = table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 
-def normalize_text(_t, replacements_regex):
-  t = _t
+def normalize_text(_t: str, replacements_regex):
+  t = _t.strip()
   for (reg, to) in replacements_regex:
     t = reg.sub(to, t)
 
