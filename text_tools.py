@@ -288,7 +288,7 @@ def token_at_index(index: int, txt: str, tokenizer) -> int:
 
 def tokens_in_range(span: List[int], tokens: Tokens, tokenizer, txt: str = None) -> slice:
   if txt is None:
-    txt = untokenize(tokens)
+    txt = tokenizer.untokenize(tokens)
   a = token_at_index(span[0], txt, tokenizer)
   b = token_at_index(span[1], txt, tokenizer)
   return slice(a, b)
