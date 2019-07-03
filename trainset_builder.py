@@ -222,7 +222,8 @@ def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
 
     assert len(txt) > size, f'{len(txt)} < {size}'
 
-    wnd = random_widow(size, len(txt) - 1)
+    # wnd = random_widow(size, len(txt) - 1)
+    wnd = random_widow(size, size*2)
 
     piece = txt[wnd]
     vector = vec[wnd]
