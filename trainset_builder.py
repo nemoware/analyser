@@ -160,17 +160,6 @@ def random_widow(windowlen, textlen) -> slice:
   return slice(start, start + windowlen)
 
 
-def prepare_train_data_pieces(num, size, contracts, augmenented_n=5, obfuscated_n=3, include_originals=True):
-  _vectors, _tokenized_texts, _failed = mark_contracts(contracts, augmenented_n, obfuscated_n, trim=0,
-                                                       include_originals=include_originals)
-
-  print('number of augmened contracts =', len(_tokenized_texts))
-
-  pieces, _labels, _lengths = split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts)
-
-  return pieces, _labels, _lengths, _failed
-
-
 # ////
 
 
@@ -202,34 +191,65 @@ def mark_contracts(contracts, augmenented_n=5, obfuscated_n=3, trim=0, include_o
   return vectors, _tokenized_texts, _failed
 
 
-def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
-  print('number of augmened contracts =', len(_tokenized_texts))
+#
+# @deprecated
+# def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
+#   print('number of augmened contracts =', len(_tokenized_texts))
+#
+#   pieces = []
+#   vectors = []
+#
+#   txt = ''
+#
+#   for n in range(num):
+#     attempt = 0
+#     random_index = random.randint(0, len(_tokenized_texts) - 1)
+#
+#     while len(txt) < size and attempt < 10:
+#       attempt += 1
+#       random_index = random.randint(0, len(_tokenized_texts) - 1)
+#       txt = _tokenized_texts[random_index]
+#       vec = _vectors[random_index]
+#
+#     assert len(txt) > size, f'{len(txt)} < {size}'
+#
+#     wnd = random_widow(size, len(txt) - 1)
+#     # wnd = random_widow(size, size*2)
+#
+#     piece = txt[wnd]
+#     vector = vec[wnd]
+#
+#     assert len(piece) == size, f' {len(piece)} <> {size} '
+#     assert len(vector) == size, f' {len(vector)} <> {size} '
+#     vectors.append(vector)
+#     pieces.append(piece)
+#
+#   pieces, _lengths, _padded_vectors = add_padding_to_max(pieces, vectors)
+#   _labels = categories_vectors_to_onehot_matrices(_padded_vectors, 12)
+#
+#   return pieces, _labels, _lengths
+
+def random_samples(num, size, __vectors, __tokenized_texts):
+  well_sized = []
+  well_sized_vectors = []
+  for n in range(len(__tokenized_texts)):
+    if len(__tokenized_texts[n]) >= size:
+      well_sized.append(__tokenized_texts[n])
+      well_sized_vectors.append(__vectors[n])
 
   pieces = []
   vectors = []
 
-  txt = ''
-
   for n in range(num):
-    attempt = 0
-    random_index = random.randint(0, len(_tokenized_texts) - 1)
+    random_index = random.randint(0, len(well_sized) - 1)
+    txt = well_sized[random_index]
+    vec = well_sized_vectors[random_index]
 
-    while len(txt) < size and attempt < 10:
-      attempt += 1
-      random_index = random.randint(0, len(_tokenized_texts) - 1)
-      txt = _tokenized_texts[random_index]
-      vec = _vectors[random_index]
-
-    assert len(txt) > size, f'{len(txt)} < {size}'
-
-    # wnd = random_widow(size, len(txt) - 1)
-    wnd = random_widow(size, size*2)
+    wnd = random_widow(size, len(txt) - 1)
 
     piece = txt[wnd]
     vector = vec[wnd]
 
-    assert len(piece) == size, f' {len(piece)} <> {size} '
-    assert len(vector) == size, f' {len(vector)} <> {size} '
     vectors.append(vector)
     pieces.append(piece)
 
@@ -237,3 +257,25 @@ def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
   _labels = categories_vectors_to_onehot_matrices(_padded_vectors, 12)
 
   return pieces, _labels, _lengths
+
+
+def trim_vectors_to_size(_vectors: List, size: int):
+  _vectors_trimmed = []
+
+  for n in range(len(_vectors)):
+    _vectors_trimmed.append(_vectors[n][0:size])
+  return _vectors_trimmed
+
+
+def prepare_train_data_pieces(num, size, contracts, augmenented_n=5, obfuscated_n=3, include_originals=True):
+  _vectors, _tokenized_texts, _failed = mark_contracts(contracts, augmenented_n, obfuscated_n, trim=0,
+                                                       include_originals=include_originals)
+
+  print('number of augmened contracts =', len(_tokenized_texts))
+
+  _vectors_trimmed = trim_vectors_to_size(_vectors, size * 2)
+  _tokenized_texts_trimmed = trim_vectors_to_size(_tokenized_texts, size * 2)
+
+  pieces, _labels, _lengths = random_samples(num, size, _vectors_trimmed, _tokenized_texts_trimmed)
+
+  return pieces, _labels, _lengths, _failed
