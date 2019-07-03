@@ -191,43 +191,6 @@ def mark_contracts(contracts, augmenented_n=5, obfuscated_n=3, trim=0, include_o
   return vectors, _tokenized_texts, _failed
 
 
-#
-# @deprecated
-# def split_texts_into_random_pieces(num, size, _vectors, _tokenized_texts):
-#   print('number of augmened contracts =', len(_tokenized_texts))
-#
-#   pieces = []
-#   vectors = []
-#
-#   txt = ''
-#
-#   for n in range(num):
-#     attempt = 0
-#     random_index = random.randint(0, len(_tokenized_texts) - 1)
-#
-#     while len(txt) < size and attempt < 10:
-#       attempt += 1
-#       random_index = random.randint(0, len(_tokenized_texts) - 1)
-#       txt = _tokenized_texts[random_index]
-#       vec = _vectors[random_index]
-#
-#     assert len(txt) > size, f'{len(txt)} < {size}'
-#
-#     wnd = random_widow(size, len(txt) - 1)
-#     # wnd = random_widow(size, size*2)
-#
-#     piece = txt[wnd]
-#     vector = vec[wnd]
-#
-#     assert len(piece) == size, f' {len(piece)} <> {size} '
-#     assert len(vector) == size, f' {len(vector)} <> {size} '
-#     vectors.append(vector)
-#     pieces.append(piece)
-#
-#   pieces, _lengths, _padded_vectors = add_padding_to_max(pieces, vectors)
-#   _labels = categories_vectors_to_onehot_matrices(_padded_vectors, 12)
-#
-#   return pieces, _labels, _lengths
 
 def random_samples(num, size, __vectors, __tokenized_texts):
   well_sized = []

@@ -78,8 +78,8 @@ def augment_contract(tokens_: Tokens, categories_vector_):
   augment_dropout_words_d(_doc, 0.05)
   augment_dropout_punctuation_d(_doc, 0.15)
   augment_dropout_chars_d(_doc, 0.02)
-  augment_alter_case_d(_doc, 0.15)
-  augment_trim(_doc, 30)
+  # augment_alter_case_d(_doc, 0.15)
+  # augment_trim(_doc, 30)
 
   return _doc.tokens, _doc.categories_vector
 
@@ -90,8 +90,8 @@ def augment_contract_2(_mdoc: ContractDocument3) -> MarkedDoc:
   augment_dropout_words_d(_doc, 0.05)
   augment_dropout_punctuation_d(_doc, 0.15)
   augment_dropout_chars_d(_doc, 0.02)
-  augment_alter_case_d(_doc, 0.15)
-  augment_trim(_doc, 30)
+  # augment_alter_case_d(_doc, 0.15)
+  # augment_trim(_doc, 30)
 
   return _doc
 
