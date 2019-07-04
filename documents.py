@@ -9,6 +9,7 @@ TEXT_PADDING_SYMBOL = ' '
 import sentencepiece as spm
 import sentencepiece_pb2
 
+
 class GTokenizer:
   def tokenize(self, s) -> Tokens:
     raise NotImplementedError()
@@ -26,11 +27,10 @@ class SpmGTokenizer(GTokenizer):
     p = os.path.join(__location__, 'vocab', 'm.model')
     print('loading tokenization model', p)
     self.sp.load(p)
-    self.spt = sentencepiece_pb2.SentencePieceText()
+    # self.spt = sentencepiece_pb2.SentencePieceText()
 
     # self.sp.set_encode_extra_options('bos:eos')
     # self.sp.set_decode_extra_options('bos:eos')
-
 
     # # encode: text => id
     # print(sp.encode_as_pieces('Лихо Рыбу мыл Вадим'))
@@ -63,7 +63,7 @@ class SpmGTokenizer(GTokenizer):
     return tokens
 
   def untokenize(self, t: Tokens) -> str:
-    return ''.join(t)# self.sp.decode_pieces(t)
+    return ''.join(t)  # self.sp.decode_pieces(t)
     # pieces(t)
 
 
@@ -131,13 +131,41 @@ class EmbeddableText(TokenizedText):
     self.embeddings = None
 
 
+# build tokens map to char pos
+def tokens_map(_tokens):
+  _text = ''
+  _map = []
+  for t in _tokens:
+    _map.append(len(_text))
+    _text += t
+  _map.append(len(_text))
+  return _map, _text
+
+
+def token_index_by_char_index(char_index, _map):
+  for i in range(len(_map) - 1):
+    a = _map[i]
+    b = _map[i + 1]
+
+    if a <= char_index < b:
+      return i
+
+  return 0
+
+
 class MarkedDoc(TokenizedText):
 
-  def __init__(self, tokens, categories_vector, tokenizer: GTokenizer = TOKENIZER_DEFAULT):
+  def __init__(self, tokens, categories_vector=None, tokenizer: GTokenizer = TOKENIZER_DEFAULT):
     super().__init__(tokenizer)
-    assert len(tokens) == len(categories_vector)
+
     self.tokens = np.array(tokens)
+    if categories_vector is None:
+      categories_vector = np.zeros(len(tokens))
+
+    assert len(tokens) == len(categories_vector)
     self.categories_vector = np.array(categories_vector)
+
+    self.tokens_map, self.text = tokens_map(self.tokens)
 
   def filter(self, filter_op):
     new_tokens = []
@@ -152,3 +180,18 @@ class MarkedDoc(TokenizedText):
 
     self.tokens = new_tokens
     self.categories_vector = new_categories_vector
+
+  def slice(self, sl: slice):
+    new_tokens = self.tokens[sl]
+    new_categories_vector = self.categories_vector[sl]
+    return MarkedDoc(new_tokens, new_categories_vector)
+
+  def token_index_by_char_index(self, char_index):
+    return token_index_by_char_index(char_index, self.tokens_map)
+
+  def set_region_value_by_char_indices(self, char_slice: slice, value):
+    a = token_index_by_char_index(char_slice.start, self.tokens_map)
+    b = token_index_by_char_index(char_slice.stop, self.tokens_map)
+
+    ts = slice(a, b)
+    self.categories_vector[ts] = value

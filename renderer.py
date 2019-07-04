@@ -283,7 +283,7 @@ class HtmlRenderer(AbstractRenderer):
         mpl.colors.to_hex(cmap(norm(weights[d]))),
         word)
 
-      if tokens[d] == '\n':
+      if word == '\n':
         html += "<br>"
 
     return html
