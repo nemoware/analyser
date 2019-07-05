@@ -36,21 +36,10 @@ class SpmGTokenizer(GTokenizer):
     # print(sp.encode_as_pieces('Лихо Рыбу мыл Вадим'))
     # print(sp.encode_as_ids('Лихо Рыбу мыл Вадим'))
 
-  def tokenize(self, text) -> Tokens:
-    # # return self.sp.encode_as_ids(text)
-    # sentences = text.split('\n')
-    # result = []
-    # for i in range(len(sentences)):
-    #   sentence = sentences[i]
-    #   result += self.sp.encode_as_pieces(sentence)
-    #   if i < len(sentences) - 1:
-    #     result += ['\n']
-    #
-    # return result
-
+  def tokenize_line(self, text):
     _txt_bytes = text.encode('utf-8')
     spt = sentencepiece_pb2.SentencePieceText()
-    spt.ParseFromString(self.sp.encode_as_serialized_proto(text))  # Full width hello
+    spt.ParseFromString(self.sp.encode_as_serialized_proto(text))
 
     tokens = []
 
@@ -58,13 +47,26 @@ class SpmGTokenizer(GTokenizer):
       b = p.begin
       e = p.end
       token = _txt_bytes[b:e].decode()
-      tokens.append(token)
+      if token != '':
+        tokens.append(token)
 
     return tokens
 
+  def tokenize(self, text) -> Tokens:
+    return self.tokenize_line(text)  # t
+
+  #     sentences = text.split('\n')
+  #     result = []
+  #     for i in range(len(sentences)):
+  #       sentence = sentences[i]
+  #       result += self.tokenize_line(sentence)
+  #       if i < len(sentences) - 1:
+  #         result += ['\n']
+
+  #     return result
+
   def untokenize(self, t: Tokens) -> str:
-    return ''.join(t)  # self.sp.decode_pieces(t)
-    # pieces(t)
+    return ''.join(t)
 
 
 import nltk
