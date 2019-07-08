@@ -6,8 +6,11 @@
 import unittest
 
 from contract_agents import *
+from contract_agents import _find_org_names
+from contract_augmentation import augment_contract
 from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat
 
+find_org_names = _find_org_names
 
 def n(x):
   return normalize_contract(x )
@@ -216,17 +219,17 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('Государственное автономное учреждение', r['type'][0])
     self.assertEqual('Армавирский учебно-технический центр', r['name'][0])
 
-  def test_augment_contract(self):
-    t = """
-        Муниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем
-        «Благополучатель», в лице директора Соляной Марины Александровны, действующая на основании
-        Устава, с одной стороны, и 
-
-        ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о нижеследующем:
-        """
-    onames = find_org_names(t)
-    x,y = augment_contract(t, onames)
-    print(x, y)
+  # def test_augment_contract(self):
+  #   t = """
+  #       Муниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем
+  #       «Благополучатель», в лице директора Соляной Марины Александровны, действующая на основании
+  #       Устава, с одной стороны, и
+  #
+  #       ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о нижеследующем:
+  #       """
+  #   onames = find_org_names(t)
+  #   x,y = augment_contract(t, onames)
+  #   print(x, y)
 
   def test_org_dict(self):
     r = re.compile(complete_re_str, re.MULTILINE)

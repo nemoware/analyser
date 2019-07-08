@@ -104,20 +104,16 @@ class LegalDocument(EmbeddableText):
     # self.tokens_cc = np.array(self.tokens)
     return self.tokens
 
-
   def tokens_in_range(self, span: List[int]) -> slice:
 
     a = token_at_index(span[0], self.normal_text)
     b = token_at_index(span[1], self.normal_text)
     return slice(a, b)
 
-
-
-  def preprocess_text(self, text):
-    return normalize_text(text, replacements_regex)
-
-  def __del__(self):
-    print(f"----------------- LegalDocument {self.name} deleted. Ciao bella!")
+  def preprocess_text(self, txt):
+    if txt is None:
+      txt = self.original_text
+    return normalize_text(txt, replacements_regex)
 
   def find_sections_by_headlines_2(self, context: ParsingSimpleContext, head_types_list,
                                    embedded_headlines: List['LegalDocument'], pattern_prefix,
@@ -431,7 +427,7 @@ class LegalDocument(EmbeddableText):
     return sparse_words
 
   def reset_embeddings(self):
-    print ('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
+    print('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
     del self.embeddings
     self.embeddings = None
     gc.collect()
@@ -867,7 +863,6 @@ from transaction_values import complete_re
 
 def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector: List[float]) -> List[
   ProbableValue]:
-
   def __tokens_before_index(string, index):
     return len(string[:index].split(' '))
 
@@ -977,11 +972,11 @@ def subdoc_between_lines(line_a: int, line_b: int, doc):
 
 org_types = {
   'org_unknown': 'undefined',
-  'org_ao':  'Акционерное общество',
+  'org_ao': 'Акционерное общество',
   'org_zao': 'Закрытое акционерное общество',
   'org_oao': 'Открытое акционерное общество',
   'org_ooo': 'Общество с ограниченной ответственностью',
-  'org_nc':  'Некоммерческая организация'
+  'org_nc': 'Некоммерческая организация'
 }
 
 
