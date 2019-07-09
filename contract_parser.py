@@ -23,6 +23,7 @@ class ContractDocument3(LegalDocument):
     LegalDocument.__init__(self, original_text)
     self.subjects: List[ProbableValue] = [ProbableValue(ContractSubject.Other, 0.0)]
     self.contract_values: [ProbableValue] = []
+    self.agent_infos = None
 
 
 class ContractAnlysingContext(ParsingContext):
