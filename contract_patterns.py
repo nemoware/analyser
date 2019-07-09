@@ -6,7 +6,7 @@ from structures import ContractSubject
 
 class ContractPatternFactory(AbstractPatternFactoryLowCase):
 
-  def __init__(self, embedder):
+  def __init__(self, embedder=None):
     AbstractPatternFactoryLowCase.__init__(self, embedder)
     # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
     #                   'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
@@ -17,7 +17,9 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     self._build_head_patterns()
     self._build_sum_patterns()
     self._build_subject_patterns()
-    self.embedd()
+
+    if embedder is not None:
+      self.embedd()
 
   def _build_head_patterns(self):
     def cp(name, tuples):

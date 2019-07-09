@@ -1,6 +1,12 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
 from typing import List
 
 import numpy as np
+import tensorflow as tf
+import tensorflow_hub as hub
 
 from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding
 from patterns import FuzzyPattern
@@ -227,3 +233,61 @@ class PatternSearchModel:
       av.add(pattern.name, attentions[i], improved_attentions[i])
 
     return av
+
+
+if __name__ == '__main__':
+  from patterns import AbstractPatternFactory, FuzzyPattern
+
+  from text_tools import tokenize_text
+  import re
+  from text_normalize import normalize_text, replacements_regex
+
+
+  PM = PatternSearchModel(tf, hub)
+
+  search_for = "Изящество стиля"
+  from patterns import AbstractPatternFactory, FuzzyPattern
+
+  from text_tools import tokenize_text
+  import re
+  from text_normalize import normalize_text, replacements_regex
+
+  _sample_text = """
+  Берлинская дада-ярмарка и Международная выставка сюрреализма в париж­ской галерее «Изящные искусства» в 1938 году стали высшими точками развития двух движений и подвели им итог. На «Сюрреалис­тической улице», за манекенами, выстроившимися в проходе в главный зал, располагались плакаты, приглашения, объявления и фотографии, отсылающие к ранним этапам сюрреализма. В главном зале, за оформление которого отвечал Марсель Дюшан 
+
+  , а за освеще­ние — Ман Рэй 
+
+  , картины 1920-х годов висели рядом с более ранними работами, что подчеркивало развити
+  е сюрреалистического «интернаци­она­ла». Зародившись как литературное течение, к концу 1930-х годов сюрреализм уже около 15 лет господствовал в художественном авангарде Парижа. Прежде чем пойти на спад с началом
+  Второй мировой войны, он стал частью светской культуры Парижа и даже до некотоРой
+  степени присягнул высокой моде, подобно тому как русский авангард — пусть совсем иначе — присягну 
+  в свое время революции. Изящество стиля, свойственное сюррелизму, способствоало этому 
+
+  ­ сближению, которое, в свою очередь, упрочило положение многих представителей направления в обществе. 
+
+  Однако поначалу для литераторов и художников-бунтарей, ничуть не стремившихся к социаль­ному успеху, 
+  была куда более естественной связь с дадаизмом"""
+
+  _regex_addon = [
+    (re.compile(r'[­]'), '-'),
+  ]
+  TOKENS = tokenize_text(normalize_text(_sample_text, replacements_regex + _regex_addon))
+
+
+  class PF(AbstractPatternFactory):
+    def __init__(self):
+      AbstractPatternFactory.__init__(self, None)
+      self._build_ner_patterns()
+
+    def _build_ner_patterns(self):
+      def cp(name, tuples):
+        return self.create_pattern(name, tuples)
+
+      cp('_custom', ('', search_for, ''))
+
+
+  # ---
+  pf = PF()
+
+  av = PM.find_patterns(text_tokens=TOKENS, patterns=pf.patterns)
+  print(av)
