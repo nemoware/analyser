@@ -18,9 +18,6 @@ from ml_tools import *
 default_contract_parsing_config.headline_attention_threshold = 0.9
 
 
-
-
-
 class ContractDocument2(LegalDocument):
   def __init__(self, original_text: str):
     LegalDocument.__init__(self, original_text)
@@ -31,6 +28,3 @@ class ContractDocument2(LegalDocument):
     return tokenize_text(_txt)
 
 ##---------------------------------------##---------------------------------------##---------------------------------------
-
-
-
