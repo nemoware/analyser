@@ -46,7 +46,8 @@ class FuzzyPattern(EmbeddableText):
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
     # assert prefix_pattern_suffix_tuple is not None
-    # assert prefix_pattern_suffix_tuple[1] != ''
+    # assert prefix_pattern_suffix_tuple[0].strip() == prefix_pattern_suffix_tuple[0], f'{_name}: {prefix_pattern_suffix_tuple} '
+    # assert prefix_pattern_suffix_tuple[2].strip() == prefix_pattern_suffix_tuple[2], f'{_name}: {prefix_pattern_suffix_tuple} '
     self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
     self.name = _name
     self.soft_sliding_window_borders = False

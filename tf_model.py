@@ -8,7 +8,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding
+from contract_patterns import ContractPatternFactory
+from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding, prepare_patters_for_embedding_2
 from patterns import FuzzyPattern
 from text_tools import Tokens, hot_punkt
 
@@ -192,7 +193,7 @@ class PatternSearchModel:
   # ------
 
   def _fill_dict(self, text_tokens: Tokens, patterns: List[FuzzyPattern]):
-    patterns_tokens, patterns_lengths, pattern_slices, _ = prepare_patters_for_embedding(patterns)
+    patterns_tokens, patterns_lengths, pattern_slices, _ = prepare_patters_for_embedding_2(patterns)
     feed_dict = {
       self.text_input: [text_tokens],  # text_input
       self.text_lengths: [len(text_tokens)],  # text_lengths
@@ -205,6 +206,9 @@ class PatternSearchModel:
     return feed_dict
 
   def find_patterns(self, text_tokens: Tokens, patterns: List[FuzzyPattern]) -> AttentionVectors:
+    for t in text_tokens:
+      assert t is not None
+      assert len(t)>0
 
     runz = [self.cosine_similarities]
 
@@ -243,7 +247,7 @@ if __name__ == '__main__':
   from text_normalize import normalize_text, replacements_regex
 
 
-  PM = PatternSearchModel(tf, hub)
+
 
   search_for = "Изящество стиля"
   from patterns import AbstractPatternFactory, FuzzyPattern
@@ -274,20 +278,11 @@ if __name__ == '__main__':
   TOKENS = tokenize_text(normalize_text(_sample_text, replacements_regex + _regex_addon))
 
 
-  class PF(AbstractPatternFactory):
-    def __init__(self):
-      AbstractPatternFactory.__init__(self, None)
-      self._build_ner_patterns()
-
-    def _build_ner_patterns(self):
-      def cp(name, tuples):
-        return self.create_pattern(name, tuples)
-
-      cp('_custom', ('', search_for, ''))
 
 
-  # ---
-  pf = PF()
+  patterns =  ContractPatternFactory().patterns
+  prepare_patters_for_embedding_2(patterns)
+  PM = PatternSearchModel(tf, hub)
+  av = PM.find_patterns(text_tokens=TOKENS, patterns=patterns)
+  # print(av)
 
-  av = PM.find_patterns(text_tokens=TOKENS, patterns=pf.patterns)
-  print(av)

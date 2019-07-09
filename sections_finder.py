@@ -51,8 +51,6 @@ class FocusingSectionsFinder(SectionsFinder):
 
     🍄 🍄 🍄 🍄 🍄 Keep in in the dark and feed it sh**
 
-
-
     """
 
     def is_hl_more_confident(a: HeadlineMeta, b: HeadlineMeta):

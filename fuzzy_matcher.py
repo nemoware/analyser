@@ -153,7 +153,7 @@ class FuzzyMatcher:
 
     return v
 
-  def extract_name(self, attention: FixedVector, tokens: Tokens, cut_threshold = 2) -> [slice]:
+  def extract_name(self, attention: FixedVector, tokens: Tokens, cut_threshold=2) -> [slice]:
     best_indices = []
     #     best_indices = sorted(np.argsort(attention)[::-1][:20])
 
@@ -164,7 +164,6 @@ class FuzzyMatcher:
 
     if len(best_indices) == 0:
       return []
-
 
     slices = group_indices(best_indices, cut_threshold)
 
@@ -221,16 +220,17 @@ class FuzzyMatcher:
     return m_result
 
 
-def prepare_patters_for_embedding(patterns):
+def prepare_patters_for_embedding_2(patterns):
+  def check_elements(arr):
+    for a in arr:
+      assert a is not None
+
   tokenized_sentences_list = []
   regions = []
 
-  maxlen = 0
   lens = []
   for p in patterns:
     ctx_prefix, pattern, ctx_postfix = p.prefix_pattern_suffix_tuple
-
-    sentence = ' '.join((ctx_prefix, pattern, ctx_postfix))
 
     prefix_tokens = tokenize_text(ctx_prefix)
     pattern_tokens = tokenize_text(pattern)
@@ -241,7 +241,47 @@ def prepare_patters_for_embedding(patterns):
 
     sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
-    # print('embedd_contextualized_patterns', (sentence, start, end))
+    regions.append([start, end])
+    tokenized_sentences_list.append(sentence_tokens)
+    lens.append(len(sentence_tokens))
+
+  maxlen = max(lens)
+  _strings = []
+
+  for s in tokenized_sentences_list:
+    s.extend(['<PAD>'] * (maxlen - len(s)))
+    check_elements(s)
+    _strings.append(np.array(s))
+  #     print(np.array(s) )
+
+  _strings = np.array(_strings)
+
+  lens = np.array(lens, np.int32)
+
+  # paranoia!
+  check_elements(lens)
+  check_elements(regions)
+  check_elements(_strings)
+  return _strings, lens, regions, maxlen
+
+
+def prepare_patters_for_embedding(patterns):
+  tokenized_sentences_list = []
+  regions = []
+
+  maxlen = 0
+  lens = []
+  for p in patterns:
+    ctx_prefix, pattern, ctx_postfix = p.prefix_pattern_suffix_tuple
+
+    prefix_tokens = tokenize_text(ctx_prefix)
+    pattern_tokens = tokenize_text(pattern)
+    suffix_tokens = tokenize_text(ctx_postfix)
+
+    start = len(prefix_tokens)
+    end = start + len(pattern_tokens)
+
+    sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
     regions.append([start, end])
     tokenized_sentences_list.append(sentence_tokens)
