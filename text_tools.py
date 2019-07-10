@@ -337,5 +337,5 @@ class CaseNormalizer:
 
 if __name__ == '__main__':
   cn = CaseNormalizer()
-  print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!!']))
-  print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!)'))
+  print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
+  print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))

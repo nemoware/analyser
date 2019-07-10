@@ -197,3 +197,9 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
 
     cp('Продавец обязуется передать в собственность',
        'недвижимое имущество', 'объекты , земельные участки')
+
+
+if __name__ == '__main__':
+  CPF = ContractPatternFactory()
+  for p in CPF.patterns:
+    print (p.prefix_pattern_suffix_tuple)
