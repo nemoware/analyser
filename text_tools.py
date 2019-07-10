@@ -329,8 +329,8 @@ class CaseNormalizer:
     return untokenize(tokens)
 
   def normalize_word(self, token: str) -> str:
-    if token in self.replacements_map:
-      return self.replacements_map[token]
+    if token.lower() in self.replacements_map:
+      return self.replacements_map[token.lower()]
     else:
       return token
 
@@ -339,3 +339,4 @@ if __name__ == '__main__':
   cn = CaseNormalizer()
   print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
   print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))
+  print(cn.normalize_word('ДОГОВОР'))
