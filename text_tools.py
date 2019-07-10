@@ -3,12 +3,13 @@
 # coding=utf-8
 
 
+import os
+import pickle
 from typing import List
 
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
-import os, pickle
 
 nltk.download('punkt')
 
@@ -307,19 +308,20 @@ def replace_tokens(tokens: Tokens, replacements_map):
 
 
 class CaseNormalizer:
+  __shared_state = {}  ## see http://code.activestate.com/recipes/66531/
+
   def __init__(self):
+    self.__dict__ = self.__shared_state
+    if 'replacements_map' not in self.__dict__:
+      __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+      p = os.path.join(__location__, 'vocab', 'word_cases_stats.pickle')
+      print('loading word cases stats model', p)
 
-    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-
-    p = os.path.join(__location__, 'vocab', 'word_cases_stats.pickle')
-    print('loading word cases stats model', p)
-
-    with open(p, 'rb') as handle:
-      self.replacements_map = pickle.load(handle)
+      with open(p, 'rb') as handle:
+        self.replacements_map = pickle.load(handle)
 
   def normalize_text_case(self, tokens: Tokens):
     return replace_tokens(tokens, self.replacements_map)
-
 
 
 if __name__ == '__main__':
