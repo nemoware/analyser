@@ -19,7 +19,7 @@ import numpy as np
 
 import sys
 
-WARN='\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
+WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
 save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
@@ -300,13 +300,19 @@ class AbstractPatternFactory:
     return pat
 
 
+_case_normalizer = CaseNormalizer()
+
+
 class AbstractPatternFactoryLowCase(AbstractPatternFactory):
   def __init__(self, embedder):
     AbstractPatternFactory.__init__(self, embedder)
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
+    _ppp = (_case_normalizer.normalize_text(ppp[0]),
+            _case_normalizer.normalize_text(ppp[1]),
+            _case_normalizer.normalize_text(ppp[2]))
+
     fp = FuzzyPattern(_ppp, _name=pattern_name)
 
     if pattern_name in self.patterns_dict:
@@ -395,7 +401,8 @@ AV_PREFIX = '$at_'
 
 from structures import OrgStructuralLevel
 
-class PatternMatch ():
+
+class PatternMatch():
   def __init__(self, region):
     assert region.stop - region.start > 0
     self.subject_mapping = {
@@ -407,7 +414,7 @@ class PatternMatch ():
     self.confidence: float = 0
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
-    self.parent  = None # 'LegalDocument'
+    self.parent = None  # 'LegalDocument'
 
   def get_attention(self, name=None):
     if name is None:
@@ -427,15 +434,15 @@ class PatternMatch ():
 
 
 class PatternSearchResult(PatternMatch):
-  def __init__(self, org_level:OrgStructuralLevel, region):
+  def __init__(self, org_level: OrgStructuralLevel, region):
     super(PatternSearchResult, self).__init__(region)
-    self.org_level:OrgStructuralLevel = org_level
+    self.org_level: OrgStructuralLevel = org_level
 
 
 class ConstraintsSearchResult:
 
   def __init__(self):
-    print(WARN+'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
+    print(WARN + 'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
     self.constraints: List[ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
