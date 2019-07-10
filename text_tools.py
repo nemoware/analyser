@@ -320,10 +320,22 @@ class CaseNormalizer:
       with open(p, 'rb') as handle:
         self.replacements_map = pickle.load(handle)
 
-  def normalize_text_case(self, tokens: Tokens):
+  def normalize_tokens(self, tokens: Tokens) -> Tokens:
     return replace_tokens(tokens, self.replacements_map)
+
+  def normalize_text(self, text: str) -> str:
+    tokens = tokenize_text(text)
+    tokens = self.normalize_tokens(tokens)
+    return untokenize(tokens)
+
+  def normalize_word(self, token: str) -> str:
+    if token in self.replacements_map:
+      return self.replacements_map[token]
+    else:
+      return token
 
 
 if __name__ == '__main__':
   cn = CaseNormalizer()
-  print(cn.normalize_text_case(['стороны', 'Заключили', 'договор', 'уррраа!!']))
+  print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!!']))
+  print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!)'))

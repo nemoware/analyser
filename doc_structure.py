@@ -1,7 +1,7 @@
 import re
 
 from ml_tools import *
-from text_tools import tokenize_text, np, untokenize
+from text_tools import tokenize_text, np, untokenize, CaseNormalizer
 
 
 def _strip_left(tokens):
@@ -188,7 +188,7 @@ class DocumentStructure:
 
   def __init__(self):
     self.structure: List[StructureLine] = None
-    self.headline_indexes:List[int] = []
+    self.headline_indexes: List[int] = []
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
@@ -207,11 +207,14 @@ class DocumentStructure:
     index = 0
     romans = 0
     maxroman = 0
+
+    case_normalizer = CaseNormalizer()
+
     for __row in lines:
 
       line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
 
-      line_tokens = [s.lower() for s in line_tokens_cc]
+      line_tokens = [case_normalizer.normalize_word(s) for s in line_tokens_cc]
       tokens_cc += line_tokens_cc
       tokens += line_tokens
 
@@ -266,16 +269,15 @@ class DocumentStructure:
 
     return tokens, tokens_cc
 
-
   #     del _charter_doc.structure.structure[i]
 
-  def next_headline_after(self, start:int) -> int:
+  def next_headline_after(self, start: int) -> int:
     for si in self.headline_indexes:
       line_start = self.structure[si].span[0]
       if line_start > start:
         return line_start
 
-    return self.structure[-1].span[-1] #end of the doc
+    return self.structure[-1].span[-1]  # end of the doc
 
   def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes) -> List[int]:
     indexes_to_remove = []
@@ -301,12 +303,11 @@ class DocumentStructure:
 
   def _merge_headlines(self, headline_indexes, line_i, line_i_next, indexes_to_remove):
 
-    i_this =  headline_indexes[line_i]
-    i_next =  headline_indexes[line_i_next]
+    i_this = headline_indexes[line_i]
+    i_next = headline_indexes[line_i_next]
 
     sline: StructureLine = self.structure[i_this]
     sline_next: StructureLine = self.structure[i_next]
-
 
     sline.span = (sline.span[0], sline_next.span[1])
 
@@ -509,7 +510,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
   # headline is UPPERCASE
   if row.upper() == row:
-    if not row.isdigit(): #there some trash
+    if not row.isdigit():  # there some trash
       value += 1.5
 
   if prev_sentence == ['\n'] and sentence != ['\n']:
@@ -517,7 +518,8 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
   return value
 
-#XXXL
+
+# XXXL
 def remove_similar_indexes_considering_weights(indexes: List[int], weights: List[float]) -> List[int]:
   hif = []
 
