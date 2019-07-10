@@ -8,6 +8,7 @@ from typing import List
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
+import os, pickle
 
 nltk.download('punkt')
 
@@ -292,3 +293,35 @@ def tokens_in_range(span: List[int], tokens: Tokens, txt: str = None) -> slice:
   a = token_at_index(span[0], txt)
   b = token_at_index(span[1], txt)
   return slice(a, b)
+
+
+def replace_tokens(tokens: Tokens, replacements_map):
+  result = []
+  for t in tokens:
+    key = t.lower()
+    if key in replacements_map:
+      result.append(replacements_map[key])
+    else:
+      result.append(key)
+  return result
+
+
+class CaseNormalizer:
+  def __init__(self):
+
+    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+    p = os.path.join(__location__, 'vocab', 'word_cases_stats.pickle')
+    print('loading word cases stats model', p)
+
+    with open(p, 'rb') as handle:
+      self.replacements_map = pickle.load(handle)
+
+  def normalize_text_case(self, tokens: Tokens):
+    return replace_tokens(tokens, self.replacements_map)
+
+
+
+if __name__ == '__main__':
+  cn = CaseNormalizer()
+  print(cn.normalize_text_case(['стороны', 'Заключили', 'договор', 'уррраа!!']))
