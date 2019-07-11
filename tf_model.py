@@ -9,7 +9,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 
 from contract_patterns import ContractPatternFactory
-from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding, prepare_patters_for_embedding_2
+from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding_2
 from patterns import FuzzyPattern
 from text_tools import Tokens, hot_punkt
 
@@ -20,29 +20,31 @@ def make_punkt_mask(tokens: Tokens) -> np.ndarray:
 
 class PatternSearchModel:
 
-  def __init__(self, tf, hub,
+  def __init__(self,
                module_url='https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
-    self.tf = tf
-    self.hub = hub
+
     self.module_url = module_url
 
     # cosine_similarities, cosine_similarities_improved
     self.embedding_session = None
     self.make_embedding_session_and_graph()
 
+    self._text_range = None
+    self._patterns_range = None
+    self.elmo = None
+
   def _center(self, x):
-    return self.tf.reduce_mean(x, axis=0)
+    return tf.reduce_mean(x, axis=0)
 
   def _pad_tensor(self, tensor, padding, el, name):
-    tf = self.tf
+
     _mask_padding = tf.tile(el, padding, name='pad_' + name)
     return tf.concat([tensor, _mask_padding], axis=0, name='pad_tensor_' + name)
 
   def _build_graph(self) -> None:
-    tf = self.tf  # hack for PyCharm because i don't want to download TF, it is provided by CoLab from UI
 
     # BUILD IT -----------------------------------------------------------------
-    elmo = self.hub.Module(self.module_url, trainable=False)
+    self.elmo = hub.Module(self.module_url, trainable=False)
 
     # inputs:--------------------------------------------------------------------
     self.text_input = tf.placeholder(dtype=tf.string, name="text_input")
@@ -62,52 +64,21 @@ class PatternSearchModel:
 
     # 1. text embedding---------------
     # TODO: try to deal with segmented text (this is about trailing index - [0] )
-    _text_embedding = self._embed(elmo,
-                                  text_input_padded,
-                                  [self.text_lengths[0] + patterns_max_len[0]])[0]
+    self._text_embedding = self._embed(self.elmo,
+                                       text_input_padded,
+                                       [self.text_lengths[0] + patterns_max_len[0]])[0]
 
     # 2. patterns embedding
-    _patterns_embeddings = self._embed(elmo, self.pattern_input, self.pattern_lengths)
+    _patterns_embeddings = self._embed(self.elmo, self.pattern_input, self.pattern_lengths)
 
-    # for looping
-    text_range = tf.range(self.text_lengths[0], dtype=tf.int32, name='text_input_range')
-    patterns_range = tf.range(number_of_patterns, dtype=tf.int32, name='patterns_range')
-
+    # ranges for looping
+    self._text_range = tf.range(self.text_lengths[0], dtype=tf.int32, name='text_input_range')
+    self._patterns_range = tf.range(number_of_patterns, dtype=tf.int32, name='patterns_range')
     self.cosine_similarities = tf.map_fn(
       lambda i: self.for_every_pattern((self.pattern_lengths[i], self.pattern_slices[i], _patterns_embeddings[i]),
-                                       _text_embedding,
-                                       text_range), patterns_range, dtype=tf.float32, name='cosine_similarities')
-
-    def improve_dist(attention_vector, pattern_len):
-      """
-        finding closest point (aka 'best point')
-      """
-      max_i = tf.math.argmax(attention_vector, output_type=tf.dtypes.int32)
-      best_embedding_range = _text_embedding[max_i:max_i + pattern_len]  # metapattern
-
-      return self._convolve(text_range, _text_embedding, pattern_emb_sliced=best_embedding_range,
-                            name='improving')
-
-    def find_best_embeddings():
-      return tf.map_fn(
-        lambda pattern_i: improve_dist(self.cosine_similarities[pattern_i], self.pattern_lengths[pattern_i]),
-        patterns_range, dtype=tf.float32, name="find_best_embeddings")
-
-    self.cosine_similarities_improved = find_best_embeddings()
-
-    unpadded_text_embedding_ = self._embed(elmo,
-                                           self.text_input,
-                                           [self.text_lengths[0]])[0]
-    text_center = self._center(unpadded_text_embedding_)
-    self.distances_to_center = tf.map_fn(
-      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1],
-                                                  text_center),
-      text_range, dtype=tf.float32)
-    word_text_center_i = tf.math.argmax(self.distances_to_center, output_type=tf.dtypes.int32)
-    word_text_center = unpadded_text_embedding_[word_text_center_i]
-    self.distances_to_local_center = tf.map_fn(
-      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1],
-                                                  word_text_center), text_range, dtype=tf.float32)
+                                       self._text_embedding,
+                                       self._text_range), self._patterns_range, dtype=tf.float32,
+      name='cosine_similarities')
 
   @staticmethod
   def _embed(elmo, text_input_p, lengths_p):
@@ -123,12 +94,12 @@ class PatternSearchModel:
   def _normalize(self, x):
     #       _norm = tf.norm(x, keep_dims=True)
     #       return x/ (_norm + 1e-8)
-    return self.tf.nn.l2_normalize(x, 0)  # TODO: try different norm
+    return tf.nn.l2_normalize(x, 0)  # TODO: try different norm
 
   def get_vector_similarity(self, a, b):
     a_norm = self._normalize(a)  # normalizing is kinda required if we want cosine return [0..1] range
     b_norm = self._normalize(b)  # DO WE? TODO: try different norm
-    return 1.0 - self.tf.losses.cosine_distance(a_norm, b_norm, axis=0)  # TODO: how on Earth Cosine could be > 1????
+    return 1.0 - tf.losses.cosine_distance(a_norm, b_norm, axis=0)  # TODO: how on Earth Cosine could be > 1????
 
   def get_matrix_vector_similarity(self, matrix, vector):
     m_center = self._center(matrix)
@@ -143,7 +114,6 @@ class PatternSearchModel:
     return self._convolve(text_range, _text_embedding, pattern_emb_sliced, name='p_match')
 
   def _convolve(self, text_range, _text_embedding, pattern_emb_sliced, name=''):
-    tf = self.tf
 
     window_size = tf.shape(pattern_emb_sliced)[0]
 
@@ -162,7 +132,7 @@ class PatternSearchModel:
     return tf.math.maximum(_blurry, _sharp, name=name + '_merge')
 
   def make_embedding_session_and_graph(self):
-    tf = self.tf  # hack for PyCharm because I don't want to download TF, it is provided by CoLab from UI
+
     embedding_graph = tf.Graph()
 
     with embedding_graph.as_default():
@@ -174,21 +144,6 @@ class PatternSearchModel:
       self.embedding_session.run(init_op)
 
     embedding_graph.finalize()
-
-  # ------
-  def get_distances_to_center(self, text_tokens: Tokens):
-    runz = [self.distances_to_center, self.distances_to_local_center]
-    d, dl = self.embedding_session.run(runz, feed_dict={
-      self.text_input: [text_tokens],  # text_input
-      self.text_lengths: [len(text_tokens)],  # text_lengths
-
-      self.pattern_input: [['a']],
-      self.pattern_lengths: [1],
-      self.pattern_slices: [[0, 1]]
-
-    })
-
-    return d, dl
 
   # ------
 
@@ -208,7 +163,7 @@ class PatternSearchModel:
   def find_patterns(self, text_tokens: Tokens, patterns: List[FuzzyPattern]) -> AttentionVectors:
     for t in text_tokens:
       assert t is not None
-      assert len(t)>0
+      assert len(t) > 0
 
     runz = [self.cosine_similarities]
 
@@ -223,8 +178,64 @@ class PatternSearchModel:
 
     return av
 
-  def find_patterns_and_improved(self, text_tokens: Tokens, patterns: List[FuzzyPattern]) -> AttentionVectors:
 
+class PatternSearchModelExt(PatternSearchModel):
+
+  def __init__(self, module_url: str = 'https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
+    PatternSearchModel.__init__(self, module_url)
+
+    # ------
+    def get_distances_to_center(self, text_tokens: Tokens):
+      runz = [self.distances_to_center, self.distances_to_local_center]
+      d, dl = self.embedding_session.run(runz, feed_dict={
+        self.text_input: [text_tokens],  # text_input
+        self.text_lengths: [len(text_tokens)],  # text_lengths
+
+        self.pattern_input: [['a']],
+        self.pattern_lengths: [1],
+        self.pattern_slices: [[0, 1]]
+
+      })
+
+      return d, dl
+
+  def _build_graph(self) -> None:
+    super()._build_graph()
+
+    def improve_dist(attention_vector, pattern_len):
+      """
+        finding closest point (aka 'best point')
+      """
+      max_i = tf.math.argmax(attention_vector, output_type=tf.dtypes.int32)
+      best_embedding_range = self._text_embedding[max_i:max_i + pattern_len]  # metapattern
+
+      return self._convolve(self._text_range, self._text_embedding, pattern_emb_sliced=best_embedding_range,
+                            name='improving')
+
+    def find_best_embeddings():
+      return tf.map_fn(
+        lambda pattern_i: improve_dist(self.cosine_similarities[pattern_i], self.pattern_lengths[pattern_i]),
+        self._patterns_range, dtype=tf.float32, name="find_best_embeddings")
+
+    self.cosine_similarities_improved = find_best_embeddings()
+
+    unpadded_text_embedding_ = self._embed(self.elmo,
+                                           self.text_input,
+                                           [self.text_lengths[0]])[0]
+
+    text_center = self._center(unpadded_text_embedding_)
+
+    self.distances_to_center = tf.map_fn(
+      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1],
+                                                  text_center),
+      self._text_range, dtype=tf.float32)
+    word_text_center_i = tf.math.argmax(self.distances_to_center, output_type=tf.dtypes.int32)
+    word_text_center = unpadded_text_embedding_[word_text_center_i]
+    self.distances_to_local_center = tf.map_fn(
+      lambda i: self.get_matrix_vector_similarity(unpadded_text_embedding_[i:i + 1],
+                                                  word_text_center), self._text_range, dtype=tf.float32)
+
+  def find_patterns_and_improved(self, text_tokens: Tokens, patterns: List[FuzzyPattern]) -> AttentionVectors:
     runz = [self.cosine_similarities, self.cosine_similarities_improved]
 
     feed_dict = self._fill_dict(text_tokens, patterns)
@@ -240,17 +251,11 @@ class PatternSearchModel:
 
 
 if __name__ == '__main__':
-  from patterns import AbstractPatternFactory, FuzzyPattern
-
   from text_tools import tokenize_text
   import re
   from text_normalize import normalize_text, replacements_regex
 
-
-
-
   search_for = "Изящество стиля"
-  from patterns import AbstractPatternFactory, FuzzyPattern
 
   from text_tools import tokenize_text
   import re
@@ -277,12 +282,8 @@ if __name__ == '__main__':
   ]
   TOKENS = tokenize_text(normalize_text(_sample_text, replacements_regex + _regex_addon))
 
-
-
-
-  patterns =  ContractPatternFactory().patterns
+  patterns = ContractPatternFactory().patterns
   prepare_patters_for_embedding_2(patterns)
-  PM = PatternSearchModel(tf, hub)
+  PM = PatternSearchModel()
   av = PM.find_patterns(text_tokens=TOKENS, patterns=patterns)
   # print(av)
-
