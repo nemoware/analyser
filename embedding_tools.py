@@ -36,7 +36,7 @@ class AbstractEmbedder:
     pass
 
   @abstractmethod
-  def embedd_tokenized_text(self, words, lens) -> tuple:
+  def embedd_tokenized_text(self, words: [Tokens], lens: List[int]) -> tuple:
     return None, None
 
   def embedd_sentence(self, _str):
@@ -44,7 +44,7 @@ class AbstractEmbedder:
     return self.embedd_tokenized_text([words], [len(words)])
 
   def embedd_contextualized_patterns(self, patterns):
-    tokenized_sentences_list = []
+    tokenized_sentences_list: [Tokens] = []
     regions = {}
 
     i = 0
@@ -143,17 +143,17 @@ class ElmoEmbedder(AbstractEmbedder):
     embedding_graph.finalize()
     return embedding_graph
 
-  def embedd_tokenized_text(self, words: Tokens, text_len: int) -> (np.ndarray, Tokens):
+  def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> (np.ndarray, Tokens):
     feed_dict = {
-      self.text_input: [words],  # text_input
-      self.text_lengths: [text_len],  # text_lengths
+      self.text_input: words,  # text_input
+      self.text_lengths: text_lens,  # text_lengths
     }
 
     out = self.session.run(self.embedded_out, feed_dict=feed_dict)
-    
+
     return out, words
 
 
 if __name__ == '__main__':
   ee = ElmoEmbedder(layer_name='elmo')
-  ee.embedd_tokenized_text(['просто', 'одно', 'предложение'], 3)
+  ee.embedd_tokenized_text([['просто', 'одно', 'предложение']], [3])
