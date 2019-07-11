@@ -143,19 +143,14 @@ class ElmoEmbedder(AbstractEmbedder):
     embedding_graph.finalize()
     return embedding_graph
 
-  def embedd_tokenized_text(self, words:Tokens, text_len: int)->(np.ndarray, Tokens):
+  def embedd_tokenized_text(self, words: Tokens, text_len: int) -> (np.ndarray, Tokens):
     feed_dict = {
       self.text_input: [words],  # text_input
       self.text_lengths: [text_len],  # text_lengths
     }
 
-    if text_len > 2000:
-      print(f'🐌 Embedding { np.nansum(lens) } words... it takes time (☕️?)..')
-
     out = self.session.run(self.embedded_out, feed_dict=feed_dict)
-    if text_len > 2000:
-      print(f'Embedding complete 🐌 ; the shape is { out.shape }')
-
+    
     return out, words
 
 
