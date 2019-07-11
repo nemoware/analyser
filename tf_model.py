@@ -18,33 +18,54 @@ def make_punkt_mask(tokens: Tokens) -> np.ndarray:
   return 1.0 - 0.999 * hot_punkt(tokens)
 
 
-class PatternSearchModel:
+class AbstractElmoBasedModel:
+
+  def __init__(self, module_url: str = 'https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
+    self.module_url = module_url
+    self.embedding_session = None
+    self.elmo = None
+
+  def make_embedding_session_and_graph(self):
+    embedding_graph = tf.Graph()
+
+    with embedding_graph.as_default():
+      self._build_graph()
+
+      init_op = tf.group([tf.global_variables_initializer(), tf.tables_initializer()])
+
+      self.embedding_session = tf.Session(graph=embedding_graph)
+      self.embedding_session.run(init_op)
+
+    embedding_graph.finalize()
+
+  def _build_graph(self) -> None:
+    # BUILD IT -----------------------------------------------------------------
+    self.elmo = hub.Module(self.module_url, trainable=False)
+
+
+class PatternSearchModel(AbstractElmoBasedModel):
 
   def __init__(self,
                module_url='https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
 
-    self.module_url = module_url
-
-    # cosine_similarities, cosine_similarities_improved
-    self.embedding_session = None
-    self.make_embedding_session_and_graph()
+    AbstractElmoBasedModel.__init__(self, module_url)
 
     self._text_range = None
     self._patterns_range = None
-    self.elmo = None
+
+    self.cosine_similarities = None
+
+    self.make_embedding_session_and_graph()
 
   def _center(self, x):
     return tf.reduce_mean(x, axis=0)
 
   def _pad_tensor(self, tensor, padding, el, name):
-
     _mask_padding = tf.tile(el, padding, name='pad_' + name)
     return tf.concat([tensor, _mask_padding], axis=0, name='pad_tensor_' + name)
 
   def _build_graph(self) -> None:
-
-    # BUILD IT -----------------------------------------------------------------
-    self.elmo = hub.Module(self.module_url, trainable=False)
+    super()._build_graph()
 
     # inputs:--------------------------------------------------------------------
     self.text_input = tf.placeholder(dtype=tf.string, name="text_input")
@@ -131,20 +152,6 @@ class PatternSearchModel:
 
     return tf.math.maximum(_blurry, _sharp, name=name + '_merge')
 
-  def make_embedding_session_and_graph(self):
-
-    embedding_graph = tf.Graph()
-
-    with embedding_graph.as_default():
-      self._build_graph()
-
-      init_op = tf.group([tf.global_variables_initializer(), tf.tables_initializer()])
-
-      self.embedding_session = tf.Session(graph=embedding_graph)
-      self.embedding_session.run(init_op)
-
-    embedding_graph.finalize()
-
   # ------
 
   def _fill_dict(self, text_tokens: Tokens, patterns: List[FuzzyPattern]):
@@ -184,20 +191,20 @@ class PatternSearchModelExt(PatternSearchModel):
   def __init__(self, module_url: str = 'https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
     PatternSearchModel.__init__(self, module_url)
 
-    # ------
-    def get_distances_to_center(self, text_tokens: Tokens):
-      runz = [self.distances_to_center, self.distances_to_local_center]
-      d, dl = self.embedding_session.run(runz, feed_dict={
-        self.text_input: [text_tokens],  # text_input
-        self.text_lengths: [len(text_tokens)],  # text_lengths
+  # ------
+  def get_distances_to_center(self, text_tokens: Tokens):
+    runz = [self.distances_to_center, self.distances_to_local_center]
+    d, dl = self.embedding_session.run(runz, feed_dict={
+      self.text_input: [text_tokens],  # text_input
+      self.text_lengths: [len(text_tokens)],  # text_lengths
 
-        self.pattern_input: [['a']],
-        self.pattern_lengths: [1],
-        self.pattern_slices: [[0, 1]]
+      self.pattern_input: [['a']],
+      self.pattern_lengths: [1],
+      self.pattern_slices: [[0, 1]]
 
-      })
+    })
 
-      return d, dl
+    return d, dl
 
   def _build_graph(self) -> None:
     super()._build_graph()
