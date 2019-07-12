@@ -19,11 +19,18 @@ def make_punkt_mask(tokens: Tokens) -> np.ndarray:
 
 
 class AbstractElmoBasedModel:
+  __elmo_shared = None
 
   def __init__(self, module_url: str = 'https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
     self.module_url = module_url
     self.embedding_session = None
-    self.elmo = None
+    self.elmo = self.__elmo_shared
+
+  def _build_graph(self) -> None:
+    # BUILD IT -----------------------------------------------------------------
+    if self.elmo is None:
+      self.elmo = hub.Module(self.module_url, trainable=False)
+      self.__elmo_shared = self.elmo
 
   def make_embedding_session_and_graph(self):
     embedding_graph = tf.Graph()
@@ -38,9 +45,16 @@ class AbstractElmoBasedModel:
 
     embedding_graph.finalize()
 
-  def _build_graph(self) -> None:
-    # BUILD IT -----------------------------------------------------------------
-    self.elmo = hub.Module(self.module_url, trainable=False)
+  @staticmethod
+  def _embed(elmo, text_input_p, lengths_p):
+    # 1. text embedding
+    return elmo(
+      inputs={
+        "tokens": text_input_p,
+        "sequence_len": lengths_p
+      },
+      signature="tokens",
+      as_dict=True)["elmo"]
 
 
 class PatternSearchModel(AbstractElmoBasedModel):
@@ -100,17 +114,6 @@ class PatternSearchModel(AbstractElmoBasedModel):
                                        self._text_embedding,
                                        self._text_range), self._patterns_range, dtype=tf.float32,
       name='cosine_similarities')
-
-  @staticmethod
-  def _embed(elmo, text_input_p, lengths_p):
-    # 1. text embedding
-    return elmo(
-      inputs={
-        "tokens": text_input_p,
-        "sequence_len": lengths_p
-      },
-      signature="tokens",
-      as_dict=True)["elmo"]
 
   def _normalize(self, x):
     #       _norm = tf.norm(x, keep_dims=True)
@@ -255,6 +258,111 @@ class PatternSearchModelExt(PatternSearchModel):
       av.add(pattern.name, attentions[i], improved_attentions[i])
 
     return av
+
+from tensorflow.python.summary.writer.writer import FileWriter
+
+class PatternSearchModelNoEmb:
+
+  def __init__(self):
+    self._text_range = None
+    self._patterns_range = None
+
+    self.cosine_similarities = None
+
+    self._text_embedding = None
+    self._patterns_embeddings = None
+    self.pattern_slices = None
+
+    embedding_graph = tf.Graph()
+
+    with embedding_graph.as_default():
+      self._build_graph()
+
+      init_op = tf.group([tf.global_variables_initializer(), tf.tables_initializer()])
+
+      self.embedding_session = tf.Session(graph=embedding_graph)
+      self.embedding_session.run(init_op)
+
+    embedding_graph.finalize()
+    FileWriter('logs/train', graph=embedding_graph).close()
+
+  def _center(self, x):
+    return tf.reduce_mean(x, axis=0)
+
+  def _build_graph(self) -> None:
+    # inputs:--------------------------------------------------------------------
+    with tf.name_scope('text_embedding') as scope:
+      self._text_embedding = tf.placeholder(dtype=tf.float32, name='text_embedding', shape=[None, 1024])
+
+    with tf.name_scope('patterns') as scope:
+      self._patterns_embeddings = tf.placeholder(dtype=tf.float32, name='patterns_embeddings', shape=[None, None, 1024])
+      self.pattern_slices = tf.placeholder(dtype=tf.int32, name='pattern_slices', shape=[None, 2])
+      # ------------------------------------------------------------------- /inputs
+
+    with tf.name_scope('ranges') as scope:
+      # ranges for looping
+      number_of_patterns = tf.shape(self._patterns_embeddings)[-2]
+      text_len = tf.shape(self._text_embedding)[-1]
+
+      self._text_range = tf.range(text_len, dtype=tf.int32, name='text_input_range')
+      self._patterns_range = tf.range(number_of_patterns, dtype=tf.int32, name='patterns_range')
+
+    self.cosine_similarities = tf.map_fn(
+      lambda i: self.for_every_pattern((self.pattern_slices[i], self._patterns_embeddings[i]),
+                                       self._text_embedding,
+                                       self._text_range), self._patterns_range, dtype=tf.float32,
+      name='cosine_similarities')
+
+  def _normalize(self, x):
+    #       _norm = tf.norm(x, keep_dims=True)
+    #       return x/ (_norm + 1e-8)
+    return tf.nn.l2_normalize(x, 0, name='l2_norm')  # TODO: try different norm
+
+  def get_vector_similarity(self, a, b):
+    with tf.name_scope('similarity') as scope:
+      a_norm = self._normalize(a)  # normalizing is kinda required if we want cosine return [0..1] range
+      b_norm = self._normalize(b)  # DO WE? TODO: try different norm
+      return 1.0 - tf.losses.cosine_distance(a_norm, b_norm, axis=0)  # TODO: how on Earth Cosine could be > 1????
+
+  def get_matrix_vector_similarity(self, matrix, vector):
+    with tf.name_scope('get_matrix_vector_similarity') as scope:
+      m_center = self._center(matrix)
+      return self.get_vector_similarity(vector, m_center)
+
+  def for_every_pattern(self, pattern_info: tuple, _text_embedding, text_range):
+    pattern_slice = pattern_info[0]
+    _patterns_embeddings = pattern_info[1]
+    pattern_emb_sliced = _patterns_embeddings[pattern_slice[0]: pattern_slice[1]]
+
+    return self._convolve(text_range, _text_embedding, pattern_emb_sliced, name='p_match')
+
+  def _convolve(self, text_range, _text_embedding, pattern_emb_sliced, name=''):
+    window_size = tf.shape(pattern_emb_sliced)[0]
+    p_center = self._center(pattern_emb_sliced)
+
+    _blurry = tf.map_fn(
+      lambda i: self.get_matrix_vector_similarity(matrix=_text_embedding[i:i + window_size], vector=p_center),
+      text_range, dtype=tf.float32, name=name + '_sim_wnd')
+
+    _sharp = tf.map_fn(
+      lambda i: self.get_matrix_vector_similarity(matrix=_text_embedding[i:i + 1], vector=p_center),
+      text_range, dtype=tf.float32, name=name + '_sim_w1')
+
+    return tf.math.maximum(_blurry, _sharp, name=name + '_merge')
+
+  # -------------------
+
+  def find_patterns(self, text_embedding, patterns_embeddings, pattern_slices) -> AttentionVectors:
+    runz = [self.cosine_similarities]
+
+    feed_dict = {
+      self._text_embedding: text_embedding,  # text_input
+      self._patterns_embeddings: patterns_embeddings,  # text_lengths
+      self.pattern_slices: pattern_slices
+    }
+
+    attentions = self.embedding_session.run(runz, feed_dict=feed_dict)[0]
+    return attentions
 
 
 if __name__ == '__main__':
