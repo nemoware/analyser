@@ -8,7 +8,7 @@
 from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
-from embedding_tools import embedd_tokenized_sentences_list
+from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention
 from parsing import profile, print_prof_data, ParsingSimpleContext
@@ -432,12 +432,22 @@ class LegalDocument(EmbeddableText):
     self.embeddings = None
     gc.collect()
 
+  @deprecated
   def embedd(self, pattern_factory):
     max_tokens = 6000
     if len(self.tokens) > max_tokens:
       self._embedd_large(pattern_factory.embedder, max_tokens)
     else:
       self.embeddings = self._emb(self.tokens, pattern_factory.embedder)
+
+    print_prof_data()
+
+  def embedd_tokens(self, embedder: AbstractEmbedder):
+    max_tokens = 7000
+    if len(self.tokens) > max_tokens:
+      self._embedd_large(embedder, max_tokens)
+    else:
+      self.embeddings = self._emb(self.tokens, embedder)
 
     print_prof_data()
 
