@@ -44,8 +44,9 @@ class AbstractEmbedder:
     return self.embedd_tokenized_text([words], [len(words)])
 
   def embedd_contextualized_patterns(self, patterns, trim_padding=True):
+
     tokenized_sentences_list: [Tokens] = []
-    regions = {}
+    regions = []
 
     i = 0
     maxlen = 0
@@ -64,7 +65,7 @@ class AbstractEmbedder:
 
       # print('embedd_contextualized_patterns', (sentence, start, end))
 
-      regions[i] = (start, end)
+      regions.append((start, end))
       tokenized_sentences_list.append(sentence_tokens)
       lens.append(len(sentence_tokens))
       if len(sentence_tokens) > maxlen:
@@ -91,7 +92,7 @@ class AbstractEmbedder:
     patterns_emb = []
 
     if trim_padding:
-      for i in regions:
+      for i in range(len(regions)):
         start, end = regions[i]
 
         sentence_emb = sentences_emb[i]
