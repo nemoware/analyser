@@ -52,11 +52,13 @@ class FuzzyPattern(EmbeddableText):
     self.name = _name
     self.soft_sliding_window_borders = False
     self.embeddings = None
+    self.region = None
 
-  def set_embeddings(self, pattern_embedding):
+  def set_embeddings(self, pattern_embedding, region=None):
     # TODO: check dimensions
     assert pattern_embedding[0][0]
     self.embeddings = pattern_embedding
+    self.region = region
 
   def _eval_distances(self, _text, dist_function=DIST_FUNC, whd_padding=0, wnd_mult=1):
     assert self.embeddings is not None
@@ -263,12 +265,12 @@ class AbstractPatternFactory:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb = self.embedder.embedd_contextualized_patterns(arr)
+    patterns_emb, regions = self.embedder.embedd_contextualized_patterns(arr)
     assert len(patterns_emb) == len(self.patterns)
     # =========
 
     for i in range(len(patterns_emb)):
-      self.patterns[i].set_embeddings(patterns_emb[i])
+      self.patterns[i].set_embeddings(patterns_emb[i], regions[i])
 
   def average_embedding_pattern(self, pattern_prefix):
     av_emb = None

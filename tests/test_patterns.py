@@ -175,7 +175,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     point3 = [1, 6]
 
     fp2 = FuzzyPattern(None)
-    fp2.set_embeddings(np.array([point2]))
+    fp2.set_embeddings(np.array([point2]), (0,1))
     # fp2 = FuzzyPattern(np.array([[point2]]))
 
     cp = CoumpoundFuzzyPattern()

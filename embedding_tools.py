@@ -98,7 +98,7 @@ class AbstractEmbedder:
 
       patterns_emb.append(pattern_emb)
 
-    return np.array(patterns_emb)
+    return np.array(patterns_emb), regions
 
 
 class ElmoEmbedder(AbstractEmbedder):
