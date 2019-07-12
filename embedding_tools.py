@@ -43,7 +43,7 @@ class AbstractEmbedder:
     words = tokenize_text(_str)
     return self.embedd_tokenized_text([words], [len(words)])
 
-  def embedd_contextualized_patterns(self, patterns):
+  def embedd_contextualized_patterns(self, patterns, trim_padding=True):
     tokenized_sentences_list: [Tokens] = []
     regions = {}
 
@@ -90,15 +90,19 @@ class AbstractEmbedder:
 
     patterns_emb = []
 
-    for i in regions:
-      start, end = regions[i]
+    if trim_padding:
+      for i in regions:
+        start, end = regions[i]
 
-      sentence_emb = sentences_emb[i]
-      pattern_emb = sentence_emb[start:end]
+        sentence_emb = sentences_emb[i]
+        pattern_emb = sentence_emb[start:end]
 
-      patterns_emb.append(pattern_emb)
+        patterns_emb.append(pattern_emb)
+      patterns_emb = np.array(patterns_emb)
+    else:
+      patterns_emb = sentences_emb
 
-    return np.array(patterns_emb), regions
+    return patterns_emb, regions
 
 
 class ElmoEmbedder(AbstractEmbedder):

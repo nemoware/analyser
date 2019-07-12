@@ -434,13 +434,7 @@ class LegalDocument(EmbeddableText):
 
   @deprecated
   def embedd(self, pattern_factory):
-    max_tokens = 6000
-    if len(self.tokens) > max_tokens:
-      self._embedd_large(pattern_factory.embedder, max_tokens)
-    else:
-      self.embeddings = self._emb(self.tokens, pattern_factory.embedder)
-
-    print_prof_data()
+    self.embedd_tokens(pattern_factory.embedder)
 
   def embedd_tokens(self, embedder: AbstractEmbedder):
     max_tokens = 7000
