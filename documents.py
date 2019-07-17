@@ -1,4 +1,4 @@
-from text_tools import Tokens, untokenize
+from text_tools import untokenize
 
 TEXT_PADDING_SYMBOL = ' '
 
@@ -33,7 +33,6 @@ class TokenizedText:
     self.categories_vector = self.categories_vector[sl]
 
 
-
 class EmbeddableText(TokenizedText):
   def __init__(self):
     super().__init__()
@@ -61,3 +60,63 @@ class MarkedDoc(TokenizedText):
 
     self.tokens = new_tokens
     self.categories_vector = new_categories_vector
+
+
+# ---------------------------------------------------
+
+from text_tools import Tokens, my_punctuation
+
+TEXT_PADDING_SYMBOL = ' '
+
+
+class GTokenizer:
+  def tokenize(self, s) -> Tokens:
+    raise NotImplementedError()
+
+  def untokenize(self, t: Tokens) -> str:
+    raise NotImplementedError()
+
+
+import nltk
+
+
+class DefaultGTokenizer(GTokenizer):
+
+  def __init__(self):
+    nltk.download('punkt')
+    from nltk.tokenize import _treebank_word_tokenizer
+    self.nltk_treebank_word_tokenizer = _treebank_word_tokenizer
+
+  def tokenize_line(self, line):
+    return [line[t[0]:t[1]] for t in self.nltk_treebank_word_tokenizer.span_tokenize(line)]
+
+  def tokenize(self, text) -> Tokens:
+    return [text[t[0]:t[1]] for t in self.tokens_map(text)]
+
+  def untokenize(self, tokens: Tokens) -> str:
+    #TODO: remove it!!
+    return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
+
+  # build tokens map to char pos
+  def tokens_map(self, text):
+
+    result = []
+    for i in range(len(text)):
+      if text[i] == '\n':
+        result.append([i, i + 1])
+
+    result += [s for s in self.nltk_treebank_word_tokenizer.span_tokenize(text)]
+
+    result.sort(key=lambda x: x[0])
+    return result
+
+#TODO: use it!
+TOKENIZER_DEFAULT = DefaultGTokenizer()
+
+if __name__ == '__main__':
+  text = 'мама молилась Раме\n\nРама -- Вишну, в Вишну ел... черешню?'
+  tts = TOKENIZER_DEFAULT.tokens_map(text)
+  for t in tts:
+    print(t)
+
+  print(TOKENIZER_DEFAULT.tokenize(text))
