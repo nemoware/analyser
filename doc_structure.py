@@ -1,7 +1,8 @@
 import re
 
+from documents import TOKENIZER_DEFAULT
 from ml_tools import *
-from text_tools import tokenize_text, np, untokenize, CaseNormalizer
+from text_tools import np, untokenize, CaseNormalizer
 
 
 def _strip_left(tokens):
@@ -192,7 +193,7 @@ class DocumentStructure:
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
-    return tokenize_text(_txt)
+    return TOKENIZER_DEFAULT.tokenize(_txt)
 
   def detect_document_structure(self, text):
     lines: List[str] = text.split('\n')

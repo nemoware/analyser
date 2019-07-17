@@ -80,21 +80,28 @@ class GTokenizer:
 import nltk
 
 
+def span_tokenize(text):
+  ix = 0
+  for word_token in nltk.word_tokenize(text):
+    ix = text.find(word_token, ix)
+    end = ix + len(word_token)
+    yield (ix, end)
+    ix = end
+
+
 class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
     nltk.download('punkt')
-    from nltk.tokenize import _treebank_word_tokenizer
-    self.nltk_treebank_word_tokenizer = _treebank_word_tokenizer
 
   def tokenize_line(self, line):
-    return [line[t[0]:t[1]] for t in self.nltk_treebank_word_tokenizer.span_tokenize(line)]
+    return [line[t[0]:t[1]] for t in span_tokenize(line)]
 
   def tokenize(self, text) -> Tokens:
     return [text[t[0]:t[1]] for t in self.tokens_map(text)]
 
   def untokenize(self, tokens: Tokens) -> str:
-    #TODO: remove it!!
+    # TODO: remove it!!
     return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
   # build tokens map to char pos
@@ -105,16 +112,17 @@ class DefaultGTokenizer(GTokenizer):
       if text[i] == '\n':
         result.append([i, i + 1])
 
-    result += [s for s in self.nltk_treebank_word_tokenizer.span_tokenize(text)]
+    result += [s for s in span_tokenize(text)]
 
     result.sort(key=lambda x: x[0])
     return result
 
-#TODO: use it!
+
+# TODO: use it!
 TOKENIZER_DEFAULT = DefaultGTokenizer()
 
 if __name__ == '__main__':
-  text = 'мама молилась Раме\n\nРама -- Вишну, в Вишну ел... черешню?'
+  text = '1.2. мама молилась Раме\n\nРама -- Вишну, в Вишну ел... черешню? (10 руб. 20 коп.)'
   tts = TOKENIZER_DEFAULT.tokens_map(text)
   for t in tts:
     print(t)
