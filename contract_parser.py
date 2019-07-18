@@ -1,8 +1,9 @@
 from typing import List
 
+from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
 from fuzzy_matcher import FuzzyMatcher
-from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
+from legal_docs import LegalDocument, ContractDocument3, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
   extract_sum_and_sign_3, _expand_slice
 from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
   rectifyed_sum, TokensWithAttention
@@ -18,12 +19,24 @@ contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, Contra
 
 
 class ContractDocument3(LegalDocument):
+  '''
+  TODO: rername it
+  '''
 
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
     self.subjects: List[ProbableValue] = [ProbableValue(ContractSubject.Other, 0.0)]
     self.contract_values: [ProbableValue] = []
-    self.agent_infos = None
+
+    self.agents_tags = None
+
+  def parse(self, txt=None):
+    super().parse()
+    agent_infos = find_org_names_spans(self.normal_text)
+    self.agents_tags = agent_infos_to_tags(agent_infos)
+
+
+ContractDocument = ContractDocument3  # Alias!
 
 
 class ContractAnlysingContext(ParsingContext):

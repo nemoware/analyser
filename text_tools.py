@@ -7,7 +7,7 @@ import os
 import pickle
 from typing import List
 
-import nltk
+import nltk, warnings
 import numpy as np
 import scipy.spatial.distance as distance
 
@@ -199,10 +199,12 @@ my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 
 
 def untokenize(tokens: Tokens) -> str:
+  warnings.warn("deprecated", DeprecationWarning)
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
 
 def tokenize_text(text):
+  warnings.warn("deprecated", DeprecationWarning)
   sentences = text.split('\n')
   result = []
   for i in range(len(sentences)):
@@ -283,12 +285,14 @@ def acronym(n):
 
 
 def token_at_index(index: int, txt: str) -> int:
+  warnings.warn("deprecated", DeprecationWarning)
   _txt = txt[0:index]
   head_tokens = tokenize_text(_txt)
   return len(head_tokens)
 
 
 def tokens_in_range(span: List[int], tokens: Tokens, txt: str = None) -> slice:
+  warnings.warn("deprecated", DeprecationWarning)
   if txt is None:
     txt = untokenize(tokens)
   a = token_at_index(span[0], txt)
@@ -336,6 +340,8 @@ class CaseNormalizer:
 
 
 if __name__ == '__main__':
+  # warnings.warn('стороны Заключили ')
+
   cn = CaseNormalizer()
   print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
   print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))

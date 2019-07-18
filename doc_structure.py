@@ -1,11 +1,13 @@
 import re
+import warnings
 
-from documents import TOKENIZER_DEFAULT
+from documents import TOKENIZER_DEFAULT, TextMap
 from ml_tools import *
 from text_tools import np, untokenize, CaseNormalizer
 
 
 def _strip_left(tokens):
+  warnings.warn("deprecated", DeprecationWarning)
   for i in range(len(tokens)):
     if tokens[i] != '.' and tokens[i] != ' ' and tokens[i] != '\t':
       return i
@@ -108,11 +110,12 @@ def get_tokenized_line_number(tokens: List, last_level):
 
 class StructureLine():
 
-  def __init__(self, level=0, number=[], bullet=False, span=(0, 0), text_offset=1, line_number=-1, roman=False) -> None:
+  def __init__(self, level=0, number=[], bullet: bool = False, span=(0, 0), text_offset=1, line_number=-1,
+               roman=False) -> None:
     super().__init__()
     self.number = number
     self.level = level
-    self.bullet = bullet
+    self.bullet: bool = bullet
     # @deprecated
     self.span = span
     self.slice = slice(span[0], span[1])
@@ -193,36 +196,45 @@ class DocumentStructure:
     # self._detect_document_structure(text)
 
   def tokenize(self, _txt):
+    warnings.warn("deprecated", DeprecationWarning)
     return TOKENIZER_DEFAULT.tokenize(_txt)
 
-  def detect_document_structure(self, text):
+  def detect_document_structure(self, tokens_map: TextMap):
+
     lines: List[str] = text.split('\n')
 
     last_level_known = 0
 
     structure = []
 
-    tokens = []
-    tokens_cc = []
+
 
     index = 0
     romans = 0
     maxroman = 0
 
+    # TODO: case_normalization is not a task of  detect_document_structure!!!
     case_normalizer = CaseNormalizer()
 
+
+    _last_new_line_index=0
+    for i in range(len(tokens_map)):
+      token = tokens_map[i]
+      if token=='\n':
+        _last_new_line_index=i
+        line_tokens = tokens_map[_last_new_line_index:i]
+        sdfdsfsdfsdfa
     for __row in lines:
 
       line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
 
       line_tokens = [case_normalizer.normalize_word(s) for s in line_tokens_cc]
-      tokens_cc += line_tokens_cc
-      tokens += line_tokens
+
 
       bullet = False
 
       if len(line_tokens) > 0:
-        # not empty
+        # not empty line
         number, span, _level, roman = get_tokenized_line_number(line_tokens, last_level_known)
 
         if roman: romans += 1
@@ -280,7 +292,7 @@ class DocumentStructure:
 
     return self.structure[-1].span[-1]  # end of the doc
 
-  def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes) -> List[int]:
+  def _merge_headlines_if_underlying_section_is_tiny(self, headline_indexes: [int], min_section_size=15) -> List[int]:
     indexes_to_remove = []
 
     slines = self.structure
@@ -295,7 +307,7 @@ class DocumentStructure:
 
       section_size = sline_next.span[0] - sline.span[1]
 
-      if section_size < 20:
+      if section_size < min_section_size:
         self._merge_headlines(headline_indexes, line_i, line_i + 1, indexes_to_remove)
       else:
         line_i += 1

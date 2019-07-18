@@ -1,3 +1,4 @@
+from embedding_tools import ElmoEmbedder
 from legal_docs import rectifyed_sum_by_pattern_prefix
 from ml_tools import max_exclusive_pattern_by_prefix, momentum, cut_above, relu
 from patterns import AbstractPatternFactoryLowCase
@@ -200,6 +201,6 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
 
 
 if __name__ == '__main__':
-  CPF = ContractPatternFactory()
+  CPF = ContractPatternFactory( ElmoEmbedder())
   for p in CPF.patterns:
     print (p.prefix_pattern_suffix_tuple)

@@ -7,7 +7,10 @@
 
 from functools import wraps
 
+import time
+
 from doc_structure import DocumentStructure, StructureLine
+from documents import TextMap
 from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention
@@ -78,16 +81,29 @@ class LegalDocument(EmbeddableText):
 
   def __init__(self, original_text=None, name="legal_doc"):
     super().__init__()
+    self.ID = time.time_ns()
+    self.filename = None
     self.original_text = original_text
 
     self.normal_text = None
     self.distances_per_pattern_dict = {}
+
+    self.tokens_map:TextMap=None
 
     self.sections = None
     self.name = name
     # subdocs
     self.start = None
     self.end = None
+
+  def get_tokens_cc(self):
+    return self.tokens_map.tokens
+
+  def get_tokens(self):
+    return self.tokens_map.split_text(sdfsdf)
+
+  tokens_cc = property(get_tokens_cc)
+  tokens  = property(get_tokens)
 
   def parse(self, txt=None):
     if txt is None:
@@ -96,16 +112,19 @@ class LegalDocument(EmbeddableText):
     assert txt is not None
 
     self.normal_text = self.preprocess_text(txt)
+    self.tokens_map = TextMap(self.normal_text)
 
     self.structure = DocumentStructure()
-    self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
+
+    #TODO: tokenize here, not in `detect_document_structure`
+    self.structure.detect_document_structure(self.tokens_map)
 
     # self.tokens = self.tokenize(self.normal_text)
     # self.tokens_cc = np.array(self.tokens)
     return self.tokens
 
   def tokens_in_range(self, span: List[int]) -> slice:
-
+    warnings.warn("deprecated", DeprecationWarning)
     a = token_at_index(span[0], self.normal_text)
     b = token_at_index(span[1], self.normal_text)
     return slice(a, b)
@@ -192,6 +211,8 @@ class LegalDocument(EmbeddableText):
   def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
     'LegalDocument']:
 
+    warnings.warn("deprecated", DeprecationWarning)
+
     if headline_indexes is None:
       headline_indexes = self.structure.headline_indexes
 
@@ -222,6 +243,7 @@ class LegalDocument(EmbeddableText):
   @deprecated
   def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
                                             threshold):
+    warnings.warn("deprecated", DeprecationWarning)
 
     import math
 
@@ -276,8 +298,7 @@ class LegalDocument(EmbeddableText):
 
     return confidence_by_headline
 
-  def find_sum_in_section(self):
-    raise Exception('not implemented')
+
 
   def find_sentence_beginnings(self, best_indexes):
     return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
@@ -318,11 +339,13 @@ class LegalDocument(EmbeddableText):
 
   @deprecated
   def subdoc(self, start, end):
+    warnings.warn("deprecated", DeprecationWarning)
     assert self.tokens is not None
     _s = slice(start, end)
     return self.subdoc_slice(_s)
 
   def normalize_sentences_bounds(self, text):
+    warnings.warn("deprecated", DeprecationWarning)
     """
         splits text into sentences, join sentences with \n
         :param text:
@@ -411,7 +434,7 @@ class LegalDocument(EmbeddableText):
     self.normal_text = None
 
   def tokenize(self, _txt):
-
+    warnings.warn("deprecated", DeprecationWarning)
     _words = tokenize_text(_txt)
 
     sparse_words = []
@@ -434,6 +457,7 @@ class LegalDocument(EmbeddableText):
 
   @deprecated
   def embedd(self, pattern_factory):
+    warnings.warn("deprecated", DeprecationWarning)
     self.embedd_tokens(pattern_factory.embedder)
 
   def embedd_tokens(self, embedder: AbstractEmbedder):
@@ -454,19 +478,20 @@ class LegalDocument(EmbeddableText):
   @profile
   def _embedd_large(self, embedder, max_tokens=6000):
 
-    overlap = int(max_tokens / 5)  # 20%
+    overlap = 100 # max_tokens // 5
 
-    number_of_windows = 1 + int(len(self.tokens) / max_tokens)
+    number_of_windows = 1 + len(self.tokens) // max_tokens
     window = max_tokens
 
     print(
       "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
         len(self.tokens), number_of_windows, overlap))
+
     start = 0
     embeddings = None
     tokens = []
     while start < len(self.tokens):
-      #             start_time = time.time()
+
       subtokens = self.tokens[start:start + window + overlap]
       print("Embedding region:", start, len(subtokens))
 
@@ -482,17 +507,10 @@ class LegalDocument(EmbeddableText):
       tokens += subtokens
 
       start += window
-      #             elapsed_time = time.time() - start_time
-      #             print ("Elapsed time %d".format(t))
       print_prof_data()
 
     self.embeddings = embeddings
     self.tokens = tokens
-
-
-class ContractDocument(LegalDocument):
-  def __init__(self, original_text):
-    LegalDocument.__init__(self, original_text)
 
 
 @deprecated
@@ -605,6 +623,8 @@ class BasicContractDocument(LegalDocument):
 
     self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
       pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
+
+
 
 
 # SUMS -----------------------------

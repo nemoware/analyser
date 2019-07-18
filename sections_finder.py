@@ -8,7 +8,7 @@ from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix
 from parsing import ParsingContext, ParsingSimpleContext
 from patterns import AbstractPatternFactory, improve_attention_vector
 
-
+import warnings
 class SectionsFinder:
 
   def __init__(self, ctx: ParsingSimpleContext):
@@ -27,6 +27,7 @@ class DefaultSectionsFinder(SectionsFinder):
   @deprecated
   def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
                     headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
+    warnings.warn("deprecated", DeprecationWarning)
     embedded_headlines = doc.embedd_headlines(factory)
 
     doc.sections = doc.find_sections_by_headlines_2(

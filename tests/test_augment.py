@@ -8,8 +8,16 @@ import unittest
 from contract_agents import *
 from contract_augmentation import *
 from documents import MarkedDoc
-
 from text_tools import nltk_treebank_word_tokenizer
+
+
+def normalize_contract(_t: str) -> str:
+  t = _t
+  for (reg, to) in alias_quote_regex + replacements_regex:
+    t = reg.sub(to, t)
+
+  return t
+
 
 def n(x):
   return normalize_contract(x)
@@ -17,10 +25,8 @@ def n(x):
 
 class TestAugm(unittest.TestCase):
 
-
   def test_remove_char_d(self):
     print(nltk_treebank_word_tokenizer.span_tokenize('sfdsf dsf'))
-
 
   def test_remove_char(self):
     doc = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])
@@ -46,7 +52,7 @@ class TestAugm(unittest.TestCase):
     augment_dropout_punctuation_d(doc, 1)
     print(doc.tokens, doc.categories_vector)
 
-  def test_concat (self):
+  def test_concat(self):
     doc = MarkedDoc([',', 'AAA', '"', 'BBB', '.'], [1, 2, 3, 4, 5])
     doc2 = MarkedDoc(['12345', '12345', '12345', '12345', '12345'], [1, 2, 3, 4, 5])
     doc.concat(doc2)
@@ -59,10 +65,8 @@ class TestAugm(unittest.TestCase):
     self.assertGreaterEqual(doc.get_len(), 3)
 
     for c in range(5):
-
       augment_trim(doc, 1)
       print('augment_trim', doc.tokens, doc.categories_vector)
-
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

@@ -417,10 +417,10 @@ class PatternSearchModelDiff:
       self._text_range = tf.range(text_len, dtype=tf.int32, name='text_input_range')
       self._patterns_range = tf.range(number_of_patterns, dtype=tf.int32, name='patterns_range')
 
-    self.similarities_norm = tf.map_fn(
-      lambda i: self.for_every_pattern((self.pattern_slices[i], self._patterns_embeddings[i])), self._patterns_range,
-      dtype=tf.float32,
-      name='distances')
+    def cc(i):
+      return self.for_every_pattern((self.pattern_slices[i], self._patterns_embeddings[i]))
+
+    self.similarities_norm = tf.map_fn(cc, self._patterns_range, dtype=tf.float32, name='distances')
 
   def for_every_pattern(self, pattern_info: tuple):
     _slice = pattern_info[0]
@@ -432,31 +432,32 @@ class PatternSearchModelDiff:
   def _convolve(self, pattern_emb_sliced, name=''):
     window_size = tf.shape(pattern_emb_sliced)[-2]
 
-    _blurry = tf.map_fn(
-      lambda i: self.get_cosine_similarity2(m1=self._text_embedding_p[i:i + window_size], m2=pattern_emb_sliced),
-      self._text_range, dtype=tf.float32, name=name + '_sim_wnd')
+    def cc(i):
+      return self.get_cosine_similarity(m1=self._text_embedding_p[i:i + window_size], m2=pattern_emb_sliced)
+
+    _blurry = tf.map_fn(cc, self._text_range, dtype=tf.float32, name=name + '_sim_wnd')
 
     return _blurry
 
-  def get_diff_similarity(self, m1, m2):
-    with tf.name_scope('matrix_similarity') as scope:
-      diff = tf.math.abs(m1 - m2)  # Just difference
-      return 1.0 - tf.math.reduce_mean(diff)
-
   def get_cosine_similarity(self, m1, m2):
     with tf.name_scope('cosine_similarity') as scope:
-      a = tf.math.sqrt(tf.math.reduce_sum(tf.math.square(m1)))
-      b = tf.math.sqrt(tf.math.reduce_sum(tf.math.square(m2)))
-      c = tf.math.reduce_sum(tf.math.multiply(m1, m2))
-      d = c / (a * b)
-      return d
+      uv = tf.math.reduce_mean(tf.math.multiply(m1, m2))
+      uu = tf.math.reduce_mean(tf.math.square(m1))
+      vv = tf.math.reduce_mean(tf.math.square(m2))
+      dist = uv / tf.math.sqrt(tf.math.multiply(uu, vv))
+      return dist
 
-  def get_cosine_similarity2(self, m1, m2):
-    uv = tf.math.reduce_mean(tf.math.multiply(m1, m2))
-    uu = tf.math.reduce_mean(tf.math.square(m1))
-    vv = tf.math.reduce_mean(tf.math.square(m2))
-    dist = uv / tf.math.sqrt(tf.math.multiply(uu, vv))
-    return dist
+  def find_patterns(self, text_embedding, patterns_embeddings, pattern_slices):
+    runz = [self.similarities_norm]
+
+    feed_dict = {
+      self._text_embedding: text_embedding,  # text_input
+      self._patterns_embeddings: patterns_embeddings,  # text_lengths
+      self.pattern_slices: pattern_slices
+    }
+
+    attentions = self.embedding_session.run(runz, feed_dict=feed_dict)[0]
+    return attentions
 
 
 if __name__ == '__main__':
