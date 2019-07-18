@@ -335,8 +335,9 @@ class CharterDocumentParser(CharterConstraintsParser):
     end = 1 + find_ner_end(section.tokens, start)
 
     orgname_sub_section: LegalDocument = section.subdoc(start, end)
-    org_name = orgname_sub_section.untokenize_cc()
+    org_name = orgname_sub_section.tokens_map.text#.untokenize_cc()
 
+    #TODO: use same format that is used in agents_info
     rez = {
       'type': org_type,
       'name': org_name,

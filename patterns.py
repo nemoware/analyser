@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-from documents import EmbeddableText
+from documents import EmbeddableText, CaseNormalizer
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject
 from transaction_values import ValueConstraint

@@ -1,9 +1,9 @@
 import re
 import warnings
 
-from documents import TOKENIZER_DEFAULT, TextMap
+from documents import TextMap
 from ml_tools import *
-from text_tools import np, untokenize, CaseNormalizer
+from text_tools import np, untokenize
 
 
 def _strip_left(tokens):
@@ -55,7 +55,7 @@ def string_to_ip(str):
   return ret
 
 
-def get_tokenized_line_number(tokens: List, last_level):
+def get_tokenized_line_number(tokens: Tokens, last_level):
   """
   :param tokens: list of stings, supposed to be lowercase
   :return: number, number_region, line???, level (for 1.1.1 it is 3)
@@ -176,11 +176,14 @@ class StructureLine():
   def subtokens(self, tokens):
     return tokens[self.span[0]: self.span[1]]
 
+  def subtokens_map(self, tokens_map: TextMap) -> Tokens:
+    return tokens_map[self.span[0]: self.span[1]]
+
   def get_numbered(self) -> bool:
     return len(self.number) > 0
 
   def get_minor_number(self) -> int:
-    if (self.numbered):
+    if self.numbered:
       return self.number[-1]
 
   numbered = property(get_numbered)
@@ -195,41 +198,20 @@ class DocumentStructure:
     self.headline_indexes: List[int] = []
     # self._detect_document_structure(text)
 
-  def tokenize(self, _txt):
-    warnings.warn("deprecated", DeprecationWarning)
-    return TOKENIZER_DEFAULT.tokenize(_txt)
-
   def detect_document_structure(self, tokens_map: TextMap):
-
-    lines: List[str] = text.split('\n')
 
     last_level_known = 0
 
     structure = []
 
-
-
-    index = 0
     romans = 0
-    maxroman = 0
+    # maxroman = 0
 
-    # TODO: case_normalization is not a task of  detect_document_structure!!!
-    case_normalizer = CaseNormalizer()
+    lines_ranges = tokens_map.split_spans('\n')
 
+    for line_span in lines_ranges:
 
-    _last_new_line_index=0
-    for i in range(len(tokens_map)):
-      token = tokens_map[i]
-      if token=='\n':
-        _last_new_line_index=i
-        line_tokens = tokens_map[_last_new_line_index:i]
-        sdfdsfsdfsdfa
-    for __row in lines:
-
-      line_tokens_cc = self.tokenize(__row.strip()) + ['\n']
-
-      line_tokens = [case_normalizer.normalize_word(s) for s in line_tokens_cc]
-
+      line_tokens = tokens_map.tokens_in_range(line_span)
 
       bullet = False
 
@@ -253,14 +235,13 @@ class DocumentStructure:
           level=_level,  # 0
           number=number,  # 1
           bullet=bullet,  # 3
-          span=(index, index + len(line_tokens)),
+          span=(line_span[0], line_span[1]),
           text_offset=span[1],
           line_number=len(structure),
           roman=roman
         )
 
         structure.append(section_meta)
-        index = len(tokens)
 
       if romans < 3:
         # not enough roman numbers, so these are not roman
@@ -277,10 +258,8 @@ class DocumentStructure:
 
     self.structure = self._fix_structure(structure)
 
-    self.headline_indexes = self._find_headlines(tokens, tokens_cc)
+    self.headline_indexes = self._find_headlines(tokens_map)
     self.headline_indexes = self._merge_headlines_if_underlying_section_is_tiny(self.headline_indexes)
-
-    return tokens, tokens_cc
 
   #     del _charter_doc.structure.structure[i]
 
@@ -328,7 +307,7 @@ class DocumentStructure:
     for i in range(i_this + 1, i_next + 1):
       indexes_to_remove.append(i)
 
-  def _find_headlines(self, tokens, tokens_cc) -> List[int]:
+  def _find_headlines(self, tokens_map: TextMap) -> List[int]:
 
     headlines_probability = np.zeros(len(self.structure))
 
@@ -336,13 +315,16 @@ class DocumentStructure:
     prev_value = 0
     for i in range(len(self.structure)):
       line = self.structure[i]
-      line_tokens = line.subtokens(tokens)
-      line_tokens_cc = line.subtokens(tokens_cc)
+      # line_tokens: Tokens = line.subtokens_map(tokens_map)
 
-      p = headline_probability(line_tokens, line_tokens_cc, line, prev_sentence, prev_value)
+      p = headline_probability(tokens_map, line, prev_sentence, prev_value)
+
+      # headline_probability(  span: [int], sentence_meta: StructureLine, prev_sentence,
+      #                      prev_value) -> float:
+
       headlines_probability[i] = p
       line.add_possible_level(p)
-      prev_sentence = line_tokens
+      prev_sentence = tokens_map.text_range(line.span)
       prev_value = p
 
     """ 🧠🕺 magic an brainfu** inside """
@@ -351,7 +333,7 @@ class DocumentStructure:
 
     return remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
 
-  def _highlight_headlines_probability(self, p_per_line):
+  def _highlight_headlines_probability(self, p_per_line: np.ndarray):
 
     def local_contrast(x):
       blur = 2 * int(len(x) / 20.0)
@@ -440,11 +422,12 @@ class DocumentStructure:
 strange_symbols = re.compile(r'[_$@+]–')
 
 
-def headline_probability(sentence: List[str], sentence_cc, sentence_meta: StructureLine, prev_sentence,
-                         prev_value) -> float:
+def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
   """
   _cc == original case
   """
+
+  sentence = tokens_map[sentence_meta.span[0]: sentence_meta.span[1]]
 
   NEG = -1
   value = 0
@@ -484,7 +467,9 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
   # span = sentence_meta.span
   _level = sentence_meta.level
   # number, span, _level = get_tokenized_line_number(sentence, None)
-  row = untokenize(sentence_cc[sentence_meta.text_offset:])[:40]
+  # TODO:
+  # row = ' '.join(sentence[sentence_meta.text_offset:])[:40]
+  row = tokens_map.text_range(sentence_meta.span)
   row = row.lstrip()
 
   if strange_symbols.search(row) is not None:
@@ -493,7 +478,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
   if sentence_meta.numbered:
 
     # headline starts from 'статья'
-    if sentence[0] == 'статья':
+    if sentence[0].lower() == 'статья':
       value += 3
 
     if sentence_meta.minor_number > 0:
@@ -533,7 +518,7 @@ def headline_probability(sentence: List[str], sentence_cc, sentence_meta: Struct
 
 
 # XXXL
-def remove_similar_indexes_considering_weights(indexes: List[int], weights: List[float]) -> List[int]:
+def remove_similar_indexes_considering_weights(indexes: List[int], weights: np.ndarray) -> List[int]:
   hif = []
 
   def is_index_far(i):

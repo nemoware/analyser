@@ -7,13 +7,15 @@ import unittest
 
 from contract_agents import *
 from contract_agents import _find_org_names
-from contract_augmentation import augment_contract
+from tests.test_augment import normalize_contract
 from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat
 
 find_org_names = _find_org_names
 
+
 def n(x):
-  return normalize_contract(x )
+  return normalize_contract(x)
+
 
 class TestTextNormalization(unittest.TestCase):
   # def _testr(self, r, str, expected):
@@ -204,7 +206,8 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('Петров В. В.', r['name'][0])
     self.assertEqual('Исполнитель', r['alias'][0])
 
-    t = n("""Автономная некоммерческая организация дополнительного профессионального образования «ООО», именуемое далее Исполнитель, в лице Директора Уткиной Е.В., действующей на основании Устава, с одной стороны,""")
+    t = n(
+      """Автономная некоммерческая организация дополнительного профессионального образования «ООО», именуемое далее Исполнитель, в лице Директора Уткиной Е.В., действующей на основании Устава, с одной стороны,""")
     onames = find_org_names(t)
     print(onames[0])
     r = onames[0]
@@ -212,7 +215,8 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('ООО', r['name'][0])
     # self.assertEqual('Исполнитель', r['alias'][0])
 
-    t = n("""Государственное автономное  учреждение дополнительного профессионального образования Свердловской области «Армавирский учебно-технический центр»,  на основании Лицензии на право осуществления образовательной деятельности в лице директора  Птицына Евгения Георгиевича, действующего на основании Устава, с одной стороны, """)
+    t = n(
+      """Государственное автономное  учреждение дополнительного профессионального образования Свердловской области «Армавирский учебно-технический центр»,  на основании Лицензии на право осуществления образовательной деятельности в лице директора  Птицына Евгения Георгиевича, действующего на основании Устава, с одной стороны, """)
     onames = find_org_names(t)
     print(onames[0])
     r = onames[0]
@@ -280,8 +284,6 @@ class TestTextNormalization(unittest.TestCase):
 
     x = r.search('с большой Государственной автономной учрежденией')
     self.assertEqual(x[0], 'Государственной автономной учрежденией')
-
-
 
     x = r.search('акционерное Общество с ограниченной ответственностью и прочим « Газпромнефть-Региональные продажи »')
     self.assertEqual(x[0], 'акционерное Общество')

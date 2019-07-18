@@ -3,7 +3,7 @@ from typing import List
 from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
 from fuzzy_matcher import FuzzyMatcher
-from legal_docs import LegalDocument, ContractDocument3, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
+from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
   extract_sum_and_sign_3, _expand_slice
 from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
   rectifyed_sum, TokensWithAttention

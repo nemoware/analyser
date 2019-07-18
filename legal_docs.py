@@ -5,9 +5,8 @@
 
 # legal_docs.py
 
-from functools import wraps
-
 import time
+from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
 from documents import TextMap
@@ -88,7 +87,8 @@ class LegalDocument(EmbeddableText):
     self.normal_text = None
     self.distances_per_pattern_dict = {}
 
-    self.tokens_map:TextMap=None
+    self.tokens_map: TextMap = None
+    self.tokens_map_norm: TextMap = None
 
     self.sections = None
     self.name = name
@@ -100,10 +100,10 @@ class LegalDocument(EmbeddableText):
     return self.tokens_map.tokens
 
   def get_tokens(self):
-    return self.tokens_map.split_text(sdfsdf)
+    return self.tokens_map_norm.tokens
 
   tokens_cc = property(get_tokens_cc)
-  tokens  = property(get_tokens)
+  tokens = property(get_tokens)
 
   def parse(self, txt=None):
     if txt is None:
@@ -114,9 +114,13 @@ class LegalDocument(EmbeddableText):
     self.normal_text = self.preprocess_text(txt)
     self.tokens_map = TextMap(self.normal_text)
 
+    # TODO: case_normalization is not a task of  detect_document_structure!!!
+    case_normalizer = CaseNormalizer()
+    self.tokens_map_norm = case_normalizer.normalize_tokens_map_case(self.tokens_map)
+
     self.structure = DocumentStructure()
 
-    #TODO: tokenize here, not in `detect_document_structure`
+    # TODO: tokenize here, not in `detect_document_structure`
     self.structure.detect_document_structure(self.tokens_map)
 
     # self.tokens = self.tokenize(self.normal_text)
@@ -298,10 +302,8 @@ class LegalDocument(EmbeddableText):
 
     return confidence_by_headline
 
-
-
-  def find_sentence_beginnings(self, best_indexes):
-    return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
+  def find_sentence_beginnings(self, indices):
+    return [find_token_before_index(self.tokens, i, '\n', 0) for i in indices]
 
   @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
@@ -332,8 +334,9 @@ class LegalDocument(EmbeddableText):
       for d in self.distances_per_pattern_dict:
         sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][_s]
 
-    sub.tokens = self.tokens[_s]
-    sub.tokens_cc = self.tokens_cc[_s]
+    sub.tokens_map = self.tokens_map.slice(_s)
+    sub.tokens_map_norm = self.tokens_map_norm.slice(_s)
+
     sub.name = f'{self.name}.{name}'
     return sub
 
@@ -478,7 +481,7 @@ class LegalDocument(EmbeddableText):
   @profile
   def _embedd_large(self, embedder, max_tokens=6000):
 
-    overlap = 100 # max_tokens // 5
+    overlap = 100  # max_tokens // 5
 
     number_of_windows = 1 + len(self.tokens) // max_tokens
     window = max_tokens
@@ -489,7 +492,7 @@ class LegalDocument(EmbeddableText):
 
     start = 0
     embeddings = None
-    tokens = []
+    # tokens = []
     while start < len(self.tokens):
 
       subtokens = self.tokens[start:start + window + overlap]
@@ -504,13 +507,13 @@ class LegalDocument(EmbeddableText):
         embeddings = sub_embeddings
       else:
         embeddings = np.concatenate([embeddings, sub_embeddings])
-      tokens += subtokens
+      # tokens += subtokens
 
       start += window
       print_prof_data()
 
     self.embeddings = embeddings
-    self.tokens = tokens
+    # self.tokens = tokens
 
 
 @deprecated
@@ -623,8 +626,6 @@ class BasicContractDocument(LegalDocument):
 
     self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
       pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
-
-
 
 
 # SUMS -----------------------------

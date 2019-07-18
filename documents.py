@@ -1,6 +1,9 @@
-from text_tools import untokenize
+from text_tools import untokenize, replace_tokens, tokenize_text, Tokens
 
 TEXT_PADDING_SYMBOL = ' '
+
+import warnings
+import os, pickle
 
 
 class TextMap:
@@ -14,14 +17,34 @@ class TextMap:
 
     self.untokenize = self.text_range  # alias
 
-  def text_range(self, span):
+  def slice(self, span: slice):
+    return TextMap(self.text_range([span.start, span.stop]), self.map[span])
+
+  def split(self, delimiter: str) -> [Tokens]:
+    last = 0
+    for i in range(self.get_len()):
+      if self[i] == delimiter:
+        yield self[last: i]
+        last = i + 1
+    yield self[last: self.get_len()]
+
+  def split_spans(self, delimiter: str) -> [Tokens]:
+    last = 0
+    for i in range(self.get_len()):
+      if self[i] == delimiter:
+        yield [last, i]
+        last = i + 1
+    yield [last, self.get_len()]
+
+  def text_range(self, span) -> str:
     start = self.map[span[0]][0]
-    stop = self.map[span[1] - 1][1]
+    _last = min(len(self.map), span[1])
+    stop = self.map[_last - 1][1]
 
     # assume map is ordered
     return self.text[start: stop]
 
-  def tokens_in_range(self, span):
+  def tokens_in_range(self, span) -> Tokens:
     tokens_i = self.map[span[0]:span[1]]
     return [
       self.text[tr[0]:tr[1]] for tr in tokens_i
@@ -37,8 +60,6 @@ class TextMap:
 
   def __len__(self):
     return self.get_len()
-
-   
 
   def __getitem__(self, key):
     if isinstance(key, slice):
@@ -58,7 +79,44 @@ class TextMap:
   tokens = property(get_tokens)
 
 
-import warnings
+class CaseNormalizer:
+  __shared_state = {}  ## see http://code.activestate.com/recipes/66531/
+
+  def __init__(self):
+    self.__dict__ = self.__shared_state
+    if 'replacements_map' not in self.__dict__:
+      __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+      p = os.path.join(__location__, 'vocab', 'word_cases_stats.pickle')
+      print('loading word cases stats model', p)
+
+      with open(p, 'rb') as handle:
+        self.replacements_map = pickle.load(handle)
+
+  def normalize_tokens_map_case(self, map: TextMap) -> TextMap:
+    norm_tokens = replace_tokens(map.tokens, self.replacements_map)
+    chars = list(map.text)
+    for i in range(0, len(map)):
+      r = map.map[i]
+      chars[r[0]:r[1]] = norm_tokens[i]
+    norm_map = TextMap(''.join(chars), map.map)
+    return norm_map
+
+  def normalize_tokens(self, tokens: Tokens) -> Tokens:
+    return replace_tokens(tokens, self.replacements_map)
+
+  def normalize_text(self, text: str) -> str:
+    warnings.warn(
+      "Deprecated, because this class must not perform tokenization. Use normalize_tokens or  normalize_tokens_map_case",
+      DeprecationWarning)
+    tokens = tokenize_text(text)
+    tokens = self.normalize_tokens(tokens)
+    return untokenize(tokens)
+
+  def normalize_word(self, token: str) -> str:
+    if token.lower() in self.replacements_map:
+      return self.replacements_map[token.lower()]
+    else:
+      return token
 
 
 class TokenizedText:
@@ -96,12 +154,12 @@ class TokenizedText:
     self.categories_vector = self.categories_vector[sl]
 
 
-class EmbeddableText(TokenizedText):
+class EmbeddableText:
   warnings.warn("deprecated", DeprecationWarning)
 
   def __init__(self):
     warnings.warn("deprecated", DeprecationWarning)
-    super().__init__()
+
     self.embeddings = None
 
 

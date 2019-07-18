@@ -42,18 +42,9 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     print("ranges")
     print(ranges)
 
-  def test_tokenize_doc(self):
-    doc = LegalDocument()
-    tokens = doc.tokenize('aa bb cc')
-    print(tokens)
-    self.assertEqual(3, len(tokens))
 
-  def test_tokenize_doc_custom_padding(self):
-    doc = LegalDocument()
 
-    tokens = doc.tokenize('aa bb cc')
-    print(tokens)
-    self.assertEqual(3, len(tokens))
+
 
   def test_eval_distances_soft_pattern2(self):
     point1 = [1, 3]

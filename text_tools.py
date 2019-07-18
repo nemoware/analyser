@@ -3,11 +3,10 @@
 # coding=utf-8
 
 
-import os
-import pickle
+import warnings
 from typing import List
 
-import nltk, warnings
+import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
@@ -217,26 +216,30 @@ def tokenize_text(text):
 
 
 def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):
-  for i in reversed(range(index)):
+  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+  for i in reversed(range(min(index, len(tokens)))):
     if tokens[i] == token:
       return i
   return default_ret
 
 
 def find_token_after_index(tokens: Tokens, index, token, default_ret=-1):
-  for i in range(index, len(tokens)):
+  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+  for i in (range(min(index, len(tokens)))):
     if tokens[i] == token:
       return i
   return default_ret
 
 
 def get_sentence_bounds_at_index(index, tokens):
+  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
   start = find_token_before_index(tokens, index, '\n', 0)
   end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
   return start + 1, end
 
 
 def get_sentence_slices_at_index(index, tokens) -> slice:
+  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
   start = find_token_before_index(tokens, index, '\n')
   end = find_token_after_index(tokens, index, '\n')
   if start < 0:
@@ -244,14 +247,6 @@ def get_sentence_slices_at_index(index, tokens) -> slice:
   if end < 0:
     end = len(tokens)
   return slice(start + 1, end)
-
-
-def min_index_per_row(rows):
-  indexes = []
-  for row in rows:
-    indexes.append(np.argmin(row))
-
-  return indexes
 
 
 def hot_quotes(tokens: Tokens) -> (np.ndarray, np.ndarray):
@@ -309,34 +304,6 @@ def replace_tokens(tokens: Tokens, replacements_map):
     else:
       result.append(key)
   return result
-
-
-class CaseNormalizer:
-  __shared_state = {}  ## see http://code.activestate.com/recipes/66531/
-
-  def __init__(self):
-    self.__dict__ = self.__shared_state
-    if 'replacements_map' not in self.__dict__:
-      __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-      p = os.path.join(__location__, 'vocab', 'word_cases_stats.pickle')
-      print('loading word cases stats model', p)
-
-      with open(p, 'rb') as handle:
-        self.replacements_map = pickle.load(handle)
-
-  def normalize_tokens(self, tokens: Tokens) -> Tokens:
-    return replace_tokens(tokens, self.replacements_map)
-
-  def normalize_text(self, text: str) -> str:
-    tokens = tokenize_text(text)
-    tokens = self.normalize_tokens(tokens)
-    return untokenize(tokens)
-
-  def normalize_word(self, token: str) -> str:
-    if token.lower() in self.replacements_map:
-      return self.replacements_map[token.lower()]
-    else:
-      return token
 
 
 if __name__ == '__main__':

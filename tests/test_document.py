@@ -85,14 +85,14 @@ class LegalDocumentTestCase(unittest.TestCase):
     d = LegalDocument("a")
     d.parse()
     print(d.tokens)
-    self.assertEqual(2, len(d.tokens))
+    self.assertEqual(1, len(d.tokens))
 
 
   def test_parse_2(self):
     d = LegalDocument("a\nb")
     d.parse()
     print(d.tokens)
-    self.assertEqual(4, len(d.tokens))
+    self.assertEqual(3, len(d.tokens))
 
 
     self.assertEqual(2, len(d.structure.structure))
