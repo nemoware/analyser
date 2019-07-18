@@ -279,22 +279,6 @@ def acronym(n):
   return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
 
 
-def token_at_index(index: int, txt: str) -> int:
-  warnings.warn("deprecated", DeprecationWarning)
-  _txt = txt[0:index]
-  head_tokens = tokenize_text(_txt)
-  return len(head_tokens)
-
-
-def tokens_in_range(span: List[int], tokens: Tokens, txt: str = None) -> slice:
-  warnings.warn("deprecated", DeprecationWarning)
-  if txt is None:
-    txt = untokenize(tokens)
-  a = token_at_index(span[0], txt)
-  b = token_at_index(span[1], txt)
-  return slice(a, b)
-
-
 def replace_tokens(tokens: Tokens, replacements_map):
   result = []
   for t in tokens:

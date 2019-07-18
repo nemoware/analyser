@@ -17,6 +17,20 @@ class TextMap:
 
     self.untokenize = self.text_range  # alias
 
+  def token_index_by_char(self, index: int) -> int:
+    for i in range(len(self.map)):
+      span = self.map[i]
+      if index < span[1]:
+        return i
+
+    return -1
+
+  def tokens_in_range(self, span: [int]) -> slice:
+
+    a = self.token_index_by_char(span[0])
+    b = self.token_index_by_char(span[1])
+    return slice(a, b)
+
   def slice(self, span: slice):
     return TextMap(self._full_text, self.map[span])
 

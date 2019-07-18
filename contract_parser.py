@@ -33,7 +33,7 @@ class ContractDocument3(LegalDocument):
 
   def parse(self, txt=None):
     super().parse()
-    agent_infos = find_org_names_spans(self.normal_text)
+    agent_infos = find_org_names_spans(self.tokens_map_norm)
     self.agents_tags = agent_infos_to_tags(agent_infos)
 
 

@@ -79,7 +79,7 @@ class LegalDocument(EmbeddableText):
 
   def __init__(self, original_text=None, name="legal_doc"):
     super().__init__()
-    self.ID = None #TODO
+    self.ID = None  # TODO
     self.filename = None
     self.original_text = original_text
 
@@ -125,12 +125,6 @@ class LegalDocument(EmbeddableText):
     # self.tokens = self.tokenize(self.normal_text)
     # self.tokens_cc = np.array(self.tokens)
     return self.tokens
-
-  def tokens_in_range(self, span: List[int]) -> slice:
-    warnings.warn("deprecated", DeprecationWarning)
-    a = token_at_index(span[0], self.normal_text)
-    b = token_at_index(span[1], self.normal_text)
-    return slice(a, b)
 
   def preprocess_text(self, txt):
     if txt is None:
@@ -423,35 +417,6 @@ class LegalDocument(EmbeddableText):
 
     return results
 
-  def read(self, name):
-    print("reading...", name)
-    self.filename = name
-    txt = ""
-    with open(name, 'r') as f:
-      self.set_original_text(f.read())
-
-  def set_original_text(self, txt):
-    self.original_text = txt
-    self.tokens = None
-    self.embeddings = None
-    self.normal_text = None
-
-  def tokenize(self, _txt):
-    warnings.warn("deprecated", DeprecationWarning)
-    _words = tokenize_text(_txt)
-
-    sparse_words = []
-    end = len(_words)
-    last_cr_index = 0
-    for i in range(end):
-      if (_words[i] == '\n') or i == end - 1:
-        chunk = _words[last_cr_index:i + 1]
-
-        sparse_words += chunk
-        last_cr_index = i + 1
-
-    return sparse_words
-
   def reset_embeddings(self):
     print('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
     del self.embeddings
@@ -701,9 +666,6 @@ class CharterDocument(LegalDocument):
     for p in self._constraints:
       if p.org_level is org_level and (constraint_subj is None or p.subject_mapping['subj'] == constraint_subj):
         yield p
-
-  def tokenize(self, _txt):
-    return tokenize_text(_txt)
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):

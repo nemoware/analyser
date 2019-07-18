@@ -6,10 +6,9 @@
 import re
 from typing import AnyStr, Match, Dict, List
 
-from legal_docs import LegalDocument
+from documents import TextMap
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
-  _r_name, r_quoted_name, replacements_regex, ru_cap, r_few_words_s, r_human_name
-from text_tools import tokens_in_range
+  _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name
 
 ORG_TYPES_re = [
   ru_cap('Акционерное общество'), 'АО',
@@ -68,7 +67,7 @@ def make_rnanom_name(lenn) -> str:
 #
 #   return txt_a, _find_org_names(txt_a)
 
-def _find_org_names(txt: str) -> List[Dict]:
+def _find_org_names(text: str) -> List[Dict]:
   def _clean(x):
     if x is None:
       return x
@@ -82,7 +81,7 @@ def _find_org_names(txt: str) -> List[Dict]:
     return d
 
   org_names = {}
-  for r in re.finditer(complete_re, txt):
+  for r in re.finditer(complete_re, text):
     org = _to_dict(r)
 
     # filter similar out
@@ -93,20 +92,17 @@ def _find_org_names(txt: str) -> List[Dict]:
   return list(org_names.values())
 
 
-def find_org_names_spans(normal_text: str) -> dict:
-  return _convert_char_slices_to_tokens(_find_org_names(normal_text))
+def find_org_names_spans(text_map: TextMap) -> dict:
+  return _convert_char_slices_to_tokens(_find_org_names(text_map.text), text_map)
 
 
-
-
-
-def _convert_char_slices_to_tokens(agent_infos):
+def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
   for org in agent_infos:
     for ent in org:
       span = org[ent][1]
 
       if span[0] > 0:
-        tokens_slice = tokens_in_range(span, doc.tokens_cc, doc.normal_text)
+        tokens_slice = text_map.tokens_in_range(span)
         org[ent] = (org[ent][0], org[ent][1], tokens_slice)
       else:
         org[ent] = (org[ent][0], None, None)
@@ -114,9 +110,7 @@ def _convert_char_slices_to_tokens(agent_infos):
   return agent_infos
 
 
-
-
-def agent_infos_to_tags(agent_infos:dict, span_map='$words'):
+def agent_infos_to_tags(agent_infos: dict, span_map='$words'):
   org_i = 0
   tags = []
   for orginfo in agent_infos:

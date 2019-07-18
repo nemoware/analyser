@@ -40,6 +40,25 @@ class TopkenizationTestCase(unittest.TestCase):
     self.assertEqual(tm2[0], 'мама')
     self.assertEqual(tm2.text, 'мама')
 
+  def test_tokens_in_range(self):
+    text = 'мама'
+    tm = TextMap(text)
+
+    self.assertEqual(0, tm.token_index_by_char(0))
+    self.assertEqual(0, tm.token_index_by_char(1))
+    self.assertEqual(0, tm.token_index_by_char(2))
+    self.assertEqual(0, tm.token_index_by_char(3))
+
+    text = 'мама выла папу'
+    tm = TextMap(text)
+
+    self.assertEqual(1, tm.token_index_by_char(5))
+    self.assertEqual(1, tm.token_index_by_char(6))
+    self.assertEqual(1, tm.token_index_by_char(7))
+    self.assertEqual(1, tm.token_index_by_char(8))
+
+    self.assertEqual(2, tm.token_index_by_char(9))
+    self.assertEqual(1, tm.token_index_by_char(4))
 
   def test_map_tokens_in_range(self):
     text = '1.2. мама   ಶ್ರೀರಾಮ'
