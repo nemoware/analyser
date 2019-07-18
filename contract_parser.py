@@ -1,3 +1,4 @@
+import warnings
 from typing import List
 
 from contract_agents import agent_infos_to_tags, find_org_names_spans
@@ -125,6 +126,7 @@ class ContractAnlysingContext(ParsingContext):
 
   @deprecated
   def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
+    warnings.warn("deprecated", DeprecationWarning)
     r = {}
     for subj_types_prefix in subj_types_prefixes:
       attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, subj_types_prefix)

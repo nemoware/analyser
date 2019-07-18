@@ -5,7 +5,6 @@
 
 # legal_docs.py
 
-import time
 from functools import wraps
 
 from doc_structure import DocumentStructure, StructureLine
@@ -80,7 +79,7 @@ class LegalDocument(EmbeddableText):
 
   def __init__(self, original_text=None, name="legal_doc"):
     super().__init__()
-    self.ID = time.time_ns()
+    self.ID = None #TODO
     self.filename = None
     self.original_text = original_text
 
@@ -183,6 +182,7 @@ class LegalDocument(EmbeddableText):
     return sections
 
   def _doc_section_under_headline(self, headline_info: HeadlineMeta, render=False):
+    warnings.warn("deprecated", DeprecationWarning)
     if render:
       print('Searching for section:', headline_info.type)
 
@@ -518,6 +518,7 @@ class LegalDocument(EmbeddableText):
 
 @deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
+  warnings.warn("deprecated", DeprecationWarning)
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
   vectors = [x for x in vectors]
   return rectifyed_sum(vectors, relu_th), len(vectors)
@@ -525,6 +526,7 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th:
 
 @deprecated
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
+  warnings.warn("deprecated", DeprecationWarning)
   #     print('mean_by_pattern_prefix', prefix, relu_th)
   _sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
   return normalize(_sum)
@@ -790,6 +792,7 @@ MIN_DOC_LEN = 5
 
 @deprecated
 def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  warnings.warn("deprecated", DeprecationWarning)
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
@@ -816,6 +819,7 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
 
 @deprecated
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  warnings.warn("deprecated", DeprecationWarning)
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
@@ -862,6 +866,7 @@ def _expand_slice(s: slice, exp):
 @deprecated
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
+  warnings.warn("deprecated", DeprecationWarning)
   tokens = sentence_subdoc.tokens
   assert len(attention_vector) == len(tokens)
 
@@ -916,6 +921,7 @@ def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector
 @deprecated
 def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
         List[LegalDocument]:
+  warnings.warn("deprecated", DeprecationWarning)
   embedded_docs = []
   if strings is None or len(strings) == 0:
     return []
@@ -952,6 +958,7 @@ def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatt
 
 def embedd_generic_tokenized_sentences_2(strings: List[str], embedder) -> \
         List[LegalDocument]:
+  warnings.warn("deprecated", DeprecationWarning)
   embedded_docs = []
   if strings is None or len(strings) == 0:
     return []

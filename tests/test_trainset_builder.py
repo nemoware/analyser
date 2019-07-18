@@ -5,10 +5,6 @@
 
 import unittest
 
-from contract_agents import *
-from contract_augmentation import *
-from documents import MarkedDoc
-
 from text_tools import nltk_treebank_word_tokenizer
 
 

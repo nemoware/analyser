@@ -1,6 +1,8 @@
 from typing import Dict
 
 from ml_tools import *
+from ml_tools import FixedVector, FixedVectors, Tokens
+from ml_tools import sum_probabilities, subtract_probability, relu, momentum_p
 # ==============================================================================
 from patterns import FuzzyPattern
 from text_tools import tokenize_text
@@ -73,12 +75,6 @@ class AttentionVectors:
   def get_bests(self, prefix, relu_th=0.7) -> FixedVectors:
     for name in self.get_names_by_pattern(prefix):
       yield self.get_best(name, relu_th=relu_th)
-
-
-from fuzzy_matcher import AttentionVectors
-from ml_tools import sum_probabilities, subtract_probability, relu, momentum_p
-import numpy as np
-from ml_tools import FixedVector, FixedVectors, Tokens
 
 
 def group_indices(_indices, cut_threshold=2):

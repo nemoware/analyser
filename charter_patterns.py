@@ -1,3 +1,4 @@
+import warnings
 from typing import List
 
 from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, \
@@ -255,6 +256,7 @@ def find_sentences_by_pattern_prefix(factory, head_sections: dict, pattern_prefi
 
 @deprecated
 def make_constraints_attention_vectors(subdoc):
+  warnings.warn("deprecated", DeprecationWarning)
   # TODO: move to notebook, too much tuning
   value_attention_vector, _c1 = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, 'sum_max',
                                                                 relu_th=0.4)

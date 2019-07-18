@@ -71,7 +71,7 @@ class ProtocolDocument(BasicContractDocument):
 
   @deprecated
   def _find_values_OLD(self, pattern_factory):
-
+    warnings.warn("deprecated", DeprecationWarning)
     min_i, sums_no_padding, confidence = pattern_factory.sum_pattern.find(self.embeddings)
 
     self.sums = sums_no_padding
@@ -111,6 +111,7 @@ class ProtocolDocument(BasicContractDocument):
 
   @deprecated
   def remove_similar_indexes(self, indexes, column, min_section_size=20):
+    warnings.warn("deprecated", DeprecationWarning)
     indexes_zipped = [indexes[0]]
 
     for i in range(1, len(indexes)):

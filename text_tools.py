@@ -304,12 +304,3 @@ def replace_tokens(tokens: Tokens, replacements_map):
     else:
       result.append(key)
   return result
-
-
-if __name__ == '__main__':
-  # warnings.warn('стороны Заключили ')
-
-  cn = CaseNormalizer()
-  print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
-  print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))
-  print(cn.normalize_word('ДОГОВОР'))
