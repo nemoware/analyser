@@ -9,16 +9,16 @@ import os, pickle
 class TextMap:
 
   def __init__(self, text: str, map=None):
-    self.text = text
+    self._full_text = text
     if map is None:
-      self.map = TOKENIZER_DEFAULT.tokens_map(self.text)
+      self.map = TOKENIZER_DEFAULT.tokens_map(text)
     else:
       self.map = map
 
     self.untokenize = self.text_range  # alias
 
   def slice(self, span: slice):
-    return TextMap(self.text_range([span.start, span.stop]), self.map[span])
+    return TextMap(self._full_text, self.map[span])
 
   def split(self, delimiter: str) -> [Tokens]:
     last = 0
@@ -42,17 +42,15 @@ class TextMap:
     stop = self.map[_last - 1][1]
 
     # assume map is ordered
-    return self.text[start: stop]
+    return self._full_text[start: stop]
+
+  def get_text(self):
+    return self.text_range([0, len(self.map)])
 
   def tokens_in_range(self, span) -> Tokens:
     tokens_i = self.map[span[0]:span[1]]
     return [
-      self.text[tr[0]:tr[1]] for tr in tokens_i
-    ]
-
-  def split_text(self, txt: str):
-    return [
-      txt[tr[0]:tr[1]] for tr in self.map
+      self._full_text[tr[0]:tr[1]] for tr in tokens_i
     ]
 
   def get_len(self):
@@ -69,14 +67,17 @@ class TextMap:
 
       r = self.map[key]
       # print('__getitem__', key)
-      return self.text[r[0]:r[1]]
+      return self._full_text[r[0]:r[1]]
     else:
       raise TypeError("Invalid argument type.")
 
   def get_tokens(self):
-    return self.split_text(self.text)
+    return [
+      self._full_text[tr[0]:tr[1]] for tr in self.map
+    ]
 
   tokens = property(get_tokens)
+  text = property(get_text)
 
 
 class CaseNormalizer:
