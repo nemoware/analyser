@@ -128,7 +128,7 @@ numbers_regex = [
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
- 
+
   (re.compile(r"''"), '"'),
   (re.compile(r"``"), '"')
 ]

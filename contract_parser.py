@@ -221,7 +221,7 @@ class ContractAnlysingContext(ParsingContext):
     if 'price.' in sections:
       value_section_info: HeadlineMeta = sections['price.']
       value_section = value_section_info.body
-      section_name = value_section_info.subdoc.untokenize_cc()
+      section_name = value_section_info.subdoc.tokens_map.text
       result = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
       if len(result) == 0:
         self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
@@ -240,7 +240,7 @@ class ContractAnlysingContext(ParsingContext):
         # fallback
         value_section_info = sections['subj']
         value_section = value_section_info.body
-        section_name = value_section_info.subdoc.untokenize_cc()
+        section_name = value_section_info.subdoc.tokens_map.text
         print(f'- Ищем стоимость в разделе { section_name }')
         result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
 
@@ -262,7 +262,7 @@ class ContractAnlysingContext(ParsingContext):
         # fallback
         value_section_info = sections['pricecond']
         value_section = value_section_info.body
-        section_name = value_section_info.subdoc.untokenize_cc()
+        section_name = value_section_info.subdoc.tokens_map.text
         print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
         result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
         if self.verbosity_level > 0:
