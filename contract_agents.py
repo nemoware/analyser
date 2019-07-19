@@ -101,8 +101,8 @@ def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
     for ent in org:
       span = org[ent][1]
 
-      if span[0] > 0:
-        tokens_slice = text_map.tokens_in_range(span)
+      if span[0] >= 0:
+        tokens_slice = text_map.token_indices_by_char_range(span)
         org[ent] = (org[ent][0], org[ent][1], tokens_slice)
       else:
         org[ent] = (org[ent][0], None, None)

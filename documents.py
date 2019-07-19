@@ -25,8 +25,7 @@ class TextMap:
 
     return -1
 
-  def tokens_in_range(self, span: [int]) -> slice:
-
+  def token_indices_by_char_range(self, span: [int]) -> slice:
     a = self.token_index_by_char(span[0])
     b = self.token_index_by_char(span[1])
     return slice(a, b)
@@ -61,7 +60,7 @@ class TextMap:
   def get_text(self):
     return self.text_range([0, len(self.map)])
 
-  def tokens_in_range(self, span) -> Tokens:
+  def tokens_by_range(self, span) -> Tokens:
     tokens_i = self.map[span[0]:span[1]]
     return [
       self._full_text[tr[0]:tr[1]] for tr in tokens_i

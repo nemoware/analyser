@@ -64,7 +64,7 @@ class TopkenizationTestCase(unittest.TestCase):
     text = '1.2. мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
 
-    tokens = tm.tokens_in_range([0, 2])
+    tokens = tm.tokens_by_range([0, 2])
     self.assertEqual(len(tokens), 2)
     self.assertEqual(tokens[0], '1.2.')
     self.assertEqual(tokens[1], 'мама')

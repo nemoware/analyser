@@ -6,12 +6,15 @@ from ml_tools import *
 from text_tools import np, untokenize
 
 
-def _strip_left(tokens):
+def _strip_left(tokens:Tokens)->int:
   warnings.warn("deprecated", DeprecationWarning)
   for i in range(len(tokens)):
     if tokens[i] != '.' and tokens[i] != ' ' and tokens[i] != '\t':
       return i
   return len(tokens)
+
+
+
 
 
 def roman_to_arabic(n):
@@ -211,7 +214,7 @@ class DocumentStructure:
 
     for line_span in lines_ranges:
 
-      line_tokens = tokens_map.tokens_in_range(line_span)
+      line_tokens = tokens_map.tokens_by_range(line_span)
 
       bullet = False
 

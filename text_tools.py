@@ -286,5 +286,5 @@ def replace_tokens(tokens: Tokens, replacements_map):
     if key in replacements_map:
       result.append(replacements_map[key])
     else:
-      result.append(key)
+      result.append(t)
   return result
