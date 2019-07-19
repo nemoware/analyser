@@ -10,7 +10,6 @@ from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PR
   ConstraintsSearchResult, PatternSearchResults
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import *
-from text_tools import untokenize
 from transaction_values import extract_sum, ValueConstraint
 from violations import ViolationsFinder
 
@@ -55,11 +54,9 @@ class CharterConstraintsParser(ParsingSimpleContext):
     sentenses_having_values: List[LegalDocument] = []
     # senetences = split_by_token(body.tokens, '\n')
 
-    ranges = split_by_token_into_ranges(body.tokens, '\n')
+    for _slice in body.tokens_map_norm.split_spans('\n'):
 
-    for _slice in ranges:
-
-      __line = untokenize(body.tokens[_slice])
+      __line = body.tokens_map_norm.text_range(_slice)
       _sum = extract_sum(__line)
 
       if _sum is not None:
@@ -71,10 +68,10 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     r_by_head_type = {
       'section': head_types_dict[section.type],
-      'caption': untokenize(section.subdoc.tokens_cc),
+      'caption': section.subdoc.tokens_map.text,
       'sentences': self.__extract_constraint_values_from_region(sentenses_having_values)
     }
-    self._logstep(f"Finding margin transaction values in section {untokenize(section.subdoc.tokens_cc)}")
+    self._logstep(f"Finding margin transaction values in section {section.subdoc.tokens_map.text}")
     return r_by_head_type
 
   ##---------------------------------------
@@ -132,7 +129,6 @@ class CharterDocumentParser(CharterConstraintsParser):
     """ 2. ✂️ 📃 -> 📄📄📄  finding headlines (& sections) ==== ️"""
 
     competence_v = self._make_competence_attention_v()
-
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.', additional_attention=competence_v)
 
@@ -335,9 +331,9 @@ class CharterDocumentParser(CharterConstraintsParser):
     end = 1 + find_ner_end(section.tokens, start)
 
     orgname_sub_section: LegalDocument = section.subdoc(start, end)
-    org_name = orgname_sub_section.tokens_map.text#.untokenize_cc()
+    org_name = orgname_sub_section.tokens_map.text  # .untokenize_cc()
 
-    #TODO: use same format that is used in agents_info
+    # TODO: use same format that is used in agents_info
     rez = {
       'type': org_type,
       'name': org_name,

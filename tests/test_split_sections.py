@@ -5,7 +5,7 @@
 
 import unittest
 
-from legal_docs import BasicContractDocument
+from contract_parser import ContractDocument
 from ml_tools import *
 
 
@@ -52,7 +52,7 @@ class SplitSectionsTest(unittest.TestCase):
     self.assertEqual(res[0], '7')
 
   def test_find_sentence_beginnings(self):
-    cd = BasicContractDocument('aaa\naaa\na')
+    cd = ContractDocument('aaa\naaa\na')
     cd.parse()
     row_to_index = [6, 1]
 
@@ -61,7 +61,7 @@ class SplitSectionsTest(unittest.TestCase):
     self.assertTrue(np.allclose(sentence_starts, [3, 0]))
 
   def test_find_sentence_beginnings_2(self):
-    cd = BasicContractDocument('aaa\naaa\na')
+    cd = ContractDocument('aaa\naaa\na')
     cd.parse()
 
     row_to_index = [6, 1]

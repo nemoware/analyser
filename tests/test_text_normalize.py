@@ -5,7 +5,62 @@
 
 import unittest
 
+from contract_parser import ContractDocument
+from documents import CaseNormalizer, TextMap
+from legal_docs import CharterDocument
 from text_normalize import *
+
+
+class CaseNormalizerTestCase(unittest.TestCase):
+  def test_basics(self):
+    cn = CaseNormalizer()
+    print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
+    print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))
+    print(cn.normalize_word('ДОГОВОР'))
+
+  def test_normalize_doc(self):
+    doc_text = """Акционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в \
+        дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
+        организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
+        с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
+        в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
+        именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
+        """
+    doc = CharterDocument(doc_text)
+    doc.parse()
+    self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
+
+    for i in range(len(doc.tokens)):
+      self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
+
+  def test_normalize_doc_slice(self):
+    doc_text = """Акционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в \
+        дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
+        организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
+        с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
+        в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
+        именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
+        """
+    doc_o = CharterDocument(doc_text)
+    doc_o.parse()
+    doc = doc_o.subdoc_slice(slice(0,300))
+    self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
+
+    for i in range(len(doc.tokens)):
+      self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
+
+  def test_normalize_basics(self):
+    cn = CaseNormalizer()
+    tm = TextMap('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА')
+
+    tm2 = cn.normalize_tokens_map_case(tm)
+
+    self.assertEqual(tm.map, tm2.map)
+    self.assertEqual(tm2[1], 'заключили')
+    self.assertEqual(tm2[12], 'Предмет')
+
+    for i in range(len(tm)):
+      self.assertEqual(tm2[i].lower(), tm[i].lower())
 
 
 class TestTextNormalization(unittest.TestCase):
@@ -15,7 +70,6 @@ class TestTextNormalization(unittest.TestCase):
     # _norm2 = normalize_text(_norm, replacements_regex)
     # if not _norm == b:
     #   self.fail('\n' + _norm + ' <> \n' + b)
-
 
     self.assertEqual(_norm, b)
     # test idempotence

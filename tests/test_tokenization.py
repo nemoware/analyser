@@ -8,25 +8,7 @@ import unittest
 from documents import TextMap, CaseNormalizer
 
 
-class CaseNormalizerTestCase(unittest.TestCase):
-  def test_basics(self):
-    cn = CaseNormalizer()
-    print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
-    print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))
-    print(cn.normalize_word('ДОГОВОР'))
 
-  def test_normalize_basics(self):
-    cn = CaseNormalizer()
-    tm = TextMap('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА')
-
-    tm2 = cn.normalize_tokens_map_case(tm)
-
-    self.assertEqual(tm.map, tm2.map)
-    self.assertEqual(tm2[1], 'заключили')
-    self.assertEqual(tm2[12], 'Предмет')
-
-    for i in range(len(tm)):
-      self.assertEqual(tm2[i].lower(), tm[i].lower())
 
 
 class TopkenizationTestCase(unittest.TestCase):

@@ -81,9 +81,9 @@ class LegalDocument:
 
     self.ID = None  # TODO
     self.filename = None
-    self.original_text = original_text
+    self._original_text = original_text
 
-    self.normal_text = None
+    self._normal_text = None
     self.distances_per_pattern_dict = {}
 
     self.tokens_map: TextMap = None
@@ -104,8 +104,16 @@ class LegalDocument:
   def get_tokens(self):
     return self.tokens_map_norm.tokens
 
+  def get_original_text(self):
+    return self._original_text
+
+  def get_normal_text(self):
+    return self._normal_text
+
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
+  original_text = property(get_original_text)
+  normal_text = property(get_normal_text)
 
   def parse(self, txt=None):
     if txt is None:
@@ -113,7 +121,7 @@ class LegalDocument:
 
     assert txt is not None
 
-    self.normal_text = self.preprocess_text(txt)
+    self._normal_text = self.preprocess_text(txt)
     self.tokens_map = TextMap(self.normal_text)
 
     # TODO: case_normalization is not a task of  detect_document_structure!!!
@@ -208,38 +216,7 @@ class LegalDocument:
 
     return subdoc
 
-  @deprecated
-  def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
-    'LegalDocument']:
 
-    warnings.warn("deprecated", DeprecationWarning)
-
-    if headline_indexes is None:
-      headline_indexes = self.structure.headline_indexes
-
-    _str = self.structure.structure
-
-    embedded_headlines: List['LegalDocument'] = []
-
-    tokenized_sentences_list = []
-    for i in headline_indexes:
-      line: StructureLine = _str[i]
-
-      _len = line.span[1] - line.span[0]
-      _len = min(max_len, _len)
-
-      subdoc = self.subdoc(line.span[0], line.span[0] + _len)
-
-      tokenized_sentences_list.append(subdoc.tokens)
-      embedded_headlines.append(subdoc)
-
-    sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-    for i in range(len(headline_indexes)):
-      embedded_headlines[i].embeddings = sentences_emb[i][0:lens[i]]
-      embedded_headlines[i].calculate_distances_per_pattern(factory)
-
-    return embedded_headlines
 
   @deprecated
   def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
@@ -316,7 +293,7 @@ class LegalDocument:
     self.structure.print_structured(self, numbered_only)
 
   def subdoc_slice(self, _s: slice, name='undef'):
-    assert self.tokens is not None
+    assert self.tokens_map is not None
 
     klazz = self.__class__
     sub = klazz("REF")
@@ -340,7 +317,6 @@ class LegalDocument:
   @deprecated
   def subdoc(self, start, end):
     warnings.warn("use subdoc_slice", DeprecationWarning)
-    assert self.tokens is not None
     _s = slice(start, end)
     return self.subdoc_slice(_s)
 
@@ -434,7 +410,7 @@ class LegalDocument:
 
   def embedd_tokens(self, embedder: AbstractEmbedder):
     max_tokens = 7000
-    if len(self.tokens) > max_tokens:
+    if len(self.tokens_map_norm) > max_tokens:
       self._embedd_large(embedder, max_tokens)
     else:
       self.embeddings = self._emb(self.tokens, embedder)
@@ -452,25 +428,25 @@ class LegalDocument:
 
     overlap = 100  # max_tokens // 5
 
-    number_of_windows = 1 + len(self.tokens) // max_tokens
+    number_of_windows = 1 + len(self.tokens_map_norm) // max_tokens
     window = max_tokens
 
     print(
       "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
-        len(self.tokens), number_of_windows, overlap))
+        len(self.tokens_map_norm), number_of_windows, overlap))
 
     start = 0
     embeddings = None
     # tokens = []
-    while start < len(self.tokens):
+    while start < len(self.tokens_map_norm):
 
-      subtokens = self.tokens[start:start + window + overlap]
+      subtokens = self.tokens_map_norm[start:start + window + overlap]
       print("Embedding region:", start, len(subtokens))
 
-      sub_embeddings = self._emb(subtokens, embedder)
+      sub_embeddings = self._emb(subtokens, embedder)[0:window]
 
-      sub_embeddings = sub_embeddings[0:window]
-      subtokens = subtokens[0:window]
+      # sub_embeddings = sub_embeddings[0:window]
+      # subtokens = subtokens[0:window]
 
       if embeddings is None:
         embeddings = sub_embeddings

@@ -2,13 +2,13 @@ from typing import List
 
 import numpy as np
 
-from legal_docs import LegalDocument, deprecated, HeadlineMeta
+from legal_docs import LegalDocument, HeadlineMeta
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
   smooth_safe, max_exclusive_pattern
-from parsing import ParsingContext, ParsingSimpleContext
+from parsing import ParsingSimpleContext
 from patterns import AbstractPatternFactory, improve_attention_vector
 
-import warnings
+
 class SectionsFinder:
 
   def __init__(self, ctx: ParsingSimpleContext):
@@ -18,24 +18,6 @@ class SectionsFinder:
   def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
                     headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
     raise NotImplementedError()
-
-
-class DefaultSectionsFinder(SectionsFinder):
-  def __init__(self, ctx: ParsingContext):
-    SectionsFinder.__init__(self, ctx)
-
-  @deprecated
-  def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
-    warnings.warn("deprecated", DeprecationWarning)
-    embedded_headlines = doc.embedd_headlines(factory)
-
-    doc.sections = doc.find_sections_by_headlines_2(
-      self.ctx, headlines, embedded_headlines, headline_patterns_prefix, self.ctx.config.headline_attention_threshold)
-
-    self.ctx._logstep("embedding headlines into semantic space")
-
-    return doc.sections
 
 
 class FocusingSectionsFinder(SectionsFinder):
@@ -76,8 +58,6 @@ class FocusingSectionsFinder(SectionsFinder):
         hl_info.attention = attention
         put_if_better(section_by_index, key=sl.start, x=hl_info, is_better=is_hl_more_confident)
 
-
-
     # end-for
     # s = slice(bounds[0], bounds[1])
     # now slicing the doc
@@ -86,7 +66,7 @@ class FocusingSectionsFinder(SectionsFinder):
 
     section_by_type = {}
 
-    for i in range(len(sorted_starts)  ):
+    for i in range(len(sorted_starts)):
       index = sorted_starts[i]
       section: HeadlineMeta = section_by_index[index]
       start = index  # todo: probably take the end of the caption
