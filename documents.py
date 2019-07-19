@@ -242,8 +242,8 @@ def span_tokenize(text):
       print(f'ACHTUNG! [{word_token}] not found with text.find')
     else:
       ix = ix_new
-    end = ix + len(word_token)
-    yield [ix, end]
+      end = ix + len(word_token)
+      yield [ix, end]
     ix = end
 
 

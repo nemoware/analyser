@@ -100,10 +100,7 @@ syntax_regex = [
   (re.compile(r'(?<=[ ])г\.(?=\S+)'), 'г. '),
 
   (re.compile(r'«\s'), '«'),
-  (re.compile(r'\s»'), '»'),
-
-  (re.compile(r"''"), '"'),
-  (re.compile(r"``"), '"')
+  (re.compile(r'\s»'), '»')
 
 ]
 
@@ -131,6 +128,9 @@ numbers_regex = [
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
+ 
+  (re.compile(r"''"), '"'),
+  (re.compile(r"``"), '"')
 ]
 
 formatting_regex = [
