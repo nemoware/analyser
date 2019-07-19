@@ -74,7 +74,7 @@ def get_tokenized_line_number(tokens: Tokens, last_level):
     # Searching for numbered lines
     token_index = 0
 
-    if tokens[0] == 'статья' and len(tokens) >= 2:
+    if tokens[0].lower() == 'статья' and len(tokens) >= 2:
       token_index = 1
 
     x = re.search(r'^(\d{1,2}($|\.)){1,6}', tokens[token_index], flags=re.MULTILINE)
@@ -310,7 +310,7 @@ class DocumentStructure:
 
     headlines_probability = np.zeros(len(self.structure))
 
-    prev_sentence:Tokens = []
+    prev_sentence: Tokens = []
     prev_value = 0
     for i in range(len(self.structure)):
       line = self.structure[i]
@@ -516,7 +516,7 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
   return value
 
 
-def is_blank(s:str):
+def is_blank(s: str):
   return s.strip() == ''
 
 
