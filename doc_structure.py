@@ -6,15 +6,12 @@ from ml_tools import *
 from text_tools import np, untokenize
 
 
-def _strip_left(tokens:Tokens)->int:
+def _strip_left(tokens: Tokens) -> int:
   warnings.warn("deprecated", DeprecationWarning)
   for i in range(len(tokens)):
     if tokens[i] != '.' and tokens[i] != ' ' and tokens[i] != '\t':
       return i
   return len(tokens)
-
-
-
 
 
 def roman_to_arabic(n):
@@ -171,16 +168,15 @@ class StructureLine():
     print('ds>{}\t {}\t'.format(ln, se), offset, number_str, values, suffix)
 
   def to_string_no_number(self, tokens_cc):
+    warnings.warn("deprecated", DeprecationWarning)
     return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
 
   def to_string(self, tokens):
+    warnings.warn("deprecated", DeprecationWarning)
     return untokenize(tokens[self.slice])
 
   def subtokens(self, tokens):
     return tokens[self.span[0]: self.span[1]]
-
-  def subtokens_map(self, tokens_map: TextMap) -> Tokens:
-    return tokens_map[self.span[0]: self.span[1]]
 
   def get_numbered(self) -> bool:
     return len(self.number) > 0
@@ -314,7 +310,7 @@ class DocumentStructure:
 
     headlines_probability = np.zeros(len(self.structure))
 
-    prev_sentence = []
+    prev_sentence:Tokens = []
     prev_value = 0
     for i in range(len(self.structure)):
       line = self.structure[i]
@@ -327,17 +323,17 @@ class DocumentStructure:
 
       headlines_probability[i] = p
       line.add_possible_level(p)
-      prev_sentence = tokens_map.text_range(line.span)
+      prev_sentence = tokens_map.tokens_by_range(line.span)
       prev_value = p
 
-    """ 🧠🕺 magic an brainfu** inside """
+    """ 🧠🕺 Magic an Brainfu** inside """
     _contrasted_probability = self._highlight_headlines_probability(headlines_probability)
     headline_indexes = sorted(np.nonzero(_contrasted_probability)[0])
 
     return remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
 
   def _highlight_headlines_probability(self, p_per_line: np.ndarray):
-
+    # TODO: get rid of these magic numbers
     def local_contrast(x):
       blur = 2 * int(len(x) / 20.0)
       blured = smooth_safe(x, window_len=blur, window='hanning') * 0.99
@@ -514,10 +510,14 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
     if not row.isdigit():  # there some trash
       value += 1.5
 
-  if prev_sentence == ['\n'] and sentence != ['\n']:
+  if is_blank(''.join(prev_sentence)) and not is_blank(''.join(sentence)):
     value += 1
 
   return value
+
+
+def is_blank(s:str):
+  return s.strip() == ''
 
 
 # XXXL

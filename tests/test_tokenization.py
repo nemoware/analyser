@@ -23,7 +23,6 @@ class CaseNormalizerTestCase(unittest.TestCase):
 
     self.assertEqual(tm.map, tm2.map)
     self.assertEqual(tm2[1], 'заключили')
-    self.assertEqual(tm2[3], 'хороший')
     self.assertEqual(tm2[12], 'Предмет')
 
     for i in range(len(tm)):
@@ -33,12 +32,24 @@ class CaseNormalizerTestCase(unittest.TestCase):
 class TopkenizationTestCase(unittest.TestCase):
 
   def test_slice(self):
-    text = '1.2. мама   ಶ್ರೀರಾಮ'
+    text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
     tm2 = tm.slice(slice(1,2))
 
     self.assertEqual(tm2[0], 'мама')
     self.assertEqual(tm2.text, 'мама')
+
+
+    tm3 = tm2.slice(slice(0,1))
+    self.assertEqual(tm3[0], 'мама')
+
+    self.assertEqual(0, tm.token_index_by_char(1))
+    self.assertEqual(0, tm2.token_index_by_char(1))
+    self.assertEqual(0, tm3.token_index_by_char(1))
+
+    self.assertEqual('мама', tm3.text)
+    self.assertEqual('мама', tm3.text_range([0,1]))
+    self.assertEqual('мама', tm3.text_range([0, 2]))
 
   def test_tokens_in_range(self):
     text = 'мама'

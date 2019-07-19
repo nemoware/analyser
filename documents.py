@@ -143,6 +143,7 @@ class TokenizedText:
     self.tokens: Tokens = None
 
   def get_len(self):
+    warnings.warn("deprecated", DeprecationWarning)
     return len(self.tokens)
 
   def untokenize(self):
