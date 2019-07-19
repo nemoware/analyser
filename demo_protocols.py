@@ -87,7 +87,9 @@ class ProtocolDocument(BasicContractDocument):
       'min': sums[min_i],
     }
 
-    start, end = get_sentence_bounds_at_index(min_i, self.tokens)
+    start, end = self.tokens_map.sentence_at_index(min_i)
+
+
     sentence_tokens = self.tokens[start + 1:end]
 
     f, sentence = extract_sum_from_tokens(sentence_tokens)

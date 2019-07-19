@@ -10,7 +10,7 @@ from functools import wraps
 from doc_structure import DocumentStructure, StructureLine
 from documents import TextMap
 from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
-from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
+from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention
 from parsing import profile, print_prof_data, ParsingSimpleContext
 from patterns import *
@@ -392,7 +392,8 @@ class LegalDocument(EmbeddableText):
     results: PatternSearchResults = []
 
     for i in np.nonzero(attention)[0]:
-      _slice = get_sentence_slices_at_index(i, self.tokens)
+      _b = self.tokens_map.sentence_at_index(i)
+      _slice = slice(_b[0], _b[1])
 
       if _slice.stop != _slice.start:
 
@@ -719,7 +720,7 @@ def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
 
 def _extract_sum_from_distances____(doc: LegalDocument, sums_no_padding):
   max_i = np.argmax(sums_no_padding)
-  start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+  start, end = doc.tokens_map.sentence_at_index(max_i)
   sentence_tokens = doc.tokens[start + 1:end]
 
   f, sentence = extract_sum_from_tokens(sentence_tokens)
@@ -732,7 +733,7 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
 
   results = []
   for max_i in maximas:
-    start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+    start, end = doc.tokens_map.sentence_at_index(max_i)
     sentence_tokens = doc.tokens[start + 1:end]
 
     f, sentence = extract_sum_from_tokens(sentence_tokens)
@@ -804,21 +805,6 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
 
     attention_vector = np.full(len(attention_vector), attention_vector[0])
   return attention_vector
-
-
-def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
-  attention_vector = relu(_attention_vector, relu_th)
-  maxes = extremums(attention_vector)[1:]
-  maxes = doc.find_sentence_beginnings(maxes)
-  maxes = remove_similar_indexes(maxes, 6)
-
-  res = {}
-  for i in maxes:
-    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
-    if e - s > 0:
-      res[s] = e
-
-  return res, attention_vector, maxes
 
 
 def _expand_slice(s: slice, exp):

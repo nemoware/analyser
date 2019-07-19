@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 
-from legal_docs import LegalDocument, deprecated, HeadlineMeta, get_sentence_bounds_at_index
+from legal_docs import LegalDocument, deprecated, HeadlineMeta
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
   smooth_safe, max_exclusive_pattern
 from parsing import ParsingContext, ParsingSimpleContext
@@ -172,6 +172,7 @@ class FocusingSectionsFinder(SectionsFinder):
     best_id = np.argmax(v)
     # dia = slice(max(0, best_id - span), min(best_id + span, len(v)))
 
-    bounds = get_sentence_bounds_at_index(best_id, doc.tokens)
+    bounds = doc.tokens_map.sentence_at_index(best_id)
+
     confidence = v[best_id]
     return bounds, confidence, v

@@ -230,23 +230,23 @@ def find_token_after_index(tokens: Tokens, index, token, default_ret=-1):
       return i
   return default_ret
 
+#
+# def get_sentence_bounds_at_index(index, tokens):
+#   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+#   start = find_token_before_index(tokens, index, '\n', 0)
+#   end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
+#   return start + 1, end
 
-def get_sentence_bounds_at_index(index, tokens):
-  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
-  start = find_token_before_index(tokens, index, '\n', 0)
-  end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
-  return start + 1, end
 
-
-def get_sentence_slices_at_index(index, tokens) -> slice:
-  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
-  start = find_token_before_index(tokens, index, '\n')
-  end = find_token_after_index(tokens, index, '\n')
-  if start < 0:
-    start = 0
-  if end < 0:
-    end = len(tokens)
-  return slice(start + 1, end)
+# def get_sentence_slices_at_index(index, tokens) -> slice:
+#   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+#   start = find_token_before_index(tokens, index, '\n')
+#   end = find_token_after_index(tokens, index, '\n')
+#   if start < 0:
+#     start = 0
+#   if end < 0:
+#     end = len(tokens)
+#   return slice(start + 1, end)
 
 
 def hot_quotes(tokens: Tokens) -> (np.ndarray, np.ndarray):

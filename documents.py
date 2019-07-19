@@ -35,19 +35,31 @@ class TextMap:
 
   def split(self, delimiter: str) -> [Tokens]:
     last = 0
+
     for i in range(self.get_len()):
       if self[i] == delimiter:
         yield self[last: i]
         last = i + 1
     yield self[last: self.get_len()]
 
-  def split_spans(self, delimiter: str) -> [Tokens]:
+  def split_spans(self, delimiter: str, add_delimiter=False):
+    addon = 0
+    if add_delimiter:
+      addon = 1
+
     last = 0
     for i in range(self.get_len()):
       if self[i] == delimiter:
-        yield [last, i]
+        yield [last, i + addon]
         last = i + 1
     yield [last, self.get_len()]
+
+  def sentence_at_index(self, i: int) -> (int, int):
+    sent_spans = self.split_spans('\n', add_delimiter=True)
+    for s in sent_spans:
+      if i >= s[0] and i < s[1]:
+        return s
+    return [0, self.get_len()]
 
   def text_range(self, span) -> str:
     start = self.map[span[0]][0]

@@ -9,13 +9,13 @@ from documents import TextMap, CaseNormalizer
 
 
 class CaseNormalizerTestCase(unittest.TestCase):
-  def test_basics (self):
+  def test_basics(self):
     cn = CaseNormalizer()
     print(cn.normalize_tokens(['стороны', 'Заключили', 'договор', 'уррраа!! ']))
     print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))
     print(cn.normalize_word('ДОГОВОР'))
 
-  def test_normalize_basics (self):
+  def test_normalize_basics(self):
     cn = CaseNormalizer()
     tm = TextMap('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА')
 
@@ -34,13 +34,12 @@ class TopkenizationTestCase(unittest.TestCase):
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
-    tm2 = tm.slice(slice(1,2))
+    tm2 = tm.slice(slice(1, 2))
 
     self.assertEqual(tm2[0], 'мама')
     self.assertEqual(tm2.text, 'мама')
 
-
-    tm3 = tm2.slice(slice(0,1))
+    tm3 = tm2.slice(slice(0, 1))
     self.assertEqual(tm3[0], 'мама')
 
     self.assertEqual(0, tm.token_index_by_char(1))
@@ -48,8 +47,29 @@ class TopkenizationTestCase(unittest.TestCase):
     self.assertEqual(0, tm3.token_index_by_char(1))
 
     self.assertEqual('мама', tm3.text)
-    self.assertEqual('мама', tm3.text_range([0,1]))
+    self.assertEqual('мама', tm3.text_range([0, 1]))
     self.assertEqual('мама', tm3.text_range([0, 2]))
+
+  def test_sentence_at_index(self):
+
+    tm = TextMap('стороны Заключили\n  договор  ПРЕДМЕТ \nДОГОВОРА')
+    for i in range(len(tm)):
+      print(i, tm[i])
+
+    bounds = tm.sentence_at_index(0)
+    print(bounds)
+    print(tm.text_range(bounds))
+    for i in range(0, 3):
+      bounds = tm.sentence_at_index(i)
+      self.assertEqual('стороны Заключили\n', tm.text_range(bounds), str(i))
+
+    for i in range(3, 5):
+      bounds = tm.sentence_at_index(i)
+      self.assertEqual('договор  ПРЕДМЕТ \n', tm.text_range(bounds))
+
+    for i in range(6, 7):
+      bounds = tm.sentence_at_index(i)
+      self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
 
   def test_tokens_in_range(self):
     text = 'мама'
@@ -80,7 +100,6 @@ class TopkenizationTestCase(unittest.TestCase):
     self.assertEqual(tokens[0], '1.2.')
     self.assertEqual(tokens[1], 'мама')
 
-
   def test_split(self):
     text = '1 2 3\nмама\nಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -88,6 +107,15 @@ class TopkenizationTestCase(unittest.TestCase):
     for k in tm.split('\n'):
       print(k)
 
+  def test_split_span(self):
+    text = '1 2 3\nмама\nಶ್ರೀರಾಮ'
+    tm = TextMap(text)
+
+    spans = [s for s in tm.split_spans('\n', add_delimiter=True)]
+    for k in spans:
+      print(tm.text_range(k))
+
+    self.assertEqual('1 2 3\n', tm.text_range(spans[0]))
 
   def test_map_text_range(self):
     text = """1.2. мама   молилась ಶ್ರೀರಾಮ\n\nРама -- Вишну, А Вишну 
