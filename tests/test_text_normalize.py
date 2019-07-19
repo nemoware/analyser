@@ -5,7 +5,6 @@
 
 import unittest
 
-from contract_parser import ContractDocument
 from documents import CaseNormalizer, TextMap
 from legal_docs import CharterDocument
 from text_normalize import *
@@ -19,7 +18,7 @@ class CaseNormalizerTestCase(unittest.TestCase):
     print(cn.normalize_word('ДОГОВОР'))
 
   def test_normalize_doc(self):
-    doc_text = """Акционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в \
+    doc_text = """n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в \
         дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
         организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
         с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
@@ -34,7 +33,7 @@ class CaseNormalizerTestCase(unittest.TestCase):
       self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
 
   def test_normalize_doc_slice(self):
-    doc_text = """Акционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в \
+    doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
         дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
         организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
         с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
@@ -43,7 +42,9 @@ class CaseNormalizerTestCase(unittest.TestCase):
         """
     doc_o = CharterDocument(doc_text)
     doc_o.parse()
-    doc = doc_o.subdoc_slice(slice(0,300))
+
+    doc = doc_o.subdoc_slice(slice(0, 300))
+
     self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
 
     for i in range(len(doc.tokens)):
@@ -141,6 +142,9 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm('не позднее20 дней', 'не позднее 20 дней')
 
   def testSpace2(self):
+    self._testNorm('Предложение \'\' Предложение', 'Предложение " Предложение')
+    self._testNorm('Предложение `` Предложение', 'Предложение " Предложение')
+
     self._testNorm('Предложение . Предложение', 'Предложение. Предложение')
     self._testNorm('Предложение.Предложение', 'Предложение. Предложение')
     self._testNorm('Предложение  . Предложение.', 'Предложение. Предложение.')

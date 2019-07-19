@@ -101,6 +101,10 @@ syntax_regex = [
 
   (re.compile(r'«\s'), '«'),
   (re.compile(r'\s»'), '»'),
+
+  (re.compile(r"''"), '"'),
+  (re.compile(r"``"), '"')
+
 ]
 
 cleanup_regex = [

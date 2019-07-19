@@ -237,7 +237,11 @@ import nltk
 def span_tokenize(text):
   ix = 0
   for word_token in nltk.word_tokenize(text):
-    ix = text.find(word_token, ix)
+    ix_new = text.find(word_token, ix)
+    if ix_new < 0:
+      print(f'ACHTUNG! [{word_token}] not found with text.find')
+    else:
+      ix = ix_new
     end = ix + len(word_token)
     yield [ix, end]
     ix = end
@@ -255,6 +259,7 @@ class DefaultGTokenizer(GTokenizer):
     return [text[t[0]:t[1]] for t in self.tokens_map(text)]
 
   def untokenize(self, tokens: Tokens) -> str:
+    warnings.warn("deprecated", DeprecationWarning)
     # TODO: remove it!!
     return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 

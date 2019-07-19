@@ -5,13 +5,18 @@
 
 import unittest
 
-from documents import TextMap, CaseNormalizer
-
-
-
+from documents import TextMap, span_tokenize
 
 
 class TopkenizationTestCase(unittest.TestCase):
+
+  def test_span_tokenize(self):
+    text = 'УТВЕРЖДЕН.\n\nОбщим собранием `` акционеров собранием `` акционеров \'\' '
+    spans = span_tokenize(text)
+
+    print(spans)
+    for c in spans:
+      print(c)
 
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
@@ -101,7 +106,7 @@ class TopkenizationTestCase(unittest.TestCase):
 
   def test_map_text_range(self):
     text = """1.2. мама   молилась ಶ್ರೀರಾಮ\n\nРама -- Вишну, А Вишну 
-    ел... черешню? (черешня по 10 руб. 20 коп.)"""
+    ел... черешню? (черешня по 10 руб. 20 коп.) '' """
 
     tm = TextMap(text)
     t = tm.text_range([0, 3])
