@@ -6,8 +6,7 @@ from ml_tools import *
 from text_tools import np, untokenize
 
 
-def _strip_left(tokens: Tokens) -> int:
-  warnings.warn("deprecated", DeprecationWarning)
+def _count_start_whitespace(tokens: Tokens) -> int:
   for i in range(len(tokens)):
     if tokens[i] != '.' and tokens[i] != ' ' and tokens[i] != '\t':
       return i
@@ -89,7 +88,7 @@ def get_tokenized_line_number(tokens: Tokens, last_level):
           level += 1
           offset += 1
 
-        offset += _strip_left(tokens[offset:])
+        offset += _count_start_whitespace(tokens[offset:])
 
       return n, (0, offset), level, False
 
@@ -206,7 +205,7 @@ class DocumentStructure:
     romans = 0
     # maxroman = 0
 
-    lines_ranges = tokens_map.split_spans('\n')
+    lines_ranges = tokens_map.split_spans('\n', add_delimiter=True)
 
     for line_span in lines_ranges:
 

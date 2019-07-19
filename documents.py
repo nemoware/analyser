@@ -31,7 +31,12 @@ class TextMap:
     return slice(a, b)
 
   def slice(self, span: slice):
-    return TextMap(self._full_text, self.map[span])
+    sliced = TextMap(self._full_text, self.map[span])
+    # first_char_index = sliced.map[0][0]
+    # for _s in sliced.map:
+    #   _s[0] -= first_char_index
+    #   _s[1] -= first_char_index
+    return sliced
 
   def split(self, delimiter: str) -> [Tokens]:
     last = 0
@@ -234,7 +239,7 @@ def span_tokenize(text):
   for word_token in nltk.word_tokenize(text):
     ix = text.find(word_token, ix)
     end = ix + len(word_token)
-    yield (ix, end)
+    yield [ix, end]
     ix = end
 
 

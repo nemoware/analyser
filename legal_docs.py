@@ -75,10 +75,10 @@ def deprecated(fn):
   return with_reporting
 
 
-class LegalDocument(EmbeddableText):
+class LegalDocument:
 
   def __init__(self, original_text=None, name="legal_doc"):
-    super().__init__()
+
     self.ID = None  # TODO
     self.filename = None
     self.original_text = original_text
@@ -94,6 +94,9 @@ class LegalDocument(EmbeddableText):
     # subdocs
     self.start = None
     self.end = None
+
+    # TODO: probably we dont have to keep embeddings, just pattern_distances
+    self.embeddings = None
 
   def get_tokens_cc(self):
     return self.tokens_map.tokens
@@ -336,7 +339,7 @@ class LegalDocument(EmbeddableText):
 
   @deprecated
   def subdoc(self, start, end):
-    warnings.warn("deprecated", DeprecationWarning)
+    warnings.warn("use subdoc_slice", DeprecationWarning)
     assert self.tokens is not None
     _s = slice(start, end)
     return self.subdoc_slice(_s)
@@ -426,7 +429,7 @@ class LegalDocument(EmbeddableText):
 
   @deprecated
   def embedd(self, pattern_factory):
-    warnings.warn("deprecated", DeprecationWarning)
+    warnings.warn("use embedd_tokens, provide embedder", DeprecationWarning)
     self.embedd_tokens(pattern_factory.embedder)
 
   def embedd_tokens(self, embedder: AbstractEmbedder):
@@ -484,7 +487,7 @@ class LegalDocument(EmbeddableText):
 
 @deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
-  warnings.warn("deprecated", DeprecationWarning)
+  warnings.warn("rectifyed_sum_by_pattern_prefix is deprecated", DeprecationWarning)
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
   vectors = [x for x in vectors]
   return rectifyed_sum(vectors, relu_th), len(vectors)
@@ -754,8 +757,8 @@ MIN_DOC_LEN = 5
 
 
 @deprecated
-def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
-  warnings.warn("deprecated", DeprecationWarning)
+def make_soft_attention_vector(doc:LegalDocument, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  warnings.warn("make_soft_attention_vector is deprecated", DeprecationWarning)
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:

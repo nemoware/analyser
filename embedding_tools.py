@@ -39,9 +39,9 @@ class AbstractEmbedder:
   def embedd_tokenized_text(self, words: [Tokens], lens: List[int]) -> tuple:
     return None, None
 
-  def embedd_sentence(self, _str):
-    words = tokenize_text(_str)
-    return self.embedd_tokenized_text([words], [len(words)])
+  # def embedd_sentence(self, _str):
+  #   words = tokenize_text(_str)
+  #   return self.embedd_tokenized_text([words], [len(words)])
 
   def embedd_contextualized_patterns(self, patterns, trim_padding=True):
 

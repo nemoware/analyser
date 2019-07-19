@@ -89,20 +89,18 @@ class LegalDocumentTestCase(unittest.TestCase):
 
 
   def test_parse_2(self):
-    d = LegalDocument("a\nb")
+    d = LegalDocument("a\n\nb")
     d.parse()
     print(d.tokens)
-    self.assertEqual(3, len(d.tokens))
-
-
-    self.assertEqual(2, len(d.structure.structure))
+    self.assertEqual(4, len(d.tokens))
+    self.assertEqual(3, len(d.structure.structure))
 
     l0 = d.structure.structure[0]
     lll = d.tokens_cc[l0.span[0]: l0.span[1]]
 
     print(lll)
 
-    l1 = d.structure.structure[1]
+    l1 = d.structure.structure[2]
 
     self.assertEqual('a', l0.to_string(d.tokens_cc))
     self.assertEqual('b', l1.to_string(d.tokens_cc))
@@ -144,15 +142,16 @@ class LegalDocumentTestCase(unittest.TestCase):
     r = remove_similar_indexes_considering_weights(a, w)
     self.assertEqual(r,[1,5])
 
-  def test_embedd_headlines_0(self):
+  def test_analyze_contract_0(self):
 
     from renderer import SilentRenderer
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
+
     ctx = ContractAnlysingContext(emb, SilentRenderer())
     ctx.analyze_contract("1. ЮРИДИЧЕСКИЙ содержание 4.")
 
-    ctx._logstep("analyze_charter")
+    ctx._logstep("analyze_contract")
 
   def test_charter_parser (self):
     # from renderer import SilentRenderer
@@ -164,7 +163,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
 
     ctx._logstep("analyze_charter")
-    ctx._logstep("analyze_charter 2")
+
 
 
   def test_embedd_headlines(self):

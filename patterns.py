@@ -442,13 +442,13 @@ class PatternSearchResult(PatternMatch):
 
 
 class ConstraintsSearchResult:
-
   def __init__(self):
-    print(WARN + 'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
+    warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
     self.constraints: List[ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
   def get_context(self) -> PatternSearchResult:  # alias
+    warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
     return self.subdoc
 
   context = property(get_context)
