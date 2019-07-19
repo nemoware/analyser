@@ -1,3 +1,4 @@
+import warnings
 from typing import List, TypeVar, Iterable
 
 import numpy as np
@@ -31,6 +32,7 @@ def split_by_token(tokens: List[str], token):
 
 
 def split_by_token_into_ranges(tokens: List, token) -> List[slice]:
+  warnings.warn("deprecated", DeprecationWarning)
   res = []
 
   p = 0
