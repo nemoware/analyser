@@ -118,13 +118,14 @@ def agent_infos_to_tags(agent_infos: dict, span_map='$words'):
     org_i += 1
     for k in entities_types:
       if k in orginfo:
-        tag = {
-          'kind': f'org.{org_i}.{k}',
-          'value': orginfo[k][0],
-          'span': (orginfo[k][2].start, orginfo[k][2].stop),
-          "span_map": span_map
-        }
-        tags.append(tag)
+        if orginfo[k][2] is not None:
+          tag = {
+            'kind': f'org.{org_i}.{k}',
+            'value': orginfo[k][0],
+            'span': (orginfo[k][2].start, orginfo[k][2].stop),
+            "span_map": span_map
+          }
+          tags.append(tag)
   return tags
 
 
