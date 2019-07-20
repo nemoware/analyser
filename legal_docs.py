@@ -7,7 +7,7 @@
 
 from functools import wraps
 
-from doc_structure import DocumentStructure, StructureLine
+from doc_structure import DocumentStructure
 from documents import TextMap
 from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
@@ -110,10 +110,14 @@ class LegalDocument:
   def get_normal_text(self):
     return self._normal_text
 
+  def get_text(self):
+    return self.tokens_map.text
+
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
   original_text = property(get_original_text)
   normal_text = property(get_normal_text)
+  text = property(get_text)
 
   def parse(self, txt=None):
     if txt is None:
@@ -210,13 +214,11 @@ class LegalDocument:
 
     if render:
       print('=' * 100)
-      print(headline_info.subdoc.untokenize_cc())
+      print(headline_info.subdoc.text)
       print('-' * 100)
-      print(subdoc.untokenize_cc())
+      print(subdoc.text)
 
     return subdoc
-
-
 
   @deprecated
   def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
@@ -733,12 +735,12 @@ MIN_DOC_LEN = 5
 
 
 @deprecated
-def make_soft_attention_vector(doc:LegalDocument, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+def make_soft_attention_vector(doc: LegalDocument, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   warnings.warn("make_soft_attention_vector is deprecated", DeprecationWarning)
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
-    print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
+    print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(doc.text))
     return np.full(len(doc.tokens), 0.0001)
 
   attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
@@ -765,7 +767,7 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
-    print("----ERROR: soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
+    print("----ERROR: soft_attention_vector: too few tokens {} ".format(doc.text))
     return np.full(len(doc.tokens), 0.0001)
 
   attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
