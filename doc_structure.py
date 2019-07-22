@@ -188,12 +188,13 @@ class StructureLine():
   minor_number = property(get_minor_number)
   parent_number = property(get_parent_number)
 
+
 def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
   """
   _cc == original case
   """
 
-  sentence:Tokens = tokens_map[sentence_meta.span[0]: sentence_meta.span[1]]
+  sentence: Tokens = tokens_map[sentence_meta.span[0]: sentence_meta.span[1]]
 
   NEG = -1
   value = 0
@@ -201,8 +202,8 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
   if sentence == ['\n']:
     return NEG
 
-  # if len(sentence) < 2:
-  #   return NEG
+  if len(sentence) < 2:
+    return NEG
 
   if len(sentence) > 20:
     return NEG
@@ -243,6 +244,9 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
 
   if sentence_meta.numbered:
 
+    if len(sentence) < 4:
+      return NEG
+
     # headline starts from 'статья'
     if sentence[0].lower() == 'статья':
       value += 3
@@ -266,11 +270,12 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
         # headline is NOT a 1.2 - like-numbered
         return -_level
 
-  # ------- any number
-  # headline DOES not start from lowercase
-  if len(row) > 0:
-    if row.lower()[0] == row[0]:
-      value -= 3
+  #   # ------- any number
+  else:
+    # headline normally DOES not start from lowercase
+    if len(row) > 0:
+      if row.lower()[0] == row[0]:
+        value -= 1
 
   # headline is UPPERCASE
   if row.upper() == row:
