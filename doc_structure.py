@@ -188,12 +188,107 @@ class StructureLine():
   minor_number = property(get_minor_number)
   parent_number = property(get_parent_number)
 
+def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
+  """
+  _cc == original case
+  """
+
+  sentence:Tokens = tokens_map[sentence_meta.span[0]: sentence_meta.span[1]]
+
+  NEG = -1
+  value = 0
+
+  if sentence == ['\n']:
+    return NEG
+
+  # if len(sentence) < 2:
+  #   return NEG
+
+  if len(sentence) > 20:
+    return NEG
+
+  if len(sentence) > 10:
+    value -= 2
+
+  # headline is short enough
+  if len(sentence) < 10:
+    value += 1
+
+  if 3 <= len(sentence) <= 6:
+    value += 1
+
+  # headline may not go after another headline
+  if prev_value > 0:
+    value -= prev_value / 2
+
+  # if it ends with a number, it is a contents-line
+  if len(sentence) > 3:
+    r_off = 2
+    if sentence[-r_off] == '.':
+      r_off = 3
+
+    if sentence[-r_off].isdigit():
+      value -= 1.8
+
+  # span = sentence_meta.span
+  _level = sentence_meta.level
+  # number, span, _level = get_tokenized_line_number(sentence, None)
+  # TODO:
+  # row = ' '.join(sentence[sentence_meta.text_offset:])[:40]
+  row = tokens_map.text_range(sentence_meta.span)
+  row = row.lstrip()
+
+  if strange_symbols.search(row) is not None:
+    value -= 2
+
+  if sentence_meta.numbered:
+
+    # headline starts from 'статья'
+    if sentence[0].lower() == 'статья':
+      value += 3
+
+    if sentence_meta.minor_number > 0:
+      value += 1
+
+    # headline number is NOT too big
+    if sentence_meta.minor_number > 40:
+      value -= 1
+
+    # headline is NOT a bullet
+    if sentence_meta.minor_number < 0:
+      return NEG
+    # ----
+    if _level is not None:
+      if _level == 0:
+        value += 1
+
+      if _level > 1:
+        # headline is NOT a 1.2 - like-numbered
+        return -_level
+
+  # ------- any number
+  # headline DOES not start from lowercase
+  if len(row) > 0:
+    if row.lower()[0] == row[0]:
+      value -= 3
+
+  # headline is UPPERCASE
+  if row.upper() == row:
+    if not row.isdigit():  # there some trash
+      value += 1.5
+
+  if is_blank(''.join(prev_sentence)) and not is_blank(''.join(sentence)):
+    value += 1
+
+  return value
 
 class DocumentStructure:
 
   def __init__(self):
     self.structure: List[StructureLine] = None
     self.headline_indexes: List[int] = []
+
+    self.headline_probability_func=headline_probability# make it pluggable
     # self._detect_document_structure(text)
 
   def detect_document_structure(self, tokens_map: TextMap):
@@ -315,7 +410,7 @@ class DocumentStructure:
       line = self.structure[i]
       # line_tokens: Tokens = line.subtokens_map(tokens_map)
 
-      p = headline_probability(tokens_map, line, prev_sentence, prev_value)
+      p = self.headline_probability_func(tokens_map, line, prev_sentence, prev_value)
 
       # headline_probability(  span: [int], sentence_meta: StructureLine, prev_sentence,
       #                      prev_value) -> float:
@@ -420,99 +515,7 @@ class DocumentStructure:
 strange_symbols = re.compile(r'[_$@+]–')
 
 
-def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
-  """
-  _cc == original case
-  """
 
-  sentence = tokens_map[sentence_meta.span[0]: sentence_meta.span[1]]
-
-  NEG = -1
-  value = 0
-
-  if sentence == ['\n']:
-    return NEG
-
-  if len(sentence) < 2:
-    return NEG
-
-  if len(sentence) > 20:
-    return NEG
-
-  if len(sentence) > 10:
-    value -= 2
-
-  # headline is short enough
-  if len(sentence) < 10:
-    value += 1
-
-  if 3 <= len(sentence) <= 6:
-    value += 1
-
-  # headline may not go after another headline
-  if prev_value > 0:
-    value -= prev_value / 2
-
-  # if it ends with a number, it is a contents-line
-  if len(sentence) > 3:
-    r_off = 2
-    if sentence[-r_off] == '.':
-      r_off = 3
-
-    if sentence[-r_off].isdigit():
-      value -= 1.8
-
-  # span = sentence_meta.span
-  _level = sentence_meta.level
-  # number, span, _level = get_tokenized_line_number(sentence, None)
-  # TODO:
-  # row = ' '.join(sentence[sentence_meta.text_offset:])[:40]
-  row = tokens_map.text_range(sentence_meta.span)
-  row = row.lstrip()
-
-  if strange_symbols.search(row) is not None:
-    value -= 2
-
-  if sentence_meta.numbered:
-
-    # headline starts from 'статья'
-    if sentence[0].lower() == 'статья':
-      value += 3
-
-    if sentence_meta.minor_number > 0:
-      value += 1
-
-    # headline number is NOT too big
-    if sentence_meta.minor_number > 40:
-      value -= 1
-
-    # headline is NOT a bullet
-    if sentence_meta.minor_number < 0:
-      return NEG
-    # ----
-    if _level is not None:
-      if _level == 0:
-        value += 1
-
-      if _level > 1:
-        # headline is NOT a 1.2 - like-numbered
-        return -_level
-
-  # ------- any number
-  # headline DOES not start from lowercase
-  if len(row) > 0:
-    if row.lower()[0] == row[0]:
-      value -= 3
-
-  # headline is UPPERCASE
-  if row.upper() == row:
-    if not row.isdigit():  # there some trash
-      value += 1.5
-
-  if is_blank(''.join(prev_sentence)) and not is_blank(''.join(sentence)):
-    value += 1
-
-  return value
 
 
 def is_blank(s: str):
