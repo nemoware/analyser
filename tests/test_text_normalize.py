@@ -17,7 +17,12 @@ class CaseNormalizerTestCase(unittest.TestCase):
     print(cn.normalize_text('стороны Заключили (ХОРОШИЙ)договор, (уррраа!!) ПРЕДМЕТ ДОГОВОРА'))
     print(cn.normalize_word('ДОГОВОР'))
 
-  def test_normalize_doc(self):
+
+
+
+
+
+  def test_normalize_doc_tokenization(self):
     doc_text = """n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в \
         дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
         организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
@@ -84,6 +89,33 @@ class TestTextNormalization(unittest.TestCase):
   #     self._testNorm('АО ', 'Акционерное Общество ')
   #     # self._testNorm('АО\n', 'Акционерное Общество.\n')
 
+  def test_normalize_doc_1(self):
+    doc_text = "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)"
+    doc = CharterDocument(doc_text)
+    doc.parse()
+    self.assertEqual(doc.text, "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)")
+
+  def test_normalize_double_quotes(self):
+    # doc_text = " '' "
+    # doc = CharterDocument(doc_text)
+    # doc.parse()
+    # self.assertEqual(' " ', doc.text)
+
+    tt = "''Газпром''"
+    self._testNorm(tt, '"Газпром"')
+
+  def test_normalize_doc_double_quotes(self):
+    doc_text = " '' "
+    # doc = CharterDocument(doc_text)
+    # doc.parse()
+    # self.assertEqual(' " ', doc.text)
+
+    tt = "''Газпром''"
+    doc = CharterDocument(tt)
+    doc.parse()
+    self.assertEqual('"Газпром"', doc.text)
+
+
   def test_dot_in_numbers(self):
     self._testNorm('Сумма договора не должна превышать 500 000 (пятьсот тысяч) рублей.',
                    'Сумма договора не должна превышать 500000 (пятьсот тысяч) рублей.')
@@ -127,7 +159,7 @@ class TestTextNormalization(unittest.TestCase):
 
   def testSpace2(self):
     self._testNorm('Предложение \'\' Предложение', 'Предложение " Предложение')
-    self._testNorm('Предложение `` Предложение', 'Предложение " Предложение')
+    self._testNorm('Предложение " Предложение', 'Предложение " Предложение')
 
     self._testNorm('Предложение . Предложение', 'Предложение. Предложение')
     self._testNorm('Предложение.Предложение', 'Предложение. Предложение')

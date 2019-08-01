@@ -85,6 +85,7 @@ org_expand_regex = [
   (re.compile(r'(?<=\s)*ЗАО(?=\s+)'), 'Закрытое Акционерное Общество'),
 ]
 
+
 syntax_regex = [
   (re.compile(r'(?<=[а-яА-Я])\.(?=[а-яА-Я])'), '. '),
 
@@ -100,7 +101,10 @@ syntax_regex = [
   (re.compile(r'(?<=[ ])г\.(?=\S+)'), 'г. '),
 
   (re.compile(r'«\s'), '«'),
-  (re.compile(r'\s»'), '»')
+  (re.compile(r'\s»'), '»'),
+
+  # (re.compile(r"[']{2}"), '\"'),
+  # (re.compile(r"``"), '"')
 
 ]
 
@@ -129,8 +133,7 @@ fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
 
-  (re.compile(r"''"), '"'),
-  (re.compile(r"``"), '"')
+
 ]
 
 formatting_regex = [
@@ -150,12 +153,11 @@ table_of_contents_regex = [
 
 ]
 
-# replacements_regex = dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + cleanup_regex + numbers_regex + formatting_regex
 replacements_regex = table_of_contents_regex + dates_regex + abbreviation_regex + fixtures_regex + spaces_regex + syntax_regex + numbers_regex + formatting_regex
 
 
-def normalize_text(_t, replacements_regex):
-  t = _t
+def normalize_text(_t:str, replacements_regex):
+  t = _t.replace("''", r'"')
   for (reg, to) in replacements_regex:
     t = reg.sub(to, t)
 

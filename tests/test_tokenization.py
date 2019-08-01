@@ -5,6 +5,9 @@
 
 import unittest
 
+import nltk
+from nltk import TreebankWordTokenizer
+
 from documents import TextMap, span_tokenize
 from legal_docs import CharterDocument
 
@@ -50,7 +53,7 @@ class TopkenizationTestCase(unittest.TestCase):
     doc4 = doc3.subdoc_slice(slice(5, 6))
     self.assertEqual('', doc4.text)
 
-     
+
 
   def test_span_tokenize(self):
     text = 'УТВЕРЖДЕН.\n\nОбщим собранием `` акционеров собранием `` акционеров \'\' '
@@ -59,6 +62,27 @@ class TopkenizationTestCase(unittest.TestCase):
     print(spans)
     for c in spans:
       print(c)
+
+
+  def test_word_tokenize_quotes(self):
+    text = '"сл"'
+    tokenizer = TreebankWordTokenizer()
+    # _spans = nltk.word_tokenize(text)
+    _spans = tokenizer. tokenize(text)
+
+    spans=[s for s in _spans]
+    print("".join(spans))
+    for c in spans:
+      print(len(c))
+    self.assertEqual(3, len(spans))
+
+  def test_span_tokenize_quotes(self):
+    text = '"слово"'
+    _spans = span_tokenize(text)
+
+    spans=[s for s in _spans]
+    print(spans)
+    self.assertEqual(3, len(spans))
 
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'

@@ -126,11 +126,10 @@ class LegalDocument:
     assert txt is not None
 
     self._normal_text = self.preprocess_text(txt)
-    self.tokens_map = TextMap(self.normal_text)
+    self.tokens_map = TextMap(self._normal_text)
 
-    # TODO: case_normalization is not a task of  detect_document_structure!!!
-    case_normalizer = CaseNormalizer()
-    self.tokens_map_norm = case_normalizer.normalize_tokens_map_case(self.tokens_map)
+    _case_normalizer = CaseNormalizer()
+    self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
 
     self.structure = DocumentStructure()
 

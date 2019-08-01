@@ -243,16 +243,22 @@ import nltk
 
 
 def span_tokenize(text):
-  ix = 0
-  for word_token in nltk.word_tokenize(text):
-    ix_new = text.find(word_token, ix)
+  start_from = 0
+  for token in nltk.word_tokenize(text):
+    if token=="''":
+      token='"'
+
+    if token=="``":
+      token='"'
+
+    ix_new = text.find(token, start_from)
     if ix_new < 0:
-      print(f'ACHTUNG! [{word_token}] not found with text.find')
+      print(f'ACHTUNG! [{token}] not found with text.find')
     else:
-      ix = ix_new
-      end = ix + len(word_token)
-      yield [ix, end]
-    ix = end
+      start_from = ix_new
+      end = start_from + len(token)
+      yield [start_from, end]
+      start_from = end
 
 
 class DefaultGTokenizer(GTokenizer):
