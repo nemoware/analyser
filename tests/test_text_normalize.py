@@ -32,23 +32,7 @@ class CaseNormalizerTestCase(unittest.TestCase):
     for i in range(len(doc.tokens)):
       self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
 
-  def test_normalize_doc_slice(self):
-    doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
-        дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
-        организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
-        с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
-        в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
-        именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
-        """
-    doc_o = CharterDocument(doc_text)
-    doc_o.parse()
 
-    doc = doc_o.subdoc_slice(slice(0, 300))
-
-    self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
-
-    for i in range(len(doc.tokens)):
-      self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
 
   def test_normalize_basics(self):
     cn = CaseNormalizer()

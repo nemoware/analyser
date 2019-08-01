@@ -327,7 +327,8 @@ class CharterDocumentParser(CharterConstraintsParser):
     org_by_type_dict, org_type = self._detect_org_type_and_name(section)
 
     start = org_by_type_dict[org_type][0]
-    start = start + len(factory.patterns_dict[org_type].embeddings)
+    start = start + len(factory.patterns_dict[org_type].embeddings)  #typically +1 or +2
+
     end = 1 + find_ner_end(section.tokens, start)
 
     orgname_sub_section: LegalDocument = section.subdoc(start, end)

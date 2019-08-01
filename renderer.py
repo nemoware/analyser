@@ -1,5 +1,5 @@
 from typing import List
-
+import numpy as np
 from legal_docs import CharterDocument, ProtocolDocument
 from ml_tools import ProbableValue
 from parsing import known_subjects, head_types_dict
@@ -7,13 +7,17 @@ from patterns import AV_PREFIX, AV_SOFT, PatternSearchResult, ConstraintsSearchR
 from structures import ContractSubject
 from transaction_values import ValueConstraint
 
+from structures import OrgStructuralLevel
+import html as escaper
+
 head_types_colors = {'head.directors': 'crimson',
                      'head.all': 'orange',
                      'head.gen': 'blue',
                      'head.shareholders': '#666600',
                      'head.pravlenie': '#0099cc',
                      'head.unknown': '#999999'}
-from structures import OrgStructuralLevel
+
+
 
 org_level_colors = {OrgStructuralLevel.BoardOfDirectors: 'crimson',
                     OrgStructuralLevel.ShareholdersGeneralMeeting: 'orange',
@@ -37,7 +41,7 @@ org_level_dict = {OrgStructuralLevel.BoardOfDirectors: 'Совет директ�
 
 WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
-import html as escaper
+
 
 
 def as_smaller(x):
@@ -252,8 +256,10 @@ class HtmlRenderer(AbstractRenderer):
 
   def _to_color_text(self, _tokens, weights, mpl, colormap='coolwarm', _range=None):
     tokens = [escaper.escape(t) for t in _tokens]
+    
     if len(tokens) == 0:
       return " - empty -"
+    
     if len(weights) != len(tokens):
       raise ValueError("number of weights differs weights={} tokens={}".format(len(weights), len(tokens)))
 
@@ -285,6 +291,8 @@ class HtmlRenderer(AbstractRenderer):
         html += "<br>"
 
     return html
+
+    
 
   def constraints_to_html(self, search_result: PatternSearchResult):
 
@@ -389,7 +397,7 @@ class HtmlRenderer(AbstractRenderer):
            f'<sup>confidence={pv.confidence:20,.2f}</sup></b> '
 
 
-import numpy as np
+
 
 ''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''
 

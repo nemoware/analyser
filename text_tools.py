@@ -24,16 +24,16 @@ def find_ner_end(tokens, start, max_len=20):
     if tokens[i] == '"':
       return i
 
-    if tokens[i] == '»':
+    elif tokens[i] == '»':
       return i
 
-    if tokens[i] == '\n':
+    elif tokens[i] == '\n':
       return i
 
-    if tokens[i] == '.':
+    elif tokens[i] == '.':
       return i
 
-    if tokens[i] == ';':
+    elif tokens[i] == ';':
       return i
 
   return min(len(tokens), start + max_len)

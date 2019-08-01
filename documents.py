@@ -13,6 +13,9 @@ class TextMap:
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)
     else:
+      # if len(map)<1:
+      #   raise RuntimeError('Cannot deal with empty tokenization map')
+
       self.map = map
 
     self.untokenize = self.text_range  # alias
@@ -67,14 +70,19 @@ class TextMap:
     return [0, self.get_len()]
 
   def text_range(self, span) -> str:
-    start = self.map[span[0]][0]
-    _last = min(len(self.map), span[1])
-    stop = self.map[_last - 1][1]
+    try:
+      start = self.map[span[0]][0]
+      _last = min(len(self.map), span[1])
+      stop = self.map[_last - 1][1]
 
-    # assume map is ordered
-    return self._full_text[start: stop]
+      # assume map is ordered
+      return self._full_text[start: stop]
+    except:
+      raise RuntimeError(f'cannot deal with {span} ')
 
   def get_text(self):
+    if len(self.map)==0:
+      return ''
     return self.text_range([0, len(self.map)])
 
   def tokens_by_range(self, span) -> Tokens:

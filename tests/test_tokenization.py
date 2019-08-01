@@ -6,9 +6,54 @@
 import unittest
 
 from documents import TextMap, span_tokenize
+from legal_docs import CharterDocument
 
 
 class TopkenizationTestCase(unittest.TestCase):
+
+  def test_normalize_doc_slice(self):
+    doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
+        дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
+        организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
+        с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
+        в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
+        именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
+        """
+    doc_o = CharterDocument(doc_text)
+    doc_o.parse()
+
+    doc = doc_o.subdoc_slice(slice(0, 300))
+
+    self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
+
+    for i in range(len(doc.tokens)):
+      self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
+
+  def test_subdoc_slice(self):
+    doc_text = """аслово бслово цслово"""
+
+    doc_o = CharterDocument(doc_text)
+    doc_o.parse()
+
+    doc = doc_o.subdoc_slice(slice(0, 2))
+    self.assertEqual('аслово бслово',doc.text )
+
+    doc1 = doc_o.subdoc_slice(slice(2, 3))
+    self.assertEqual('цслово', doc1.text)
+
+    doc2 = doc.subdoc_slice(slice(0, 2))
+    self.assertEqual('аслово бслово', doc2.text)
+
+    doc3 = doc2.subdoc_slice(slice(1, 2))
+    self.assertEqual('бслово', doc3.text)
+
+    doc4 = doc3.subdoc_slice(slice(5, 6))
+    self.assertEqual('', doc4.text)
+
+    # self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
+    #
+    # for i in range(len(doc.tokens)):
+    #   self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
 
   def test_span_tokenize(self):
     text = 'УТВЕРЖДЕН.\n\nОбщим собранием `` акционеров собранием `` акционеров \'\' '
@@ -21,13 +66,14 @@ class TopkenizationTestCase(unittest.TestCase):
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
-    tm2 = tm.slice(slice(1, 2))
+    tm2:TextMap = tm.slice(slice(1, 2))
 
     self.assertEqual(tm2[0], 'мама')
     self.assertEqual(tm2.text, 'мама')
 
     tm3 = tm2.slice(slice(0, 1))
     self.assertEqual(tm3[0], 'мама')
+
 
     self.assertEqual(0, tm.token_index_by_char(1))
     self.assertEqual(0, tm2.token_index_by_char(1))
