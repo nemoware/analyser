@@ -280,7 +280,7 @@ class LegalDocument:
   def find_sentence_beginnings(self, indices):
     return [find_token_before_index(self.tokens, i, '\n', 0) for i in indices]
 
-  @profile
+  # @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
                                       verbosity=1, merge=False, pattern_prefix=None):
     assert self.embeddings is not None
