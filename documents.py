@@ -251,9 +251,11 @@ def span_tokenize(text):
     if token=="``":
       token='"'
 
+   
+
     ix_new = text.find(token, start_from)
     if ix_new < 0:
-      print(f'ACHTUNG! [{token}] not found with text.find')
+      print(f'ACHTUNG! [{token}] not found with text.find, next text is: {text[start_from:start_from+30]}')
     else:
       start_from = ix_new
       end = start_from + len(token)
