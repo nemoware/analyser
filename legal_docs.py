@@ -410,10 +410,10 @@ class LegalDocument:
     warnings.warn("use embedd_tokens, provide embedder", DeprecationWarning)
     self.embedd_tokens(pattern_factory.embedder)
 
-  def embedd_tokens(self, embedder: AbstractEmbedder):
+  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2):
     max_tokens = 7000
     if len(self.tokens_map_norm) > max_tokens:
-      self._embedd_large(embedder, max_tokens)
+      self._embedd_large(embedder, max_tokens, verbosity)
     else:
       self.embeddings = self._emb(self.tokens, embedder)
 
@@ -425,17 +425,17 @@ class LegalDocument:
     embeddings = embeddings[0]
     return embeddings
 
-  @profile
-  def _embedd_large(self, embedder, max_tokens=6000):
+  def _embedd_large(self, embedder, max_tokens=8000, verbosity=2):
 
     overlap = 100  # max_tokens // 5
 
     number_of_windows = 1 + len(self.tokens_map_norm) // max_tokens
     window = max_tokens
 
-    print(
-      "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
-        len(self.tokens_map_norm), number_of_windows, overlap))
+    if verbosity > 1:
+      print(
+        "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
+          len(self.tokens_map_norm), number_of_windows, overlap))
 
     start = 0
     embeddings = None
@@ -443,7 +443,8 @@ class LegalDocument:
     while start < len(self.tokens_map_norm):
 
       subtokens = self.tokens_map_norm[start:start + window + overlap]
-      print("Embedding region:", start, len(subtokens))
+      if verbosity > 2:
+        print("Embedding region:", start, len(subtokens))
 
       sub_embeddings = self._emb(subtokens, embedder)[0:window]
 

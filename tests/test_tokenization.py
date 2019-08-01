@@ -50,10 +50,7 @@ class TopkenizationTestCase(unittest.TestCase):
     doc4 = doc3.subdoc_slice(slice(5, 6))
     self.assertEqual('', doc4.text)
 
-    # self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
-    #
-    # for i in range(len(doc.tokens)):
-    #   self.assertEqual(doc.tokens[i].lower(), doc.tokens_cc[i].lower())
+     
 
   def test_span_tokenize(self):
     text = 'УТВЕРЖДЕН.\n\nОбщим собранием `` акционеров собранием `` акционеров \'\' '
@@ -162,6 +159,7 @@ class TopkenizationTestCase(unittest.TestCase):
     text = 'ಉಂದು ಅರ್ತೊಪೂರ್ಣೊ ವಾಕ್ಯೊಲೆನ್ ಕೊರ್ಪುನ ಸಾಮರ್ತ್ಯೊನು ಹೊಂದೊಂತ್ '
     tm = TextMap(text)
     print(tm.tokens)
+    self.assertEqual(6, len(tm.tokens))
 
   def test_get_len(self):
     text = 'а б с'
@@ -170,7 +168,10 @@ class TopkenizationTestCase(unittest.TestCase):
     self.assertEqual(3, len(tm))
 
   def test_get_by_index(self):
+
     ಶ್ರೀರಾಮ = self
+
+
     ಮ = 'ቋንቋ የድምጽ፣ የምልክት ወይም የምስል ቅንብር ሆኖ ለማሰብ'
     ቅ = TextMap(ಮ)
     ಶ್ರೀರಾಮ.assertEqual(ቅ[0], 'ቋንቋ')

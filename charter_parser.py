@@ -110,7 +110,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     self.violations_finder = ViolationsFinder()
 
-  def analyze_charter(self, txt, verbose=False):
+  def analyze_charter(self, txt, verbosity=2):
     """
     🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀
     :param txt:
@@ -123,7 +123,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # 1. find top level structure
     _charter_doc.parse()
-    _charter_doc.embedd(self.pattern_factory)
+    _charter_doc.embedd_tokens(self.pattern_factory.embedder, verbosity)
     self.doc: CharterDocument = _charter_doc
 
     """ 2. ✂️ 📃 -> 📄📄📄  finding headlines (& sections) ==== ️"""
@@ -247,15 +247,18 @@ class CharterDocumentParser(CharterConstraintsParser):
     return constraints_a, constraints_b, all_margin_values, charity_constraints  # TODO: hope there is no intersection
 
   def get_constraints(self):
-    print(WARN + f'CharterParser.constraints are deprecated ☠️! \n Use CharterDocument.value_constraints')
+    warnings.warn(f'CharterParser.get_constraints are deprecated ☠️! \n Use CharterDocument.value_constraints', DeprecationWarning)
     return self.charter.constraints_old
 
   def get_charity_constraints(self):
-    print(WARN + f'CharterParser.harity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints')
+    warnings.warn(f'CharterParser.get_charity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints',
+                  DeprecationWarning)
     return self.charter._charity_constraints_old
 
   def get_org(self):
-    print(WARN + f'CharterParser.org is deprecated ☠️! \n Use CharterDocument.org')
+    warnings.warn(
+      f'CharterParser.org are deprecated ☠️! \n Use CharterDocument.org',
+      DeprecationWarning)
     return self.charter.org
 
   def get_charter(self):
