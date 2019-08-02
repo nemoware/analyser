@@ -12,7 +12,7 @@ from documents import TextMap
 from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention
-from parsing import profile, print_prof_data, ParsingSimpleContext
+from parsing import print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
 from structures import ORG_2_ORG
@@ -418,7 +418,7 @@ class LegalDocument:
 
     print_prof_data()
 
-  @profile
+  # @profile
   def _emb(self, tokens, embedder):
     embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
     embeddings = embeddings[0]
