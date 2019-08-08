@@ -95,6 +95,9 @@ class LegalDocument:
     self.start = None
     self.end = None
 
+    self.structure:DocumentStructure = None
+
+
     # TODO: probably we dont have to keep embeddings, just pattern_distances
     self.embeddings = None
 
@@ -132,8 +135,6 @@ class LegalDocument:
     self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
 
     self.structure = DocumentStructure()
-
-    # TODO: tokenize here, not in `detect_document_structure`
     self.structure.detect_document_structure(self.tokens_map)
 
     # self.tokens = self.tokenize(self.normal_text)

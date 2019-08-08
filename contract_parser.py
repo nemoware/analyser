@@ -1,6 +1,8 @@
 import warnings
 from typing import List
 
+from overrides import overrides
+
 from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
 from fuzzy_matcher import FuzzyMatcher
@@ -31,6 +33,7 @@ class ContractDocument3(LegalDocument):
 
     self.agents_tags = None
 
+  @overrides
   def parse(self, txt=None):
     super().parse()
     agent_infos = find_org_names_spans(self.tokens_map_norm)
@@ -55,6 +58,7 @@ class ContractAnlysingContext(ParsingContext):
     # self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
     self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
 
+  @overrides
   def _reset_context(self):
     super(ContractAnlysingContext, self)._reset_context()
 
@@ -330,7 +334,7 @@ def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vec
 
     region = slice(token_index_s, token_index_e)
 
-    print('REG:', ' '.join(search_result.tokens[region]))
+    # print('REG:', ' '.join(search_result.tokens[region]))
 
     vc = extract_sum_and_sign_3(search_result, region)
     _e = _expand_slice(region, 10)

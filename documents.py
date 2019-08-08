@@ -8,7 +8,7 @@ import os, pickle
 
 class TextMap:
 
-  def __init__(self, text: str, map=None):
+  def __init__(self, text: str, map: [[int, int]] = None):
     self._full_text = text
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)
@@ -33,7 +33,7 @@ class TextMap:
     b = self.token_index_by_char(span[1])
     return slice(a, b)
 
-  def slice(self, span: slice):
+  def slice(self, span: slice) -> "TextMap":
     sliced = TextMap(self._full_text, self.map[span])
     # first_char_index = sliced.map[0][0]
     # for _s in sliced.map:
@@ -81,7 +81,7 @@ class TextMap:
       raise RuntimeError(f'cannot deal with {span} ')
 
   def get_text(self):
-    if len(self.map)==0:
+    if len(self.map) == 0:
       return ''
     return self.text_range([0, len(self.map)])
 
@@ -242,26 +242,31 @@ class GTokenizer:
 import nltk
 
 
-def span_tokenize(text):
+def span_tokens(tokens: Tokens, text: str):
   start_from = 0
-  for token in nltk.word_tokenize(text):
-    if token=="''":
-      token='"'
-
-    if token=="``":
-      token='"'
-
-   
+  for token in tokens:
+    if token == "''" or token == "``":
+      # NLTK replaces quotes
+      token = '"'
 
     ix_new = text.find(token, start_from)
     if ix_new < 0:
       print(f'ACHTUNG! [{token}] not found with text.find, next text is: {text[start_from:start_from+30]}')
+      # should never happen
     else:
       start_from = ix_new
       end = start_from + len(token)
       yield [start_from, end]
       start_from = end
 
+
+def span_tokenize(text):
+  # tokens = nltk.wordpunct_tokenize(text)
+  tokens = nltk.word_tokenize(text)
+
+  return span_tokens(tokens, text)
+
+from overrides import overrides
 
 class DefaultGTokenizer(GTokenizer):
 
@@ -271,6 +276,7 @@ class DefaultGTokenizer(GTokenizer):
   def tokenize_line(self, line):
     return [line[t[0]:t[1]] for t in span_tokenize(line)]
 
+  @overrides
   def tokenize(self, text) -> Tokens:
     return [text[t[0]:t[1]] for t in self.tokens_map(text)]
 
