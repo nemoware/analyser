@@ -25,14 +25,16 @@ class GDriveTestDocProvider(AbstractDocProvider):
     try:
       text = docx2txt.process(fn)
     except:
-      warnings.warn(f"Cannot read file {fn} with docx2txt, error: {sys.exc_info()}", RuntimeWarning)
+      info_ = f"Cannot read file {fn} with docx2txt, error: {sys.exc_info()}"
+      warnings.warn(info_, RuntimeWarning)
 
       try:
         os.system('antiword -w 0 "' + fn + '" > "' + fn + '.txt"')
         with open(fn + '.txt') as f:
           text = f.read()
       except:
-        warnings.warn(f"Cannot read file {fn} with antiword, error: {sys.exc_info()}", RuntimeWarning)
+        exc_info_ = f"Cannot read file {fn} with antiword, error: {sys.exc_info()}"
+        warnings.warn(exc_info_, RuntimeWarning)
 
     return text
 
@@ -48,4 +50,5 @@ class GDriveTestDocProvider(AbstractDocProvider):
         yield file, text
 
       except:
-        warnings.warn(f"Cannot read file {file}, error: {sys.exc_info()}", RuntimeWarning)
+        info_ = f"Cannot read file {file}, error: {sys.exc_info()}"
+        warnings.warn(info_, RuntimeWarning)
