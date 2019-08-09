@@ -147,8 +147,7 @@ class ProtocolDocument(BasicContractDocument):
   def subject_weight_per_section(self, subj_pattern, paragraph_split_pattern):
     assert self.section_indexes is not None
 
-    distances_per_subj_pattern_, ranges_, winning_patterns = subj_pattern.calc_exclusive_distances(
-      self.embeddings)
+    distances_per_subj_pattern_, ranges_, winning_patterns = subj_pattern.calc_exclusive_distances(self.embeddings)
 
     ranges_global = [
       np.nanmin(distances_per_subj_pattern_),
@@ -181,8 +180,7 @@ class ProtocolDocument(BasicContractDocument):
   def get_found_sum(self) -> ProbableValue:
 
     print(f'deprecated: {self.get_found_sum}, use  .values')
-    best_value: ProbableValue = max(self.values,
-                                    key=lambda item: item.value.value)
+    best_value: ProbableValue = max(self.values, key=lambda item: item.value.value)
 
     most_confident_value = max(self.values, key=lambda item: item.confidence)
     best_value = select_most_confident_if_almost_equal(best_value, most_confident_value)
