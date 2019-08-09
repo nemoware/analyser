@@ -294,16 +294,16 @@ class ContractAnlysingContext(ParsingContext):
     return result
 
 
-def _try_to_fetch_value_from_section_2(value_section: LegalDocument, factory: ContractPatternFactory) -> List[
-  ProbableValue]:
-  value_section.calculate_distances_per_pattern(factory)
+def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, factory: ContractPatternFactory) -> List[ProbableValue]:
+  ''' merge dictionaries of attention vectors '''
 
-  vectors = factory.make_contract_value_attention_vectors(value_section)
+  value_section_subdoc.calculate_distances_per_pattern(factory)
+  vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
 
-  value_section.distances_per_pattern_dict = {**value_section.distances_per_pattern_dict, **vectors}
+  value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
-  values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section,
-                                                                 value_section.distances_per_pattern_dict[
+  values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section_subdoc,
+                                                                 value_section_subdoc.distances_per_pattern_dict[
                                                                    'value_attention_vector_tuned'])
 
   return values
@@ -313,11 +313,21 @@ from transaction_values import complete_re
 import re
 
 
-def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vector: List[float]) -> List[
-  ProbableValue]:
+def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vector: List[float]) -> List[ProbableValue]:
+
+  """
+  sr -is- "search result"
+
+  :param search_result: LegalDocument
+  :param attention_vector: List[float]
+  :return: List[ProbableValue]
+  """
+
+  #TODO: FIX IT
   def __tokens_before_index(string, index):
     return len(string[:index].split(' '))
 
+  # TODO: FIX IT
   sentence = ' '.join(search_result.tokens)
   # print("SENT:", sentence)
   all_values = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
@@ -330,7 +340,7 @@ def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vec
 
     region = slice(token_index_s, token_index_e)
 
-    print('REG:', ' '.join(search_result.tokens[region]))
+    # print('REG:', ' '.join(search_result.tokens[region]))
 
     vc = extract_sum_and_sign_3(search_result, region)
     _e = _expand_slice(region, 10)

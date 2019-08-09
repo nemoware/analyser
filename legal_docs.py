@@ -84,6 +84,8 @@ class LegalDocument:
     self._original_text = original_text
 
     self._normal_text = None
+
+    # todo: use pandas' DataFrame
     self.distances_per_pattern_dict = {}
 
     self.tokens_map: TextMap = None
@@ -91,11 +93,12 @@ class LegalDocument:
 
     self.sections = None
     self.name = name
+
     # subdocs
     self.start = None
     self.end = None
 
-    # TODO: probably we dont have to keep embeddings, just pattern_distances
+    # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
   def get_tokens_cc(self):
@@ -119,7 +122,7 @@ class LegalDocument:
   normal_text = property(get_normal_text)
   text = property(get_text)
 
-  def parse(self, txt=None):
+  def parse(self, txt=None) -> None:
     if txt is None:
       txt = self.original_text
 
@@ -132,13 +135,7 @@ class LegalDocument:
     self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
 
     self.structure = DocumentStructure()
-
-    # TODO: tokenize here, not in `detect_document_structure`
     self.structure.detect_document_structure(self.tokens_map)
-
-    # self.tokens = self.tokenize(self.normal_text)
-    # self.tokens_cc = np.array(self.tokens)
-    return self.tokens
 
   def preprocess_text(self, txt):
     if txt is None:

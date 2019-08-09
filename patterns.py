@@ -405,6 +405,7 @@ from structures import OrgStructuralLevel
 
 
 class PatternMatch():
+
   def __init__(self, region):
     assert region.stop - region.start > 0
     self.subject_mapping = {
@@ -438,6 +439,7 @@ class PatternMatch():
 class PatternSearchResult(PatternMatch):
   def __init__(self, org_level: OrgStructuralLevel, region):
     super(PatternSearchResult, self).__init__(region)
+
     self.org_level: OrgStructuralLevel = org_level
 
 

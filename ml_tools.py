@@ -16,6 +16,19 @@ class ProbableValue:
     self.confidence: float = confidence
     self.value = value
 
+def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue, equality_range=0.0)->ProbableValue:
+  try:
+    if abs(a.value.value - alternative.value.value) < equality_range:
+      if a.confidence > alternative.confidence:
+        return a
+      else:
+        return alternative
+  except:
+    #TODO: why dan hell we should have an exception here??
+    return a
+
+  return a
+
 
 def split_by_token(tokens: List[str], token):
   res = []
