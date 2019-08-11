@@ -96,7 +96,6 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
 
 """ ❤️ == GOOD CharterDocumentParser  ====================================== """
-""" ❤️ == GOOD CharterDocumentParser  ====================================== """
 
 
 class CharterDocumentParser(CharterConstraintsParser):
@@ -106,7 +105,7 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
 
-    self.doc = None
+    self.doc: CharterDocument = None
 
     self.violations_finder = ViolationsFinder()
 
@@ -133,7 +132,8 @@ class CharterDocumentParser(CharterConstraintsParser):
                                        headline_patterns_prefix='headline.', additional_attention=competence_v)
 
     """ 2. NERS 🏦 🏨 🏛==== ️"""
-    self.charter.org = self.ners()
+    _org_, self.charter.org_type_tag, self.charter.org_name_tag = self.ners()
+    self.charter.org = _org_  # TODO: remove it, this is just for compatibility
 
     """ 3. CONSTRAINTS 💰 💵 ==== ️"""
     self.find_contraints_2()
@@ -152,19 +152,24 @@ class CharterDocumentParser(CharterConstraintsParser):
     return competence_v
 
   def ners(self):
+    '''
+    org is depreceated, use org_type_tag and org_name_tag only!!
+    :return:
+    '''
     if 'name' in self.doc.sections:
       section: HeadlineMeta = self.doc.sections['name']
-      org = self.detect_ners(section.body)
+      org, org_type_tag, org_name_tag = self.detect_ners(section.body)
 
     else:
       self.warning('Секция наименования компнании не найдена')
       self.warning('Попытаемся искать просто в начале документа 🚑')
-      org = self.detect_ners(self.doc.subdoc_slice(slice(0, 3000), name='name_section'))
+      org, org_type_tag, org_name_tag = self.detect_ners(self.doc.subdoc_slice(slice(0, 3000), name='name_section'))
 
     self._logstep("extracting NERs (named entities 🏦 🏨 🏛)")
 
     """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
-    return org
+    # todo: do not return org
+    return org, org_type_tag, org_name_tag
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
 
@@ -247,12 +252,14 @@ class CharterDocumentParser(CharterConstraintsParser):
     return constraints_a, constraints_b, all_margin_values, charity_constraints  # TODO: hope there is no intersection
 
   def get_constraints(self):
-    warnings.warn(f'CharterParser.get_constraints are deprecated ☠️! \n Use CharterDocument.value_constraints', DeprecationWarning)
+    warnings.warn(f'CharterParser.get_constraints are deprecated ☠️! \n Use CharterDocument.value_constraints',
+                  DeprecationWarning)
     return self.charter.constraints_old
 
   def get_charity_constraints(self):
-    warnings.warn(f'CharterParser.get_charity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints',
-                  DeprecationWarning)
+    warnings.warn(
+      f'CharterParser.get_charity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints',
+      DeprecationWarning)
     return self.charter._charity_constraints_old
 
   def get_org(self):
@@ -261,7 +268,7 @@ class CharterDocumentParser(CharterConstraintsParser):
       DeprecationWarning)
     return self.charter.org
 
-  def get_charter(self):
+  def get_charter(self) -> CharterDocument:
     return self.doc
 
   charity_constraints = property(get_charity_constraints)
@@ -325,17 +332,16 @@ class CharterDocumentParser(CharterConstraintsParser):
     :return:
     """
     assert section is not None
-    factory = self.pattern_factory
 
     org_by_type_dict, org_type = self._detect_org_type_and_name(section)
-
-    start = org_by_type_dict[org_type][0]
-    start = start + len(factory.patterns_dict[org_type].embeddings)  #typically +1 or +2
+    org_type_tag = org_by_type_dict[org_type]
+    start = org_type_tag.span[0]
+    start = start + len(self.pattern_factory.patterns_dict[org_type].embeddings)  # typically +1 or +2
 
     end = 1 + find_ner_end(section.tokens, start)
 
     orgname_sub_section: LegalDocument = section.subdoc(start, end)
-    org_name = orgname_sub_section.tokens_map.text  # .untokenize_cc()
+    org_name = orgname_sub_section.tokens_map.text
 
     # TODO: use same format that is used in agents_info
     rez = {
@@ -343,10 +349,17 @@ class CharterDocumentParser(CharterConstraintsParser):
       'name': org_name,
       'type_name': org_types[org_type],
       'tokens': section.tokens_cc,
-      'attention_vector': section.distances_per_pattern_dict[org_type]
+      'attention_vector': section.distances_per_pattern_dict[org_type],
     }
 
-    return rez
+    # org_type_span=section.start+
+    # org_type_tag = SemanticTag('org_type', org_type, org_type_span)
+
+    org_name_span = section.start + orgname_sub_section.start, section.start + orgname_sub_section.end
+    org_name_tag = SemanticTag('org_name', org_name, org_name_span)
+    org_type_tag.offset(section.start)
+
+    return rez, org_type_tag, org_name_tag
 
   def _detect_org_type_and_name(self, section: LegalDocument):
 
@@ -374,7 +387,12 @@ class CharterDocumentParser(CharterConstraintsParser):
         _max = val
         best_org_type = org_type
 
-      org_by_type[org_type] = [idx, val]
+      type_name = org_types[org_type]
+      tag = SemanticTag('org_type', org_type, (idx, idx + len(type_name.split(' '))))
+      tag.confidence = val
+      tag.display_value = type_name
+
+      org_by_type[org_type] = tag
 
     if self.verbosity_level > 2:
       print('_detect_org_type_and_name', org_by_type)

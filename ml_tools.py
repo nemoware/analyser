@@ -16,7 +16,9 @@ class ProbableValue:
     self.confidence: float = confidence
     self.value = value
 
-def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue, equality_range=0.0)->ProbableValue:
+
+def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
+                                          equality_range=0.0) -> ProbableValue:
   try:
     if abs(a.value.value - alternative.value.value) < equality_range:
       if a.confidence > alternative.confidence:
@@ -24,7 +26,7 @@ def select_most_confident_if_almost_equal(a: ProbableValue, alternative: Probabl
       else:
         return alternative
   except:
-    #TODO: why dan hell we should have an exception here??
+    # TODO: why dan hell we should have an exception here??
     return a
 
   return a
@@ -357,3 +359,19 @@ class TokensWithAttention:
     assert len(tokens) == len(attention)
     self.tokens = tokens
     self.attention = attention
+
+
+class SemanticTag:
+  def __init__(self, kind, value, span, span_map='$words'):
+    self.kind = kind
+    self.value = value
+    self.span = span
+    self.span_map = span_map
+    self.confidence = 1
+    self.display_value = value
+
+  def offset(self, span_add: int):
+    self.span = self.span[0] + span_add, self.span[1] + span_add
+
+  def __str__(self):
+    return f'{self.kind} {self.span} {self.value} {self.display_value}'

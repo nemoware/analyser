@@ -11,7 +11,7 @@ from doc_structure import DocumentStructure
 from documents import TextMap
 from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention
+  max_exclusive_pattern, TokensWithAttention, SemanticTag
 from parsing import print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
@@ -629,16 +629,28 @@ class CharterDocument(LegalDocument):
     self._constraints: List[PatternSearchResult] = []
     self.value_constraints = {}
 
-    self.org = None
+    self._org = None
+
+    self.org_type_tag: SemanticTag = None
+    self.org_name_tag: SemanticTag = None
 
     # TODO:remove it
     self._charity_constraints_old = {}
     self._value_constraints_old = {}
 
+  def get_org(self):
+    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
+    return self._org
+
+  def set_org(self, org):
+    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
+    self._org = org
+
   def get_constraints_old(self):
     return self._value_constraints_old
 
   constraints_old = property(get_constraints_old)
+  org = property(get_org, set_org)
 
   def constraints_by_org_level(self, org_level: OrgStructuralLevel, constraint_subj: ContractSubject = None) -> List[
     PatternSearchResult]:
