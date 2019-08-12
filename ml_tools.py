@@ -365,7 +365,7 @@ class SemanticTag:
   def __init__(self, kind, value, span, span_map='$words'):
     self.kind = kind
     self.value = value
-    self.span = span
+    self.span = [int(span[0]), int(span[1])]
     self.span_map = span_map
     self.confidence = 1
     self.display_value = value
