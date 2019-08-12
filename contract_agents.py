@@ -4,6 +4,7 @@
 
 
 import re
+import warnings
 from typing import AnyStr, Match, Dict, List
 
 from documents import TextMap
@@ -94,10 +95,12 @@ def _find_org_names(text: str) -> List[Dict]:
 
 
 def find_org_names_spans(text_map: TextMap) -> dict:
+  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
   return _convert_char_slices_to_tokens(_find_org_names(text_map.text), text_map)
 
 
 def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
+  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
   for org in agent_infos:
     for ent in org:
       span = org[ent][1]

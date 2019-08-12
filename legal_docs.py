@@ -473,6 +473,13 @@ class DocumentJson:
   def from_json(jsondata):
     c = DocumentJson(None)
     c.__dict__ = jsondata
+    tags = []
+    for t in c.tags:
+      tag = SemanticTag(None, None, None)
+      tag.__dict__ = t
+      tags.append(tag)
+
+    c.tags = tags
     return c
 
   def __init__(self, doc: LegalDocument):
@@ -483,18 +490,21 @@ class DocumentJson:
 
     self.import_timestamp = time.time()
     self.analyze_timestamp = time.time()
+    self.tokenization_maps = {}
 
     if doc is None:
       return
 
     self.checksum = hash(doc.normal_text)
-
-    self.tokenization_maps = {}
     self.tokenization_maps['$words'] = doc.tokens_map.map
 
     for field in doc.__dict__:
+      print(field)
       if field in self.__dict__:
         self.__dict__[field] = doc.__dict__[field]
+
+    self.original_text = doc.original_text
+    self.normal_text = doc.normal_text
 
     _tags: [SemanticTag] = []
 
