@@ -7,7 +7,7 @@ from fuzzy_matcher import FuzzyMatcher
 from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
   extract_sum_and_sign_3, _expand_slice
 from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
-  rectifyed_sum, TokensWithAttention
+  rectifyed_sum, TokensWithAttention, SemanticTag
 from parsing import ParsingConfig, ParsingContext
 from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
@@ -30,6 +30,9 @@ class ContractDocument3(LegalDocument):
     self.contract_values: [ProbableValue] = []
 
     self.agents_tags = None
+
+  def get_tags(self)->[SemanticTag]:
+    return self.agents_tags
 
   def parse(self, txt=None):
     super().parse()

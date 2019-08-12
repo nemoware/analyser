@@ -4,7 +4,8 @@
 
 
 # legal_docs.py
-
+import json
+import time
 from functools import wraps
 
 from doc_structure import DocumentStructure
@@ -100,6 +101,13 @@ class LegalDocument:
 
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
+
+  def get_tags(self):
+    raise NotImplementedError()
+
+  def to_json(self) -> str:
+    j = DocumentJson(self)
+    return json.dumps(j.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
 
   def get_tokens_cc(self):
     return self.tokens_map.tokens
@@ -460,6 +468,46 @@ class LegalDocument:
     # self.tokens = tokens
 
 
+class DocumentJson:
+
+  def from_json(jsondata):
+    c = DocumentJson(None)
+    c.__dict__ = jsondata
+    return c
+
+  def __init__(self, doc: LegalDocument):
+    self.ID = None
+    self.filename = None
+    self.original_text = None
+    self.normal_text = None
+
+    self.import_timestamp = time.time()
+    self.analyze_timestamp = time.time()
+
+    if doc is None:
+      return
+
+    self.checksum = hash(doc.normal_text)
+
+    self.tokenization_maps = {}
+    self.tokenization_maps['$words'] = doc.tokens_map.map
+
+    for field in doc.__dict__:
+      if field in self.__dict__:
+        self.__dict__[field] = doc.__dict__[field]
+
+    _tags: [SemanticTag] = []
+
+    for hi in doc.structure.headline_indexes:
+      s = doc.structure.structure[hi]
+      _t = SemanticTag('headline', doc.tokens_map.text_range(s.span), s.span)
+
+      _tags.append(_t)
+
+    _tags += doc.get_tags()
+    self.tags = [tag.__dict__ for tag in _tags]
+
+
 @deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
   warnings.warn("rectifyed_sum_by_pattern_prefix is deprecated", DeprecationWarning)
@@ -637,6 +685,9 @@ class CharterDocument(LegalDocument):
     # TODO:remove it
     self._charity_constraints_old = {}
     self._value_constraints_old = {}
+
+  def get_tags(self) -> [SemanticTag]:
+    return [self.org_type_tag, self.org_name_tag]
 
   def get_org(self):
     warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
