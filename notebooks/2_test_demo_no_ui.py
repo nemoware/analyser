@@ -577,7 +577,7 @@ def _init_the_code(reset=False):
 
   GLOBALS__['ProtocolRenderer'] = ProtocolRenderer()
 
-  from demo_protocols import ProtocolAnlysingContext
+  from protocol_parser import ProtocolAnlysingContext
   GLOBALS__['ProtocolAnlysingContext'] = ProtocolAnlysingContext(GLOBALS__['elmo_embedder'], GLOBALS__['ProtocolRenderer'])
   GLOBALS__['_init_the_code'] = True
 

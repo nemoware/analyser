@@ -4,14 +4,15 @@
 
 
 # legal_docs.py
-
+import json
+import time
 from functools import wraps
 
 from doc_structure import DocumentStructure
 from documents import TextMap
 from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention
+  max_exclusive_pattern, TokensWithAttention, SemanticTag
 from parsing import print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
@@ -84,6 +85,8 @@ class LegalDocument:
     self._original_text = original_text
 
     self._normal_text = None
+
+    # todo: use pandas' DataFrame
     self.distances_per_pattern_dict = {}
 
     self.tokens_map: TextMap = None
@@ -91,12 +94,20 @@ class LegalDocument:
 
     self.sections = None
     self.name = name
+
     # subdocs
     self.start = None
     self.end = None
 
-    # TODO: probably we dont have to keep embeddings, just pattern_distances
+    # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
+
+  def get_tags(self):
+    raise NotImplementedError()
+
+  def to_json(self) -> str:
+    j = DocumentJson(self)
+    return json.dumps(j.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
 
   def get_tokens_cc(self):
     return self.tokens_map.tokens
@@ -119,7 +130,7 @@ class LegalDocument:
   normal_text = property(get_normal_text)
   text = property(get_text)
 
-  def parse(self, txt=None):
+  def parse(self, txt=None) -> None:
     if txt is None:
       txt = self.original_text
 
@@ -132,13 +143,7 @@ class LegalDocument:
     self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
 
     self.structure = DocumentStructure()
-
-    # TODO: tokenize here, not in `detect_document_structure`
     self.structure.detect_document_structure(self.tokens_map)
-
-    # self.tokens = self.tokenize(self.normal_text)
-    # self.tokens_cc = np.array(self.tokens)
-    return self.tokens
 
   def preprocess_text(self, txt):
     if txt is None:
@@ -463,6 +468,56 @@ class LegalDocument:
     # self.tokens = tokens
 
 
+class DocumentJson:
+
+  def from_json(jsondata):
+    c = DocumentJson(None)
+    c.__dict__ = jsondata
+    tags = []
+    for t in c.tags:
+      tag = SemanticTag(None, None, None)
+      tag.__dict__ = t
+      tags.append(tag)
+
+    c.tags = tags
+    return c
+
+  def __init__(self, doc: LegalDocument):
+    self.ID = None
+    self.filename = None
+    self.original_text = None
+    self.normal_text = None
+
+    self.import_timestamp = time.time()
+    self.analyze_timestamp = time.time()
+    self.tokenization_maps = {}
+
+    if doc is None:
+      return
+
+    self.checksum = hash(doc.normal_text)
+    self.tokenization_maps['$words'] = doc.tokens_map.map
+
+    for field in doc.__dict__:
+      print(field)
+      if field in self.__dict__:
+        self.__dict__[field] = doc.__dict__[field]
+
+    self.original_text = doc.original_text
+    self.normal_text = doc.normal_text
+
+    _tags: [SemanticTag] = []
+
+    for hi in doc.structure.headline_indexes:
+      s = doc.structure.structure[hi]
+      _t = SemanticTag('headline', doc.tokens_map.text_range(s.span), s.span)
+
+      _tags.append(_t)
+
+    _tags += doc.get_tags()
+    self.tags = [tag.__dict__ for tag in _tags]
+
+
 @deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
   warnings.warn("rectifyed_sum_by_pattern_prefix is deprecated", DeprecationWarning)
@@ -632,16 +687,31 @@ class CharterDocument(LegalDocument):
     self._constraints: List[PatternSearchResult] = []
     self.value_constraints = {}
 
-    self.org = None
+    self._org = None
+
+    self.org_type_tag: SemanticTag = None
+    self.org_name_tag: SemanticTag = None
 
     # TODO:remove it
     self._charity_constraints_old = {}
     self._value_constraints_old = {}
 
+  def get_tags(self) -> [SemanticTag]:
+    return [self.org_type_tag, self.org_name_tag]
+
+  def get_org(self):
+    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
+    return self._org
+
+  def set_org(self, org):
+    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
+    self._org = org
+
   def get_constraints_old(self):
     return self._value_constraints_old
 
   constraints_old = property(get_constraints_old)
+  org = property(get_org, set_org)
 
   def constraints_by_org_level(self, org_level: OrgStructuralLevel, constraint_subj: ContractSubject = None) -> List[
     PatternSearchResult]:

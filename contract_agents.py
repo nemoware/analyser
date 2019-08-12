@@ -4,9 +4,11 @@
 
 
 import re
+import warnings
 from typing import AnyStr, Match, Dict, List
 
 from documents import TextMap
+from ml_tools import SemanticTag
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name
 
@@ -93,17 +95,19 @@ def _find_org_names(text: str) -> List[Dict]:
 
 
 def find_org_names_spans(text_map: TextMap) -> dict:
+  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
   return _convert_char_slices_to_tokens(_find_org_names(text_map.text), text_map)
 
 
 def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
+  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
   for org in agent_infos:
     for ent in org:
       span = org[ent][1]
 
       if span[0] >= 0:
         tokens_slice = text_map.token_indices_by_char_range(span)
-        s= text_map.text_range( [tokens_slice.start, tokens_slice.stop])
+        s = text_map.text_range([tokens_slice.start, tokens_slice.stop])
         org[ent] = (s, org[ent][1], tokens_slice)
       else:
         org[ent] = (org[ent][0], None, None)
@@ -111,20 +115,26 @@ def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
   return agent_infos
 
 
-def agent_infos_to_tags(agent_infos: dict, span_map='$words'):
+def agent_infos_to_tags(agent_infos: dict, span_map='$words') -> [SemanticTag]:
   org_i = 0
-  tags = []
+  tags: [SemanticTag] = []
   for orginfo in agent_infos:
     org_i += 1
     for k in entities_types:
       if k in orginfo:
         if orginfo[k][2] is not None:
-          tag = {
-            'kind': f'org.{org_i}.{k}',
-            'value': orginfo[k][0],
-            'span': (orginfo[k][2].start, orginfo[k][2].stop),
-            "span_map": span_map
-          }
+          tag = SemanticTag(
+            f'org.{org_i}.{k}',
+            orginfo[k][0],
+            (orginfo[k][2].start,
+             orginfo[k][2].stop),
+            span_map)
+          # tag = {
+          #   'kind': f'org.{org_i}.{k}',
+          #   'value': orginfo[k][0],
+          #   'span': (orginfo[k][2].start, orginfo[k][2].stop),
+          #   "span_map": span_map
+          # }
           tags.append(tag)
   return tags
 

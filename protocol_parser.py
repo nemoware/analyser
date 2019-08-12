@@ -1,4 +1,16 @@
-from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern
+import warnings
+from collections.__init__ import Counter
+from typing import List
+
+from numpy import ma as ma
+
+from contract_parser import extract_all_contraints_from_sr_2
+from legal_docs import BasicContractDocument, deprecated
+from legal_docs import LegalDocument
+from ml_tools import ProbableValue, FixedVector
+from ml_tools import select_most_confident_if_almost_equal
+from parsing import ParsingContext
+from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern, np
 
 
 class ProtocolPatternFactory(AbstractPatternFactory):
@@ -122,3 +134,164 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     sect_pt.add_pattern(self.create_pattern('p_addons', (PRFX, 'Приложения', '')))
 
     self.paragraph_split_pattern = sect_pt
+
+
+class ProtocolDocument(BasicContractDocument):
+  # TODO: use anothwer parent
+
+  def __init__(self, original_text):
+    LegalDocument.__init__(self, original_text)
+
+    self.values: List[ProbableValue] = []
+    self.section_indices: [int] = None
+
+  def subject_weight_per_section(self, subj_pattern, paragraph_split_pattern):
+    assert self.section_indices is not None
+
+    distances_per_subj_pattern_, ranges_, winning_patterns = subj_pattern.calc_exclusive_distances(self.embeddings)
+
+    ranges_global = [
+      np.nanmin(distances_per_subj_pattern_),
+      np.nanmax(distances_per_subj_pattern_)]
+
+    section_names = [[paragraph_split_pattern.patterns[s[0]].name, s[1]] for s in self.section_indices]
+    voting: List[str] = []
+    for i in range(1, len(section_names)):
+      p1 = section_names[i - 1]
+      p2 = section_names[i]
+
+      distances_per_pattern_t = distances_per_subj_pattern_[:, p1[1]:p2[1]]
+
+      dist_per_pat = []
+      for row in distances_per_pattern_t:
+        dist_per_pat.append(np.nanmin(row))
+
+      patindex = np.nanargmin(dist_per_pat)
+      pat_prefix = subj_pattern.patterns[patindex].name[:5]
+      #         print(patindex, pat_prefix)
+
+      voting.append(pat_prefix)
+
+      # TODO: HACK more attention to particular sections
+      if p1[0] == 'p_agenda' or p1[0] == 'p_solution' or p1[0] == 'p_question':
+        voting.append(pat_prefix)
+
+    return Counter(voting), ranges_global, winning_patterns
+
+  def get_found_sum(self) -> ProbableValue:
+
+    print(f'deprecated: {self.get_found_sum}, use  .values')
+    best_value: ProbableValue = max(self.values, key=lambda item: item.value.value)
+
+    most_confident_value = max(self.values, key=lambda item: item.confidence)
+    best_value = select_most_confident_if_almost_equal(best_value, most_confident_value)
+
+    return best_value
+
+  found_sum: ProbableValue = property(get_found_sum)
+
+  def find_sections_indices(self, distances_per_section_pattern:FixedVector, min_section_size=20) -> [int]:
+    x:FixedVector = distances_per_section_pattern
+    pattern_to_best_index = np.array([[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)])
+
+    # replace best indices with sentence starts
+    pattern_to_best_index[:, 1] = self.find_sentence_beginnings(pattern_to_best_index[:, 1])
+
+    # sort by sentence start
+    pattern_to_best_index = np.sort(pattern_to_best_index.view('i8,i8'), order=['f1'], axis=0).view(np.int)
+
+    # remove "duplicated" indexes
+    return self.remove_similar_indexes(pattern_to_best_index, 1, min_section_size)
+
+  @deprecated
+  def remove_similar_indexes(self, indices: [int], column: int, min_section_size: int = 20) -> [int]:
+    warnings.warn("deprecated", DeprecationWarning)
+    indices_zipped = [indices[0]]
+
+    for i in range(1, len(indices)):
+      if indices[i][column] - indices[i - 1][column] > min_section_size:
+        pattern_to_token = indices[i]
+        indices_zipped.append(pattern_to_token)
+
+    return np.squeeze(indices_zipped)
+
+  def split_text_into_sections(self, paragraph_split_pattern: ExclusivePattern, min_section_size=10):
+
+    distances_per_section_pattern, _, __ = paragraph_split_pattern.calc_exclusive_distances(self.embeddings)
+
+    # finding pattern positions
+
+    self.section_indices = self.find_sections_indices(distances_per_section_pattern, min_section_size)
+
+    return self.section_indices
+
+
+class ProtocolAnlysingContext(ParsingContext):
+
+  def __init__(self, embedder):
+    ParsingContext.__init__(self, embedder)
+
+    self.protocols_factory: ProtocolPatternFactory = None
+
+    self.protocol: ProtocolDocument = None
+
+  def process(self, text) -> ProtocolDocument:
+    self._reset_context()
+
+    if self.protocols_factory is None:
+      self.protocols_factory = ProtocolPatternFactory(self.embedder)
+      self._logstep("Pattern factory created, patterns embedded into ELMO space")
+
+    # # ----
+    # pnames = [p.name[0:5] for p in self.protocols_factory.subject_pattern.patterns]
+    # c = Counter(pnames)
+    # # ----
+
+    self.protocol = ProtocolDocument(text)
+    self.protocol.parse()
+    self.protocol.embedd_tokens(self.protocols_factory.embedder)
+
+    self.process_embedded_doc(self.protocol)
+    return self.protocol
+
+  def process_embedded_doc(self, doc: ProtocolDocument):
+
+    section_indices = doc.split_text_into_sections(
+      self.protocols_factory.paragraph_split_pattern)
+
+    counter, ranges, winning_patterns = doc.subject_weight_per_section(self.protocols_factory.subject_pattern,
+                                                                       self.protocols_factory.paragraph_split_pattern)
+
+    section_names = [self.protocols_factory.paragraph_split_pattern.patterns[s[0]].name for s in doc.section_indices]
+    sidx = section_names.index('p_solution')
+    if sidx < 0:
+      sidx = section_names.index('p_agenda')
+    if sidx < 0:
+      sidx = section_names.index('p_question')
+
+    if sidx < 0:
+      sidx = 0
+
+    #   html += winning_patterns_to_html(
+    #       doc.tokens, ranges,
+    #       winning_patterns,
+    #       range(section_indices[sidx][1], section_indices[sidx+1][1]),
+    #       colormaps=subject_colormaps )
+
+    doc.values = self.find_values_2(doc)
+    doc.per_subject_distances = counter  # Hack
+
+    # self.renderer.print_results(doc)
+    # self.renderer.render_subject(counter)
+
+  def find_values_2(self, value_section: LegalDocument) -> List[ProbableValue]:
+
+    value_attention_vector = 1.0 - self.protocols_factory.sum_pattern._find_patterns(value_section.embeddings)
+    value_section.distances_per_pattern_dict['value_attention_vector_tuned'] = value_attention_vector
+    values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section, value_attention_vector)
+    return values
+
+  def get_value(self):
+    return self.protocol.values
+
+  values = property(get_value)

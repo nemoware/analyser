@@ -162,8 +162,8 @@ class ExclusivePattern(CompoundPattern):
 
     return a
 
-  def calc_exclusive_distances(self, text_ebd):
-
+  def calc_exclusive_distances(self, text_ebd)->([float],[],{}):
+    warnings.warn("calc_exclusive_distances is deprecated ", DeprecationWarning)
     distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd)))
 
     for pattern_index in range(len(self.patterns)):
@@ -178,7 +178,7 @@ class ExclusivePattern(CompoundPattern):
 
     # p1 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
     # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
-    ranges = []
+    ranges:[[float, float, float]] = []
     for row in distances_per_pattern:
       b = row
 
@@ -405,6 +405,7 @@ from structures import OrgStructuralLevel
 
 
 class PatternMatch():
+
   def __init__(self, region):
     assert region.stop - region.start > 0
     self.subject_mapping = {
@@ -438,6 +439,7 @@ class PatternMatch():
 class PatternSearchResult(PatternMatch):
   def __init__(self, org_level: OrgStructuralLevel, region):
     super(PatternSearchResult, self).__init__(region)
+
     self.org_level: OrgStructuralLevel = org_level
 
 

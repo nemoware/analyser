@@ -25,7 +25,7 @@ class ContractAgentsTestCase(unittest.TestCase):
     _dict ={}
     for tag in cd.agents_tags:
       print(tag)
-      _dict[tag['kind']]=tag['value']
+      _dict[tag.kind]=tag.value
 
     self.assertEqual('Акционерное Общество', _dict['org.1.type'])
     self.assertEqual('фонд поддержки социальных инициатив', _dict['org.2.type'])
