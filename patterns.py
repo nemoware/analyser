@@ -17,8 +17,6 @@ PATTERN_THRESHOLD = 0.75  # 0...1
 
 import numpy as np
 
-import sys
-
 WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 

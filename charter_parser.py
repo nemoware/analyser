@@ -5,7 +5,7 @@ from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, 
   extract_all_contraints_from_sr
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
-from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
+from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import *
@@ -402,18 +402,9 @@ class CharterDocumentParser(CharterConstraintsParser):
     # return ranges_by_group
 
 
-# ---
-
-
-# -----------
-
-
 def put_if_better(destination: dict, key, x, is_better: staticmethod):
   if key in destination:
     if is_better(x, destination[key]):
       destination[key] = x
   else:
     destination[key] = x
-
-
-

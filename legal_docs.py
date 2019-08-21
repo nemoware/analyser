@@ -883,27 +883,36 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1
 
 
-def detect_sign_2(prefix: TextMap) -> (int, (int, int)):
-  a = next(prefix.finditer(_re_greather_then_1), None)  # не менее, не превышающую
+def detect_sign_2(txt: TextMap) -> (int, (int, int)):
+  """
+  todo: rename to 'find_value_sign'
+  :param txt:
+  :return:
+  """
+
+  a = next(txt.finditer(_re_greather_then_1), None)  # не менее, не превышающую
   if a:
     return +1, a
 
-  a = next(prefix.finditer(_re_less_then), None)  # менее
+  a = next(txt.finditer(_re_less_then), None)  # менее
   if a:
     return -1, a
   else:
-    a = next(prefix.finditer(_re_greather_then), None)
+    a = next(txt.finditer(_re_greather_then), None)
     if a:
       return +1, a
 
   return 0, None
 
 
+find_value_sign = detect_sign_2
+
+
 def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> (SemanticTag, SemanticTag, SemanticTag):
   _s = slice(-VALUE_SIGN_MIN_TOKENS + region[0], region[1])
   subdoc: LegalDocument = doc.subdoc_slice(_s)
 
-  _sign, _sign_span = detect_sign_2(subdoc.tokens_map)
+  _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
   # ======================================
   value, currency = extract_sum(subdoc.text)

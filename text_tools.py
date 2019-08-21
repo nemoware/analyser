@@ -199,7 +199,6 @@ def untokenize(tokens: Tokens) -> str:
 def tokenize_text(text):
   warnings.warn("deprecated, use TextMap(text)", DeprecationWarning)
 
-
   sentences = text.split('\n')
   result = []
   for i in range(len(sentences)):

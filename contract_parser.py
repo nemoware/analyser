@@ -206,7 +206,8 @@ class ContractAnlysingContext(ParsingContext):
     result: List[ValueConstraint] = []
 
     # TODO iterate over section names
-    if 'price.' in sections:
+    if 'price.' in sections:  # todo: check 'price', not 'price.'
+
       value_section_info: HeadlineMeta = sections['price.']
       value_section = value_section_info.body
       section_name = value_section_info.subdoc.text
@@ -292,17 +293,20 @@ def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, fact
   value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
   v = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
-  values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section_subdoc)
+  values: List[ProbableValue] = find_all_value_sign_currency(value_section_subdoc)
 
   return values
 
 
 def extract_all_contraints_from_sr_2(doc: LegalDocument) -> List:
   """
+  TODO: rename
   :param doc: LegalDocument
   :param attention_vector: List[float]
   :return: List[ProbableValue]
   """
-
   spans = [m for m in doc.tokens_map.finditer(transaction_values_re)]
   return [extract_sum_sign_currency(doc, span) for span in spans]
+
+
+find_all_value_sign_currency = extract_all_contraints_from_sr_2

@@ -1,14 +1,15 @@
+import html as escaper
 from typing import List
+
 import numpy as np
+
 from legal_docs import CharterDocument, ProtocolDocument
 from ml_tools import ProbableValue
 from parsing import known_subjects, head_types_dict
 from patterns import AV_PREFIX, AV_SOFT, PatternSearchResult, ConstraintsSearchResult, PatternSearchResults
 from structures import ContractSubject
-from transaction_values import ValueConstraint
-
 from structures import OrgStructuralLevel
-import html as escaper
+from transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
                      'head.all': 'orange',
@@ -16,8 +17,6 @@ head_types_colors = {'head.directors': 'crimson',
                      'head.shareholders': '#666600',
                      'head.pravlenie': '#0099cc',
                      'head.unknown': '#999999'}
-
-
 
 org_level_colors = {OrgStructuralLevel.BoardOfDirectors: 'crimson',
                     OrgStructuralLevel.ShareholdersGeneralMeeting: 'orange',
@@ -40,8 +39,6 @@ org_level_dict = {OrgStructuralLevel.BoardOfDirectors: 'Совет директ�
                   None: '*Неизвестный орган управления*'}
 
 WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
-
-
 
 
 def as_smaller(x):
@@ -256,10 +253,10 @@ class HtmlRenderer(AbstractRenderer):
 
   def _to_color_text(self, _tokens, weights, mpl, colormap='coolwarm', _range=None):
     tokens = [escaper.escape(t) for t in _tokens]
-    
+
     if len(tokens) == 0:
       return " - empty -"
-    
+
     if len(weights) != len(tokens):
       raise ValueError("number of weights differs weights={} tokens={}".format(len(weights), len(tokens)))
 
@@ -291,8 +288,6 @@ class HtmlRenderer(AbstractRenderer):
         html += "<br>"
 
     return html
-
-    
 
   def constraints_to_html(self, search_result: PatternSearchResult):
 
@@ -395,8 +390,6 @@ class HtmlRenderer(AbstractRenderer):
 
     return f'<b style="color:{color}">{self.sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}' \
            f'<sup>confidence={pv.confidence:20,.2f}</sup></b> '
-
-
 
 
 ''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''

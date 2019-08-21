@@ -1,5 +1,4 @@
 import re
-import warnings
 
 from documents import TextMap
 from ml_tools import *
@@ -287,13 +286,14 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
 
   return value
 
+
 class DocumentStructure:
 
   def __init__(self):
     self.structure: List[StructureLine] = None
     self.headline_indexes: List[int] = []
 
-    self.headline_probability_func=headline_probability# make it pluggable
+    self.headline_probability_func = headline_probability  # make it pluggable
     # self._detect_document_structure(text)
 
   def detect_document_structure(self, tokens_map: TextMap):
@@ -518,9 +518,6 @@ class DocumentStructure:
 
 # ---------------
 strange_symbols = re.compile(r'[_$@+]–')
-
-
-
 
 
 def is_blank(s: str):

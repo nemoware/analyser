@@ -9,11 +9,10 @@ from typing import List
 import nltk
 import numpy as np
 
-from contract_parser import extract_all_contraints_from_sr_2, ContractDocument
+from contract_parser import ContractDocument, find_all_value_sign_currency
 from documents import TextMap
-from legal_docs import detect_sign_2
+from legal_docs import find_value_sign
 from text_normalize import *
-from text_tools import untokenize
 from transaction_values import extract_sum, split_by_number_2
 
 data = [
@@ -101,25 +100,25 @@ data = [
 
 class PriceExtractTestCase(unittest.TestCase):
 
-  def test_detect_sign_2_a(self):
+  def test_find_value_sign_a(self):
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша"""
     tm = TextMap(text)
-    sign, span = detect_sign_2(tm)
+    sign, span = find_value_sign(tm)
     quote = tm.text_range(span)
     self.assertEqual('превышающую', quote)
 
-  def test_detect_sign_2_b(self):
+  def test_find_value_sign_b(self):
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     tm = TextMap(text)
-    sign, span = detect_sign_2(tm)
+    sign, span = find_value_sign(tm)
     quote = tm.text_range(span)
     self.assertEqual('менее', quote)
 
-  def test_detect_sign_2_c(self):
+  def test_find_value_sign_c(self):
 
     for (sign_expected, price, currency, text) in data:
       tm = TextMap(text)
-      sign, span = detect_sign_2(tm)
+      sign, span = find_value_sign(tm)
       if sign_expected:
         self.assertEqual(sign_expected, sign, text)
       quote = ''
@@ -127,13 +126,13 @@ class PriceExtractTestCase(unittest.TestCase):
         quote = tm.text_range(span)
       print(f'{sign},\t {span},\t {quote}')
 
-  def test_extract_all_contraints_from_sr_2(self):
+  def test_find_all_value_sign_currency(self):
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов США, но менее"""
     doc = ContractDocument(text)
     doc.parse()
     print(doc.normal_text)
     # =========================================
-    r = extract_all_contraints_from_sr_2(doc)
+    r = find_all_value_sign_currency(doc)
     # =========================================
 
     sum, sign, currency = r[0]
@@ -150,15 +149,12 @@ class PriceExtractTestCase(unittest.TestCase):
                      doc.tokens_map_norm.text_range(sum.span))  # TODO:  keep 2000000
     self.assertEqual('2000000 ( два миллиона ) долларов', doc.tokens_map_norm.text_range(currency.span))  # TODO: keep
 
-
-
-
-  def test_extract_all_contraints_from_sr_2_d(self):
+  def test_find_all_value_sign_currency_d(self):
     sign_exp, price, currency_exp, text = (0, 1000000.0, 'EURO', 'стоимость покупки: 1 000 000 евро ')
 
     doc = ContractDocument(text)
     doc.parse()
-    r: List = extract_all_contraints_from_sr_2(doc)
+    r: List = find_all_value_sign_currency(doc)
     if r:
       sum, sign, currency = r[0]
       print(doc.tokens_map_norm.text_range(sum.span))
@@ -166,26 +162,11 @@ class PriceExtractTestCase(unittest.TestCase):
       self.assertEqual(currency_exp, currency.value)
       print(f'{sum}, {sign}, {currency}')
 
-  def test_extract_all_contraints_from_sr_2_e(self):
-    sign_exp, price, currency_exp, text = (0, 1000000.0, 'EURO', 'стоимость покупки: 1 000 000 евро ')
-
-    doc = ContractDocument(text)
-    doc.parse()
-    r: List = extract_all_contraints_from_sr_2(doc)
-    if r:
-      sum, sign, currency = r[0]
-      print(doc.tokens_map_norm.text_range(sum.span))
-      self.assertEqual(price, sum.value, text)
-      self.assertEqual(currency_exp, currency.value)
-      print(f'{sum}, {sign}, {currency}')
-
-
-
-  def test_extract_all_contraints_from_sr_2_a(self):
+  def test_find_all_value_sign_currency_a(self):
     for (sign_exp, price, currency_exp, text) in data:
       doc = ContractDocument(text)
       doc.parse()
-      r: List = extract_all_contraints_from_sr_2(doc)
+      r: List = find_all_value_sign_currency(doc)
       if r:
         sum, sign, currency = r[0]
         print(doc.tokens_map_norm.text_range(sum.span))
@@ -236,12 +217,10 @@ class PriceExtractTestCase(unittest.TestCase):
         # self.assertTrue(len(ff)>0 )
 
   def test_split_by_number(self):
-    import nltk
     for (sign, price, currency, text) in data:
 
       normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
       tm = TextMap(normal_text)
-
 
       a, b, c = split_by_number_2(tm.tokens, np.ones(len(tm)), 0.1)
       for t in a:

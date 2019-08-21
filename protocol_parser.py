@@ -190,8 +190,8 @@ class ProtocolDocument(BasicContractDocument):
 
   found_sum: ProbableValue = property(get_found_sum)
 
-  def find_sections_indices(self, distances_per_section_pattern:FixedVector, min_section_size=20) -> [int]:
-    x:FixedVector = distances_per_section_pattern
+  def find_sections_indices(self, distances_per_section_pattern: FixedVector, min_section_size=20) -> [int]:
+    x: FixedVector = distances_per_section_pattern
     pattern_to_best_index = np.array([[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)])
 
     # replace best indices with sentence starts
