@@ -409,8 +409,6 @@ class LegalDocument:
     else:
       self.embeddings = self._emb(self.tokens, embedder)
 
-    print_prof_data()
-
   # @profile
   def _emb(self, tokens, embedder):
     embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
@@ -506,7 +504,6 @@ class DocumentJson:
     self.tags = [tag.__dict__ for tag in _tags]
 
 
-@deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
   warnings.warn("rectifyed_sum_by_pattern_prefix is deprecated", DeprecationWarning)
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
@@ -514,7 +511,6 @@ def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th:
   return rectifyed_sum(vectors, relu_th), len(vectors)
 
 
-@deprecated
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
   warnings.warn("deprecated", DeprecationWarning)
   #     print('mean_by_pattern_prefix', prefix, relu_th)
@@ -908,7 +904,24 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
 find_value_sign = detect_sign_2
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> (SemanticTag, SemanticTag, SemanticTag):
+class ValueSemanticTags:
+  def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag):
+    self.value: SemanticTag = value
+    self.sign: SemanticTag = sign
+    self.currency: SemanticTag = currency
+
+  def mult_confidence(self, confidence_k):
+    self.value.confidence *= confidence_k
+    self.sign.confidence *= confidence_k
+    self.currency.confidence *= confidence_k
+
+  def offset_spans(self, offset):
+    self.value.offset(offset)
+    self.sign.offset(offset)
+    self.currency.offset(offset)
+
+
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ValueSemanticTags:
   _s = slice(-VALUE_SIGN_MIN_TOKENS + region[0], region[1])
   subdoc: LegalDocument = doc.subdoc_slice(_s)
 
@@ -924,7 +937,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> (Semant
 
   sign.offset(subdoc.start)
 
-  return sum, sign, currency
+  return ValueSemanticTags(sign, sum, currency)
 
 
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:

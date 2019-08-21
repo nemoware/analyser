@@ -69,7 +69,7 @@ def normalize(x: FixedVector, out_range=(0, 1)):
 def smooth_safe(x: FixedVector, window_len=10, window='hanning'):
   _blur = int(min([window_len, 2 + len(x) / 3.0]))
   _blur = int(_blur / 2) * 2
-  if (_blur > (len(x))):
+  if _blur > (len(x)):
     return x
   return smooth(x, window_len=_blur, window=window)
 
@@ -155,12 +155,12 @@ def softmax(v: np.ndarray) -> np.ndarray:
 
 def make_echo(av: FixedVector, k=0.5) -> np.ndarray:
   innertia = np.zeros(len(av))
-  sum = 0
+  _sum = 0
 
   for i in range(len(av)):
     if av[i] > k:
-      sum = av[i]
-    innertia[i] = sum
+      _sum = av[i]
+    innertia[i] = _sum
   #     sum-=0.0005
   return innertia
 
@@ -295,16 +295,16 @@ def put_if_better(destination: dict, key, x, is_better: staticmethod):
 
 
 def rectifyed_sum(vectors: FixedVectors, relu_th: float = 0.0) -> np.ndarray:
-  sum = None
+  _sum = None
 
   for x in vectors:
-    if sum is None:
-      sum = np.zeros(len(x))
-    sum += relu(x, relu_th)
+    if _sum is None:
+      _sum = np.zeros(len(x))
+    _sum += relu(x, relu_th)
 
-  assert sum is not None
+  assert _sum is not None
 
-  return sum
+  return _sum
 
 
 def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> Vectors:
@@ -371,6 +371,9 @@ class SemanticTag:
     return f'{self.kind} {self.span} {self.value} {self.display_value}'
 
 
+
+
+
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
   assert vector is not None
   if len(vector) == 0:
@@ -385,6 +388,13 @@ def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
     confidence = sum_ / nonzeros_count
 
   return confidence, sum_, nonzeros_count, _max
+
+
+def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> float:
+  """
+  taking mean of max 10 values
+  """
+  return float(np.mean(sorted(x)[-head_size:]))
 
 
 def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
