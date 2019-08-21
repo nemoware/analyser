@@ -5,14 +5,13 @@
 
 import unittest
 
-import nltk
 from nltk import TreebankWordTokenizer
 
 from documents import TextMap, span_tokenize
-from legal_docs import CharterDocument
+from legal_docs import CharterDocument, LegalDocument
 
 
-class TopkenizationTestCase(unittest.TestCase):
+class TokenisationTestCase(unittest.TestCase):
 
   def test_normalize_doc_slice(self):
     doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
@@ -39,7 +38,7 @@ class TopkenizationTestCase(unittest.TestCase):
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 2))
-    self.assertEqual('аслово бслово',doc.text )
+    self.assertEqual('аслово бслово', doc.text)
 
     doc1 = doc_o.subdoc_slice(slice(2, 3))
     self.assertEqual('цслово', doc1.text)
@@ -53,8 +52,6 @@ class TopkenizationTestCase(unittest.TestCase):
     doc4 = doc3.subdoc_slice(slice(5, 6))
     self.assertEqual('', doc4.text)
 
-
-
   def test_span_tokenize(self):
     text = 'УТВЕРЖДЕН.\n\nОбщим собранием `` акционеров собранием `` акционеров \'\' '
     spans = span_tokenize(text)
@@ -63,14 +60,13 @@ class TopkenizationTestCase(unittest.TestCase):
     for c in spans:
       print(c)
 
-
   def test_word_tokenize_quotes(self):
     text = '"сл"'
     tokenizer = TreebankWordTokenizer()
     # _spans = nltk.word_tokenize(text)
-    _spans = tokenizer. tokenize(text)
+    _spans = tokenizer.tokenize(text)
 
-    spans=[s for s in _spans]
+    spans = [s for s in _spans]
     print("".join(spans))
     for c in spans:
       print(len(c))
@@ -80,21 +76,20 @@ class TopkenizationTestCase(unittest.TestCase):
     text = '"слово"'
     _spans = span_tokenize(text)
 
-    spans=[s for s in _spans]
+    spans = [s for s in _spans]
     print(spans)
     self.assertEqual(3, len(spans))
 
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
-    tm2:TextMap = tm.slice(slice(1, 2))
+    tm2: TextMap = tm.slice(slice(1, 2))
 
     self.assertEqual(tm2[0], 'мама')
     self.assertEqual(tm2.text, 'мама')
 
     tm3 = tm2.slice(slice(0, 1))
     self.assertEqual(tm3[0], 'мама')
-
 
     self.assertEqual(0, tm.token_index_by_char(1))
     self.assertEqual(0, tm2.token_index_by_char(1))
@@ -145,6 +140,92 @@ class TopkenizationTestCase(unittest.TestCase):
     self.assertEqual(2, tm.token_index_by_char(9))
     self.assertEqual(1, tm.token_index_by_char(4))
 
+  def test_finditer(self):
+    from transaction_values import _re_greather_then
+    text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
+    tm = TextMap(text)
+    iter = tm.finditer(_re_greather_then)
+
+    results = [t for t in iter]
+    results = results[0]
+
+    self.assertEqual('превышающую', tm.text_range(results))
+    self.assertEqual(4, results[0])
+    self.assertEqual(5, results[1])
+
+  def test_finditer__a(self):
+    from transaction_values import _re_greather_then
+
+    text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
+    __doc = LegalDocument(text)
+    __doc.parse()
+    doc = __doc.subdoc_slice(slice(2, len(__doc.tokens_map)))
+    tm = doc.tokens_map
+    iter = tm.finditer(_re_greather_then)
+
+    spans_ = [t for t in iter]
+    spans = spans_[0]
+
+    self.assertEqual('превышающую', tm.text_range(spans))
+    self.assertEqual(2, spans[0])
+    self.assertEqual(3, spans[1])
+
+  def test_slice_doc_1(self):
+    text = 'этилен мама этилен'
+    __doc = LegalDocument(text)
+    __doc.parse()
+
+    subdoc = __doc.subdoc_slice(slice(2, 3))
+    self.assertEqual('этилен', subdoc.text)
+
+  def test_slice_doc_2(self):
+    text = 'этилен мама этилен'
+    __doc = LegalDocument(text)
+    __doc.parse()
+    tm: TextMap = __doc.tokens_map
+    subdoc = __doc.subdoc_slice(slice(0, 1))
+    del __doc
+
+    tm2: TextMap = subdoc.tokens_map
+
+    self.assertEqual('этилен', tm2[0])
+    self.assertEqual('этилен', tm2.text )
+
+    self.assertEqual(0, tm2.token_index_by_char(1))
+
+  def test_slice_doc_3(self):
+    text = 'этилен мама этилен'
+    __doc = LegalDocument(text)
+    __doc.parse()
+    tm: TextMap = __doc.tokens_map
+    subdoc = __doc.subdoc_slice(slice(1, 3))
+    del __doc
+
+    tm2: TextMap = subdoc.tokens_map
+
+    self.assertEqual('мама', tm2[0])
+    self.assertEqual('этилен', tm2[1])
+    self.assertEqual('мама этилен', tm2.text )
+
+    self.assertEqual(0, tm2.token_index_by_char(1))
+    self.assertEqual(1, tm2.token_index_by_char(6))
+    self.assertEqual(1, tm2.token_index_by_char(5))
+
+
+
+  def test_token_indices_by_char_range(self):
+    text = 'мама'
+    span = [0, 4]
+    expected = text[span[0]:span[1]]
+    print(expected)
+
+    tm = TextMap(text)  # tokenization
+    ti = tm.token_indices_by_char_range_2(span)
+    self.assertEqual(0, ti[0])
+    self.assertEqual(1, ti[1])
+
+    self.assertEqual(expected, tm.text_range(ti))
+
   def test_map_tokens_in_range(self):
     text = '1.2. мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -194,7 +275,6 @@ class TopkenizationTestCase(unittest.TestCase):
   def test_get_by_index(self):
 
     ಶ್ರೀರಾಮ = self
-
 
     ಮ = 'ቋንቋ የድምጽ፣ የምልክት ወይም የምስል ቅንብር ሆኖ ለማሰብ'
     ቅ = TextMap(ಮ)

@@ -10,7 +10,7 @@ from functools import wraps
 
 from doc_structure import DocumentStructure
 from documents import TextMap
-from embedding_tools import embedd_tokenized_sentences_list, AbstractEmbedder
+from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention, SemanticTag
 from parsing import print_prof_data, ParsingSimpleContext
@@ -21,7 +21,7 @@ from text_normalize import *
 from text_tools import *
 from text_tools import untokenize, np
 from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2, ValueConstraint, \
-  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map
+  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, extract_sum
 
 REPORTED_DEPRECATED = {}
 
@@ -298,8 +298,9 @@ class LegalDocument:
   def print_structured(self, numbered_only=False):
     self.structure.print_structured(self, numbered_only)
 
-  def subdoc_slice(self, _s: slice, name='undef'):
+  def subdoc_slice(self, __s: slice, name='undef'):
     assert self.tokens_map is not None
+    _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
     klazz = self.__class__
     sub = klazz("REF")
@@ -323,21 +324,8 @@ class LegalDocument:
   @deprecated
   def subdoc(self, start, end):
     warnings.warn("use subdoc_slice", DeprecationWarning)
-    _s = slice(start, end)
+    _s = slice(max(0, start), end)
     return self.subdoc_slice(_s)
-
-  def normalize_sentences_bounds(self, text):
-    warnings.warn("deprecated", DeprecationWarning)
-    """
-        splits text into sentences, join sentences with \n
-        :param text:
-        :return:
-        """
-    sents = ru_tokenizer.tokenize(text)
-    for s in sents:
-      s.replace('\n', ' ')
-
-    return '\n'.join(sents)
 
   def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
     # ---takes time
@@ -552,18 +540,6 @@ class BasicContractDocument(LegalDocument):
 
   def get_subject_ranges(self, indexes_zipped, section_indexes: List):
 
-    # res = [None] * len(section_indexes)
-    # for sec in section_indexes:
-    #     for i in range(len(indexes_zipped) - 1):
-    #         if indexes_zipped[i][0] == sec:
-    #             range1 = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-    #             res[sec] = range1
-    #
-    #     if res[sec] is None:
-    #         print("WARNING: Section #{} not found!".format(sec))
-    #
-    # return res
-
     subj_range = None
     head_range = None
     for i in range(len(indexes_zipped) - 1):
@@ -583,54 +559,6 @@ class BasicContractDocument(LegalDocument):
       subj_range = range(0, _end)
     return head_range, subj_range
 
-  def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
-
-    self.split_into_sections(pattern_fctry.paragraph_split_pattern)
-    indexes_zipped = self.section_indexes
-
-    head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
-
-    distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
-      self.embeddings)
-    distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
-
-    ranges = [np.nanmin(distances_per_subj_pattern_),
-              np.nanmax(distances_per_subj_pattern_)]
-
-    weight_per_pat = []
-    for row in distances_per_pattern_t:
-      weight_per_pat.append(np.nanmin(row))
-
-    print("weight_per_pat", weight_per_pat)
-
-    _ch_r = numbers_of_patterns['charity']
-    _co_r = numbers_of_patterns['commerce']
-
-    chariy_slice = weight_per_pat[_ch_r[0]:_ch_r[1]]
-    commerce_slice = weight_per_pat[_co_r[0]:_co_r[1]]
-
-    min_charity_index = min_index(chariy_slice)
-    min_commerce_index = min_index(commerce_slice)
-
-    print("min_charity_index, min_commerce_index", min_charity_index, min_commerce_index)
-    self.per_subject_distances = [
-      np.nanmin(chariy_slice),
-      np.nanmin(commerce_slice)]
-
-    self.subj_range = subj_range
-    self.head_range = head_range
-
-    return ranges, winning_patterns
-
-  #     return
-
-  def analyze(self, pattern_factory):
-    self.embedd(pattern_factory)
-    self._find_sum(pattern_factory)
-
-    self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
-      pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
-
 
 # SUMS -----------------------------
 
@@ -639,18 +567,6 @@ class ProtocolDocument(LegalDocument):
 
   def __init__(self, original_text=None):
     LegalDocument.__init__(self, original_text)
-
-  def make_solutions_mask(self):
-    section_name_to_weight_dict = {}
-    for i in range(1, 5):
-      cap = 'p_cap_solution{}'.format(i)
-      section_name_to_weight_dict[cap] = 0.5
-
-    mask = mask_sections(section_name_to_weight_dict, self)
-    mask += 0.5
-
-    mask = smooth(mask, window_len=12)
-    return mask
 
 
 # Support masking ==================
@@ -890,9 +806,12 @@ def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attenti
 from transaction_values import complete_re
 
 
-def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector: List[float]) -> List[
+def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[
   ProbableValue]:
+  warnings.warn("use extract_all_contraints_from_sr_2", DeprecationWarning)
+
   def __tokens_before_index(string, index):
+    warnings.warn("deprecated", DeprecationWarning)
     return len(string[:index].split(' '))
 
   sentence = ' '.join(search_result.tokens)
@@ -906,7 +825,7 @@ def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector
 
     region = slice(token_index_s, token_index_e)
 
-    vc = extract_sum_and_sign_3(search_result, region)
+    vc: ValueConstraint = extract_sum_and_sign_3(search_result, region)
     _e = _expand_slice(region, 10)
     vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
     confidence = attention_vector[region.start]
@@ -915,80 +834,6 @@ def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector
     constraints.append(pv)
 
   return constraints
-
-
-@deprecated
-def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
-        List[LegalDocument]:
-  warnings.warn("deprecated", DeprecationWarning)
-  embedded_docs = []
-  if strings is None or len(strings) == 0:
-    return []
-
-  tokenized_sentences_list = []
-  for i in range(len(strings)):
-    s = strings[i]
-
-    words = nltk.word_tokenize(s)
-
-    subdoc = LegalDocument()
-
-    subdoc.tokens = words
-    subdoc.tokens_cc = words
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_docs.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-  for i in range(len(embedded_docs)):
-    l = lens[i]
-    tokens = wrds[i][:l]
-
-    line_emb = sentences_emb[i][:l]
-
-    embedded_docs[i].tokens = tokens
-    embedded_docs[i].tokens_cc = tokens
-    embedded_docs[i].embeddings = line_emb
-    embedded_docs[i].calculate_distances_per_pattern(factory)
-
-  return embedded_docs
-
-
-def embedd_generic_tokenized_sentences_2(strings: List[str], embedder) -> \
-        List[LegalDocument]:
-  warnings.warn("deprecated", DeprecationWarning)
-  embedded_docs = []
-  if strings is None or len(strings) == 0:
-    return []
-
-  tokenized_sentences_list = []
-  for i in range(len(strings)):
-    s = strings[i]
-
-    words = nltk.word_tokenize(s)
-
-    subdoc = LegalDocument()
-
-    subdoc.tokens = words
-    subdoc.tokens_cc = words
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_docs.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(embedder, tokenized_sentences_list)
-
-  for i in range(len(embedded_docs)):
-    l = lens[i]
-    tokens = wrds[i][:l]
-
-    line_emb = sentences_emb[i][:l]
-
-    embedded_docs[i].tokens = tokens
-    embedded_docs[i].tokens_cc = tokens
-    embedded_docs[i].embeddings = line_emb
-
-  return embedded_docs
 
 
 def subdoc_between_lines(line_a: int, line_b: int, doc):
@@ -1035,7 +880,47 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
+from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1
+
+
+def detect_sign_2(prefix: TextMap) -> (int, (int, int)):
+  a = next(prefix.finditer(_re_greather_then_1), None)  # не менее, не превышающую
+  if a:
+    return +1, a
+
+  a = next(prefix.finditer(_re_less_then), None)  # менее
+  if a:
+    return -1, a
+  else:
+    a = next(prefix.finditer(_re_greather_then), None)
+    if a:
+      return +1, a
+
+  return 0, None
+
+
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> (SemanticTag, SemanticTag, SemanticTag):
+  _s = slice(-VALUE_SIGN_MIN_TOKENS + region[0], region[1])
+  subdoc: LegalDocument = doc.subdoc_slice(_s)
+
+  _sign, _sign_span = detect_sign_2(subdoc.tokens_map)
+
+  # ======================================
+  value, currency = extract_sum(subdoc.text)
+  # ======================================
+
+  sign = SemanticTag('sign', _sign, _sign_span)
+  sum = SemanticTag('value', value, region)
+  currency = SemanticTag('currency', currency, region)
+
+  sign.offset(subdoc.start)
+
+  return sum, sign, currency
+
+
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
+  warnings.warn("use extract_sum_sign_currency", DeprecationWarning)
+
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = sr.tokens[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]

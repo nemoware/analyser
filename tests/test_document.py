@@ -50,36 +50,6 @@ class LegalDocumentTestCase(unittest.TestCase):
     print(ld.tokens)
     print_prof_data()
 
-    # point1 = [1, 6, 4]
-    #
-    # PF = AbstractPatternFactory(FakeEmbedder(point1))
-    #
-    # fp1 = PF.create_pattern('p1', ('prefix', 'pat 2', 'suffix'))
-    # fp2 = PF.create_pattern('p2', ('prefix', 'pat', 'suffix 2'))
-    # fp3 = PF.create_pattern('p3', ('', 'a b c', ''))
-    #
-    # self.assertEqual(3, len(PF.patterns))
-    #
-    # PF.embedd()
-    #
-    # self.assertEqual(2, len(fp1.embeddings))
-    # self.assertEqual(1, len(fp2.embeddings))
-    # self.assertEqual(3, len(fp3.embeddings))
-
-  def test_normalize_sentences_bounds(self):
-    d = LegalDocument()
-
-    text = ""
-    self.assertEqual(text, d.normalize_sentences_bounds(text))
-
-    text = "A"
-    self.assertEqual(text, d.normalize_sentences_bounds(text))
-
-    text = "A."
-    self.assertEqual(text, d.normalize_sentences_bounds(text))
-
-    text = "Ай да А.С. Пушкин! Ай да сукин сын!"
-    print(d.normalize_sentences_bounds(text))
 
   def test_parse(self):
     d = LegalDocument("a")

@@ -10,6 +10,7 @@ class TextMap:
 
   def __init__(self, text: str, map=None):
     self._full_text = text
+    self._offset_chars = 0
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)
     else:
@@ -20,21 +21,55 @@ class TextMap:
 
     self.untokenize = self.text_range  # alias
 
-  def token_index_by_char(self, index: int) -> int:
-    for i in range(len(self.map)):
-      span = self.map[i]
-      if index < span[1]:
-        return i
+  def finditer(self, regexp):
+    for m in regexp.finditer(self.text):
+      yield self.token_indices_by_char_range_2(m.span(0))
 
+  def token_index_by_char(self, _char_index: int) -> int:
+    """
+    [span 0] out of span [span 1] [span 2]
+
+    :param char_index:
+    :return:
+    """
+
+    char_index = _char_index + self._offset_chars
+    for span_index in range(len(self.map)):
+      span = self.map[span_index]
+      if char_index < span[1]:  # span end
+        return span_index
+
+    if char_index >= len(self.text):
+      return len(self.map)
     return -1
 
-  def token_indices_by_char_range(self, span: [int]) -> slice:
+  #     for span_index in range(len(self.map)):
+  #       span = self.map[span_index]
+  #       if char_index < span[1]:
+  #         return span_index
+  # TODO: error is here!!!
+
+  def token_indices_by_char_range_2(self, span: [int]) -> (int, int):
     a = self.token_index_by_char(span[0])
     b = self.token_index_by_char(span[1])
+    if a == b and b >= 0:
+      b = a + 1
+    return (a, b)
+
+  def token_indices_by_char_range(self, span: [int]) -> slice:
+    warnings.warn("use token_indices_by_char_range_2", DeprecationWarning)
+    a = self.token_index_by_char(span[0])
+    b = self.token_index_by_char(span[1])
+    if a == b and b >= 0:
+      b = a + 1
     return slice(a, b)
 
-  def slice(self, span: slice):
+  def slice(self, span: slice) -> 'TextMap':
     sliced = TextMap(self._full_text, self.map[span])
+    if sliced.map:
+      sliced._offset_chars = sliced.map[0][0]
+    else:
+      sliced._offset_chars = 0
     # first_char_index = sliced.map[0][0]
     # for _s in sliced.map:
     #   _s[0] -= first_char_index
@@ -81,7 +116,7 @@ class TextMap:
       raise RuntimeError(f'cannot deal with {span} ')
 
   def get_text(self):
-    if len(self.map)==0:
+    if len(self.map) == 0:
       return ''
     return self.text_range([0, len(self.map)])
 
@@ -245,17 +280,15 @@ import nltk
 def span_tokenize(text):
   start_from = 0
   for token in nltk.word_tokenize(text):
-    if token=="''":
-      token='"'
+    if token == "''":
+      token = '"'
 
-    if token=="``":
-      token='"'
-
-   
+    if token == "``":
+      token = '"'
 
     ix_new = text.find(token, start_from)
     if ix_new < 0:
-      print(f'ACHTUNG! [{token}] not found with text.find, next text is: {text[start_from:start_from+30]}')
+      print(f'ACHTUNG! [{token}] not found with text.find, next text is: {text[start_from:start_from + 30]}')
     else:
       start_from = ix_new
       end = start_from + len(token)

@@ -6,7 +6,7 @@ from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject
 from transaction_values import ValueConstraint
 
-load_punkt = True
+load_punkt = False
 
 from text_tools import *
 
@@ -20,26 +20,6 @@ import numpy as np
 import sys
 
 WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
-
-russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
-save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
-if sys.version_info[0] < 3:
-  russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
-  save_nltk_dir = 'nltk_data_download/tokenizers/punkt'
-
-import urllib.request
-import os
-
-if not os.path.exists(save_nltk_dir):
-  os.makedirs(save_nltk_dir)
-
-if load_punkt:
-  russian_punkt = urllib.request.urlopen(russian_punkt_url)
-  with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
-    output.write(russian_punkt.read())
-
-  ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
-  print(ru_tokenizer)
 
 
 class FuzzyPattern(EmbeddableText):
@@ -162,7 +142,7 @@ class ExclusivePattern(CompoundPattern):
 
     return a
 
-  def calc_exclusive_distances(self, text_ebd)->([float],[],{}):
+  def calc_exclusive_distances(self, text_ebd) -> ([float], [], {}):
     warnings.warn("calc_exclusive_distances is deprecated ", DeprecationWarning)
     distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd)))
 
@@ -178,7 +158,7 @@ class ExclusivePattern(CompoundPattern):
 
     # p1 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
     # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
-    ranges:[[float, float, float]] = []
+    ranges: [[float, float, float]] = []
     for row in distances_per_pattern:
       b = row
 
@@ -380,22 +360,6 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
   _max_hit_attention, _ = rectifyed_sum(vvvvv, relu_th)
   improved = improve_attention_vector(embeddings, _max_hit_attention, mix=1)
   return improved
-
-
-def estimate_confidence(vector: List[float]) -> (float, float, int, float):
-  assert vector is not None
-  if len(vector) == 0:
-    return 0, np.nan, 0, np.nan
-
-  sum_ = sum(vector)
-  _max = np.max(vector)
-  nonzeros_count = len(np.nonzero(vector)[0])
-  confidence = 0
-
-  if nonzeros_count > 0:
-    confidence = sum_ / nonzeros_count
-
-  return confidence, sum_, nonzeros_count, _max
 
 
 AV_SOFT = 'soft$.'

@@ -1,5 +1,5 @@
 import warnings
-from typing import List, TypeVar, Iterable
+from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
 
@@ -10,26 +10,16 @@ Vector = TypeVar('Vector', FixedVector, Iterable[float])
 Vectors = TypeVar('Vectors', List[Vector], Iterable[Vector])
 FixedVectors = TypeVar('FixedVectors', List[FixedVector], Iterable[FixedVector])
 
+T = TypeVar('T')  # just type variable
 
-class ProbableValue:
-  def __init__(self, value, confidence: float):
+
+class ProbableValue(Generic[T]):
+  def __init__(self, value: T, confidence: float):
+    self.value: T = value
     self.confidence: float = confidence
-    self.value = value
 
-
-def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
-                                          equality_range=0.0) -> ProbableValue:
-  try:
-    if abs(a.value.value - alternative.value.value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-  except:
-    # TODO: why dan hell we should have an exception here??
-    return a
-
-  return a
+  def __str__(self):
+    return f'{self.value} \t {self.confidence:2f}'
 
 
 def split_by_token(tokens: List[str], token):
@@ -356,16 +346,20 @@ def subtract_probability(a: FixedVector, b: FixedVector) -> FixedVector:
 
 class TokensWithAttention:
   def __init__(self, tokens: Tokens, attention: FixedVector):
+    warnings.warn("TokensWithAttention is deprecated, use ...", DeprecationWarning)
     assert len(tokens) == len(attention)
     self.tokens = tokens
     self.attention = attention
 
 
 class SemanticTag:
-  def __init__(self, kind, value, span, span_map='$words'):
+  def __init__(self, kind, value, span: (int, int), span_map='$words'):
     self.kind = kind
     self.value = value
-    self.span = [int(span[0]), int(span[1])]
+    if span:
+      self.span = (int(span[0]), int(span[1]))  # kind of type checking
+    else:
+      self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
     self.confidence = 1
     self.display_value = value
@@ -375,3 +369,34 @@ class SemanticTag:
 
   def __str__(self):
     return f'{self.kind} {self.span} {self.value} {self.display_value}'
+
+
+def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
+  assert vector is not None
+  if len(vector) == 0:
+    return 0, np.nan, 0, np.nan
+
+  sum_ = sum(vector)
+  _max = np.max(vector)
+  nonzeros_count = len(np.nonzero(vector)[0])
+  confidence = 0
+
+  if nonzeros_count > 0:
+    confidence = sum_ / nonzeros_count
+
+  return confidence, sum_, nonzeros_count, _max
+
+
+def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
+                                          equality_range=0.0) -> ProbableValue:
+  try:
+    if abs(a.value.value - alternative.value.value) < equality_range:
+      if a.confidence > alternative.confidence:
+        return a
+      else:
+        return alternative
+  except:
+    # TODO: why dan hell we should have an exception here??
+    return a
+
+  return a

@@ -2,7 +2,6 @@
 
 from charter_patterns import make_constraints_attention_vectors
 from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, extract_all_contraints_from_sentence, \
-  deprecated, \
   extract_all_contraints_from_sr
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
@@ -147,6 +146,7 @@ class CharterDocumentParser(CharterConstraintsParser):
   def _make_competence_attention_v(self):
     self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
     filtered = filter_values_by_key_prefix(self.doc.distances_per_pattern_dict, 'competence')
+
     competence_v = rectifyed_sum(filtered, 0.3)
     competence_v, c = improve_attention_vector(self.doc.embeddings, competence_v, mix=1)
     return competence_v
@@ -181,18 +181,6 @@ class CharterDocumentParser(CharterConstraintsParser):
     # 💵 💵 💰
     # TODO: move to doc.dict
     self.value_attention = None  # make_improved_attention_vector(self.doc, 'sum__')
-
-  # ---------------------------------------
-
-  @deprecated
-  def find_contraints(self):
-    # 5. extract constraint values
-    sections_filtered = self._get_head_sections()
-    # value_containing_sections = find_sentences_by_pattern_prefix(self.doc, self.pattern_factory,
-    #                                                              self._get_head_sections(), 'x_charity_')
-
-    rz = self.extract_constraint_values_from_sections(sections_filtered)
-    return rz
 
   def _get_head_sections(self, prefix='head.'):
     sections_filtered = {}
@@ -277,7 +265,7 @@ class CharterDocumentParser(CharterConstraintsParser):
   org = property(get_org)
 
   def map_to_subject(self, psearch_results: List[PatternSearchResult]):
-    from patterns import estimate_confidence
+    from ml_tools import estimate_confidence
 
     for psearch_result in psearch_results:
       _max_subj = ContractSubject.Other
@@ -287,7 +275,7 @@ class CharterDocumentParser(CharterConstraintsParser):
         pattern_prefix = f'x_{subj}'
 
         v = psearch_result.get_attention(AV_PREFIX + pattern_prefix)
-        confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
+        confidence, _, _, _ = estimate_confidence(v)
 
         if confidence > _max_conf:
           _max_conf = confidence
@@ -299,15 +287,16 @@ class CharterDocumentParser(CharterConstraintsParser):
       }
 
   def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
+    warnings.warn("use __extract_constraint_values_from_sr_2", DeprecationWarning)
     """
     :type sentenses_i: PatternSearchResults
     """
-    if sentenses_i is None or len(sentenses_i) == 0:
+    if not sentenses_i:
       return []
 
     sentences = []
     for pattern_sr in sentenses_i:
-      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
+      constraints: List[ProbableValue] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
 
       # todo: ConstraintsSearchResult is deprecated
       csr = ConstraintsSearchResult()
@@ -427,18 +416,4 @@ def put_if_better(destination: dict, key, x, is_better: staticmethod):
     destination[key] = x
 
 
-# ❤️ == GOOD HEART LINE ========================================================
 
-def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
-  assert attention_vector is not None
-  if name is None:
-    import random
-    name = 's-meta-na-' + str(random.random())
-
-  best_id = np.argmax(attention_vector)
-  confidence = attention_vector[best_id]
-  best_embedding_v = embeddings[best_id]
-  meta_pattern = FuzzyPattern(None, _name=name)
-  meta_pattern.embeddings = np.array([best_embedding_v])
-
-  return meta_pattern, confidence, best_id

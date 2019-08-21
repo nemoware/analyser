@@ -3,11 +3,9 @@ from typing import List
 
 from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
-from fuzzy_matcher import FuzzyMatcher
-from legal_docs import LegalDocument, HeadlineMeta, extract_all_contraints_from_sentence, deprecated, \
-  extract_sum_and_sign_3, _expand_slice
-from ml_tools import ProbableValue, max_exclusive_pattern_by_prefix, relu, np, filter_values_by_key_prefix, \
-  rectifyed_sum, TokensWithAttention, SemanticTag
+from legal_docs import LegalDocument, HeadlineMeta, extract_sum_sign_currency
+from ml_tools import ProbableValue, relu, np, filter_values_by_key_prefix, \
+  rectifyed_sum, SemanticTag, FixedVector
 from parsing import ParsingConfig, ParsingContext
 from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
@@ -18,11 +16,15 @@ from transaction_values import ValueConstraint
 default_contract_parsing_config: ParsingConfig = ParsingConfig()
 contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
 
+from transaction_values import complete_re as transaction_values_re
+
 
 class ContractDocument3(LegalDocument):
   '''
-  TODO: rername it
+
   '''
+
+  # TODO: rename it
 
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
@@ -31,7 +33,7 @@ class ContractDocument3(LegalDocument):
 
     self.agents_tags = None
 
-  def get_tags(self)->[SemanticTag]:
+  def get_tags(self) -> [SemanticTag]:
     return self.agents_tags
 
   def parse(self, txt=None):
@@ -41,6 +43,13 @@ class ContractDocument3(LegalDocument):
 
 
 ContractDocument = ContractDocument3  # Alias!
+
+
+def estimate_confidence_2(x, head_size: int = 10) -> float:
+  """
+  taking mean of max 10 values
+  """
+  return float(np.mean(sorted(x)[-head_size:]))
 
 
 class ContractAnlysingContext(ParsingContext):
@@ -65,10 +74,6 @@ class ContractAnlysingContext(ParsingContext):
       del self.contract
       self.contract = None
 
-    # if self.contract_values is not None:
-    #   del self.contract_values
-    #   self.contract_values = None
-
   def analyze_contract(self, contract_text):
     self._reset_context()
     """
@@ -77,30 +82,26 @@ class ContractAnlysingContext(ParsingContext):
     :param contract_text: 
     :return: 
     """
-    doc = ContractDocument3(contract_text)
+    doc = ContractDocument(contract_text)
     doc.parse()
     self.contract = doc
 
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
-    self.contract.embedd(self.pattern_factory)
+    self.contract.embedd_tokens(self.pattern_factory.embedder)
     self.sections_finder.find_sections(doc, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
     # -------------------------------values
-    values = self.fetch_value_from_contract(doc)
-    # -------------------------------subj
+    doc.contract_values = self.fetch_value_from_contract(doc)
+    # -------------------------------subject
     doc.subjects = self.recognize_subject(doc)
     self._logstep("fetching transaction values")
-    # -------------------------------values
 
-    self.renderer.render_values(values)
-    # self.contract_values = values
-    doc.contract_values = values
-
+    self.renderer.render_values(doc.contract_values)
     self.log_warnings()
 
-    return doc, values
+    return doc, doc.contract_values
 
   def get_contract_values(self):
     return self.contract.contract_values
@@ -127,26 +128,13 @@ class ContractAnlysingContext(ParsingContext):
 
     return best_value
 
-  @deprecated
-  def make_subj_attention_vectors(self, subdoc, subj_types_prefixes):
-    warnings.warn("deprecated", DeprecationWarning)
-    r = {}
-    for subj_types_prefix in subj_types_prefixes:
-      attention_vector = max_exclusive_pattern_by_prefix(subdoc.distances_per_pattern_dict, subj_types_prefix)
-      attention_vector_l = relu(attention_vector, 0.6)
-
-      r[subj_types_prefix + 'attention_vector'] = attention_vector
-      r[subj_types_prefix + 'attention_vector_l'] = attention_vector_l
-
-    return r
-
   def __sub_attention_names(self, subj: ContractSubject):
     a = f'x_{subj}'
     b = AV_PREFIX + f'x_{subj}'
     c = AV_SOFT + a
     return a, b, c
 
-  def make_subject_attention_vector_3(self, section, subject_kind: ContractSubject, addon=None) -> List[float]:
+  def make_subject_attention_vector_3(self, section, subject_kind: ContractSubject, addon=None) -> FixedVector:
     from ml_tools import max_exclusive_pattern
     pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
 
@@ -161,10 +149,7 @@ class ContractAnlysingContext(ParsingContext):
 
     return x
 
-  def estimate_confidence_2(self, x):
-    return np.mean(sorted(x)[-10:])
-
-  def map_subject_to_type(self, section: LegalDocument, denominator: float = 1) -> List[ProbableValue]:
+  def map_subject_to_type(self, section: LegalDocument, denominator: float = 1.0) -> List[ProbableValue]:
     """
     :param section:
     :param denominator: confidence multiplyer
@@ -172,13 +157,13 @@ class ContractAnlysingContext(ParsingContext):
     """
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
-    all_mean = rectifyed_sum(all_subjects_vectors)
+    all_subjects_mean: FixedVector = rectifyed_sum(all_subjects_vectors)
 
-    subjects_mapping = []
-    for subject_kind in contract_subjects:
-      x = self.make_subject_attention_vector_3(section, subject_kind, all_mean)
-      # confidence, sum_, nonzeros_count, _max = estimate_confidence(x)
-      confidence = self.estimate_confidence_2(x)
+    subjects_mapping: List[ProbableValue] = []
+    for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
+      x: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, all_subjects_mean)
+
+      confidence = estimate_confidence_2(x)
       confidence *= denominator
       pv = ProbableValue(subject_kind, confidence)
       subjects_mapping.append(pv)
@@ -189,7 +174,6 @@ class ContractAnlysingContext(ParsingContext):
 
     if 'subj' in doc.sections:
       subj_section = doc.sections['subj']
-
       subj_ = subj_section.body
 
       return self.map_subject_to_type(subj_)
@@ -206,7 +190,10 @@ class ContractAnlysingContext(ParsingContext):
 
   def fetch_value_from_contract(self, contract: LegalDocument) -> List[ProbableValue]:
 
+    assert contract.sections is not None
+
     def filter_nans(vcs: List[ProbableValue]) -> List[ProbableValue]:
+      warnings.warn("use numpy built-in functions", DeprecationWarning)
       r: List[ProbableValue] = []
       for vc in vcs:
         if vc.value is not None and not np.isnan(vc.value.value):
@@ -214,24 +201,22 @@ class ContractAnlysingContext(ParsingContext):
       return r
 
     renderer = self.renderer
-
     price_factory = self.pattern_factory
-
     sections = contract.sections
-
     result: List[ValueConstraint] = []
 
+    # TODO iterate over section names
     if 'price.' in sections:
       value_section_info: HeadlineMeta = sections['price.']
       value_section = value_section_info.body
       section_name = value_section_info.subdoc.text
       result = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
       if len(result) == 0:
-        self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
+        self.warning(f'В разделе "{section_name}" стоимость сделки не найдена!')
 
       if self.verbosity_level > 1:
         renderer.render_value_section_details(value_section_info)
-        self._logstep(f'searching for transaction values in section  "{ section_name }"')
+        self._logstep(f'searching for transaction values in section  "{section_name}"')
         # ------------
         # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
     else:
@@ -244,7 +229,7 @@ class ContractAnlysingContext(ParsingContext):
         value_section_info = sections['subj']
         value_section = value_section_info.body
         section_name = value_section_info.subdoc.text
-        print(f'- Ищем стоимость в разделе { section_name }')
+        print(f'- Ищем стоимость в разделе {section_name}')
         result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
 
         # decrease confidence:
@@ -254,10 +239,10 @@ class ContractAnlysingContext(ParsingContext):
         if self.verbosity_level > 0:
           print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
-          self._logstep(f'searching for transaction values in section  "{ section_name }"')
+          self._logstep(f'searching for transaction values in section  "{section_name}"')
 
         if len(result) == 0:
-          self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
+          self.warning(f'В разделе "{section_name}" стоимость сделки не найдена!')
 
     if len(result) == 0:
       if 'pricecond' in sections:
@@ -266,18 +251,18 @@ class ContractAnlysingContext(ParsingContext):
         value_section_info = sections['pricecond']
         value_section = value_section_info.body
         section_name = value_section_info.subdoc.text
-        print(f'-WARNING: Ищем стоимость в разделе { section_name }!')
+        print(f'-WARNING: Ищем стоимость в разделе {section_name}!')
         result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
         if self.verbosity_level > 0:
           print('alt price section DOC', '-' * 20)
           renderer.render_value_section_details(value_section_info)
-          self._logstep(f'searching for transaction values in section  "{ section_name }"')
+          self._logstep(f'searching for transaction values in section  "{section_name}"')
         # ------------
         for _r in result:
           _r.confidence *= 0.7
         # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
         if len(result) == 0:
-          self.warning(f'В разделе "{ section_name }" стоимость сделки не найдена!')
+          self.warning(f'В разделе "{section_name}" стоимость сделки не найдена!')
 
     if len(result) == 0:
       self.warning('Ищем стоимость во всем документе!')
@@ -297,7 +282,8 @@ class ContractAnlysingContext(ParsingContext):
     return result
 
 
-def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, factory: ContractPatternFactory) -> List[ProbableValue]:
+def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, factory: ContractPatternFactory) -> List[
+  ProbableValue]:
   ''' merge dictionaries of attention vectors '''
 
   value_section_subdoc.calculate_distances_per_pattern(factory)
@@ -305,111 +291,18 @@ def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, fact
 
   value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
-  values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section_subdoc,
-                                                                 value_section_subdoc.distances_per_pattern_dict[
-                                                                   'value_attention_vector_tuned'])
+  v = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
+  values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section_subdoc)
 
   return values
 
 
-from transaction_values import complete_re
-import re
-
-
-def extract_all_contraints_from_sr_2(search_result: LegalDocument, attention_vector: List[float]) -> List[ProbableValue]:
-
+def extract_all_contraints_from_sr_2(doc: LegalDocument) -> List:
   """
-  sr -is- "search result"
-
-  :param search_result: LegalDocument
+  :param doc: LegalDocument
   :param attention_vector: List[float]
   :return: List[ProbableValue]
   """
 
-  #TODO: FIX IT
-  def __tokens_before_index(string, index):
-    return len(string[:index].split(' '))
-
-  # TODO: FIX IT
-  sentence = ' '.join(search_result.tokens)
-  # print("SENT:", sentence)
-  all_values = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
-  constraints: List[ProbableValue] = []
-
-  for a in all_values:
-    # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
-    token_index_s = __tokens_before_index(sentence, a.start) - 1
-    token_index_e = __tokens_before_index(sentence, a.stop)
-
-    region = slice(token_index_s, token_index_e)
-
-    # print('REG:', ' '.join(search_result.tokens[region]))
-
-    vc = extract_sum_and_sign_3(search_result, region)
-    _e = _expand_slice(region, 10)
-    vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
-    confidence = attention_vector[region.start]
-    pv = ProbableValue(vc, confidence)
-
-    constraints.append(pv)
-
-  return constraints
-
-
-def _try_to_fetch_value_from_section___(value_section: LegalDocument, factory: ContractPatternFactory) -> List[
-  ProbableValue]:
-  # value_section.embedd(factory)
-  value_section.calculate_distances_per_pattern(factory)
-
-  # context._logstep(f'embedding for transaction values in section  "{ section_name }"')
-
-  vectors = factory.make_contract_value_attention_vectors(value_section)
-
-  value_section.distances_per_pattern_dict = {**value_section.distances_per_pattern_dict, **vectors}
-
-  values: List[ProbableValue] = extract_all_contraints_from_sentence(value_section,
-                                                                     value_section.distances_per_pattern_dict[
-                                                                       'value_attention_vector_tuned'])
-
-  return values
-
-
-def match_contractor_aliases(_av, relu_th=0.9):
-  alias_matcher = FuzzyMatcher(_av)
-
-  alias_matcher.after('_named_*', 10, 1)
-  alias_matcher.before('_in_face*', 5, 0.8)
-  alias_matcher.excluding('_named_*')
-  alias_matcher.excluding('_punkt')
-  alias_matcher.including('_alias_*')
-
-  alias_matcher.after('_quotes_open', 5, 0.5).before('_quotes_closing', 5, 0.5)
-  alias_matcher.before('_deal_side_*', 5, 0.5)
-
-  alias_attention = alias_matcher.compile(p_threshold=0.4)
-
-  alias_attention = relu(alias_attention, relu_th)
-  return alias_attention
-
-
-def make_company_names_fm(_av, relu_th=0.9):
-  alias_attention = match_contractor_aliases(_av, relu_th)
-  _av.add('alias_attention', alias_attention)
-
-  _fm = FuzzyMatcher(_av)
-  _fm.after('org_*', 20, 0.8)
-  _fm.before('_named_*', 20, 0.6)
-
-  _fm.before('_in_face*', 15, 0.5)
-  #   _fm.before('_deal_side_*', 5, 0.5)
-
-  _fm.after('_quotes_open', 5, 0.5).before('_quotes_closing', 5, 0.5).excluding('_punkt')
-  _fm.excluding('alias_attention')
-  _fm.excluding('org_*')
-  _fm.excluding('_named_*')
-  _fm.excluding('_in_face*')
-  _fm.excluding('_place*')
-
-  attention = _fm.compile(bias=0, p_threshold=0.5)
-  attention = relu(attention, relu_th)
-  return _fm, attention, alias_attention
+  spans = [m for m in doc.tokens_map.finditer(transaction_values_re)]
+  return [extract_sum_sign_currency(doc, span) for span in spans]

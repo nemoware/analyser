@@ -7,11 +7,11 @@
 
 import math
 import re
+import warnings
 from typing import List
 
-from ml_tools import TokensWithAttention
-from text_tools import np
-from text_tools import to_float, untokenize
+from ml_tools import TokensWithAttention, FixedVector
+from text_tools import np, Tokens, to_float, untokenize
 
 currencly_map = {
   'руб': 'RUB',
@@ -24,35 +24,37 @@ currencly_map = {
 
 class ValueConstraint:
   def __init__(self, value: float, currency: str, sign: int, context: TokensWithAttention):
+    warnings.warn("ValueConstraint is deprecated, use TaggedValueConstraint", DeprecationWarning)
     assert context is not None
 
+    self.value: float = value
+    self.currency: str = currency
+    self.sign: int = sign
 
-
-    self.value = value
-    self.currency = currency
-    self.sign = sign
     self.context: TokensWithAttention = context
 
-
+  def __str__(self):
+    return f'{self.value} {self.sign} {self.currency}'
 
 
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
   r'(\d+([., ]\d+)*)'  # digits
-  r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'   # bullshit like 'от 1000000 ( одного ) миллиона рублей'
-  r'(\s*(тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'                 # *1000 qualifier
-  r'(\s*\((?:(?!\)).)+?\))?\s*'                               # some shit in parenthesis 
-  r'((руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'         # currency
-  r'(\s*\((?:(?!\)).)+?\))?\s*'                               # some shit in parenthesis 
-  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',                # cents
+  r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
+  r'(\s*(тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
+  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
+  r'((руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency
+  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
+  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',  # cents
   re.MULTILINE | re.IGNORECASE
 )
+
 
 def extract_sum(sentence: str) -> (float, str):
   r = complete_re.search(sentence)
 
   if r is None:
-    return None
+    return None, None
 
   number = to_float(r[1])
   r_num = r[4]
@@ -74,23 +76,27 @@ def extract_sum(sentence: str) -> (float, str):
   return number, currencly_map[curr.lower()]
 
 
-def extract_sum_from_tokens(sentence_tokens: List):
+def extract_sum_from_tokens(sentence_tokens: Tokens):
+  warnings.warn("method relies on untokenize, not good", DeprecationWarning)
   sentence = untokenize(sentence_tokens).lower().strip()
   f = extract_sum(sentence)
   return f, sentence
 
 
-def extract_sum_from_tokens_2(sentence_tokens: List):
+def extract_sum_from_tokens_2(sentence_tokens: Tokens):
+  warnings.warn("method relies on untokenize, not good", DeprecationWarning)
   f, __ = extract_sum_from_tokens(sentence_tokens)
   return f
 
 
 _re_greather_then_1 = re.compile(r'(не менее|не ниже)', re.MULTILINE)
-_re_less_then = re.compile(r'(до\s+|менее|не более|не выше|не превыша[а-я]{2,4})', re.MULTILINE)
-_re_greather_then = re.compile(r'(от\s+|больше|более|свыше|выше|превыша[а-я]{2,4})', re.MULTILINE)
+_re_greather_then = re.compile(r'(\sот\s+|больше|более|свыше|выше|превыша[а-я]{2,4})', re.MULTILINE)
+_re_less_then = re.compile(
+  r'(до\s+|менее|не может превышать|лимит соглашения[:]*|не более|не выше|не превыша[а-я]{2,4})', re.MULTILINE)
 
 
 def detect_sign(prefix: str):
+  warnings.warn("use detect_sign_2", DeprecationWarning)
   a = _re_greather_then_1.findall(prefix)
   if len(a) > 0:
     return +1
@@ -108,7 +114,7 @@ def detect_sign(prefix: str):
 number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 
 
-def split_by_number_2(tokens: List[str], attention: List[float], threshold) -> (
+def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
         List[List[str]], List[int], List[slice]):
   indexes = []
   last_token_is_number = False
@@ -245,7 +251,6 @@ if __name__ == '__main__':
     'в течение 1 ( одного ) года с момента , когда нецелевые расходы превысили вышеуказанную сумму и ( iii ) генеральным директором '
     'не было получено предварительное одобрение на такое расходование от представителей участников , уполномоченных голосовать '
     'на общем собрании участников общества ;'))
-
 
   sentence = """ 1.1.1. Счет № 115 на приобретение спортивного оборудования ( теннисный стол, рукоход с перекладинами, шведская стенка ). Стоимость оборудования 80 000,00 ( восемьдесят тысяч рублей рублей 00 копеек ) рублей, НДС не облагается."""
   print(extract_sum(sentence))

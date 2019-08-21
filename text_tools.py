@@ -10,12 +10,6 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
-nltk.download('punkt')
-
-from nltk.tokenize import _treebank_word_tokenizer
-
-nltk_treebank_word_tokenizer = _treebank_word_tokenizer
-
 Tokens = List[str]
 
 
@@ -203,7 +197,9 @@ def untokenize(tokens: Tokens) -> str:
 
 
 def tokenize_text(text):
-  warnings.warn("deprecated", DeprecationWarning)
+  warnings.warn("deprecated, use TextMap(text)", DeprecationWarning)
+
+
   sentences = text.split('\n')
   result = []
   for i in range(len(sentences)):
@@ -229,6 +225,7 @@ def find_token_after_index(tokens: Tokens, index, token, default_ret=-1):
     if tokens[i] == token:
       return i
   return default_ret
+
 
 #
 # def get_sentence_bounds_at_index(index, tokens):
