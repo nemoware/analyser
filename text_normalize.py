@@ -54,7 +54,9 @@ r_quoted_name = r_group(r_quoted(r_name))
 
 spaces_regex = [
   (re.compile(r'\t'), ' '),
-  (re.compile(r'[ ]{2}'), ' ')
+  (re.compile(r'[ ]{2}'), ' '),
+  (re.compile(r' '), ' ')
+
   # ,
   # (re.compile(r'\n{2}'), '\n')
 ]
