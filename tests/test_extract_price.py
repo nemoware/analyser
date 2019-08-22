@@ -65,6 +65,8 @@ data = [
   (0, 1999.44, 'RUB', '1 999 (тысяча девятьсот) руб. 44 (сорок четыре) коп. и что-то 34'),
   (1, 25000000.0, 'USD', 'в размере более 25 млн . долларов сша'),
   (0, 25000000.0, 'USD', 'эквивалентной 25 миллионам долларов сша'),
+  # (0, 80000,'RUB', 'Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,'),#TODO
+  (0, 80000,'RUB', 'Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,'),#TODO
 
   (1, 1000000.0, 'RUB',
    'взаимосвязанных сделок в совокупности составляет от 1000000( одного ) миллиона рублей  '),  # до 50000000
@@ -135,7 +137,11 @@ class PriceExtractTestCase(unittest.TestCase):
     r = find_all_value_sign_currency(doc)
     # =========================================
 
-    sum, sign, currency = r[0]
+    # sum, sign, currency = r[0]
+    sum = r[0].value
+    sign = r[0].sign
+    currency = r[0].currency
+
     # for sum, sign, currency in r:
 
     print(f'{sum}, {sign}, {currency}')
@@ -156,7 +162,12 @@ class PriceExtractTestCase(unittest.TestCase):
     doc.parse()
     r: List = find_all_value_sign_currency(doc)
     if r:
-      sum, sign, currency = r[0]
+      # sum, sign, currency = r[0]
+
+      sum = r[0].value
+      sign = r[0].sign
+      currency = r[0].currency
+
       print(doc.tokens_map_norm.text_range(sum.span))
       self.assertEqual(price, sum.value, text)
       self.assertEqual(currency_exp, currency.value)
@@ -168,7 +179,11 @@ class PriceExtractTestCase(unittest.TestCase):
       doc.parse()
       r: List = find_all_value_sign_currency(doc)
       if r:
-        sum, sign, currency = r[0]
+        # sum, sign, currency = r[0]
+        sum = r[0].value
+        sign = r[0].sign
+        currency = r[0].currency
+
         print(doc.tokens_map_norm.text_range(sum.span))
         self.assertEqual(price, sum.value, text)
         self.assertEqual(currency_exp, currency.value, text)
