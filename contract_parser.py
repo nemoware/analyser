@@ -29,7 +29,7 @@ class ContractDocument3(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
     self.subjects: List[ProbableValue] = [ProbableValue(ContractSubject.Other, 0.0)]
-    self.contract_values: [ProbableValue] = []
+    self.contract_values: List[ValueSemanticTags]=[]
 
     self.agents_tags = None
 
@@ -56,13 +56,13 @@ def filter_nans(vcs: List[ProbableValue]) -> List[ProbableValue]:
 
 class ContractAnlysingContext(ParsingContext):
 
-  def __init__(self, embedder, renderer: AbstractRenderer, pattern_factory=None ):
+  def __init__(self, embedder, renderer: AbstractRenderer, pattern_factory=None):
     ParsingContext.__init__(self, embedder)
     self.renderer: AbstractRenderer = renderer
     if not pattern_factory:
       self.pattern_factory = ContractPatternFactory(embedder)
     else:
-      self.pattern_factory=pattern_factory
+      self.pattern_factory = pattern_factory
 
     self.contract = None
     # self.contract_values = None
@@ -100,7 +100,7 @@ class ContractAnlysingContext(ParsingContext):
                                        headline_patterns_prefix='headline.')
 
     # -------------------------------values
-    self.contract.contract_values = self.find_contract_value(self.contract)
+    self.contract.contract_values = self.find_contract_value_NEW(self.contract)
     # -------------------------------subject
     self.contract.subjects = self.find_contract_subject(self.contract)
     # TODO: convert to semantic tags
@@ -108,7 +108,7 @@ class ContractAnlysingContext(ParsingContext):
 
     self._logstep("fetching transaction values")
 
-    self.renderer.render_values(self.contract.contract_values)
+    # self.renderer.render_values(self.contract.contract_values)
     self.log_warnings()
 
     return self.contract, self.contract.contract_values
@@ -198,7 +198,7 @@ class ContractAnlysingContext(ParsingContext):
       #   self.warning('поиск предмета договора полностью провален!')
       #   return [ProbableValue(ContractSubject.Other, 0.0)]
 
-  def find_contract_value_NEW(self, contract: ContractDocument)->List[ValueSemanticTags]:
+  def find_contract_value_NEW(self, contract: ContractDocument) -> List[ValueSemanticTags]:
     # preconditions
     assert contract.sections is not None
 
@@ -207,11 +207,13 @@ class ContractAnlysingContext(ParsingContext):
     ]
 
     for section, confidence_k in search_sections_order:
-      if section in contract.sections:
-
-        value_section_info: HeadlineMeta = contract.sections[section]
-        value_section = value_section_info.body
-        _section_name = value_section_info.subdoc.text.strip()
+      if section in contract.sections or section is None:
+        if section in contract.sections:
+          value_section = contract.sections[section].body
+          _section_name = contract.sections[section].subdoc.text.strip()
+        else:
+          value_section = contract
+          _section_name = 'entire contract'
 
         if self.verbosity_level > 1:
           self._logstep(f'searching for transaction values in section ["{section}"] "{_section_name}"')

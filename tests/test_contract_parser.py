@@ -21,34 +21,51 @@ class TestContractParser(unittest.TestCase):
     with open('contract_pattern_factory.pickle', 'rb') as handle:
       factory = pickle.load(handle)
 
-
-    #self.assertEqual(2637, doc.embeddings.shape[-2])
+    # self.assertEqual(2637, doc.embeddings.shape[-2])
     self.assertEqual(1024, doc.embeddings.shape[-1])
-    print (doc._normal_text)
+    print(doc._normal_text)
     return doc, factory
 
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
-    print(tag,  f"[{map.text_range(tag.span)}]")
+    print(tag, f"[{map.text_range(tag.span)}]")
 
-  def test_find_contract_value_NEW(self):
+  def test_find_contract_value (self):
     doc, factory = self.get_doc()
-
 
     ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
     ctx.verbosity_level = 3
-
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
     # ----------------------------------------
     values = ctx.find_contract_value_NEW(doc)
     # ----------------------------------------
 
-    for v in values:
-      self.print_semantic_tag(v.sign, doc.tokens_map)
-      self.print_semantic_tag(v.value, doc.tokens_map)
-      self.print_semantic_tag(v.currency, doc.tokens_map)
+    self.assertEqual(1, len(values))
+    v = values[0]
 
-      print(v.sign, v.currency, v.value)
+    self.print_semantic_tag(v.sign, doc.tokens_map)
+    self.print_semantic_tag(v.value, doc.tokens_map)
+    self.print_semantic_tag(v.currency, doc.tokens_map)
+
+    self.assertEqual(80000, v.value.value)
+    self.assertEqual('RUB', v.currency.value)
+    self.assertEqual(0, v.sign.value)
+
+  def test_find_contract_subject(self):
+    doc, factory = self.get_doc()
+
+    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx.verbosity_level = 3
+    ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
+                                      headline_patterns_prefix='headline.')
+    # ----------------------------------------
+    subjects = ctx.find_contract_subject( doc)
+    # ----------------------------------------
+    for subj in subjects:
+      print (subj)
+
+
+    # print(v.sign, v.currency, v.value)
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
