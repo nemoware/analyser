@@ -1,15 +1,12 @@
-import warnings
-from typing import List
-
 from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
 from legal_docs import LegalDocument, HeadlineMeta, extract_sum_sign_currency, ValueSemanticTags
-from ml_tools import ProbableValue, relu, np, filter_values_by_key_prefix, \
-  rectifyed_sum, SemanticTag, FixedVector, estimate_confidence_by_mean_top
+from ml_tools import *
+
 from parsing import ParsingConfig, ParsingContext
 from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
-from sections_finder import SectionsFinder, FocusingSectionsFinder
+from sections_finder import FocusingSectionsFinder
 from structures import ContractSubject
 from transaction_values import ValueConstraint
 
@@ -76,8 +73,7 @@ class ContractAnlysingContext(ParsingContext):
 
     self.config = default_contract_parsing_config
 
-    # self.sections_finder: SectionsFinder = DefaultSectionsFinder(self)
-    self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
+    self.sections_finder = FocusingSectionsFinder(self)
 
   def _reset_context(self):
     super(ContractAnlysingContext, self)._reset_context()
@@ -103,6 +99,23 @@ class ContractAnlysingContext(ParsingContext):
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
     self.contract.embedd_tokens(self.pattern_factory.embedder)
+
+    return self.analyze_contract_doc(self.contract, reset_ctx=False)
+
+  def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
+    """
+    MAIN METHOD 2
+
+    :param contract_text:
+    :return:
+    """
+    if reset_ctx:
+      self._reset_context()
+
+    # create DOC
+    self.contract = contract
+
+    self._logstep("parsing document 👞 and detecting document high-level structure")
     self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
@@ -152,11 +165,12 @@ class ContractAnlysingContext(ParsingContext):
     return a, b, c
 
   def make_subject_attention_vector_3(self, section, subject_kind: ContractSubject, addon=None) -> FixedVector:
-    from ml_tools import max_exclusive_pattern
+
     pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
 
     vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
     x = max_exclusive_pattern(vectors)
+    assert x is not None, f'no patterns for {subject_kind}'
 
     section.distances_per_pattern_dict[attention_vector_name_soft] = x
     section.distances_per_pattern_dict[attention_vector_name] = x
@@ -244,7 +258,7 @@ class ContractAnlysingContext(ParsingContext):
                                                                                    all_subjects_mean)
 
       paragraph_span, confidence = self._find_most_relevant_paragraph(section, subject_attention_vector)
-       
+
       if confidence > max_confidence:
         max_confidence = confidence
         max_subject_kind = subject_kind
