@@ -28,13 +28,20 @@ class ContractDocument3(LegalDocument):
 
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
-    self.subjects: List[ProbableValue] = [ProbableValue(ContractSubject.Other, 0.0)]
-    self.contract_values: List[ValueSemanticTags]=[]
+
+    self.subjects = None
+    self.contract_values: List[ValueSemanticTags] = []
 
     self.agents_tags = None
 
   def get_tags(self) -> [SemanticTag]:
-    return self.agents_tags
+    tags = []
+    tags += self.agents_tags
+    tags.append(self.subjects)
+    for contract_value in self.contract_values:
+      tags += contract_value.as_asrray()
+
+    return tags
 
   def parse(self, txt=None):
     super().parse()
@@ -102,7 +109,7 @@ class ContractAnlysingContext(ParsingContext):
     # -------------------------------values
     self.contract.contract_values = self.find_contract_value_NEW(self.contract)
     # -------------------------------subject
-    self.contract.subjects = self.find_contract_subject(self.contract)
+    self.contract.subjects = self.find_contract_subject_region(self.contract)
     # TODO: convert to semantic tags
     # --------------------------------------
 
@@ -166,6 +173,7 @@ class ContractAnlysingContext(ParsingContext):
     :return:
     """
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
+
     all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
     all_subjects_mean: FixedVector = rectifyed_sum(all_subjects_vectors)
 
@@ -181,22 +189,63 @@ class ContractAnlysingContext(ParsingContext):
     return subjects_mapping
 
   def find_contract_subject(self, doc) -> List[ProbableValue]:
+    warnings.warn("use find_contract_subject_region", DeprecationWarning)
+    if 'subj' in doc.sections:
+      subj_section = doc.sections['subj']
+      subject_subdoc = subj_section.body
+      denominator = 1
+    else:
+      self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
+      subject_subdoc = doc.subdoc_slice(slice(0, 1500))
+      denominator = 0.7
+
+    return self.map_subject_to_type(subject_subdoc, denominator=denominator)
+
+  def find_contract_subject_region(self, doc) -> SemanticTag:
 
     if 'subj' in doc.sections:
       subj_section = doc.sections['subj']
-      subj_ = subj_section.body
-
-      return self.map_subject_to_type(subj_)
-
+      subject_subdoc = subj_section.body
+      denominator = 1
     else:
-      self.warning('раздел о предмете договора не найден')
-      # try:
-      self.warning('ищем предмет договора в первых 1500 словах')
+      self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
+      subject_subdoc = doc.subdoc_slice(slice(0, 1500))
+      denominator = 0.7
 
-      return self.map_subject_to_type(doc.subdoc_slice(slice(0, 1500)), denominator=0.7)
-      # except:
-      #   self.warning('поиск предмета договора полностью провален!')
-      #   return [ProbableValue(ContractSubject.Other, 0.0)]
+    return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
+
+  def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
+
+    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
+
+    all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
+    all_subjects_mean: FixedVector = rectifyed_sum(all_subjects_vectors)
+
+    max_confidence = 0
+    max_subject_kind = None
+    max_subject_attention_vector = None
+    for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
+      subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind,
+                                                                                   all_subjects_mean)
+      confidence = estimate_confidence_by_mean_top(subject_attention_vector, 5)
+      if confidence > max_confidence:
+        max_confidence = confidence
+        max_subject_kind = subject_kind
+        max_subject_attention_vector = subject_attention_vector
+
+    _edges = []
+    for i in np.nonzero(max_subject_attention_vector)[0]:
+      _b = section.tokens_map.sentence_at_index(i)
+      _edges += _b
+
+    _start = min(_edges)
+    _stop = max(_edges)
+
+    result = SemanticTag('subject', max_subject_kind, (_start, _stop))
+    result.confidence = max_confidence * denominator
+    result.offset(section.start)
+
+    return result
 
   def find_contract_value_NEW(self, contract: ContractDocument) -> List[ValueSemanticTags]:
     # preconditions

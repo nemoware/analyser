@@ -368,7 +368,7 @@ class SemanticTag:
     self.span = self.span[0] + span_add, self.span[1] + span_add
 
   def __str__(self):
-    return f'{self.kind} {self.span} {self.value} {self.display_value}'
+    return f'SemanticTag: {self.kind} {self.span} {self.value} {self.display_value}  {self.confidence}'
 
 
 
@@ -389,6 +389,16 @@ def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
 
   return confidence, sum_, nonzeros_count, _max
 
+def estimate_confidence_by_mean_top_non_zeros(x: FixedVector, head_size: int = 10) -> float:
+  top10 = sorted(x)[-head_size:]
+
+  nonzeros_count = len(np.nonzero(top10)[0])
+  sum_=sum(top10)
+  confidence = 0
+
+  if nonzeros_count > 0:
+    confidence = sum_ / nonzeros_count
+  return confidence
 
 def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> float:
   """

@@ -5,10 +5,12 @@
 
 import pickle
 import unittest
+import warnings
 
 from contract_parser import ContractAnlysingContext, ContractDocument
 from contract_patterns import ContractPatternFactory
 from documents import TextMap
+from legal_docs import LegalDocument
 from ml_tools import SemanticTag
 
 
@@ -23,13 +25,23 @@ class TestContractParser(unittest.TestCase):
 
     # self.assertEqual(2637, doc.embeddings.shape[-2])
     self.assertEqual(1024, doc.embeddings.shape[-1])
-    print(doc._normal_text)
+    # print(doc._normal_text)
     return doc, factory
 
-  def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
-    print(tag, f"[{map.text_range(tag.span)}]")
+  def get_doc_factory_ctx(self):
 
-  def test_find_contract_value (self):
+    doc, factory = self.get_doc()
+
+    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx.verbosity_level = 3
+    ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
+                                      headline_patterns_prefix='headline.')
+    return doc, factory, ctx
+
+  def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
+    print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]")
+
+  def test_find_contract_value(self):
     doc, factory = self.get_doc()
 
     ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
@@ -52,20 +64,57 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual(0, v.sign.value)
 
   def test_find_contract_subject(self):
-    doc, factory = self.get_doc()
-
-    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
-    ctx.verbosity_level = 3
-    ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
-                                      headline_patterns_prefix='headline.')
+    warnings.warn("use find_contract_subject_region", DeprecationWarning)
+    doc, factory, ctx = self.get_doc_factory_ctx()
     # ----------------------------------------
-    subjects = ctx.find_contract_subject( doc)
+    subjects = ctx.find_contract_subject(doc)
     # ----------------------------------------
+    print("SUBJECTS:")
     for subj in subjects:
-      print (subj)
+      print(subj)
+
+  def test_find_contract_subject_region_in_subj_section(self):
+    doc, factory, ctx = self.get_doc_factory_ctx()
+
+    subj_section = doc.sections['subj']
+    section: LegalDocument = subj_section.body
+    # ----------------------------------------
+    result = ctx.find_contract_subject_regions(section)
+    # ---------------------
+
+    self.print_semantic_tag(result, doc.tokens_map)
+    self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
+                     doc.tokens_map.text_range(result.span).strip())
+
+  def test_find_contract_subject_region_in_doc_head(self):
+    doc, factory, ctx = self.get_doc_factory_ctx()
+
+    section = doc.subdoc_slice(slice(0, 1500))
+    denominator = 0.7
+
+    # subj_section = doc.sections['subj']
+    # section: LegalDocument = subj_section.body
+    # ----------------------------------------
+    result = ctx.find_contract_subject_regions(section, denominator)
+    # ---------------------
+
+    self.print_semantic_tag(result, doc.tokens_map)
+    self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
+                     doc.tokens_map.text_range(result.span).strip())
 
 
-    # print(v.sign, v.currency, v.value)
+  def test_find_contract_subject_region(self):
+    doc, factory, ctx = self.get_doc_factory_ctx()
+
+
+    # ----------------------------------------
+    result = ctx.find_contract_subject_region(doc)
+    # ---------------------
+
+    self.print_semantic_tag(result, doc.tokens_map)
+    self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
+                     doc.tokens_map.text_range(result.span).strip())
+
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

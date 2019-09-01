@@ -12,7 +12,7 @@ from doc_structure import DocumentStructure
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag
+  max_exclusive_pattern, TokensWithAttention, SemanticTag, FixedVector
 from parsing import print_prof_data, ParsingSimpleContext
 from patterns import *
 from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
@@ -352,14 +352,46 @@ class LegalDocument:
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
+  def find_sentences_by_attention_vector(self, attention: FixedVector ) -> List[SemanticTag]:
+    # results: PatternSearchResults = []
+    #
+    # for i in np.nonzero(attention)[0]:
+    #   _b = self.tokens_map.sentence_at_index(i)
+    #   _slice = slice(_b[0], _b[1])
+    #
+    #   if _slice.stop != _slice.start:
+    #
+    #     sum_ = sum(attention[_slice])
+    #     #       confidence = np.mean( np.nonzero(x[sl]) )
+    #     nonzeros_count = len(np.nonzero(attention[_slice])[0])
+    #     confidence = 0
+    #
+    #     if nonzeros_count > 0:
+    #       confidence = sum_ / nonzeros_count
+    #
+    #     if confidence > 0.8:
+    #       r = SemanticTag(kind, value, span=_b)
+    #       r.confidence = confidence
+    #       r.parent = self
+    #
+    #       results.append(r)
+    #
+    # results = remove_sr_duplicates_conditionally(results)
+    #
+    # return results
+    XXX
+    pass
+
+
   def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
+
     """
 
     :param factory:
     :param pattern_prefix:
     :return:
     """
-
+    warnings.warn("use find_sentences_by_attention_vector", DeprecationWarning)
     attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
 
     results: PatternSearchResults = []
@@ -914,6 +946,9 @@ class ValueSemanticTags:
     self.value.confidence *= confidence_k
     self.sign.confidence *= confidence_k
     self.currency.confidence *= confidence_k
+
+  def as_asrray(self):
+    return [ self.sign, self.value,  self.currency ]
 
   def offset_spans(self, offset):
     self.value.offset(offset)

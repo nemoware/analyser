@@ -369,6 +369,7 @@ from structures import OrgStructuralLevel
 class PatternMatch():
 
   def __init__(self, region):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     assert region.stop - region.start > 0
     self.subject_mapping = {
       'subj': ContractSubject.Other,
@@ -382,12 +383,14 @@ class PatternMatch():
     self.parent = None  # 'LegalDocument'
 
   def get_attention(self, name=None):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     if name is None:
       return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
     else:
       return self.parent.distances_per_pattern_dict[name][self.region]
 
   def get_index(self):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     return self.region.start
 
   key_index = property(get_index)
@@ -400,6 +403,7 @@ class PatternMatch():
 
 class PatternSearchResult(PatternMatch):
   def __init__(self, org_level: OrgStructuralLevel, region):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     super(PatternSearchResult, self).__init__(region)
 
     self.org_level: OrgStructuralLevel = org_level
