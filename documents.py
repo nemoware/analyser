@@ -299,7 +299,7 @@ def span_tokenize(text):
 class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
-    nltk.download('punkt')
+    nltk.download('punkt', download_dir='nltk_data_download')
 
   def tokenize_line(self, line):
     return [line[t[0]:t[1]] for t in span_tokenize(line)]

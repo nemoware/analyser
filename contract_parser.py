@@ -214,6 +214,21 @@ class ContractAnlysingContext(ParsingContext):
 
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
 
+  def _find_most_relevant_paragraph(self, section: LegalDocument, attention_vector: FixedVector):
+
+    paragraph_attention_vector = np.zeros_like(attention_vector)
+    top_index = 0
+    for i in np.nonzero(attention_vector)[0]:
+      par = section.tokens_map.sentence_at_index(i)
+      paragraph_len = par[1] - par[0]
+      if paragraph_len:
+        paragraph_attention_vector[par[0]: par[1]] += attention_vector[i] + attention_vector[i] / paragraph_len
+        if paragraph_attention_vector[par[0]] > paragraph_attention_vector[top_index]:
+          top_index = par[0]
+
+    par = section.tokens_map.sentence_at_index(top_index)
+    return par, paragraph_attention_vector[top_index]
+
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
 
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
@@ -223,25 +238,19 @@ class ContractAnlysingContext(ParsingContext):
 
     max_confidence = 0
     max_subject_kind = None
-    max_subject_attention_vector = None
+    max_paragraph_span = None
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
       subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind,
                                                                                    all_subjects_mean)
-      confidence = estimate_confidence_by_mean_top(subject_attention_vector, 5)
+
+      paragraph_span, confidence = self._find_most_relevant_paragraph(section, subject_attention_vector)
+       
       if confidence > max_confidence:
         max_confidence = confidence
         max_subject_kind = subject_kind
-        max_subject_attention_vector = subject_attention_vector
+        max_paragraph_span = paragraph_span
 
-    _edges = []
-    for i in np.nonzero(max_subject_attention_vector)[0]:
-      _b = section.tokens_map.sentence_at_index(i)
-      _edges += _b
-
-    _start = min(_edges)
-    _stop = max(_edges)
-
-    result = SemanticTag('subject', max_subject_kind, (_start, _stop))
+    result = SemanticTag('subject', max_subject_kind, max_paragraph_span)
     result.confidence = max_confidence * denominator
     result.offset(section.start)
 
