@@ -43,12 +43,13 @@ class TestContractParser(unittest.TestCase):
 
 
 
-  def test_find_contract_subject_region_in_subj_section(self):
+  def test_to_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
 
     ctx.analyze_contract_doc(doc)
     json_struct = DocumentJson(doc)
     _j = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
+    print(_j)
     # TODO: compare with file
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

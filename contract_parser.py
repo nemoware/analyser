@@ -264,7 +264,7 @@ class ContractAnlysingContext(ParsingContext):
         max_subject_kind = subject_kind
         max_paragraph_span = paragraph_span
 
-    result = SemanticTag('subject', max_subject_kind, max_paragraph_span)
+    result = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
     result.confidence = max_confidence * denominator
     result.offset(section.start)
 
