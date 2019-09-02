@@ -96,8 +96,8 @@ class LegalDocument:
     self.name = name
 
     # subdocs
-    self.start = None
-    self.end = None
+    self.start = 0
+    self.end = None #TODO:
 
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
