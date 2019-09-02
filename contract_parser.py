@@ -34,7 +34,8 @@ class ContractDocument3(LegalDocument):
   def get_tags(self) -> [SemanticTag]:
     tags = []
     tags += self.agents_tags
-    tags.append(self.subjects)
+    if self.subjects:
+      tags.append(self.subjects)
     for contract_value in self.contract_values:
       tags += contract_value.as_asrray()
 
@@ -264,11 +265,14 @@ class ContractAnlysingContext(ParsingContext):
         max_subject_kind = subject_kind
         max_paragraph_span = paragraph_span
 
-    result = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
-    result.confidence = max_confidence * denominator
-    result.offset(section.start)
+    if max_subject_kind:
+      result = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
+      result.confidence = max_confidence * denominator
+      result.offset(section.start)
 
-    return result
+      return result
+    else :
+      return None
 
   def find_contract_value_NEW(self, contract: ContractDocument) -> List[ValueSemanticTags]:
     # preconditions
