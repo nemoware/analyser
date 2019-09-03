@@ -34,10 +34,13 @@ class ContractDocument3(LegalDocument):
   def get_tags(self) -> [SemanticTag]:
     tags = []
     tags += self.agents_tags
+
     if self.subjects:
       tags.append(self.subjects)
-    for contract_value in self.contract_values:
-      tags += contract_value.as_asrray()
+
+    if self.contract_values:
+      for contract_value in self.contract_values:
+        tags += contract_value.as_asrray()
 
     return tags
 
