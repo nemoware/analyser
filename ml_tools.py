@@ -3,6 +3,7 @@ from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
 
+from documents import TextMap
 from text_tools import Tokens
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
@@ -356,6 +357,8 @@ class SemanticTag:
   def __init__(self, kind, value, span: (int, int), span_map='$words'):
     self.kind = kind
     self.value = value
+    '''name of the parent (or group) tag '''
+    self.parent: str = None
     if span:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
     else:
@@ -370,8 +373,8 @@ class SemanticTag:
   def __str__(self):
     return f'SemanticTag: {self.kind} {self.span} {self.value} {self.display_value}  {self.confidence}'
 
-
-
+  def quote(self, tm: TextMap):
+    return tm.text_range(self.span)
 
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
@@ -389,16 +392,18 @@ def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
 
   return confidence, sum_, nonzeros_count, _max
 
+
 def estimate_confidence_by_mean_top_non_zeros(x: FixedVector, head_size: int = 10) -> float:
   top10 = sorted(x)[-head_size:]
 
   nonzeros_count = len(np.nonzero(top10)[0])
-  sum_=sum(top10)
+  sum_ = sum(top10)
   confidence = 0
 
   if nonzeros_count > 0:
     confidence = sum_ / nonzeros_count
   return confidence
+
 
 def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> float:
   """

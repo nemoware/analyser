@@ -39,7 +39,7 @@ class TestContractParser(unittest.TestCase):
     return doc, factory, ctx
 
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
-    print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]")
+    print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]", tag.parent)
 
   def test_find_contract_value(self):
     doc, factory = self.get_doc()

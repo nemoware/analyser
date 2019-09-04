@@ -240,7 +240,13 @@ class ContractAnlysingContext(ParsingContext):
       par = section.tokens_map.sentence_at_index(i)
       paragraph_len = par[1] - par[0]
       if paragraph_len:
-        paragraph_attention_vector[par[0]: par[1]] += attention_vector[i] + attention_vector[i] / paragraph_len
+        # TODO: Next line is weird
+
+        # Calculate density of the matches per paragraph:
+        density = attention_vector[i] / paragraph_len
+        # TODO: add bayesian
+        paragraph_attention_vector[par[0]: par[1]] += attention_vector[i] + density
+
         if paragraph_attention_vector[par[0]] > paragraph_attention_vector[top_index]:
           top_index = par[0]
 
@@ -262,6 +268,7 @@ class ContractAnlysingContext(ParsingContext):
                                                                                    all_subjects_mean)
 
       paragraph_span, confidence = self._find_most_relevant_paragraph(section, subject_attention_vector)
+      # TODO: the returned value is not "confidence", it's just a sum
 
       if confidence > max_confidence:
         max_confidence = confidence
@@ -274,7 +281,7 @@ class ContractAnlysingContext(ParsingContext):
       result.offset(section.start)
 
       return result
-    else :
+    else:
       return None
 
   def find_contract_value_NEW(self, contract: ContractDocument) -> List[ValueSemanticTags]:
@@ -301,10 +308,14 @@ class ContractAnlysingContext(ParsingContext):
         if not result:
           self.warning(f'В разделе "{_section_name}" стоимость сделки не найдена!')
         else:
+          cnt = 0
           for _r in result:
             # decrease confidence:
             _r.mult_confidence(confidence_k)
             _r.offset_spans(value_section.start)
+            # assign group names
+            cnt += 1
+            _r.group_name = f'sign_value_currency-{cnt}'
 
           return result
 

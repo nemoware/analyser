@@ -97,7 +97,7 @@ class LegalDocument:
 
     # subdocs
     self.start = 0
-    self.end = None #TODO:
+    self.end = None  # TODO:
 
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
@@ -352,7 +352,7 @@ class LegalDocument:
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
-  def find_sentences_by_attention_vector(self, attention: FixedVector ) -> List[SemanticTag]:
+  def find_sentences_by_attention_vector(self, attention: FixedVector) -> List[SemanticTag]:
     # results: PatternSearchResults = []
     #
     # for i in np.nonzero(attention)[0]:
@@ -381,7 +381,6 @@ class LegalDocument:
     # return results
     XXX
     pass
-
 
   def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
 
@@ -942,13 +941,26 @@ class ValueSemanticTags:
     self.sign: SemanticTag = sign
     self.currency: SemanticTag = currency
 
+    self._group_name = ''
+
   def mult_confidence(self, confidence_k):
     self.value.confidence *= confidence_k
     self.sign.confidence *= confidence_k
     self.currency.confidence *= confidence_k
 
+  def set_group_name(self, name):
+    self._group_name = name
+    self.value.parent = self._group_name
+    self.sign.parent = self._group_name
+    self.currency.parent = self._group_name
+
+  def get_group_name(self):
+    return self._group_name
+
+  group_name = property(get_group_name, set_group_name)
+
   def as_asrray(self):
-    return [ self.sign, self.value,  self.currency ]
+    return [self.sign, self.value, self.currency]
 
   def offset_spans(self, offset):
     self.value.offset(offset)
