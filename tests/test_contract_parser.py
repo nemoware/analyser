@@ -55,13 +55,19 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual(1, len(values))
     v = values[0]
 
-    self.print_semantic_tag(v.sign, doc.tokens_map)
-    self.print_semantic_tag(v.value, doc.tokens_map)
-    self.print_semantic_tag(v.currency, doc.tokens_map)
+    value = SemanticTag.find_by_kind(v, 'value')
+    sign = SemanticTag.find_by_kind(v, 'sign')
+    currency = SemanticTag.find_by_kind(v, 'currency')
 
-    self.assertEqual(80000, v.value.value)
-    self.assertEqual('RUB', v.currency.value)
-    self.assertEqual(0, v.sign.value)
+
+    self.print_semantic_tag(sign, doc.tokens_map)
+    self.print_semantic_tag(value, doc.tokens_map)
+    self.print_semantic_tag(currency, doc.tokens_map)
+
+    self.assertEqual(0, sign.value)
+    self.assertEqual(80000, value.value)
+    self.assertEqual('RUB', currency.value)
+
 
   def test_find_contract_subject(self):
     warnings.warn("use find_contract_subject_region", DeprecationWarning)

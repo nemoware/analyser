@@ -1,6 +1,6 @@
 from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
-from legal_docs import LegalDocument, HeadlineMeta, extract_sum_sign_currency, ValueSemanticTags
+from legal_docs import LegalDocument, HeadlineMeta, extract_sum_sign_currency
 from ml_tools import *
 
 from parsing import ParsingConfig, ParsingContext
@@ -27,7 +27,7 @@ class ContractDocument3(LegalDocument):
     LegalDocument.__init__(self, original_text)
 
     self.subjects = None
-    self.contract_values: List[ValueSemanticTags] = []
+    self.contract_values: List[List[SemanticTag]] = []
 
     self.agents_tags = None
 
@@ -40,7 +40,7 @@ class ContractDocument3(LegalDocument):
 
     if self.contract_values:
       for contract_value in self.contract_values:
-        tags += contract_value.as_asrray()
+        tags += contract_value
 
     return tags
 
@@ -276,15 +276,14 @@ class ContractAnlysingContext(ParsingContext):
         max_paragraph_span = paragraph_span
 
     if max_subject_kind:
-      result = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
-      result.confidence = max_confidence * denominator
-      result.offset(section.start)
+      subject_tag = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
+      subject_tag.confidence = max_confidence * denominator
+      subject_tag.offset(section.start)
 
-      return result
-    else:
-      return None
+      return subject_tag
 
-  def find_contract_value_NEW(self, contract: ContractDocument) -> List[ValueSemanticTags]:
+
+  def find_contract_value_NEW(self, contract: ContractDocument) -> List[List[SemanticTag]]:
     # preconditions
     assert contract.sections is not None
 
@@ -304,20 +303,17 @@ class ContractAnlysingContext(ParsingContext):
         if self.verbosity_level > 1:
           self._logstep(f'searching for transaction values in section ["{section}"] "{_section_name}"')
 
-        result: List[ValueSemanticTags] = find_value_sign_currency(value_section, self.pattern_factory)
-        if not result:
+        groups: List[List[SemanticTag]] = find_value_sign_currency(value_section, self.pattern_factory)
+        if not groups:
           self.warning(f'В разделе "{_section_name}" стоимость сделки не найдена!')
         else:
-          cnt = 0
-          for _r in result:
-            # decrease confidence:
-            _r.mult_confidence(confidence_k)
-            _r.offset_spans(value_section.start)
-            # assign group names
-            cnt += 1
-            _r.group_name = f'sign_value_currency-{cnt}'
+          for g in groups:
+            for _r in g:
+              # decrease confidence:
+              _r.confidence *= confidence_k
+              _r.offset(value_section.start)
 
-          return result
+          return groups
 
       else:
         self.warning('Раздел про стоимость сделки не найден!')
@@ -406,17 +402,18 @@ class ContractAnlysingContext(ParsingContext):
     return result
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory) -> List[
-  ValueSemanticTags]:
+def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory=None) -> List[
+  List[SemanticTag]]:
   ''' merge dictionaries of attention vectors '''
 
-  value_section_subdoc.calculate_distances_per_pattern(factory)
-  vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
-  value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
+  if factory:
+    value_section_subdoc.calculate_distances_per_pattern(factory)
+    vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
+    value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
-  v = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
+    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
 
-  # TODO: apply confidence to semantic tags
+    # TODO: apply confidence to semantic tags
 
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = [extract_sum_sign_currency(value_section_subdoc, span) for span in spans]
@@ -442,7 +439,7 @@ def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, fact
   return values
 
 
-def find_all_value_sign_currency(doc: LegalDocument) -> List:
+def find_all_value_sign_currency(doc: LegalDocument) -> List[List[SemanticTag]]:
   warnings.warn("use find_value_sign_currency ", DeprecationWarning)
   """
   TODO: rename

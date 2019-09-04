@@ -1,9 +1,10 @@
-from text_tools import untokenize, replace_tokens, tokenize_text, Tokens
+from text_tools import untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
 
 import warnings
 import os, pickle
+from text_tools import Tokens, my_punctuation
 
 
 class TextMap:
@@ -262,8 +263,6 @@ class MarkedDoc(TokenizedText):
 
 
 # ---------------------------------------------------
-
-from text_tools import Tokens, my_punctuation
 
 
 class GTokenizer:

@@ -224,7 +224,6 @@ class LegalDocument:
 
     return subdoc
 
-  @deprecated
   def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
                                             threshold):
     warnings.warn("deprecated", DeprecationWarning)
@@ -320,6 +319,13 @@ class LegalDocument:
 
     sub.name = f'{self.name}.{name}'
     return sub
+
+  def __getitem__(self, key):
+    if isinstance(key, slice):
+      # Get the start, stop, and step from the slice
+      return self.subdoc_slice(key)
+    else:
+      raise TypeError("Invalid argument type.")
 
   @deprecated
   def subdoc(self, start, end):
@@ -935,42 +941,11 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
 find_value_sign = detect_sign_2
 
 
-class ValueSemanticTags:
-  def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag):
-    self.value: SemanticTag = value
-    self.sign: SemanticTag = sign
-    self.currency: SemanticTag = currency
-
-    self._group_name = ''
-
-  def mult_confidence(self, confidence_k):
-    self.value.confidence *= confidence_k
-    self.sign.confidence *= confidence_k
-    self.currency.confidence *= confidence_k
-
-  def set_group_name(self, name):
-    self._group_name = name
-    self.value.parent = self._group_name
-    self.sign.parent = self._group_name
-    self.currency.parent = self._group_name
-
-  def get_group_name(self):
-    return self._group_name
-
-  group_name = property(get_group_name, set_group_name)
-
-  def as_asrray(self):
-    return [self.sign, self.value, self.currency]
-
-  def offset_spans(self, offset):
-    self.value.offset(offset)
-    self.sign.offset(offset)
-    self.currency.offset(offset)
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ValueSemanticTags:
-  _s = slice(-VALUE_SIGN_MIN_TOKENS + region[0], region[1])
-  subdoc: LegalDocument = doc.subdoc_slice(_s)
+
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[SemanticTag]:
+  subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
 
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
@@ -978,13 +953,20 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ValueSe
   value, currency = extract_sum(subdoc.text)
   # ======================================
 
+  parent = f'sign-value-currency-{region[0]}:{region[1]}'
+  group = SemanticTag(parent, None, region)
+
   sign = SemanticTag('sign', _sign, _sign_span)
+  sign.parent = parent
+  sign.offset(subdoc.start)  # TODO why only sign is offseted?
+
   sum = SemanticTag('value', value, region)
+  sum.parent = parent
+
   currency = SemanticTag('currency', currency, region)
+  currency.parent = parent
 
-  sign.offset(subdoc.start)
-
-  return ValueSemanticTags(sign, sum, currency)
+  return [sign, sum, currency, group]
 
 
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:

@@ -9,9 +9,10 @@ from typing import List
 import nltk
 import numpy as np
 
-from contract_parser import ContractDocument, find_all_value_sign_currency
+from contract_parser import ContractDocument, find_value_sign_currency
 from documents import TextMap
 from legal_docs import find_value_sign
+from ml_tools import SemanticTag
 from text_normalize import *
 from transaction_values import extract_sum, split_by_number_2
 
@@ -66,7 +67,7 @@ data = [
   (1, 25000000.0, 'USD', 'в размере более 25 млн . долларов сша'),
   (0, 25000000.0, 'USD', 'эквивалентной 25 миллионам долларов сша'),
   # (0, 80000,'RUB', 'Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,'),#TODO
-  (0, 80000,'RUB', 'Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,'),#TODO
+  (0, 80000, 'RUB', 'Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,'),  # TODO
 
   (1, 1000000.0, 'RUB',
    'взаимосвязанных сделок в совокупности составляет от 1000000( одного ) миллиона рублей  '),  # до 50000000
@@ -134,13 +135,14 @@ class PriceExtractTestCase(unittest.TestCase):
     doc.parse()
     print(doc.normal_text)
     # =========================================
-    r = find_all_value_sign_currency(doc)
+    r = find_value_sign_currency(doc)
     # =========================================
 
     # sum, sign, currency = r[0]
-    sum = r[0].value
-    sign = r[0].sign
-    currency = r[0].currency
+
+    value = SemanticTag.find_by_kind(r[0], 'value')
+    sign = SemanticTag.find_by_kind(r[0], 'sign')
+    currency = SemanticTag.find_by_kind(r[0], 'currency')
 
     # for sum, sign, currency in r:
 
@@ -148,11 +150,11 @@ class PriceExtractTestCase(unittest.TestCase):
 
     self.assertEqual('USD', currency.value)
     self.assertEqual(1, sign.value)
-    self.assertEqual(2000000, sum.value)
+    self.assertEqual(2000000, value.value)
 
     self.assertEqual('превышающую', doc.tokens_map_norm.text_range(sign.span))
     self.assertEqual('2000000 ( два миллиона ) долларов',
-                     doc.tokens_map_norm.text_range(sum.span))  # TODO:  keep 2000000
+                     doc.tokens_map_norm.text_range(value.span))  # TODO:  keep 2000000
     self.assertEqual('2000000 ( два миллиона ) долларов', doc.tokens_map_norm.text_range(currency.span))  # TODO: keep
 
   def test_find_all_value_sign_currency_d(self):
@@ -160,32 +162,30 @@ class PriceExtractTestCase(unittest.TestCase):
 
     doc = ContractDocument(text)
     doc.parse()
-    r: List = find_all_value_sign_currency(doc)
-    if r:
-      # sum, sign, currency = r[0]
+    r: List = find_value_sign_currency(doc)
 
-      sum = r[0].value
-      sign = r[0].sign
-      currency = r[0].currency
+    value = SemanticTag.find_by_kind(r[0], 'value')
+    sign = SemanticTag.find_by_kind(r[0], 'sign')
+    currency = SemanticTag.find_by_kind(r[0], 'currency')
 
-      print(doc.tokens_map_norm.text_range(sum.span))
-      self.assertEqual(price, sum.value, text)
-      self.assertEqual(currency_exp, currency.value)
-      print(f'{sum}, {sign}, {currency}')
+    print(doc.tokens_map_norm.text_range(value.span))
+    self.assertEqual(price, value.value, text)
+    self.assertEqual(currency_exp, currency.value)
+    print(f'{value}, {sign}, {currency}')
 
   def test_find_all_value_sign_currency_a(self):
     for (sign_exp, price, currency_exp, text) in data:
       doc = ContractDocument(text)
       doc.parse()
-      r: List = find_all_value_sign_currency(doc)
+      r: List = find_value_sign_currency(doc)
       if r:
         # sum, sign, currency = r[0]
-        sum = r[0].value
-        sign = r[0].sign
-        currency = r[0].currency
+        value = SemanticTag.find_by_kind(r[0], 'value')
+        sign = SemanticTag.find_by_kind(r[0], 'sign')
+        currency = SemanticTag.find_by_kind(r[0], 'currency')
 
-        print(doc.tokens_map_norm.text_range(sum.span))
-        self.assertEqual(price, sum.value, text)
+        print(doc.tokens_map_norm.text_range(value.span))
+        self.assertEqual(price, value.value, text)
         self.assertEqual(currency_exp, currency.value, text)
         print(f'{sum}, {sign}, {currency}')
         # dfdf

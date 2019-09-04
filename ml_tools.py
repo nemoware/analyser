@@ -367,6 +367,12 @@ class SemanticTag:
     self.confidence = 1
     self.display_value = value
 
+  @staticmethod
+  def find_by_kind(list: List['SemanticTag'], kind: str) -> 'SemanticTag':
+    for s in list:
+      if s.kind == kind:
+        return s
+
   def offset(self, span_add: int):
     self.span = self.span[0] + span_add, self.span[1] + span_add
 
