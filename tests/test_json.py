@@ -3,17 +3,17 @@
 # coding=utf-8
 
 
+import json
 import pickle
 import unittest
-import warnings
 
 from contract_parser import ContractAnlysingContext, ContractDocument
 from contract_patterns import ContractPatternFactory
 from documents import TextMap
-from legal_docs import LegalDocument, DocumentJson
+from legal_docs import DocumentJson
 from ml_tools import SemanticTag
 
-import json
+
 class TestContractParser(unittest.TestCase):
 
   def _get_doc(self) -> (ContractDocument, ContractPatternFactory):
@@ -29,7 +29,6 @@ class TestContractParser(unittest.TestCase):
     return doc, factory
 
   def _get_doc_factory_ctx(self):
-
     doc, factory = self._get_doc()
 
     ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
@@ -41,15 +40,29 @@ class TestContractParser(unittest.TestCase):
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
     print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]")
 
+  def test_analyze_contract_doc(self):
+    doc, factory, ctx = self._get_doc_factory_ctx()
 
+    ctx.analyze_contract_doc(doc)
+    tags: [SemanticTag] = doc.get_tags()
+
+    _tag = SemanticTag.find_by_kind(tags, 'value')
+    quote = doc.tokens_map.text_range(_tag.span)
+    self.assertEqual('80000,00', quote)
+
+    _tag = SemanticTag.find_by_kind(tags, 'currency')
+    quote = doc.tokens_map.text_range(_tag.span)
+    self.assertEqual('рублей', quote)
 
   def test_to_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
 
     ctx.analyze_contract_doc(doc)
     json_struct = DocumentJson(doc)
+
     _j = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
     print(_j)
     # TODO: compare with file
+
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

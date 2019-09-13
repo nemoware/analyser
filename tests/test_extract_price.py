@@ -153,9 +153,9 @@ class PriceExtractTestCase(unittest.TestCase):
     self.assertEqual(2000000, value.value)
 
     self.assertEqual('превышающую', doc.tokens_map_norm.text_range(sign.span))
-    self.assertEqual('2000000 ( два миллиона ) долларов',
+    self.assertEqual('2000000',
                      doc.tokens_map_norm.text_range(value.span))  # TODO:  keep 2000000
-    self.assertEqual('2000000 ( два миллиона ) долларов', doc.tokens_map_norm.text_range(currency.span))  # TODO: keep
+    self.assertEqual('долларов', doc.tokens_map_norm.text_range(currency.span))  # TODO: keep
 
   def test_find_all_value_sign_currency_d(self):
     sign_exp, price, currency_exp, text = (0, 1000000.0, 'EURO', 'стоимость покупки: 1 000 000 евро ')

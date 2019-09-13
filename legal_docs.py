@@ -19,7 +19,7 @@ from structures import ORG_2_ORG
 from text_normalize import *
 from text_tools import *
 from transaction_values import complete_re, extract_sum_from_tokens, ValueConstraint, \
-  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, extract_sum
+  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, find_value_spans
 
 REPORTED_DEPRECATED = {}
 
@@ -359,7 +359,6 @@ class LegalDocument:
   def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
 
     """
-
     :param factory:
     :param pattern_prefix:
     :return:
@@ -502,7 +501,6 @@ class DocumentJson:
     for hi in doc.structure.headline_indexes:
       s = doc.structure.structure[hi]
       _t = SemanticTag('headline', doc.tokens_map.text_range(s.span), s.span)
-
       _tags.append(_t)
 
     _tags += doc.get_tags()
@@ -887,21 +885,26 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
   # ======================================
-  value, currency = extract_sum(subdoc.text)
+  value_char_span, value, currency_char_span, currency = find_value_spans(subdoc.text)
   # ======================================
+
+  value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
+  currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
   parent = f'sign-value-currency-{region[0]}:{region[1]}'
   group = SemanticTag(parent, None, region)
 
   sign = SemanticTag('sign', _sign, _sign_span)
   sign.parent = parent
-  sign.offset(subdoc.start)  # TODO why only sign is offseted?
+  sign.offset(subdoc.start)
 
-  value_tag = SemanticTag('value', value, region)
+  value_tag = SemanticTag('value', value, value_span)
   value_tag.parent = parent
+  value_tag.offset(subdoc.start)
 
-  currency = SemanticTag('currency', currency, region)
+  currency = SemanticTag('currency', currency, currency_span)
   currency.parent = parent
+  currency.offset(subdoc.start)
 
   return [sign, value_tag, currency, group]
 

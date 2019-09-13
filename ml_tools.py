@@ -367,6 +367,9 @@ class SemanticTag:
     self.confidence = 1
     self.display_value = value
 
+  def isNotEmpty(self) -> bool:
+    return self.span is not None and self.span[0] != self.span[1]
+
   @staticmethod
   def find_by_kind(list: List['SemanticTag'], kind: str) -> 'SemanticTag':
     for s in list:

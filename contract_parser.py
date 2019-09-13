@@ -42,6 +42,7 @@ class ContractDocument3(LegalDocument):
       for contract_value in self.contract_values:
         tags += contract_value
 
+    # TODO: filter tags if _t.isNotEmpty():
     return tags
 
   def parse(self, txt=None):
@@ -282,7 +283,6 @@ class ContractAnlysingContext(ParsingContext):
 
       return subject_tag
 
-
   def find_contract_value_NEW(self, contract: ContractDocument) -> List[List[SemanticTag]]:
     # preconditions
     assert contract.sections is not None, 'find sections first'
@@ -402,7 +402,7 @@ class ContractAnlysingContext(ParsingContext):
     return result
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory=None) -> List[
+def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
   List[SemanticTag]]:
   ''' merge dictionaries of attention vectors '''
 

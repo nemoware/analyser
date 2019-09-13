@@ -94,6 +94,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
       sentences.append(sentence)
     return sentences
 
+
 def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
   ProbableValue]:
   warnings.warn("deprecated", DeprecationWarning)

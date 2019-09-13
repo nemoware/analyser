@@ -43,7 +43,7 @@ complete_re = re.compile(
   r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
   r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
   r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
-  r'?(?P<currency>(руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
+  r'?((?P<currency>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
   r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
   r'(\s*(?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',  # cents
   re.MULTILINE | re.IGNORECASE
