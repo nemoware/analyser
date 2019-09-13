@@ -960,13 +960,13 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
   sign.parent = parent
   sign.offset(subdoc.start)  # TODO why only sign is offseted?
 
-  sum = SemanticTag('value', value, region)
-  sum.parent = parent
+  value_tag = SemanticTag('value', value, region)
+  value_tag.parent = parent
 
   currency = SemanticTag('currency', currency, region)
   currency.parent = parent
 
-  return [sign, sum, currency, group]
+  return [sign, value_tag, currency, group]
 
 
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:

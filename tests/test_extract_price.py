@@ -181,13 +181,15 @@ class PriceExtractTestCase(unittest.TestCase):
       if r:
         # sum, sign, currency = r[0]
         value = SemanticTag.find_by_kind(r[0], 'value')
+        # print(value)
         sign = SemanticTag.find_by_kind(r[0], 'sign')
         currency = SemanticTag.find_by_kind(r[0], 'currency')
 
         print(doc.tokens_map_norm.text_range(value.span))
         self.assertEqual(price, value.value, text)
         self.assertEqual(currency_exp, currency.value, text)
-        print(f'{sum}, {sign}, {currency}')
+        print(value.value)
+        print(f'{value}, {sign}, {currency}')
         # dfdf
 
   def test_extract(self):

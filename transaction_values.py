@@ -39,17 +39,18 @@ class ValueConstraint:
 
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
-  r'(\d+([., ]\d+)*)'  # digits
+  r'(?P<digits>\d+([., ]\d+)*)'  # digits #0
   r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
-  r'(\s*(тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
+  r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
   r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
-  r'((руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency
+  r'?(?P<currency>(руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
   r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
-  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',  # cents
+  r'(\s*(?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',  # cents
   re.MULTILINE | re.IGNORECASE
 )
 
 
+# for r in re.finditer(complete_re, text):
 def extract_sum(sentence: str) -> (float, str):
   r = complete_re.search(sentence)
 
@@ -214,7 +215,54 @@ def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
   return vc
 
 
+
+def find_value_spans(sentence: str) -> (float, str):
+  for match in re.finditer(complete_re, sentence):
+
+    # NUMBER
+    number_span = match.span('digits')
+
+    number = to_float(sentence[number_span[0]:number_span[1]])
+
+    # NUMBER MULTIPLIER
+    qualifier_span = match.span('qualifier')
+    qualifier = sentence[qualifier_span[0]:qualifier_span[1]]
+    if qualifier:
+      if qualifier.startswith('тыс'):
+        number *= 1000
+      else:
+        if qualifier.startswith('м'):
+          number *= 1000000
+
+    # FRACTION (CENTS, KOPs)
+    cents_span = match.span('cents')
+    r_cents = sentence[cents_span[0]:cents_span[1]]
+    if r_cents:
+      frac, whole = math.modf(number)
+      if frac == 0:
+        number += to_float(r_cents) / 100.
+
+    # CURRENCY
+    currency_span = match.span('currency')
+    currency = sentence[currency_span[0]:currency_span[1]]
+    curr = currency[0:3]
+    currencly_name = currencly_map[curr.lower()]
+
+    #TODO: include fration span to the return value
+    ret = (number_span, number, currency_span, currencly_name)
+
+    return ret
+
+
+
+
 if __name__ == '__main__':
+  ex = "составит - не более 1661 293,757 тыс. рублей  25 копеек ( с учетом ндс ) ( 0,93 % балансовой стоимости активов)"
+  val = find_value_spans(ex)
+  print('extract_sum', extract_sum(ex))
+  print('val', val)
+
+if __name__ == '__main__X':
   ex = """
   одобрение заключения , изменения или расторжения какой-либо сделки общества , не указанной прямо в пункте 17.1 устава или настоящем пункте 22.5 ( за исключением крупной сделки в определении действующего законодательства российской федерации , которая подлежит одобрению общим собранием участников в соответствии с настоящим уставом или действующим законодательством российской федерации ) , если предметом такой сделки ( а ) является деятельность , покрываемая в долгосрочном плане , и сделка имеет стоимость , равную или превышающую 5000000 ( пять миллионов ) долларов сша , либо ( b ) является деятельность , не покрываемая в долгосрочном плане , и сделка имеет стоимость , равную или превышающую 500000 ( пятьсот тысяч ) долларов сша ;
   """

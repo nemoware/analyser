@@ -70,12 +70,13 @@ def make_rnanom_name(lenn) -> str:
 #   return txt_a, _find_org_names(txt_a)
 
 def _find_org_names(text: str) -> List[Dict]:
-  def _clean(x):
+  def _clean_org_name(x:str)->str :
     if x is None:
       return x
     return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()
 
   def _to_dict(m: Match[AnyStr]):
+    warnings.warn("make semantic tags", DeprecationWarning)
     d = {}
     for entity_type in entities_types:
       d[entity_type] = (m[entity_type], m.span(entity_type))
@@ -87,7 +88,7 @@ def _find_org_names(text: str) -> List[Dict]:
     org = _to_dict(r)
 
     # filter similar out
-    _name = _clean(org['name'][0])
+    _name = _clean_org_name(org['name'][0])
     if _name not in org_names:
       org_names[_name] = org
 

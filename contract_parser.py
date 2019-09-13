@@ -285,7 +285,7 @@ class ContractAnlysingContext(ParsingContext):
 
   def find_contract_value_NEW(self, contract: ContractDocument) -> List[List[SemanticTag]]:
     # preconditions
-    assert contract.sections is not None
+    assert contract.sections is not None, 'find sections first'
 
     search_sections_order = [
       ['price.', 1], ['subj', 0.75], ['pricecond', 0.75], [None, 0.5]  # todo: check 'price', not 'price.'
