@@ -885,28 +885,32 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
   # ======================================
-  value_char_span, value, currency_char_span, currency = find_value_spans(subdoc.text)
+  results = find_value_spans(subdoc.text)
   # ======================================
 
-  value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
-  currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
+  if results:
+    value_char_span, value, currency_char_span, currency=results
+    value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
+    currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
-  parent = f'sign-value-currency-{region[0]}:{region[1]}'
-  group = SemanticTag(parent, None, region)
+    parent = f'sign-value-currency-{region[0]}:{region[1]}'
+    group = SemanticTag(parent, None, region)
 
-  sign = SemanticTag('sign', _sign, _sign_span)
-  sign.parent = parent
-  sign.offset(subdoc.start)
+    sign = SemanticTag('sign', _sign, _sign_span)
+    sign.parent = parent
+    sign.offset(subdoc.start)
 
-  value_tag = SemanticTag('value', value, value_span)
-  value_tag.parent = parent
-  value_tag.offset(subdoc.start)
+    value_tag = SemanticTag('value', value, value_span)
+    value_tag.parent = parent
+    value_tag.offset(subdoc.start)
 
-  currency = SemanticTag('currency', currency, currency_span)
-  currency.parent = parent
-  currency.offset(subdoc.start)
+    currency = SemanticTag('currency', currency, currency_span)
+    currency.parent = parent
+    currency.offset(subdoc.start)
 
-  return [sign, value_tag, currency, group]
+    return [sign, value_tag, currency, group]
+  else:
+    return []
 
 
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
