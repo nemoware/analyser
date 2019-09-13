@@ -51,8 +51,9 @@ complete_re = re.compile(
 
 
 # for r in re.finditer(complete_re, text):
-def extract_sum(sentence: str) -> (float, str):
-  r = complete_re.search(sentence)
+def extract_sum(_sentence: str) -> (float, str):
+  warnings.warn("use find_value_spans", DeprecationWarning)
+  r = complete_re.search(_sentence)
 
   if r is None:
     return None, None
@@ -79,9 +80,9 @@ def extract_sum(sentence: str) -> (float, str):
 
 def extract_sum_from_tokens(sentence_tokens: Tokens):
   warnings.warn("method relies on untokenize, not good", DeprecationWarning)
-  sentence = untokenize(sentence_tokens).lower().strip()
-  f = extract_sum(sentence)
-  return f, sentence
+  _sentence = untokenize(sentence_tokens).lower().strip()
+  f = extract_sum(_sentence)
+  return f, _sentence
 
 
 def extract_sum_from_tokens_2(sentence_tokens: Tokens):
@@ -170,29 +171,10 @@ def split_by_number(tokens: List[str], attention: List[float], threshold):
 VALUE_SIGN_MIN_TOKENS = 4
 
 
-def extract_sum_and_sign(subdoc, region) -> ValueConstraint:
-  subtokens = subdoc.tokens_cc[region[0] - VALUE_SIGN_MIN_TOKENS:region[1]]
-  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
-  _sign = detect_sign(_prefix)
-  # ======================================
-  _sum = extract_sum_from_tokens(subtokens)[0]
-  # ======================================
-
-  currency = "UNDEF"
-  value = np.nan
-  if _sum is not None:
-    currency = _sum[1]
-    if _sum[1] in currencly_map:
-      currency = currencly_map[_sum[1]]
-    value = _sum[0]
-
-  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([''], [0]))
-
-  return vc
-
-
 def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
+  warnings.warn("deprecated", DeprecationWarning)
+  # TODO: rename
+
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = subdoc.tokens_cc[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
@@ -215,18 +197,17 @@ def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
   return vc
 
 
-
-def find_value_spans(sentence: str) -> (float, str):
-  for match in re.finditer(complete_re, sentence):
+def find_value_spans(_sentence: str) -> (List[int], float, List[int], str):
+  for match in re.finditer(complete_re, _sentence):
 
     # NUMBER
     number_span = match.span('digits')
 
-    number = to_float(sentence[number_span[0]:number_span[1]])
+    number = to_float(_sentence[number_span[0]:number_span[1]])
 
     # NUMBER MULTIPLIER
     qualifier_span = match.span('qualifier')
-    qualifier = sentence[qualifier_span[0]:qualifier_span[1]]
+    qualifier = _sentence[qualifier_span[0]:qualifier_span[1]]
     if qualifier:
       if qualifier.startswith('тыс'):
         number *= 1000
@@ -236,7 +217,7 @@ def find_value_spans(sentence: str) -> (float, str):
 
     # FRACTION (CENTS, KOPs)
     cents_span = match.span('cents')
-    r_cents = sentence[cents_span[0]:cents_span[1]]
+    r_cents = _sentence[cents_span[0]:cents_span[1]]
     if r_cents:
       frac, whole = math.modf(number)
       if frac == 0:
@@ -244,16 +225,14 @@ def find_value_spans(sentence: str) -> (float, str):
 
     # CURRENCY
     currency_span = match.span('currency')
-    currency = sentence[currency_span[0]:currency_span[1]]
+    currency = _sentence[currency_span[0]:currency_span[1]]
     curr = currency[0:3]
     currencly_name = currencly_map[curr.lower()]
 
-    #TODO: include fration span to the return value
-    ret = (number_span, number, currency_span, currencly_name)
+    # TODO: include fration span to the return value
+    ret = number_span, number, currency_span, currencly_name
 
     return ret
-
-
 
 
 if __name__ == '__main__':
@@ -300,8 +279,8 @@ if __name__ == '__main__X':
     'не было получено предварительное одобрение на такое расходование от представителей участников , уполномоченных голосовать '
     'на общем собрании участников общества ;'))
 
-  sentence = """Стоимость оборудования 80 000,00 ( восемьдесят тысяч рублей рублей 00 копеек ) рублей, НДС не облагается."""
-  print(extract_sum(sentence))
+  s_ = """Стоимость оборудования 80 000,00 ( восемьдесят тысяч рублей рублей 00 копеек ) рублей, НДС не облагается."""
+  print(extract_sum(s_))
 
-  sentence = """Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,"""
-  print(extract_sum(sentence))
+  s_ = """Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,"""
+  print(extract_sum(s_))

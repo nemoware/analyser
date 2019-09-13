@@ -1,15 +1,15 @@
 # origin: charter_parser.py
 
 from charter_patterns import make_constraints_attention_vectors
-from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, extract_all_contraints_from_sentence, \
-  extract_all_contraints_from_sr
+from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
+  extract_all_contraints_from_sr, _expand_slice
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults
 from sections_finder import SectionsFinder, FocusingSectionsFinder
 from structures import *
-from transaction_values import extract_sum, ValueConstraint
+from transaction_values import extract_sum, ValueConstraint, extract_sum_and_sign_2, split_by_number_2
 from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
@@ -76,6 +76,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
   ##---------------------------------------
   @staticmethod
   def __extract_constraint_values_from_region(sentenses_i: List[LegalDocument]):
+    warnings.warn("deprecated: this method must be rewritten completely", DeprecationWarning)
     if sentenses_i is None or len(sentenses_i) == 0:
       return []
 
@@ -92,6 +93,29 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
       sentences.append(sentence)
     return sentences
+
+def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
+  ProbableValue]:
+  warnings.warn("deprecated", DeprecationWarning)
+  tokens = sentence_subdoc.tokens
+  assert len(attention_vector) == len(tokens)
+
+  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
+
+  constraints: List[ProbableValue] = []
+  if len(indexes) > 0:
+
+    for region in ranges:
+      vc = extract_sum_and_sign_2(sentence_subdoc, region)
+
+      _e = _expand_slice(region, 10)
+      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
+      confidence = attention_vector[region.start]
+      pv = ProbableValue(vc, confidence)
+
+      constraints.append(pv)
+
+  return constraints
 
 
 """ ❤️ == GOOD CharterDocumentParser  ====================================== """

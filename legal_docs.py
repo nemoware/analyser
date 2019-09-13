@@ -12,15 +12,13 @@ from doc_structure import DocumentStructure
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag, FixedVector
+  max_exclusive_pattern, TokensWithAttention, SemanticTag
 from parsing import print_prof_data, ParsingSimpleContext
 from patterns import *
-from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
 from structures import ORG_2_ORG
 from text_normalize import *
 from text_tools import *
-from text_tools import untokenize, np
-from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2, ValueConstraint, \
+from transaction_values import complete_re, extract_sum_from_tokens, ValueConstraint, \
   VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, extract_sum
 
 REPORTED_DEPRECATED = {}
@@ -357,36 +355,6 @@ class LegalDocument:
 
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
-
-  def find_sentences_by_attention_vector(self, attention: FixedVector) -> List[SemanticTag]:
-    # results: PatternSearchResults = []
-    #
-    # for i in np.nonzero(attention)[0]:
-    #   _b = self.tokens_map.sentence_at_index(i)
-    #   _slice = slice(_b[0], _b[1])
-    #
-    #   if _slice.stop != _slice.start:
-    #
-    #     sum_ = sum(attention[_slice])
-    #     #       confidence = np.mean( np.nonzero(x[sl]) )
-    #     nonzeros_count = len(np.nonzero(attention[_slice])[0])
-    #     confidence = 0
-    #
-    #     if nonzeros_count > 0:
-    #       confidence = sum_ / nonzeros_count
-    #
-    #     if confidence > 0.8:
-    #       r = SemanticTag(kind, value, span=_b)
-    #       r.confidence = confidence
-    #       r.parent = self
-    #
-    #       results.append(r)
-    #
-    # results = remove_sr_duplicates_conditionally(results)
-    #
-    # return results
-    XXX
-    pass
 
   def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
 
@@ -811,34 +779,6 @@ def _expand_slice(s: slice, exp):
   return slice(s.start - exp, s.stop + exp)
 
 
-@deprecated
-def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
-  ProbableValue]:
-  warnings.warn("deprecated", DeprecationWarning)
-  tokens = sentence_subdoc.tokens
-  assert len(attention_vector) == len(tokens)
-
-  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
-
-  constraints: List[ProbableValue] = []
-  if len(indexes) > 0:
-
-    for region in ranges:
-      vc = extract_sum_and_sign_2(sentence_subdoc, region)
-
-      _e = _expand_slice(region, 10)
-      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
-      confidence = attention_vector[region.start]
-      pv = ProbableValue(vc, confidence)
-
-      constraints.append(pv)
-
-  return constraints
-
-
-from transaction_values import complete_re
-
-
 def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[
   ProbableValue]:
   warnings.warn("use extract_all_contraints_from_sr_2", DeprecationWarning)
@@ -939,9 +879,6 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
 
 
 find_value_sign = detect_sign_2
-
-
-
 
 
 def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[SemanticTag]:
