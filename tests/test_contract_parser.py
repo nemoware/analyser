@@ -12,6 +12,7 @@ from contract_patterns import ContractPatternFactory
 from documents import TextMap
 from legal_docs import LegalDocument
 from ml_tools import SemanticTag
+from structures import ContractTags
 
 
 class TestContractParser(unittest.TestCase):
@@ -29,7 +30,6 @@ class TestContractParser(unittest.TestCase):
     return doc, factory
 
   def get_doc_factory_ctx(self):
-
     doc, factory = self.get_doc()
 
     ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
@@ -37,6 +37,20 @@ class TestContractParser(unittest.TestCase):
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
     return doc, factory, ctx
+
+  def test_contract_analyze(self):
+    doc, factory, ctx = self.get_doc_factory_ctx()
+
+    ctx.analyze_contract_doc(doc)
+    tags: [SemanticTag] = doc.get_tags()
+
+    _tag = SemanticTag.find_by_kind(tags, ContractTags.Value.display_string)
+    quote = doc.tokens_map.text_range(_tag.span)
+    self.assertEqual('80000,00', quote)
+
+    _tag = SemanticTag.find_by_kind(tags, ContractTags.Currency.display_string)
+    quote = doc.tokens_map.text_range(_tag.span)
+    self.assertEqual('рублей', quote)
 
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
     print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]", tag.parent)
@@ -55,10 +69,9 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual(1, len(values))
     v = values[0]
 
-    value = SemanticTag.find_by_kind(v, 'value')
-    sign = SemanticTag.find_by_kind(v, 'sign')
-    currency = SemanticTag.find_by_kind(v, 'currency')
-
+    value = SemanticTag.find_by_kind(v, ContractTags.Value.display_string)
+    sign = SemanticTag.find_by_kind(v, ContractTags.Sign.display_string)
+    currency = SemanticTag.find_by_kind(v, ContractTags.Currency.display_string)
 
     self.print_semantic_tag(sign, doc.tokens_map)
     self.print_semantic_tag(value, doc.tokens_map)
@@ -67,7 +80,6 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual(0, sign.value)
     self.assertEqual(80000, value.value)
     self.assertEqual('RUB', currency.value)
-
 
   def test_find_contract_subject(self):
     warnings.warn("use find_contract_subject_region", DeprecationWarning)
@@ -108,10 +120,8 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
                      doc.tokens_map.text_range(result.span).strip())
 
-
   def test_find_contract_subject_region(self):
     doc, factory, ctx = self.get_doc_factory_ctx()
-
 
     # ----------------------------------------
     result = ctx.find_contract_subject_region(doc)
@@ -120,7 +130,6 @@ class TestContractParser(unittest.TestCase):
     self.print_semantic_tag(result, doc.tokens_map)
     self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
                      doc.tokens_map.text_range(result.span).strip())
-
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

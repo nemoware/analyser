@@ -15,7 +15,7 @@ from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention, SemanticTag
 from parsing import print_prof_data, ParsingSimpleContext
 from patterns import *
-from structures import ORG_2_ORG
+from structures import ORG_2_ORG, ContractTags
 from text_normalize import *
 from text_tools import *
 from transaction_values import complete_re, extract_sum_from_tokens, ValueConstraint, \
@@ -896,15 +896,15 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
     parent = f'sign-value-currency-{region[0]}:{region[1]}'
     group = SemanticTag(parent, None, region)
 
-    sign = SemanticTag('sign', _sign, _sign_span)
+    sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
     sign.parent = parent
     sign.offset(subdoc.start)
 
-    value_tag = SemanticTag('value', value, value_span)
+    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span)
     value_tag.parent = parent
     value_tag.offset(subdoc.start)
 
-    currency = SemanticTag('currency', currency, currency_span)
+    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span)
     currency.parent = parent
     currency.offset(subdoc.start)
 

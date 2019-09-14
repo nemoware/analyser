@@ -41,6 +41,14 @@ ORG_2_ORG = {
 
 
 @unique
+class ContractTags(Enum, metaclass=DisplayStringEnumMeta):
+
+  Value = 0, 'value'
+  Currency = 1, 'currency'
+  Sign = 2, 'sign'
+
+
+@unique
 class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   '''
   TODO: rename ContractSubject->DocumentSubject, because contract subjects are only a subset of this

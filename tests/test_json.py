@@ -40,20 +40,6 @@ class TestContractParser(unittest.TestCase):
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
     print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]")
 
-  def test_analyze_contract_doc(self):
-    doc, factory, ctx = self._get_doc_factory_ctx()
-
-    ctx.analyze_contract_doc(doc)
-    tags: [SemanticTag] = doc.get_tags()
-
-    _tag = SemanticTag.find_by_kind(tags, 'value')
-    quote = doc.tokens_map.text_range(_tag.span)
-    self.assertEqual('80000,00', quote)
-
-    _tag = SemanticTag.find_by_kind(tags, 'currency')
-    quote = doc.tokens_map.text_range(_tag.span)
-    self.assertEqual('рублей', quote)
-
   def test_to_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
 
