@@ -1,6 +1,9 @@
 
 venv/
 .idea/
-tests/nltk_data*
+tests/libs/**/
+tests/nltk_data_download/**/
 tests/~
 *.pyc
+
+nltk_data_download/tokenizers/punkt/
