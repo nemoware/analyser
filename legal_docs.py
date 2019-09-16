@@ -8,12 +8,11 @@ import json
 import time
 from functools import wraps
 
-from doc_structure import DocumentStructure
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention, SemanticTag
-from parsing import print_prof_data, ParsingSimpleContext
+from parsing import print_prof_data
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
 from text_normalize import *
@@ -74,6 +73,12 @@ def deprecated(fn):
   return with_reporting
 
 
+class Paragraph:
+  def __init__(self, header: SemanticTag, body: SemanticTag):
+    self.body: SemanticTag = body
+    self.header: SemanticTag = header
+
+
 class LegalDocument:
 
   def __init__(self, original_text=None, name="legal_doc"):
@@ -90,7 +95,8 @@ class LegalDocument:
     self.tokens_map: TextMap = None
     self.tokens_map_norm: TextMap = None
 
-    self.sections = None
+    self.sections = None  # TODO:deprecated
+    self.paragraphs: List[Paragraph] = []
     self.name = name
 
     # subdocs
@@ -112,6 +118,7 @@ class LegalDocument:
 
     self.sections = None
 
+    self.paragraphs += suffix.paragraphs
     # subdocs
     self.end = suffix.end
     self.embeddings = None
@@ -157,139 +164,10 @@ class LegalDocument:
     _case_normalizer = CaseNormalizer()
     self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
 
-    self.structure = DocumentStructure()
-    self.structure.detect_document_structure(self.tokens_map)
-
-
   def preprocess_text(self, txt):
     if txt is None:
       txt = self.original_text
     return normalize_text(txt, replacements_regex)
-
-  def find_sections_by_headlines_2(self, context: ParsingSimpleContext, head_types_list,
-                                   embedded_headlines: List['LegalDocument'], pattern_prefix,
-                                   threshold) -> dict:
-    warnings.warn("deprecated", DeprecationWarning)
-    hl_meta_by_index = {}
-    sections = {}
-
-    for head_type in head_types_list:
-
-      confidence_by_headline = self._find_best_headline_by_pattern_prefix_2(embedded_headlines,
-                                                                            pattern_prefix + head_type)
-      closest_headline_index = int(np.argmax(confidence_by_headline))
-
-      if confidence_by_headline[closest_headline_index] > threshold:
-
-        obj = HeadlineMeta(closest_headline_index,
-                           head_type,
-                           confidence=confidence_by_headline[closest_headline_index],
-                           subdoc=embedded_headlines[closest_headline_index])
-
-        if closest_headline_index in hl_meta_by_index:
-          # replace
-          e_obj = hl_meta_by_index[closest_headline_index]
-          if e_obj.confidence < obj.confidence:
-            # replace
-            hl_meta_by_index[closest_headline_index] = obj
-        else:
-          hl_meta_by_index[closest_headline_index] = obj
-
-
-      else:
-        context.warning(f'Cannot find headline matching pattern "{pattern_prefix + head_type}"*')
-
-    for hl in hl_meta_by_index.values():
-      try:
-        hl.body = self._doc_section_under_headline(hl, render=False)
-        sections[hl.type] = hl
-
-      except ValueError as error:
-        context.warning(str(error))
-        # print(error)
-
-    return sections
-
-  def _doc_section_under_headline(self, headline_info: HeadlineMeta, render=False):
-    warnings.warn("deprecated", DeprecationWarning)
-
-    bi_next = headline_info.index + 1
-
-    headline_indexes = self.structure.headline_indexes
-
-    headline_index = self.structure.headline_indexes[headline_info.index]
-    if bi_next < len(headline_indexes):
-      headline_next_id = headline_indexes[headline_info.index + 1]
-    else:
-      headline_next_id = None
-
-    subdoc = subdoc_between_lines(headline_index, headline_next_id, self)
-
-    if len(subdoc.tokens) < 2:
-      raise ValueError(
-        'Empty "{}" section between detected headlines #{} and #{}'.format(headline_info.type, headline_index,
-                                                                           headline_next_id))
-
-
-
-    return subdoc
-
-  def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
-                                            threshold):
-    warnings.warn("deprecated", DeprecationWarning)
-
-    import math
-
-    number_of_headlines = len(embedded_headlines)
-    confidence_by_headline = np.zeros(number_of_headlines)
-
-    attention_vectors_by_headline = {}
-
-    for i in range(number_of_headlines):
-      subdoc = embedded_headlines[i]
-
-      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
-                                                             relu_th=0.6)
-      headline_name_av = smooth_safe(headline_name_av, 4)
-
-      _max_id = np.argmax(headline_name_av)
-      _max = np.max(headline_name_av)
-      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
-
-      confidence_by_headline[i] = _max + _sum
-      attention_vectors_by_headline[i] = headline_name_av
-
-    closest_headline_index = int(np.argmax(confidence_by_headline))
-
-    if confidence_by_headline[closest_headline_index] < threshold:
-      raise ValueError('Cannot find headline matching pattern "{}"'.format(pattern_prefix))
-
-    return closest_headline_index, confidence_by_headline, attention_vectors_by_headline[closest_headline_index]
-
-  def _find_best_headline_by_pattern_prefix_2(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str):
-
-    import math
-
-    number_of_headlines = len(embedded_headlines)
-    confidence_by_headline = np.zeros(number_of_headlines)
-
-    attention_vectors_by_headline = {}
-
-    for i in range(number_of_headlines):
-      subdoc = embedded_headlines[i]
-
-      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
-                                                             relu_th=0.6)
-      headline_name_av = smooth_safe(headline_name_av, 4)
-
-      _max_id = np.argmax(headline_name_av)
-      _max = np.max(headline_name_av)
-      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
-
-      confidence_by_headline[i] = _max + _sum
-      attention_vectors_by_headline[i] = headline_name_av
-
-    return confidence_by_headline
 
   def find_sentence_beginnings(self, indices):
     return [find_token_before_index(self.tokens, i, '\n', 0) for i in indices]
@@ -303,9 +181,6 @@ class LegalDocument:
                                                                       pattern_prefix=pattern_prefix)
 
     return self.distances_per_pattern_dict
-
-  def print_structured(self, numbered_only=False):
-    self.structure.print_structured(self, numbered_only)
 
   def subdoc_slice(self, __s: slice, name='undef'):
     assert self.tokens_map is not None
@@ -355,7 +230,7 @@ class LegalDocument:
     attention_vector_name_soft = AV_SOFT + attention_vector_name
 
     for v in vectors:
-      if max(v) > 0.6:
+      if max(v) > 0.6:  # TODO: get rid of magic numbers
         vector_i, _ = improve_attention_vector(self.embeddings, v, relu_th=0.6, mix=0.9)
         vectors_i.append(vector_i)
       else:
@@ -510,10 +385,8 @@ class DocumentJson:
 
     _tags: [SemanticTag] = []
 
-    for hi in doc.structure.headline_indexes:
-      s = doc.structure.structure[hi]
-      _t = SemanticTag('headline', doc.tokens_map.text_range(s.span), s.span)
-      _tags.append(_t)
+    for hi in doc.paragraphs:
+      _tags.append(hi.header)
 
     _tags += doc.get_tags()
     self.tags = [tag.__dict__ for tag in _tags]
@@ -817,16 +690,6 @@ def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention
     constraints.append(pv)
 
   return constraints
-
-
-def subdoc_between_lines(line_a: int, line_b: int, doc):
-  _str = doc.structure.structure
-  start = _str[line_a].span[1]
-  if line_b is not None:
-    end = _str[line_b].span[0]
-  else:
-    end = len(doc.tokens)
-  return doc.subdoc(start, end)
 
 
 org_types = {

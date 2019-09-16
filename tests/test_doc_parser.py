@@ -6,7 +6,8 @@
 import unittest
 
 from integration.word_document_parser import WordDocParser
-from legal_docs import LegalDocument
+from legal_docs import LegalDocument, Paragraph
+from ml_tools import SemanticTag
 
 
 class TestContractParser(unittest.TestCase):
@@ -19,18 +20,27 @@ class TestContractParser(unittest.TestCase):
 
     doc: LegalDocument = LegalDocument('')
     doc.parse()
-    last=0
+    last = 0
     for p in res['paragraphs']:
       header = LegalDocument(p['paragraphHeader']['text'] + '\n')
       header.parse()
       doc += header
-      span = (last, len(doc.tokens_map))
-      print(span)
-
+      headerspan = (last, len(doc.tokens_map))
+      print(headerspan)
+      last = len(doc.tokens_map)
 
       body = LegalDocument(p['paragraphBody']['text'] + '\n')
       body.parse()
       doc += body
+      bodyspan = (last, len(doc.tokens_map))
+
+      header_tag = SemanticTag('headline', p['paragraphHeader']['text'], headerspan)
+      body_tag = SemanticTag('paragraphBody', None, bodyspan)
+
+      print(header_tag)
+      print(body_tag)
+      para = Paragraph(header_tag, body_tag)
+      doc.paragraphs.append(para)
       last = len(doc.tokens_map)
 
     print('-' * 100)
