@@ -23,11 +23,12 @@ class TextMap:
     self.untokenize = self.text_range  # alias
 
   def __add__(self, other):
+    off = len(self._full_text)
     self._full_text += other._full_text
-    if len(self.map)>0:
-      off = self.map[-1][-1]
-    else:
-      off=0
+    # if len(self.map)>0:
+    #   off = self.map[-1][-1]
+    # else:
+    #   off=len(self._full_text)
     for span in other.map:
       self.map.append((span[0] + off, span[1] + off))
 
@@ -80,6 +81,7 @@ class TextMap:
     sliced = TextMap(self._full_text, self.map[span])
     if sliced.map:
       sliced._offset_chars = sliced.map[0][0]
+      sliced._full_text = sliced._full_text[0:  sliced.map[-1][-1]]
     else:
       sliced._offset_chars = 0
     # first_char_index = sliced.map[0][0]

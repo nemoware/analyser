@@ -367,6 +367,9 @@ class SemanticTag:
     self.confidence = 1
     self.display_value = value
 
+  def as_slice(self):
+    return slice(self.span[0], self.span[1])
+
   def isNotEmpty(self) -> bool:
     return self.span is not None and self.span[0] != self.span[1]
 

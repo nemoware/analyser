@@ -283,6 +283,22 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(2, len(tm1))
     self.assertEqual(1, len(tm2))
 
+  def test_concat2(self):
+
+    tm1 = TextMap('alpha \n')
+    tm2 = TextMap('bet')
+
+    tm1 += tm2
+
+    self.assertEqual(3, len(tm1))
+    self.assertEqual(1, len(tm2))
+
+    self.assertEqual('alpha \nbet', tm1.text)
+    self.assertEqual('alpha', tm1.tokens[0])
+    self.assertEqual('bet', tm1.tokens[2])
+
+
+
   def test_get_by_index(self):
 
     ಶ್ರೀರಾಮ = self
