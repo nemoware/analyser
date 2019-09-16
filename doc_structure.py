@@ -432,6 +432,8 @@ class DocumentStructure:
     return remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
 
   def _highlight_headlines_probability(self, p_per_line: np.ndarray):
+    if len(p_per_line)==0:
+      return []
     # TODO: get rid of these magic numbers
     def local_contrast(x):
       blur = 2 * int(len(x) / 20.0)

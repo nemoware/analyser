@@ -189,7 +189,7 @@ class TokenisationTestCase(unittest.TestCase):
     tm2: TextMap = subdoc.tokens_map
 
     self.assertEqual('этилен', tm2[0])
-    self.assertEqual('этилен', tm2.text )
+    self.assertEqual('этилен', tm2.text)
 
     self.assertEqual(0, tm2.token_index_by_char(1))
 
@@ -205,13 +205,11 @@ class TokenisationTestCase(unittest.TestCase):
 
     self.assertEqual('мама', tm2[0])
     self.assertEqual('этилен', tm2[1])
-    self.assertEqual('мама этилен', tm2.text )
+    self.assertEqual('мама этилен', tm2.text)
 
     self.assertEqual(0, tm2.token_index_by_char(1))
     self.assertEqual(1, tm2.token_index_by_char(6))
     self.assertEqual(1, tm2.token_index_by_char(5))
-
-
 
   def test_token_indices_by_char_range(self):
     text = 'мама'
@@ -271,6 +269,19 @@ class TokenisationTestCase(unittest.TestCase):
     tm = TextMap(text)
 
     self.assertEqual(3, len(tm))
+
+  def test_concat(self):
+
+    tm1 = TextMap('a')
+    tm2 = TextMap('b')
+
+    tm1 += tm2
+    self.assertEqual('ab', tm1.text)
+    self.assertEqual('a', tm1.tokens[0])
+    self.assertEqual('b', tm1.tokens[1])
+
+    self.assertEqual(2, len(tm1))
+    self.assertEqual(1, len(tm2))
 
   def test_get_by_index(self):
 

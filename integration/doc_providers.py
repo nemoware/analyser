@@ -2,6 +2,7 @@ import glob
 import os
 import sys
 import warnings
+from typing import List, Generator
 
 import docx2txt
 from overrides import overrides
@@ -9,11 +10,22 @@ from overrides import overrides
 
 class AbstractDocProvider:
 
-  def getdocuments(self, query):
-    pass
+  def getdocuments(self, query) -> Generator:
+    raise NotImplementedError()
+
+  def list_filenames(self, filename_prefix) -> List[str]:
+    raise NotImplementedError()
 
 
-class GDriveTestDocProvider(AbstractDocProvider):
+class DirDocProvider(AbstractDocProvider):
+  def list_filenames(self, filename_prefix) -> List[str]:
+    filenames = []
+    filenames += [file for file in glob.glob(filename_prefix + "*.docx", recursive=True)]
+    filenames += [file for file in glob.glob(filename_prefix + "*.doc", recursive=True)]
+    return filenames
+
+
+class GDriveTestDocProvider(DirDocProvider):
 
   @overrides
   def getdocuments(self, query):
@@ -39,11 +51,8 @@ class GDriveTestDocProvider(AbstractDocProvider):
     return text
 
   def read_documents(self, filename_prefix):
-    filenames = []
-    filenames += [file for file in glob.glob(filename_prefix + "*.docx", recursive=True)]
-    filenames += [file for file in glob.glob(filename_prefix + "*.doc", recursive=True)]
+    filenames = self.list_filenames(filename_prefix)
 
-    texts = {}
     for file in filenames:
       try:
         text = self.read_doc(file)

@@ -100,6 +100,23 @@ class LegalDocument:
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
+  def __add__(self, suffix: 'LegalDocument'):
+    assert self._normal_text is not None
+    assert suffix._normal_text is not None
+
+    self.distances_per_pattern_dict = {}
+    self._normal_text += suffix.normal_text
+
+    self.tokens_map += suffix.tokens_map
+    self.tokens_map_norm += suffix.tokens_map_norm
+
+    self.sections = None
+
+    # subdocs
+    self.end = suffix.end
+    self.embeddings = None
+    return self
+
   def get_tags(self):
     raise NotImplementedError()
 
@@ -143,6 +160,7 @@ class LegalDocument:
     self.structure = DocumentStructure()
     self.structure.detect_document_structure(self.tokens_map)
 
+
   def preprocess_text(self, txt):
     if txt is None:
       txt = self.original_text
@@ -151,7 +169,7 @@ class LegalDocument:
   def find_sections_by_headlines_2(self, context: ParsingSimpleContext, head_types_list,
                                    embedded_headlines: List['LegalDocument'], pattern_prefix,
                                    threshold) -> dict:
-
+    warnings.warn("deprecated", DeprecationWarning)
     hl_meta_by_index = {}
     sections = {}
 
@@ -194,8 +212,6 @@ class LegalDocument:
 
   def _doc_section_under_headline(self, headline_info: HeadlineMeta, render=False):
     warnings.warn("deprecated", DeprecationWarning)
-    if render:
-      print('Searching for section:', headline_info.type)
 
     bi_next = headline_info.index + 1
 
@@ -214,11 +230,7 @@ class LegalDocument:
         'Empty "{}" section between detected headlines #{} and #{}'.format(headline_info.type, headline_index,
                                                                            headline_next_id))
 
-    if render:
-      print('=' * 100)
-      print(headline_info.subdoc.text)
-      print('-' * 100)
-      print(subdoc.text)
+
 
     return subdoc
 
@@ -889,7 +901,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
   # ======================================
 
   if results:
-    value_char_span, value, currency_char_span, currency=results
+    value_char_span, value, currency_char_span, currency = results
     value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 

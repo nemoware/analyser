@@ -22,6 +22,17 @@ class TextMap:
 
     self.untokenize = self.text_range  # alias
 
+  def __add__(self, other):
+    self._full_text += other._full_text
+    if len(self.map)>0:
+      off = self.map[-1][-1]
+    else:
+      off=0
+    for span in other.map:
+      self.map.append((span[0] + off, span[1] + off))
+
+    return self
+
   def finditer(self, regexp):
     for m in regexp.finditer(self.text):
       yield self.token_indices_by_char_range_2(m.span(0))
