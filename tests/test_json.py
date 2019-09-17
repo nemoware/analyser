@@ -14,10 +14,10 @@ from legal_docs import DocumentJson
 from ml_tools import SemanticTag
 
 
-class TestContractParser(unittest.TestCase):
+class TestJsonExport(unittest.TestCase):
 
   def _get_doc(self) -> (ContractDocument, ContractPatternFactory):
-    with open('doc_4.pickle', 'rb') as handle:
+    with open('2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
       doc = pickle.load(handle)
 
     with open('contract_pattern_factory.pickle', 'rb') as handle:

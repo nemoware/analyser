@@ -4,6 +4,8 @@ import subprocess
 import warnings
 
 from integration.doc_providers import DirDocProvider
+from legal_docs import LegalDocument, Paragraph
+from ml_tools import SemanticTag
 
 
 class WordDocParser(DirDocProvider):
@@ -37,6 +39,40 @@ class WordDocParser(DirDocProvider):
 
     #
     return res
+
+
+def join_par(res):
+  doc: LegalDocument = LegalDocument('')
+  doc.parse()
+
+  last = 0
+  for p in res['paragraphs']:
+    header_text = p['paragraphHeader']['text'] + '\n'
+    body_text = p['paragraphBody']['text'] + '\n'
+
+    header = LegalDocument(header_text)
+    header.parse()
+
+    doc += header
+    headerspan = (last, len(doc.tokens_map))
+    print(headerspan)
+    last = len(doc.tokens_map)
+
+    body = LegalDocument(body_text)
+    body.parse()
+    doc += body
+    bodyspan = (last, len(doc.tokens_map))
+
+    header_tag = SemanticTag('headline', header_text, headerspan)
+    body_tag = SemanticTag('paragraphBody', None, bodyspan)
+
+    print(header_tag)
+    print(body_tag)
+    para = Paragraph(header_tag, body_tag)
+    doc.paragraphs.append(para)
+    last = len(doc.tokens_map)
+
+  return doc
 
 
 if __name__ == '__main__':

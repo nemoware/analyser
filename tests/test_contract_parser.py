@@ -18,7 +18,7 @@ from structures import ContractTags
 class TestContractParser(unittest.TestCase):
 
   def get_doc(self) -> (ContractDocument, ContractPatternFactory):
-    with open('doc_4.pickle', 'rb') as handle:
+    with open('2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
       doc = pickle.load(handle)
 
     with open('contract_pattern_factory.pickle', 'rb') as handle:

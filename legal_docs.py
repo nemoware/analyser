@@ -48,15 +48,6 @@ def substract_search_results(a: PatternSearchResults, b: PatternSearchResults) -
   return result
 
 
-class HeadlineMeta:
-  def __init__(self, index, _type, confidence: float, subdoc):
-    self.index: int = index
-    self.confidence: float = confidence
-    self.type: str = _type
-    self.subdoc: LegalDocument = subdoc
-    self.body: LegalDocument = None
-
-    self.attention: List[float] = None  # optional
 
 
 def deprecated(fn):

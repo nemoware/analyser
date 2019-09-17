@@ -1,13 +1,13 @@
 # origin: charter_parser.py
 
 from charter_patterns import make_constraints_attention_vectors
-from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, \
+from legal_docs import LegalDocument, org_types, CharterDocument, \
   extract_all_contraints_from_sr, _expand_slice
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults
-from sections_finder import SectionsFinder, FocusingSectionsFinder
+from sections_finder import SectionsFinder, FocusingSectionsFinder, HeadlineMeta
 from structures import *
 from transaction_values import extract_sum, ValueConstraint, extract_sum_and_sign_2, split_by_number_2
 from violations import ViolationsFinder

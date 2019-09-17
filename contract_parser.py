@@ -1,12 +1,12 @@
 from contract_agents import agent_infos_to_tags, find_org_names_spans
 from contract_patterns import ContractPatternFactory
-from legal_docs import LegalDocument, HeadlineMeta, extract_sum_sign_currency
+from legal_docs import LegalDocument, extract_sum_sign_currency
 from ml_tools import *
 
 from parsing import ParsingConfig, ParsingContext
 from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
-from sections_finder import FocusingSectionsFinder
+from sections_finder import FocusingSectionsFinder, HeadlineMeta
 from structures import ContractSubject
 from transaction_values import ValueConstraint
 
