@@ -45,12 +45,12 @@ class WordDocParser(DirDocProvider):
 
 
 def join_paragraphs(res):
-  doc: LegalDocument = ContractDocument('')
+  # TODO: check type of res
+  doc: ContractDocument = ContractDocument('')
 
   last = 0
   for p in res['paragraphs']:
     header_text = p['paragraphHeader']['text'] + '\n'
-    body_text = p['paragraphBody']['text'] + '\n'
 
     header = LegalDocument(header_text)
 
@@ -59,9 +59,11 @@ def join_paragraphs(res):
 
     last = len(doc.tokens_map)
 
-    body = LegalDocument(body_text)
-    # body.parse()
-    doc += body
+    if p['paragraphBody']:
+      body_text = p['paragraphBody']['text'] + '\nA'
+      body = LegalDocument(body_text)
+
+      doc += body
     bodyspan = (last, len(doc.tokens_map))
 
     header_tag = SemanticTag('headline', header_text, headerspan)
@@ -71,6 +73,7 @@ def join_paragraphs(res):
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
 
+  doc.parse()
   return doc
 
 

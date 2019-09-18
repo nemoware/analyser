@@ -285,11 +285,14 @@ class LegalDocument:
     self.embedd_tokens(pattern_factory.embedder)
 
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2):
-    max_tokens = 7000
-    if len(self.tokens_map_norm) > max_tokens:
-      self._embedd_large(embedder, max_tokens, verbosity)
+    if self.tokens:
+      max_tokens = 7000
+      if len(self.tokens_map_norm) > max_tokens:
+        self._embedd_large(embedder, max_tokens, verbosity)
+      else:
+        self.embeddings = self._emb(self.tokens, embedder)
     else:
-      self.embeddings = self._emb(self.tokens, embedder)
+      raise ValueError( f'cannot embed doc {self.filename}, no tokens')
 
   # @profile
   def _emb(self, tokens, embedder):
