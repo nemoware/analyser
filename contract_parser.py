@@ -49,7 +49,7 @@ class ContractDocument3(LegalDocument):
     super().parse()
     agent_infos = find_org_names_spans(self.tokens_map_norm)
     self.agents_tags = agent_infos_to_tags(agent_infos)
-
+    return self
 
 ContractDocument = ContractDocument3  # Alias!
 

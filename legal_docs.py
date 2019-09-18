@@ -162,8 +162,7 @@ class LegalDocument:
   text = property(get_text)
 
   def preprocess_text(self, txt):
-    if txt is None:
-      txt = self.original_text
+    assert txt is not None
     return normalize_text(txt, replacements_regex)
 
   def find_sentence_beginnings(self, indices):

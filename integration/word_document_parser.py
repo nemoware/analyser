@@ -46,7 +46,7 @@ class WordDocParser(DirDocProvider):
 
 def join_paragraphs(res):
   # TODO: check type of res
-  doc: ContractDocument = ContractDocument('')
+  doc: ContractDocument = ContractDocument('').parse()
 
   last = 0
   for p in res['paragraphs']:
@@ -54,6 +54,7 @@ def join_paragraphs(res):
 
     header = LegalDocument(header_text)
     header.parse()
+
 
     doc += header
     headerspan = (last, len(doc.tokens_map))
@@ -75,7 +76,7 @@ def join_paragraphs(res):
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
 
-  doc.parse()
+  # doc.parse()
   return doc
 
 
