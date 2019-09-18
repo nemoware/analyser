@@ -53,6 +53,7 @@ def join_paragraphs(res):
     header_text = p['paragraphHeader']['text'] + '\n'
 
     header = LegalDocument(header_text)
+    header.parse()
 
     doc += header
     headerspan = (last, len(doc.tokens_map))
@@ -62,8 +63,9 @@ def join_paragraphs(res):
     if p['paragraphBody']:
       body_text = p['paragraphBody']['text'] + '\nA'
       body = LegalDocument(body_text)
-
+      body.parse()
       doc += body
+
     bodyspan = (last, len(doc.tokens_map))
 
     header_tag = SemanticTag('headline', header_text, headerspan)
@@ -83,4 +85,5 @@ if __name__ == '__main__':
   for p in res['paragraphs']:
     print(p['paragraphHeader']['text'])
 
-  join_paragraphs(res)
+  c = join_paragraphs(res)
+  print(c.text)

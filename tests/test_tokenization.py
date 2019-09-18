@@ -302,31 +302,26 @@ class TokenisationTestCase(unittest.TestCase):
     tm1 = TextMap('text prefix \n')
     tm2 = TextMap('more words')
 
-
-    N=10
-    expected_tokens = len(tm1.tokens) + N*len(tm2.tokens)
+    N = 10
+    expected_tokens = len(tm1.tokens) + N * len(tm2.tokens)
     for i in range(N):
       tm1 += tm2
 
     self.assertEqual(expected_tokens, len(tm1))
 
-  def test_concat_docs (self):
+  def test_concat_docs(self):
 
-    tm1 = LegalDocument('text prefix \n')
-    tm2 = LegalDocument('more words')
+    tm1 = LegalDocument('text prefix \n').parse()
+    tm2 = LegalDocument('more words').parse()
 
 
-    N=10
-    expected_tokens = len(tm1.tokens) + N*len(tm2.tokens)
+    N = 10
+    expected_tokens = len(tm1.tokens) + N * len(tm2.tokens)
     for i in range(N):
       tm1 += tm2
 
+    # //tm1.parse()
     self.assertEqual(expected_tokens, len(tm1.tokens))
-
-
-
-
-
 
   def test_get_by_index(self):
 

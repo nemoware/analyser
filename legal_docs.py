@@ -94,15 +94,32 @@ class LegalDocument:
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
-    if self._original_text is not None:
-      self.parse()
+  def parse(self, txt=None):
+    if txt is None:
+      txt = self.original_text
+
+    assert txt is not None
+
+    self._normal_text = self.preprocess_text(txt)
+    self.tokens_map = TextMap(self._normal_text)
+
+    self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+    return self
 
   def __add__(self, suffix: 'LegalDocument'):
+    '''
+    1) dont forget to add spaces between concatenated docs!!
+    2) embeddings are lost
+    3)
+    :param suffix: doc to add
+    :return: self + suffix
+    '''
     assert self._normal_text is not None
     assert suffix._normal_text is not None
 
     self.distances_per_pattern_dict = {}
     self._normal_text += suffix.normal_text
+    self._original_text += suffix.original_text
 
     self.tokens_map += suffix.tokens_map
     self.tokens_map_norm += suffix.tokens_map_norm
@@ -113,6 +130,7 @@ class LegalDocument:
     # subdocs
     self.end = suffix.end
     self.embeddings = None
+
     return self
 
   def get_tags(self):
@@ -142,18 +160,6 @@ class LegalDocument:
   original_text = property(get_original_text)
   normal_text = property(get_normal_text)
   text = property(get_text)
-
-  def parse(self, txt=None) -> None:
-    if txt is None:
-      txt = self.original_text
-
-    assert txt is not None
-
-    self._normal_text = self.preprocess_text(txt)
-    self.tokens_map = TextMap(self._normal_text)
-
-    _case_normalizer = CaseNormalizer()
-    self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
 
   def preprocess_text(self, txt):
     if txt is None:
@@ -292,7 +298,7 @@ class LegalDocument:
       else:
         self.embeddings = self._emb(self.tokens, embedder)
     else:
-      raise ValueError( f'cannot embed doc {self.filename}, no tokens')
+      raise ValueError(f'cannot embed doc {self.filename}, no tokens')
 
   # @profile
   def _emb(self, tokens, embedder):
