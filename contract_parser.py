@@ -108,11 +108,13 @@ class ContractAnlysingContext(ParsingContext):
     return self.analyze_contract_doc(self.contract, reset_ctx=False)
 
   def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
+    assert contract.embeddings is not None
     """
     MAIN METHOD 2
 
     :param contract_text:
     :return:
+    
     """
     if reset_ctx:
       self._reset_context()

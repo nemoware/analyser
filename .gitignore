@@ -7,3 +7,5 @@ tests/~
 *.pyc
 
 nltk_data_download/tokenizers/punkt/
+
+integration/nltk_data_download/tokenizers/punkt/

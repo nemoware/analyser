@@ -3,6 +3,7 @@ import os
 import subprocess
 import warnings
 
+from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
 from legal_docs import LegalDocument, Paragraph
 from ml_tools import SemanticTag
@@ -29,8 +30,7 @@ class WordDocParser(DirDocProvider):
   def read_doc(self, fn) -> dict:
     FILENAME = fn.encode('utf-8')
 
-
-    assert os.path.isfile(FILENAME) , f'{FILENAME} does not exist'
+    assert os.path.isfile(FILENAME), f'{FILENAME} does not exist'
 
     s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", FILENAME]
 
@@ -44,9 +44,8 @@ class WordDocParser(DirDocProvider):
     return res
 
 
-def join_par(res):
-  doc: LegalDocument = LegalDocument('')
-  doc.parse()
+def join_paragraphs(res):
+  doc: LegalDocument = ContractDocument('')
 
   last = 0
   for p in res['paragraphs']:
@@ -54,23 +53,20 @@ def join_par(res):
     body_text = p['paragraphBody']['text'] + '\n'
 
     header = LegalDocument(header_text)
-    header.parse()
 
     doc += header
     headerspan = (last, len(doc.tokens_map))
-    print(headerspan)
+
     last = len(doc.tokens_map)
 
     body = LegalDocument(body_text)
-    body.parse()
+    # body.parse()
     doc += body
     bodyspan = (last, len(doc.tokens_map))
 
     header_tag = SemanticTag('headline', header_text, headerspan)
     body_tag = SemanticTag('paragraphBody', None, bodyspan)
 
-    print(header_tag)
-    print(body_tag)
     para = Paragraph(header_tag, body_tag)
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
@@ -83,3 +79,5 @@ if __name__ == '__main__':
   res = wp.read_doc("/Users/artem/work/nemo/goil/IN/Другие договоры/Договор Формула.docx")
   for p in res['paragraphs']:
     print(p['paragraphHeader']['text'])
+
+  join_paragraphs(res)

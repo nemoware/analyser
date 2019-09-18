@@ -48,8 +48,6 @@ def substract_search_results(a: PatternSearchResults, b: PatternSearchResults) -
   return result
 
 
-
-
 def deprecated(fn):
   @wraps(fn)
   @wraps(fn)
@@ -77,7 +75,6 @@ class LegalDocument:
     self.ID = None  # TODO
     self.filename = None
     self._original_text = original_text
-
     self._normal_text = None
 
     # todo: use pandas' DataFrame
@@ -97,7 +94,7 @@ class LegalDocument:
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
-    if self.original_text:
+    if self._original_text is not None:
       self.parse()
 
   def __add__(self, suffix: 'LegalDocument'):
