@@ -29,11 +29,14 @@ class WordDocParser(DirDocProvider):
   def read_doc(self, fn) -> dict:
     FILENAME = fn.encode('utf-8')
 
+
+    assert os.path.isfile(FILENAME) , f'{FILENAME} does not exist'
+
     s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", FILENAME]
 
     # s=['pwd']
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
-    print(result.stdout)
+    print(f'result=[{result.stdout}]')
 
     res = json.loads(result.stdout)
 

@@ -270,7 +270,7 @@ class TokenisationTestCase(unittest.TestCase):
 
     self.assertEqual(3, len(tm))
 
-  def test_concat(self):
+  def test_concat_TextMap(self):
 
     tm1 = TextMap('a')
     tm2 = TextMap('b')
@@ -283,7 +283,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(2, len(tm1))
     self.assertEqual(1, len(tm2))
 
-  def test_concat2(self):
+  def test_concat_TextMap2(self):
 
     tm1 = TextMap('alpha \n')
     tm2 = TextMap('bet')
@@ -296,6 +296,35 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual('alpha \nbet', tm1.text)
     self.assertEqual('alpha', tm1.tokens[0])
     self.assertEqual('bet', tm1.tokens[2])
+
+  def test_concat_TextMap3(self):
+
+    tm1 = TextMap('text prefix \n')
+    tm2 = TextMap('more words')
+
+
+    N=10
+    expected_tokens = len(tm1.tokens) + N*len(tm2.tokens)
+    for i in range(N):
+      tm1 += tm2
+
+    self.assertEqual(expected_tokens, len(tm1))
+
+  def test_concat_docs (self):
+
+    tm1 = LegalDocument('text prefix \n')
+    tm2 = LegalDocument('more words')
+
+
+    N=10
+    expected_tokens = len(tm1.tokens) + N*len(tm2.tokens)
+    for i in range(N):
+      tm1 += tm2
+
+    self.assertEqual(expected_tokens, len(tm1.tokens))
+
+
+
 
 
 

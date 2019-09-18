@@ -97,6 +97,9 @@ class LegalDocument:
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
+    if self.original_text:
+      self.parse()
+
   def __add__(self, suffix: 'LegalDocument'):
     assert self._normal_text is not None
     assert suffix._normal_text is not None

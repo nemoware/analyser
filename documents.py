@@ -186,7 +186,7 @@ class CaseNormalizer:
     for i in range(0, len(map)):
       r = map.map[i]
       chars[r[0]:r[1]] = norm_tokens[i]
-    norm_map = TextMap(''.join(chars), map.map)
+    norm_map = TextMap(''.join(chars), list(map.map))
     return norm_map
 
   def normalize_tokens(self, tokens: Tokens) -> Tokens:
