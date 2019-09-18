@@ -62,7 +62,7 @@ def join_paragraphs(res):
     last = len(doc.tokens_map)
 
     if p['paragraphBody']:
-      body_text = p['paragraphBody']['text'] + '\nA'
+      body_text = p['paragraphBody']['text'] + '\n'
       body = LegalDocument(body_text)
       body.parse()
       doc += body
