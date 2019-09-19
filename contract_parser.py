@@ -45,11 +45,6 @@ class ContractDocument3(LegalDocument):
     # TODO: filter tags if _t.isNotEmpty():
     return tags
 
-  def parse(self, txt=None):
-    super().parse()
-    agent_infos = find_org_names_spans(self.tokens_map_norm)
-    self.agents_tags = agent_infos_to_tags(agent_infos)
-    return self
 
 ContractDocument = ContractDocument3  # Alias!
 
@@ -88,39 +83,39 @@ class ContractAnlysingContext(ParsingContext):
       self.contract = None
 
   def analyze_contract(self, contract_text):
-    """
-    MAIN METHOD
-    
-    :param contract_text: 
-    :return: 
-    """
+    warnings.warn("use analyze_contract_doc", DeprecationWarning)
 
     self._reset_context()
-
     # create DOC
     self.contract = ContractDocument(contract_text)
     self.contract.parse()
 
     self._logstep("parsing document 👞 and detecting document high-level structure")
-
     self.contract.embedd_tokens(self.pattern_factory.embedder)
 
     return self.analyze_contract_doc(self.contract, reset_ctx=False)
 
   def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
-    assert contract.embeddings is not None
+    # assert contract.embeddings is not None
+    # #TODO: this analyser should care about embedding, because it decides wheater it needs (NN) embeddings or not
     """
     MAIN METHOD 2
 
-    :param contract_text:
+    :param contract:
     :return:
     
     """
     if reset_ctx:
       self._reset_context()
 
-    # create DOC
     self.contract = contract
+
+    if self.contract.embeddings is None:
+      self.contract.embedd_tokens(self.pattern_factory.embedder)
+
+
+    agent_infos = find_org_names_spans(contract.tokens_map_norm)
+    contract.agents_tags = agent_infos_to_tags(agent_infos)
 
     self._logstep("parsing document 👞 and detecting document high-level structure")
     self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
@@ -128,14 +123,15 @@ class ContractAnlysingContext(ParsingContext):
 
     # -------------------------------values
     self.contract.contract_values = self.find_contract_value_NEW(self.contract)
+    self._logstep("finding contract values")
+
     # -------------------------------subject
     self.contract.subjects = self.find_contract_subject_region(self.contract)
-    # TODO: convert to semantic tags
+    self._logstep("detecting contract subject")
     # --------------------------------------
 
-    self._logstep("fetching transaction values")
 
-    # self.renderer.render_values(self.contract.contract_values)
+
     self.log_warnings()
 
     return self.contract, self.contract.contract_values

@@ -23,6 +23,11 @@ class HeadlineMeta:
 
     self.attention: List[float] = None  # optional
 
+  def get_header(self):
+    return self.subdoc.text
+
+  header = property(get_header)
+
 class SectionsFinder:
 
   def __init__(self, ctx: ParsingSimpleContext):

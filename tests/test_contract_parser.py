@@ -29,7 +29,7 @@ class TestContractParser(unittest.TestCase):
     # print(doc._normal_text)
     return doc, factory
 
-  def get_doc_factory_ctx(self):
+  def _get_doc_factory_ctx(self):
     doc, factory = self.get_doc()
 
     ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
@@ -39,7 +39,7 @@ class TestContractParser(unittest.TestCase):
     return doc, factory, ctx
 
   def test_contract_analyze(self):
-    doc, factory, ctx = self.get_doc_factory_ctx()
+    doc, factory, ctx = self._get_doc_factory_ctx()
 
     ctx.analyze_contract_doc(doc)
     tags: [SemanticTag] = doc.get_tags()
@@ -83,7 +83,7 @@ class TestContractParser(unittest.TestCase):
 
   def test_find_contract_subject(self):
     warnings.warn("use find_contract_subject_region", DeprecationWarning)
-    doc, factory, ctx = self.get_doc_factory_ctx()
+    doc, factory, ctx = self._get_doc_factory_ctx()
     # ----------------------------------------
     subjects = ctx.find_contract_subject(doc)
     # ----------------------------------------
@@ -91,8 +91,31 @@ class TestContractParser(unittest.TestCase):
     for subj in subjects:
       print(subj)
 
+  def test_find_contract_sections (self):
+
+    doc, factory, ctx = self._get_doc_factory_ctx()
+    # ----------------------------------------
+
+    ctx.sections_finder.find_sections( doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
+                                       headline_patterns_prefix='headline.')
+    # ----------------------------------------
+    print("SECTION:")
+    for section in doc.sections.keys():
+      print(section, doc.sections[section].confidence, doc.sections[section].header.strip())
+      self.assertGreater(doc.sections[section].confidence, 0.7, doc.sections[section].header.strip())
+
+    print("PARAGs:")
+    for p in doc.paragraphs:
+      print(p.header.value)
+
+    self.assertIn('subj', doc.sections)
+    self.assertIn('price.', doc.sections)
+    self.assertIn('pricecond', doc.sections)
+
+    self.assertEqual('1. ПРЕДМЕТ ДОГОВОРА.', doc.sections['subj'].header.strip())
+
   def test_find_contract_subject_region_in_subj_section(self):
-    doc, factory, ctx = self.get_doc_factory_ctx()
+    doc, factory, ctx = self._get_doc_factory_ctx()
 
     subj_section = doc.sections['subj']
     section: LegalDocument = subj_section.body
@@ -105,7 +128,7 @@ class TestContractParser(unittest.TestCase):
                      doc.tokens_map.text_range(result.span).strip())
 
   def test_find_contract_subject_region_in_doc_head(self):
-    doc, factory, ctx = self.get_doc_factory_ctx()
+    doc, factory, ctx = self._get_doc_factory_ctx()
 
     section = doc.subdoc_slice(slice(0, 1500))
     denominator = 0.7
@@ -121,7 +144,7 @@ class TestContractParser(unittest.TestCase):
                      doc.tokens_map.text_range(result.span).strip())
 
   def test_find_contract_subject_region(self):
-    doc, factory, ctx = self.get_doc_factory_ctx()
+    doc, factory, ctx = self._get_doc_factory_ctx()
 
     # ----------------------------------------
     result = ctx.find_contract_subject_region(doc)
