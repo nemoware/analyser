@@ -1,3 +1,6 @@
+import sys
+import traceback
+
 from text_tools import untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
@@ -18,7 +21,7 @@ class TextMap:
       # if len(map)<1:
       #   raise RuntimeError('Cannot deal with empty tokenization map')
 
-      self.map = map
+      self.map = list(map)
 
     self.untokenize = self.text_range  # alias
 
@@ -33,6 +36,10 @@ class TextMap:
       self.map.append((span[0] + off, span[1] + off))
 
     return self
+
+  def set_token(self, index, new_token):
+    assert len(new_token) == self.map[index][1] - self.map[index][0]
+    self._full_text = self._full_text[: self.map[index][0]] + new_token + self._full_text[self.map[index][1]:]
 
   def finditer(self, regexp):
     for m in regexp.finditer(self.text):
@@ -119,6 +126,9 @@ class TextMap:
     return [0, self.get_len()]
 
   def text_range(self, span) -> str:
+    if span[0] >= len(self.map):
+      return ''
+
     try:
       start = self.map[span[0]][0]
       _last = min(len(self.map), span[1])
@@ -127,7 +137,9 @@ class TextMap:
       # assume map is ordered
       return self._full_text[start: stop]
     except:
-      raise RuntimeError(f'cannot deal with {span} ')
+      err = f'cannot deal with {span}'
+      traceback.print_exc(file=sys.stdout)
+      raise RuntimeError(err)
 
   def get_text(self):
     if len(self.map) == 0:
@@ -182,11 +194,16 @@ class CaseNormalizer:
 
   def normalize_tokens_map_case(self, map: TextMap) -> TextMap:
     norm_tokens = replace_tokens(map.tokens, self.replacements_map)
-    chars = list(map.text)
-    for i in range(0, len(map)):
-      r = map.map[i]
-      chars[r[0]:r[1]] = norm_tokens[i]
-    norm_map = TextMap(''.join(chars), list(map.map))
+    norm_map = TextMap(map._full_text, map.map)
+    for k in range(len(map)):
+      norm_map.set_token(k, norm_tokens[k])
+    # chars = list(map.text)
+    # for i in range(0, len(map)):
+    #   r = map.map[i]
+    #   chars[r[0]:r[1]] = norm_tokens[i]
+    # norm_map = TextMap(''.join(chars), list(map.map))
+    # # XXXX
+    # dfdfdfdf
     return norm_map
 
   def normalize_tokens(self, tokens: Tokens) -> Tokens:
