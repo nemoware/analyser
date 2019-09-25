@@ -224,42 +224,6 @@ class CaseNormalizer:
       return token
 
 
-class TokenizedText:
-
-  def __init__(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    super().__init__()
-
-    self.tokens_cc = None
-    self.tokens: Tokens = None
-
-  def get_len(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    return len(self.tokens)
-
-  def untokenize(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    return untokenize(self.tokens)
-
-  def untokenize_cc(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    return untokenize(self.tokens_cc)
-
-  def concat(self, doc: "TokenizedText"):
-    warnings.warn("deprecated", DeprecationWarning)
-    self.tokens += doc.tokens
-    self.categories_vector += doc.categories_vector
-    if self.tokens_cc:
-      self.tokens_cc += doc.tokens_cc
-
-  def trim(self, sl: slice):
-    warnings.warn("deprecated", DeprecationWarning)
-    self.tokens = self.tokens[sl]
-    if self.tokens_cc:
-      self.tokens_cc = self.tokens_cc[sl]
-    self.categories_vector = self.categories_vector[sl]
-
-
 class EmbeddableText:
   warnings.warn("deprecated", DeprecationWarning)
 
@@ -267,29 +231,6 @@ class EmbeddableText:
     warnings.warn("deprecated", DeprecationWarning)
 
     self.embeddings = None
-
-
-class MarkedDoc(TokenizedText):
-
-  def __init__(self, tokens, categories_vector):
-    super().__init__()
-
-    self.tokens = tokens
-    self.categories_vector = categories_vector
-
-  def filter(self, filter_op):
-    new_tokens = []
-    new_categories_vector = []
-
-    for i in range(self.get_len()):
-      _tuple = filter_op(self.tokens[i], self.categories_vector[i])
-
-      if _tuple is not None:
-        new_tokens.append(_tuple[0])
-        new_categories_vector.append(_tuple[1])
-
-    self.tokens = new_tokens
-    self.categories_vector = new_categories_vector
 
 
 # ---------------------------------------------------

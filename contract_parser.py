@@ -1,4 +1,4 @@
-from contract_agents import agent_infos_to_tags, find_org_names_spans
+from contract_agents import find_org_names
 from contract_patterns import ContractPatternFactory
 from legal_docs import LegalDocument, extract_sum_sign_currency
 from ml_tools import *
@@ -113,9 +113,7 @@ class ContractAnlysingContext(ParsingContext):
     if self.contract.embeddings is None:
       self.contract.embedd_tokens(self.pattern_factory.embedder)
 
-
-    agent_infos = find_org_names_spans(contract.tokens_map_norm)
-    contract.agents_tags = agent_infos_to_tags(agent_infos)
+    contract.agents_tags = find_org_names(contract)
 
     self._logstep("parsing document 👞 and detecting document high-level structure")
     self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
@@ -129,8 +127,6 @@ class ContractAnlysingContext(ParsingContext):
     self.contract.subjects = self.find_contract_subject_region(self.contract)
     self._logstep("detecting contract subject")
     # --------------------------------------
-
-
 
     self.log_warnings()
 

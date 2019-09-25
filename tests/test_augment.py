@@ -7,7 +7,7 @@ import unittest
 
 from contract_agents import *
 from contract_augmentation import *
-from documents import MarkedDoc
+from contract_augmentation import MarkedDoc
 from text_normalize import replacements_regex
 
 

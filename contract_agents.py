@@ -56,19 +56,7 @@ entities_types = ['type', 'name', 'alt_name', 'alias', 'type_ext']
 import random
 
 
-def make_rnanom_name(lenn) -> str:
-  return ''.join(random.choices('АБВГДЕЖЗИКЛМН', k=1) + random.choices('абвгдежопа ', k=lenn))
 
-
-# def augment_contract(txt: str, org_infos: List[Dict]):
-#   txt_a = txt
-#   for org in org_infos:
-#     for e in ['name', 'alias']:
-#       substr = org[e][0]
-#       r = re.compile(substr)
-#       txt_a = re.sub(r, make_rnanom_name(10), txt_a)
-#
-#   return txt_a, _find_org_names(txt_a)
 
 def clean_value(x: str) -> str:
   if x is None:
@@ -139,50 +127,8 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   return tags
 
 
-def find_org_names_spans(text_map: TextMap) -> dict:
-  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
-  return _convert_char_slices_to_tokens(_find_org_names(text_map.text), text_map)
 
 
-def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
-  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
-  for org in agent_infos:
-    for ent in org:
-      span = org[ent][1]
-
-      if span[0] >= 0:
-        tokens_slice = text_map.token_indices_by_char_range(span)
-        s = text_map.text_range([tokens_slice.start, tokens_slice.stop])
-        org[ent] = (s, org[ent][1], tokens_slice)
-      else:
-        org[ent] = (org[ent][0], None, None)
-
-  return agent_infos
-
-
-def agent_infos_to_tags(agent_infos: dict, span_map='words') -> [SemanticTag]:
-  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
-  org_i = 0
-  tags: [SemanticTag] = []
-  for orginfo in agent_infos:
-    org_i += 1
-    for k in entities_types:
-      if k in orginfo:
-        if orginfo[k][2] is not None:
-          tag = SemanticTag(
-            f'org.{org_i}.{k}',
-            orginfo[k][0],
-            (orginfo[k][2].start,
-             orginfo[k][2].stop),
-            span_map)
-          # tag = {
-          #   'kind': f'org.{org_i}.{k}',
-          #   'value': orginfo[k][0],
-          #   'span': (orginfo[k][2].start, orginfo[k][2].stop),
-          #   "span_map": span_map
-          # }
-          tags.append(tag)
-  return tags
 
 
 r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')

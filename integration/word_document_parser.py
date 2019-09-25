@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import subprocess
@@ -44,7 +45,7 @@ class WordDocParser(DirDocProvider):
     return res
 
 
-def join_paragraphs(res):
+def join_paragraphs(res, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
 
@@ -54,7 +55,6 @@ def join_paragraphs(res):
 
     header = LegalDocument(header_text)
     header.parse()
-
 
     doc += header
     headerspan = (last, len(doc.tokens_map))
@@ -77,6 +77,11 @@ def join_paragraphs(res):
     last = len(doc.tokens_map)
 
   # doc.parse()
+
+  if res["documentDate"]:
+    date_time_obj = datetime.datetime.strptime(res["documentDate"], '%Y-%m-%d')
+    doc.date = date_time_obj
+  doc._id = doc_id
   return doc
 
 
@@ -86,5 +91,5 @@ if __name__ == '__main__':
   for p in res['paragraphs']:
     print(p['paragraphHeader']['text'])
 
-  c = join_paragraphs(res)
+  c = join_paragraphs(res, 'Другие договоры/Договор Формула.docx')
   print(c.text)

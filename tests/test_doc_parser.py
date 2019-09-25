@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import csv
-import datetime
 import sys
 import traceback
 import unittest
@@ -71,7 +70,7 @@ class TestContractParser(unittest.TestCase):
           cnt += 1
           print(f'{cnt}\t{_doc_id}')
 
-  def ___test_parse_ALL_docs(self):
+  def test_parse_ALL_docs(self):
 
     client = MongoClient('mongodb://localhost:27017/')
     db = client['docsdatabase']
@@ -135,17 +134,17 @@ class TestContractParser(unittest.TestCase):
           stats()
 
         if 'CONTRACT' == res["documentType"]:
-          contract = self._parse_contract(res, row)
+          contract = self._parse_contract(res, _doc_id, row)
           json_struct = DocumentJson(contract).__dict__
-          json_struct['_id'] = _doc_id
-
-          if res["documentDate"]:
-            date_time_obj = datetime.datetime.strptime(res["documentDate"], '%Y-%m-%d')
-            json_struct['attributes']['documentDate'] = {
-              'value': date_time_obj,
-              'display_value': res["documentDate"]
-            }
-          json_struct['_id'] = _doc_id
+          # json_struct['_id'] = _doc_id
+          #
+          # if res["documentDate"]:
+          #   date_time_obj = datetime.datetime.strptime(res["documentDate"], '%Y-%m-%d')
+          #   json_struct['attributes']['documentDate'] = {
+          #     'value': date_time_obj,
+          #     'display_value': res["documentDate"]
+          #   }
+          #
 
           if contracts_collection.find_one({"_id": _doc_id}) is None:
             contracts_collection.insert_one(json_struct)
@@ -174,8 +173,8 @@ class TestContractParser(unittest.TestCase):
 
     return atributes
 
-  def _parse_contract(self, res, row):
-    contract = join_paragraphs(res)
+  def _parse_contract(self, res, doc_id, row):
+    contract = join_paragraphs(res, doc_id)
     # agent_infos = find_org_names_spans(contract.tokens_map_norm)
     # contract.agents_tags = agent_infos_to_tags(agent_infos)
     contract.agents_tags = find_org_names(contract)

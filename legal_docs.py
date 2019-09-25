@@ -72,7 +72,9 @@ class LegalDocument:
 
   def __init__(self, original_text=None, name="legal_doc"):
 
-    self.ID = None  # TODO
+    self._id = None  # TODO
+    self.date = None
+
     self.filename = None
     self._original_text = original_text
     self._normal_text = None
@@ -374,6 +376,7 @@ class DocumentJson:
     self.import_timestamp = datetime.datetime.now()
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
+    self._id: str = None
 
     if doc is None:
       return
@@ -408,6 +411,11 @@ class DocumentJson:
       attributes[key] = t.__dict__.copy()
       del attributes[key]['kind']
 
+    if 'date' in doc.__dict__:
+      # TODO: this 'if' is for old unit tests only
+      attributes['date'] = {
+        'value': doc.date
+      }
     return attributes
 
 
