@@ -354,7 +354,7 @@ class TokensWithAttention:
 
 
 class SemanticTag:
-  def __init__(self, kind, value, span: (int, int), span_map='$words'):
+  def __init__(self, kind, value, span: (int, int), span_map='words'):
     self.kind = kind
     self.value = value
     '''name of the parent (or group) tag '''

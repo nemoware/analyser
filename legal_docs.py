@@ -4,8 +4,8 @@
 
 
 # legal_docs.py
+import datetime
 import json
-import time
 from functools import wraps
 
 from documents import TextMap
@@ -343,6 +343,13 @@ class LegalDocument:
     self.embeddings = embeddings
     # self.tokens = tokens
 
+  def tag_value(self, tagname):
+    t = SemanticTag.find_by_kind(self.get_tags(), tagname)
+    if t:
+      return t.value
+    else:
+      return None
+
 
 class DocumentJson:
 
@@ -359,36 +366,49 @@ class DocumentJson:
     return c
 
   def __init__(self, doc: LegalDocument):
-    self.ID = None
-    self.filename = None
+
+    self.filename = doc.filename
     self.original_text = None
     self.normal_text = None
 
-    self.import_timestamp = time.time()
-    self.analyze_timestamp = time.time()
+    self.import_timestamp = datetime.datetime.now()
+    self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
 
     if doc is None:
       return
 
     self.checksum = hash(doc.normal_text)
-    self.tokenization_maps['$words'] = doc.tokens_map.map
+    self.tokenization_maps['words'] = doc.tokens_map.map
 
     for field in doc.__dict__:
-      print(field)
+      # print(field)
       if field in self.__dict__:
         self.__dict__[field] = doc.__dict__[field]
 
     self.original_text = doc.original_text
     self.normal_text = doc.normal_text
 
-    _tags: [SemanticTag] = []
+    self.attributes = self._tags_to_attributes(doc)
 
+  def _tags_to_attributes(self, doc: LegalDocument):
+    # collect all tags first
+    _tags: [SemanticTag] = []
     for hi in doc.paragraphs:
       _tags.append(hi.header)
-
     _tags += doc.get_tags()
-    self.tags = [tag.__dict__ for tag in _tags]
+
+    cnt = 0
+    attributes = {}
+    for t in _tags:
+      cnt += 1
+      key = t.kind.replace('.', '_')
+      if key in attributes:
+        key = f'{key}_{cnt}'
+      attributes[key] = t.__dict__.copy()
+      del attributes[key]['kind']
+
+    return attributes
 
 
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
@@ -544,7 +564,7 @@ def split_into_sections(doc, caption_indexes):
     next_key = sorted_keys[i]
     start = caption_indexes[key]
     end = caption_indexes[next_key]
-    print(key, [start, end])
+    # print(key, [start, end])
 
     subdoc = doc.subdoc(start, end)
     subdoc.filename = key

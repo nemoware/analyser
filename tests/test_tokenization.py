@@ -323,6 +323,22 @@ class TokenisationTestCase(unittest.TestCase):
     # //tm1.parse()
     self.assertEqual(expected_tokens, len(tm1.tokens))
 
+  def test_concat_docs_2(self):
+
+    tm1 = LegalDocument('text prefix \n').parse()
+    tm2 = LegalDocument('\rmore words').parse()
+
+
+    N = 10
+    expected_tokens = len(tm1.tokens_cc) + N * len(tm2.tokens_cc)
+    for i in range(N):
+      tm1 += tm2
+
+    print (tm1.tokens_map_norm._full_text)
+    # //tm1.parse()
+    self.assertEqual(expected_tokens, len(tm1.tokens_cc))
+    self.assertEqual('more words',  tm1.tokens_map_norm.text_range((3,5)))
+
   def test_get_by_index(self):
 
     ಶ್ರೀರಾಮ = self

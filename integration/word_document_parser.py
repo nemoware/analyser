@@ -19,10 +19,10 @@ class WordDocParser(DirDocProvider):
     else:
       warnings.warn(
         'please set "documentparser" environment variable to point '
-        'document-parser-1.0.2 unpacked lib '
+        'document-parser-1.0.5 unpacked lib '
         '(downloadable from https://github.com/nemoware/document-parser)')
 
-      self.documentparser = '../tests/libs/document-parser-1.0.2'
+      self.documentparser = '../tests/libs/document-parser-1.0.5'
 
     self.cp = f"{self.documentparser}/classes:{self.documentparser}/lib/*"
     print(self.cp)
@@ -36,7 +36,7 @@ class WordDocParser(DirDocProvider):
 
     # s=['pwd']
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
-    print(f'result=[{result.stdout}]')
+    # print(f'result=[{result.stdout}]')
 
     res = json.loads(result.stdout)
 
