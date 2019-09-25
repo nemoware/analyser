@@ -8,6 +8,7 @@ import warnings
 from typing import AnyStr, Match, Dict, List
 
 from documents import TextMap
+from legal_docs import LegalDocument
 from ml_tools import SemanticTag
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name
@@ -69,8 +70,16 @@ def make_rnanom_name(lenn) -> str:
 #
 #   return txt_a, _find_org_names(txt_a)
 
+def clean_value(x: str) -> str:
+  if x is None:
+    return x
+  return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()
+
+
 def _find_org_names(text: str) -> List[Dict]:
-  def _clean_org_name(x:str)->str :
+  warnings.warn("make semantic tags", DeprecationWarning)
+
+  def _clean_org_name(x: str) -> str:
     if x is None:
       return x
     return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()
@@ -84,6 +93,7 @@ def _find_org_names(text: str) -> List[Dict]:
     return d
 
   org_names = {}
+
   for r in re.finditer(complete_re, text):
     org = _to_dict(r)
 
@@ -93,6 +103,40 @@ def _find_org_names(text: str) -> List[Dict]:
       org_names[_name] = org
 
   return list(org_names.values())
+
+
+def _is_valid(val: str) -> bool:
+  if not val:
+    return False
+  if val.strip() == '':
+    return False
+  if len(val.strip()) < 2:
+    return False
+  return True
+
+
+def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
+  tags = []
+  org_i = 0
+
+  for m in re.finditer(complete_re, doc.text):
+    org_i += 1
+
+    if org_i <= max_names:
+      for entity_type in entities_types:
+        tagname = f'org.{org_i}.{entity_type}'
+        char_span = m.span(entity_type)
+        span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
+        val = doc.tokens_map_norm.text_range(span)
+        if _is_valid(val):
+          tag = SemanticTag(tagname, val, span)
+          tags.append(tag)
+        else:
+          warnings.warn(f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}")
+
+  # fitering tags
+  # ignore distant matches
+  return tags
 
 
 def find_org_names_spans(text_map: TextMap) -> dict:
@@ -116,7 +160,8 @@ def _convert_char_slices_to_tokens(agent_infos, text_map: TextMap):
   return agent_infos
 
 
-def agent_infos_to_tags(agent_infos: dict, span_map='$words') -> [SemanticTag]:
+def agent_infos_to_tags(agent_infos: dict, span_map='words') -> [SemanticTag]:
+  warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
   org_i = 0
   tags: [SemanticTag] = []
   for orginfo in agent_infos:
