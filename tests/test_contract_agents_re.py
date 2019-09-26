@@ -7,10 +7,17 @@ import unittest
 
 from contract_agents import *
 from contract_agents import _find_org_names
-from tests.test_augment import normalize_contract
-from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat
+from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
 
 find_org_names = _find_org_names
+
+
+def normalize_contract(_t: str) -> str:
+  t = _t
+  for (reg, to) in alias_quote_regex + replacements_regex:
+    t = reg.sub(to, t)
+
+  return t
 
 
 def n(x):
