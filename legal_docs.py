@@ -8,6 +8,8 @@ import datetime
 import json
 from functools import wraps
 
+from bson import json_util
+
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
@@ -355,28 +357,30 @@ class LegalDocument:
 
 class DocumentJson:
 
-  def from_json(jsondata):
+  @staticmethod
+  def from_json(json_string: str) -> 'DocumentJson':
+    jsondata = json.loads(json_string, object_hook=json_util.object_hook)
+
     c = DocumentJson(None)
     c.__dict__ = jsondata
-    tags = []
-    for t in c.tags:
-      tag = SemanticTag(None, None, None)
-      tag.__dict__ = t
-      tags.append(tag)
-
-    c.tags = tags
+    # tags = []
+    # for t in c.tags:
+    #   tag = SemanticTag(None, None, None)
+    #   tag.__dict__ = t
+    #   tags.append(tag)
+    #
+    # c.tags = tags
     return c
 
   def __init__(self, doc: LegalDocument):
 
-    self.filename = doc.filename
+    self._id: str = None
     self.original_text = None
     self.normal_text = None
 
     self.import_timestamp = datetime.datetime.now()
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
-    self._id: str = None
 
     if doc is None:
       return
@@ -417,6 +421,9 @@ class DocumentJson:
         'value': doc.date
       }
     return attributes
+
+  def dumps(self):
+    return json.dumps(self.__dict__, indent=2, ensure_ascii=False, default=json_util.default)
 
 
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
