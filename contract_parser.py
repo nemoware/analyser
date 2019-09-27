@@ -398,19 +398,25 @@ class ContractAnlysingContext(ParsingContext):
 
 def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
   List[SemanticTag]]:
-  ''' merge dictionaries of attention vectors '''
-
-  if factory:
+  if factory is not None:
     value_section_subdoc.calculate_distances_per_pattern(factory)
     vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
+    # merge dictionaries of attention vectors
     value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
     attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
-
-    # TODO: apply confidence to semantic tags
+  else:
+    # this case is for Unit Testing only
+    attention_vector_tuned = None
 
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = [extract_sum_sign_currency(value_section_subdoc, span) for span in spans]
+
+  # Estimating confidence by looking at attention vector
+  if attention_vector_tuned is not None:
+    for value_sign_currency in values_list:
+      for t in value_sign_currency:
+        t.confidence *= estimate_confidence_by_mean_top_non_zeros(attention_vector_tuned[t.span[0]:t.span[1]])
 
   return values_list
 
