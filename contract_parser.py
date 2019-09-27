@@ -167,6 +167,9 @@ class ContractAnlysingContext(ParsingContext):
     pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
 
     vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
+    if addon is not None:
+      vectors = list(vectors)
+      vectors.append(addon)
     x = max_exclusive_pattern(vectors)
     assert x is not None, f'no patterns for {subject_kind}'
 
@@ -177,41 +180,6 @@ class ContractAnlysingContext(ParsingContext):
     x = relu(x, 0.6)
 
     return x
-
-  def map_subject_to_type(self, section: LegalDocument, denominator: float = 1.0) -> List[ProbableValue]:
-    """
-    :param section:
-    :param denominator: confidence multiplyer
-    :return:
-    """
-    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
-
-    all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
-    all_subjects_mean: FixedVector = rectifyed_sum(all_subjects_vectors)
-
-    subjects_mapping: List[ProbableValue] = []
-    for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
-      x: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, all_subjects_mean)
-
-      confidence = estimate_confidence_by_mean_top(x)
-      confidence *= denominator
-      pv = ProbableValue(subject_kind, confidence)
-      subjects_mapping.append(pv)
-
-    return subjects_mapping
-
-  def find_contract_subject(self, doc) -> List[ProbableValue]:
-    warnings.warn("use find_contract_subject_region", DeprecationWarning)
-    if 'subj' in doc.sections:
-      subj_section = doc.sections['subj']
-      subject_subdoc = subj_section.body
-      denominator = 1
-    else:
-      self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
-      subject_subdoc = doc.subdoc_slice(slice(0, 1500))
-      denominator = 0.7
-
-    return self.map_subject_to_type(subject_subdoc, denominator=denominator)
 
   def find_contract_subject_region(self, doc) -> SemanticTag:
 
@@ -226,44 +194,26 @@ class ContractAnlysingContext(ParsingContext):
 
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
 
-  def _find_most_relevant_paragraph(self, section: LegalDocument, attention_vector: FixedVector):
-
-    paragraph_attention_vector = np.zeros_like(attention_vector)
-    top_index = 0
-    for i in np.nonzero(attention_vector)[0]:
-      par = section.tokens_map.sentence_at_index(i)
-      paragraph_len = par[1] - par[0]
-      if paragraph_len:
-        # TODO: Next line is weird
-
-        # Calculate density of the matches per paragraph:
-        density = attention_vector[i] / paragraph_len
-        # TODO: add bayesian
-        paragraph_attention_vector[par[0]: par[1]] += attention_vector[i] + density
-
-        if paragraph_attention_vector[par[0]] > paragraph_attention_vector[top_index]:
-          top_index = par[0]
-
-    par = section.tokens_map.sentence_at_index(top_index)
-    return par, paragraph_attention_vector[top_index]
-
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
 
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
+    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
 
-    all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'x_ContractSubject')
-    all_subjects_mean: FixedVector = rectifyed_sum(all_subjects_vectors)
+    all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
+    subject_headline_attention: FixedVector = rectifyed_sum(all_subjects_vectors) / 2
 
     max_confidence = 0
     max_subject_kind = None
     max_paragraph_span = None
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
       subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind,
-                                                                                   all_subjects_mean)
+                                                                                   subject_headline_attention)
 
-      paragraph_span, confidence = self._find_most_relevant_paragraph(section, subject_attention_vector)
-      # TODO: the returned value is not "confidence", it's just a sum
+      paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(section,
+                                                                                             subject_attention_vector,
+                                                                                             min_len=20)
 
+      print(f'--------------------confidence {subject_kind}=', confidence)
       if confidence > max_confidence:
         max_confidence = confidence
         max_subject_kind = subject_kind
@@ -337,6 +287,25 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
   return values_list
 
 
+def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vector: FixedVector, min_len: int):
+  # paragraph_attention_vector = smooth(attention_vector, 6)
+  _padding = 23
+  _blur = 10
+
+  paragraph_attention_vector = smooth_safe(np.pad(subject_attention_vector, _padding, mode='constant'), _blur)[
+                               _padding:-_padding]
+  top_index = int(np.argmax(paragraph_attention_vector))
+  span = section.tokens_map.sentence_at_index(top_index)
+  if min_len is not None and span[1] - span[0] < min_len:
+    next_span = section.tokens_map.sentence_at_index(span[1] + 1)
+    span = (span[0], next_span[1])
+
+  # confidence = paragraph_attention_vector[top_index]
+  confidence_region = subject_attention_vector[span[0]:span[1]]
+
+  # print(confidence_region)
+  confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
+  return span, confidence, paragraph_attention_vector
 
 
 def find_all_value_sign_currency(doc: LegalDocument) -> List[List[SemanticTag]]:

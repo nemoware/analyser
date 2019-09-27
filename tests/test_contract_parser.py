@@ -85,19 +85,19 @@ class TestContractParser(unittest.TestCase):
     warnings.warn("use find_contract_subject_region", DeprecationWarning)
     doc, factory, ctx = self._get_doc_factory_ctx()
     # ----------------------------------------
-    subjects = ctx.find_contract_subject(doc)
+    subject: SemanticTag = ctx.find_contract_subject_region(doc)
     # ----------------------------------------
-    print("SUBJECTS:")
-    for subj in subjects:
-      print(subj)
 
-  def test_find_contract_sections (self):
+    print(subject)
+    self.assertEqual('Charity', subject.value)
+
+  def test_find_contract_sections(self):
 
     doc, factory, ctx = self._get_doc_factory_ctx()
     # ----------------------------------------
 
-    ctx.sections_finder.find_sections( doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
-                                       headline_patterns_prefix='headline.')
+    ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
+                                      headline_patterns_prefix='headline.')
     # ----------------------------------------
     print("SECTION:")
     for section in doc.sections.keys():
@@ -124,8 +124,9 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
-                     doc.tokens_map.text_range(result.span).strip())
+    expected = """1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя: \n1.1.1. Счет № 115 на приобретение спортивного оборудования (теннисный стол, рукоход с перекладинами, шведская стенка). Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается."""
+    self.assertEqual(expected, doc.tokens_map.text_range(result.span).strip())
+    self.assertEqual('Charity', result.value)
 
   def test_find_contract_subject_region_in_doc_head(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
@@ -140,7 +141,7 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
+    self.assertEqual('1. ПРЕДМЕТ ДОГОВОРА.\n1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
                      doc.tokens_map.text_range(result.span).strip())
 
   def test_find_contract_subject_region(self):
@@ -151,8 +152,8 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    self.assertEqual('1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
-                     doc.tokens_map.text_range(result.span).strip())
-
+    expected="""1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя: \n1.1.1. Счет № 115 на приобретение спортивного оборудования (теннисный стол, рукоход с перекладинами, шведская стенка). Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается."""
+    self.assertEqual(expected, doc.tokens_map.text_range(result.span).strip())
+    self.assertEqual('Charity', result.value)
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
