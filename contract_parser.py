@@ -6,9 +6,8 @@ from ml_tools import *
 from parsing import ParsingConfig, ParsingContext
 from patterns import AV_SOFT, AV_PREFIX
 from renderer import AbstractRenderer
-from sections_finder import FocusingSectionsFinder, HeadlineMeta
+from sections_finder import FocusingSectionsFinder
 from structures import ContractSubject
-from transaction_values import ValueConstraint
 
 default_contract_parsing_config: ParsingConfig = ParsingConfig()
 contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
@@ -312,89 +311,6 @@ class ContractAnlysingContext(ParsingContext):
       else:
         self.warning('Раздел про стоимость сделки не найден!')
 
-  def find_contract_value(self, contract: ContractDocument) -> List[ProbableValue]:
-    # preconditions
-    warnings.warn("use find_contract_value_NEW", DeprecationWarning)
-    assert contract.sections is not None
-
-    price_factory = self.pattern_factory
-    sections = contract.sections
-    result: List[ValueConstraint] = []
-
-    # TODO iterate over section names
-    if 'price.' in sections:  # todo: check 'price', not 'price.'
-
-      value_section_info: HeadlineMeta = sections['price.']
-      value_section = value_section_info.body
-      section_name = value_section_info.subdoc.text
-      result = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
-      if len(result) == 0:
-        self.warning(f'В разделе "{section_name}" стоимость сделки не найдена!')
-
-      if self.verbosity_level > 1:
-        self._logstep(f'searching for transaction values in section  "{section_name}"')
-        # ------------
-        # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
-    else:
-      self.warning('Раздел про стоимость сделки не найден!')
-
-    if len(result) == 0:
-      if 'subj' in sections:
-
-        # fallback
-        value_section_info = sections['subj']
-        value_section = value_section_info.body
-        section_name = value_section_info.subdoc.text
-        print(f'- Ищем стоимость в разделе {section_name}')
-        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
-
-        # decrease confidence:
-        for _r in result:
-          _r.confidence *= 0.7
-
-        if self.verbosity_level > 0:
-          print('alt price section DOC', '-' * 20)
-          self._logstep(f'searching for transaction values in section  "{section_name}"')
-
-        if len(result) == 0:
-          self.warning(f'В разделе "{section_name}" стоимость сделки не найдена!')
-
-    if len(result) == 0:
-      if 'pricecond' in sections:
-
-        # fallback
-        value_section_info = sections['pricecond']
-        value_section = value_section_info.body
-        section_name = value_section_info.subdoc.text
-        print(f'-WARNING: Ищем стоимость в разделе {section_name}!')
-        result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
-        if self.verbosity_level > 0:
-          print('alt price section DOC', '-' * 20)
-          self._logstep(f'searching for transaction values in section  "{section_name}"')
-        # ------------
-        for _r in result:
-          _r.confidence *= 0.7
-        # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
-        if len(result) == 0:
-          self.warning(f'В разделе "{section_name}" стоимость сделки не найдена!')
-
-    if len(result) == 0:
-      self.warning('Ищем стоимость во всем документе!')
-
-      #     trying to find sum in the entire doc
-      value_section = contract
-      result: List[ProbableValue] = filter_nans(_try_to_fetch_value_from_section_2(value_section, price_factory))
-      if self.verbosity_level > 1:
-        print('ENTIRE DOC', '--' * 70)
-        self._logstep(f'searching for transaction values in the entire document')
-      # ------------
-      # decrease confidence:
-      for _r in result:
-        _r.confidence *= 0.6
-      # value_section.reset_embeddings()  # careful with this. Hope, we will not be required to search here
-
-    return result
-
 
 def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
   List[SemanticTag]]:
@@ -421,22 +337,6 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
   return values_list
 
 
-def _try_to_fetch_value_from_section_2(value_section_subdoc: LegalDocument, factory: ContractPatternFactory) -> List[
-  ProbableValue]:
-  warnings.warn("use find_value_sign_currency ", DeprecationWarning)
-  ''' merge dictionaries of attention vectors '''
-
-  value_section_subdoc.calculate_distances_per_pattern(factory)
-  vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
-  value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
-
-  v = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
-
-  values: List[ProbableValue] = find_all_value_sign_currency(value_section_subdoc)
-
-  # TODO: apply confidence to semantic tags
-
-  return values
 
 
 def find_all_value_sign_currency(doc: LegalDocument) -> List[List[SemanticTag]]:
