@@ -9,6 +9,10 @@ import warnings
 import os, pickle
 from text_tools import Tokens, my_punctuation
 
+import nltk
+
+nltk.download('punkt')
+
 
 class TextMap:
 
@@ -244,9 +248,6 @@ class GTokenizer:
     raise NotImplementedError()
 
 
-import nltk
-
-
 def span_tokenize(text):
   start_from = 0
   for token in nltk.word_tokenize(text):
@@ -269,8 +270,10 @@ def span_tokenize(text):
 class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
-    pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
-    nltk.download('punkt', download_dir=pth)
+
+    # pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
+    # nltk.download('punkt', download_dir=pth)
+    pass
 
   def tokenize_line(self, line):
     return [line[t[0]:t[1]] for t in span_tokenize(line)]
