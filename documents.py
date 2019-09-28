@@ -11,7 +11,7 @@ from text_tools import Tokens, my_punctuation
 
 import nltk
 
-# nltk.download('punkt')
+nltk.download('punkt')
 
 class TextMap:
 
@@ -270,8 +270,8 @@ class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
 
-    pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
-    nltk.download('punkt', download_dir=pth)
+    # pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
+    # nltk.download('punkt', download_dir=pth)
     pass
 
   def tokenize_line(self, line):
