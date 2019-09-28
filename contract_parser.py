@@ -195,6 +195,8 @@ class ContractAnlysingContext(ParsingContext):
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
 
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
+    #TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
+    #TODO: const(loss) function should measure distance from actual span to expected span
 
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
@@ -213,7 +215,8 @@ class ContractAnlysingContext(ParsingContext):
                                                                                              subject_attention_vector,
                                                                                              min_len=20)
 
-      print(f'--------------------confidence {subject_kind}=', confidence)
+      if self.verbosity_level>2:
+        print(f'--------------------confidence {subject_kind}=', confidence)
       if confidence > max_confidence:
         max_confidence = confidence
         max_subject_kind = subject_kind
