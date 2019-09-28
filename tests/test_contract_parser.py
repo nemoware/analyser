@@ -3,6 +3,7 @@
 # coding=utf-8
 
 
+import os
 import pickle
 import unittest
 import warnings
@@ -18,15 +19,15 @@ from structures import ContractTags
 class TestContractParser(unittest.TestCase):
 
   def get_doc(self) -> (ContractDocument, ContractPatternFactory):
-    with open('2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
+    pth = os.path.dirname(__file__)
+    with open(pth + '/2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
       doc = pickle.load(handle)
 
-    with open('contract_pattern_factory.pickle', 'rb') as handle:
+    with open(pth + '/contract_pattern_factory.pickle', 'rb') as handle:
       factory = pickle.load(handle)
 
-    # self.assertEqual(2637, doc.embeddings.shape[-2])
     self.assertEqual(1024, doc.embeddings.shape[-1])
-    # print(doc._normal_text)
+
     return doc, factory
 
   def _get_doc_factory_ctx(self):
@@ -141,8 +142,9 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    self.assertEqual('1. ПРЕДМЕТ ДОГОВОРА.\n1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
-                     doc.tokens_map.text_range(result.span).strip())
+    self.assertEqual(
+      '1. ПРЕДМЕТ ДОГОВОРА.\n1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
+      doc.tokens_map.text_range(result.span).strip())
 
   def test_find_contract_subject_region(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
@@ -152,8 +154,9 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    expected="""1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя: \n1.1.1. Счет № 115 на приобретение спортивного оборудования (теннисный стол, рукоход с перекладинами, шведская стенка). Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается."""
+    expected = """1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя: \n1.1.1. Счет № 115 на приобретение спортивного оборудования (теннисный стол, рукоход с перекладинами, шведская стенка). Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается."""
     self.assertEqual(expected, doc.tokens_map.text_range(result.span).strip())
     self.assertEqual('Charity', result.value)
+
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

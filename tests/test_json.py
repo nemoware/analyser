@@ -4,6 +4,7 @@
 
 
 import json
+import os
 # import json
 import pickle
 import unittest
@@ -20,10 +21,11 @@ from ml_tools import SemanticTag
 class TestJsonExport(unittest.TestCase):
 
   def _get_doc(self) -> (ContractDocument, ContractPatternFactory):
-    with open('2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
+    pth = os.path.dirname(__file__)
+    with open(pth + '/2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
       doc = pickle.load(handle)
 
-    with open('contract_pattern_factory.pickle', 'rb') as handle:
+    with open(pth + '/contract_pattern_factory.pickle', 'rb') as handle:
       factory = pickle.load(handle)
 
     # self.assertEqual(2637, doc.embeddings.shape[-2])
