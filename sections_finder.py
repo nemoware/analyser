@@ -28,6 +28,7 @@ class HeadlineMeta:
 
   header = property(get_header)
 
+
 class SectionsFinder:
 
   def __init__(self, ctx: ParsingSimpleContext):
@@ -43,61 +44,45 @@ class FocusingSectionsFinder(SectionsFinder):
   def __init__(self, ctx: ParsingSimpleContext):
     SectionsFinder.__init__(self, ctx)
 
-  def find_sections(self, doc_: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
+  def find_sections(self, contract: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
                     headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
 
-    headers = [doc_.subdoc_slice(p.header.as_slice()) for p in doc_.paragraphs]
+    sections_filtered = {}
+    for section_type in factory.headlines:
+      # find best header for each section
 
-    # section_by_index = {}
-    header_index = 0
-    types_by_header = {}
-    headers_by_type = {}
-    for header in headers:
-      # find best section_type (pattern match) for each header
-      for section_type in headlines:
-        # header X type cartesian
+      pattern_prefix = f'headline.{section_type}'
 
-        # like 'name.', 'head.all.', 'head.gen.', 'head.directors.'
-        pattern_prefix = f'{headline_patterns_prefix}{section_type}'
-        header.calculate_distances_per_pattern(factory, pattern_prefix=pattern_prefix, merge=True)
-        vectors = filter_values_by_key_prefix(header.distances_per_pattern_dict, pattern_prefix)
+      headers = [contract.subdoc_slice(p.header.as_slice()) for p in contract.paragraphs]
 
-        headline_correspondence_v = sum_probabilities(list(vectors))
-        confidence = max(headline_correspondence_v)
+      _max_confidence = 0
+      _max_header_i = -1
+      for header_index in range(len(headers)):
+        header = headers[header_index]
+        vvs = header.calculate_distances_per_pattern(factory, pattern_prefix=pattern_prefix, merge=False)
+        vv = sum_probabilities(list(vvs.values()))  # bayes-aggregated vectors
+        _confidence = max(vv)
+
+        if _confidence > _max_confidence:
+          _max_confidence = _confidence
+          _max_header_i = header_index
+
+      if _max_confidence > 0.6:
+        put_if_better(sections_filtered, _max_header_i, (_max_confidence, section_type), lambda a, b: a[1] > b[1])
+
+    sections = {}
+    for header_i in sections_filtered:
+      confidence, section_type = sections_filtered[header_i]
+
+      para = contract.paragraphs[header_i]
+      body = contract.subdoc_slice(para.body.as_slice(), name=section_type + '.body')
+      head = contract.subdoc_slice(para.header.as_slice(), name=section_type + ".head")
+      hl_info = HeadlineMeta(header_i, section_type, confidence, head, body)
+      print(hl_info.type)
+      sections[section_type] = hl_info
 
 
-
-        # key = header_index
-        y=(section_type, confidence, header.text)
-        put_if_better(types_by_header, header_index, y, lambda a, b: a[1]>b[1] )
-
-        # if key in types_by_header:
-        #   if confidence > types_by_header[key][1]:
-        #     types_by_header[key] = (section_type, confidence, header.text)
-        # else:
-        #   types_by_header[key] = (section_type, confidence, header.text)
-
-      header_index += 1
-
-    headers_by_type = {}
-    for header_index in types_by_header.keys():
-      stats = types_by_header[header_index]
-      key = stats[0]  #
-      y=(header_index, stats[1], stats[2])
-      put_if_better(headers_by_type, key, y, lambda a, b: a[1] > b[1])
-
-    sections={}
-    for header_index in types_by_header.keys():
-
-      stats = types_by_header[header_index]
-      type = stats[0]
-      para = doc_.paragraphs[header_index]
-      body = doc_.subdoc_slice(para.body.as_slice(), name=type+'.body')
-      head = doc_.subdoc_slice(para.header.as_slice(), name=type+".head")
-      hl_info = HeadlineMeta(header_index, type, stats[1], head, body)
-      sections[type]=hl_info
-
-    doc_.sections=sections
+    contract.sections = sections
     return sections
 
   def ___find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
