@@ -45,10 +45,11 @@ class FocusingSectionsFinder(SectionsFinder):
     SectionsFinder.__init__(self, ctx)
 
   def find_sections(self, contract: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
+                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None,
+                    confidence_threshold=0.7) -> dict:
 
     sections_filtered = {}
-    for section_type in factory.headlines:
+    for section_type in headlines:
       # find best header for each section
 
       pattern_prefix = f'headline.{section_type}'
@@ -67,7 +68,7 @@ class FocusingSectionsFinder(SectionsFinder):
           _max_confidence = _confidence
           _max_header_i = header_index
 
-      if _max_confidence > 0.6:
+      if _max_confidence > confidence_threshold:
         put_if_better(sections_filtered, _max_header_i, (_max_confidence, section_type), lambda a, b: a[1] > b[1])
 
     sections = {}
@@ -80,7 +81,6 @@ class FocusingSectionsFinder(SectionsFinder):
       hl_info = HeadlineMeta(header_i, section_type, confidence, head, body)
       print(hl_info.type)
       sections[section_type] = hl_info
-
 
     contract.sections = sections
     return sections
