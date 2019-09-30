@@ -6,6 +6,15 @@ from typing import List
 
 from ml_tools import TokensWithAttention
 
+org_types = {
+  'org_unknown': 'undefined',
+  'org_ao': 'Акционерное общество',
+  'org_zao': 'Закрытое акционерное общество',
+  'org_oao': 'Открытое акционерное общество',
+  'org_ooo': 'Общество с ограниченной ответственностью',
+  'org_nc': 'Некоммерческая организация'
+}
+
 
 class DisplayStringEnumMeta(EnumMeta):
   def __new__(mcs, name, bases, attrs):
@@ -22,6 +31,7 @@ class DisplayStringEnumMeta(EnumMeta):
 
 @unique
 class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
+  #TODO: define per org_types
   ShareholdersGeneralMeeting = 3, 'Генеральное собрание акционеров'
   BoardOfDirectors = 2, 'Совет директоров'
   CEO = 1, 'Генеральный директор'
@@ -33,6 +43,7 @@ ORG_2_ORG = {
   'gen': OrgStructuralLevel.CEO,
   'directors': OrgStructuralLevel.BoardOfDirectors,
   'pravlenie': OrgStructuralLevel.BoardOfCompany,
+  #TODO: what?
   'head.all': OrgStructuralLevel.ShareholdersGeneralMeeting,
   'head.gen': OrgStructuralLevel.CEO,
   'head.directors': OrgStructuralLevel.BoardOfDirectors,
@@ -42,7 +53,6 @@ ORG_2_ORG = {
 
 @unique
 class ContractTags(Enum, metaclass=DisplayStringEnumMeta):
-
   Value = 0, 'value'
   Currency = 1, 'currency'
   Sign = 2, 'sign'

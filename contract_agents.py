@@ -7,7 +7,6 @@ import re
 import warnings
 from typing import AnyStr, Match, Dict, List
 
-from documents import TextMap
 from legal_docs import LegalDocument
 from ml_tools import SemanticTag
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
@@ -22,6 +21,7 @@ ORG_TYPES_re = [
   ru_cap('учреждение'),
   ru_cap('Общественная организация'),
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
+  ru_cap('Федеральное казенное учреждение'),
   ru_cap('Некоммерческая организация'),
   ru_cap('Благотворительный фонд'),
   ru_cap('Индивидуальный предприниматель'), 'ИП',
@@ -53,9 +53,6 @@ complete_re = re.compile(complete_re_str, re.MULTILINE)
 # ----------------------------------
 
 entities_types = ['type', 'name', 'alt_name', 'alias', 'type_ext']
-import random
-
-
 
 
 def clean_value(x: str) -> str:
@@ -125,10 +122,6 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   # fitering tags
   # ignore distant matches
   return tags
-
-
-
-
 
 
 r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')

@@ -726,16 +726,6 @@ def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention
   return constraints
 
 
-org_types = {
-  'org_unknown': 'undefined',
-  'org_ao': 'Акционерное общество',
-  'org_zao': 'Закрытое акционерное общество',
-  'org_oao': 'Открытое акционерное общество',
-  'org_ooo': 'Общество с ограниченной ответственностью',
-  'org_nc': 'Некоммерческая организация'
-}
-
-
 def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: AbstractPatternFactory,
                                     dist_function=DIST_FUNC, merge=False,
                                     pattern_prefix=None, verbosity=1):

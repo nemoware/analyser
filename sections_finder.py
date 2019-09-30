@@ -79,7 +79,7 @@ class FocusingSectionsFinder(SectionsFinder):
       body = contract.subdoc_slice(para.body.as_slice(), name=section_type + '.body')
       head = contract.subdoc_slice(para.header.as_slice(), name=section_type + ".head")
       hl_info = HeadlineMeta(header_i, section_type, confidence, head, body)
-      print(hl_info.type)
+
       sections[section_type] = hl_info
 
     contract.sections = sections

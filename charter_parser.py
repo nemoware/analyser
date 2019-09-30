@@ -1,7 +1,7 @@
 # origin: charter_parser.py
 
 from charter_patterns import make_constraints_attention_vectors
-from legal_docs import LegalDocument, org_types, CharterDocument, \
+from legal_docs import LegalDocument, CharterDocument, \
   extract_all_contraints_from_sr, _expand_slice
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
