@@ -175,6 +175,7 @@ def normalize_company_name(name: str) -> (str, str):
       legal_entity_type = c
       normal_name = name[len(c):]
 
+  normal_name = normal_name.replace('\t', ' ').replace('\n', ' ')
   normal_name = normal_name.strip()
   normal_name = re.sub(r'\s+', ' ', normal_name)
   normal_name = re.sub(r'[\s ]*[-–v][\s ]*', '-', normal_name)
