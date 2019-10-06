@@ -74,12 +74,7 @@ class ContractAnlysingContext(ParsingContext):
 
     self.sections_finder = FocusingSectionsFinder(self)
 
-  def _reset_context(self):
-    super(ContractAnlysingContext, self)._reset_context()
 
-    if self.contract is not None:
-      del self.contract
-      self.contract = None
 
   def analyze_contract(self, contract_text):
     warnings.warn("use analyze_contract_doc", DeprecationWarning)
@@ -93,6 +88,8 @@ class ContractAnlysingContext(ParsingContext):
     self.contract.embedd_tokens(self.pattern_factory.embedder)
 
     return self.analyze_contract_doc(self.contract, reset_ctx=False)
+
+
 
   def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
     # assert contract.embeddings is not None
@@ -113,8 +110,8 @@ class ContractAnlysingContext(ParsingContext):
       self.contract.embedd_tokens(self.pattern_factory.embedder)
 
     contract.agents_tags = find_org_names(contract)
-
     self._logstep("parsing document 👞 and detecting document high-level structure")
+
     self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
@@ -130,6 +127,13 @@ class ContractAnlysingContext(ParsingContext):
     self.log_warnings()
 
     return self.contract, self.contract.contract_values
+
+  def _reset_context(self):
+    super(ContractAnlysingContext, self)._reset_context()
+
+    if self.contract is not None:
+      del self.contract
+      self.contract = None
 
   def get_contract_values(self):
     return self.contract.contract_values
@@ -251,11 +255,13 @@ class ContractAnlysingContext(ParsingContext):
 
         groups: List[List[SemanticTag]] = find_value_sign_currency(value_section, self.pattern_factory)
         if not groups:
+          # search in next section
           self.warning(f'В разделе "{_section_name}" стоимость сделки не найдена!')
+
         else:
+          # decrease confidence:
           for g in groups:
             for _r in g:
-              # decrease confidence:
               _r.confidence *= confidence_k
               _r.offset(value_section.start)
 
@@ -263,6 +269,13 @@ class ContractAnlysingContext(ParsingContext):
 
       else:
         self.warning('Раздел про стоимость сделки не найден!')
+
+  # def _reduce_value_sign_currency_groups(self, groups: List[List[SemanticTag]])->  List[List[SemanticTag]]:
+  #   for group in groups:
+  #     for _r in g:
+  #       _r.confidence *= confidence_k
+  #       _r.offset(value_section.start)
+  #   return g
 
 
 def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
@@ -275,7 +288,7 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
 
     attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
   else:
-    # this case is for Unit Testing only
+    # HATI-HATI: this case is for Unit Testing only
     attention_vector_tuned = None
 
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
