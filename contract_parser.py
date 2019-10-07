@@ -1,6 +1,6 @@
 from contract_agents import find_org_names
 from contract_patterns import ContractPatternFactory
-from legal_docs import LegalDocument, extract_sum_sign_currency
+from legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
 from ml_tools import *
 
 from parsing import ParsingConfig, ParsingContext
@@ -14,6 +14,8 @@ contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, Contra
 
 from transaction_values import complete_re as transaction_values_re
 
+from hyperparams import HyperParameters
+
 
 class ContractDocument3(LegalDocument):
   '''
@@ -26,7 +28,7 @@ class ContractDocument3(LegalDocument):
     LegalDocument.__init__(self, original_text)
 
     self.subjects = None
-    self.contract_values: List[List[SemanticTag]] = []
+    self.contract_values: List[ContractValue] = []
 
     self.agents_tags = None
 
@@ -39,7 +41,7 @@ class ContractDocument3(LegalDocument):
 
     if self.contract_values:
       for contract_value in self.contract_values:
-        tags += contract_value
+        tags += contract_value.as_list()
 
     # TODO: filter tags if _t.isNotEmpty():
     return tags
@@ -59,7 +61,7 @@ def filter_nans(vcs: List[ProbableValue]) -> List[ProbableValue]:
 
 class ContractAnlysingContext(ParsingContext):
 
-  def __init__(self, embedder, renderer: AbstractRenderer, pattern_factory=None):
+  def __init__(self, embedder, renderer: AbstractRenderer = None, pattern_factory=None):
     ParsingContext.__init__(self, embedder)
     self.renderer: AbstractRenderer = renderer
     if not pattern_factory:
@@ -74,8 +76,6 @@ class ContractAnlysingContext(ParsingContext):
 
     self.sections_finder = FocusingSectionsFinder(self)
 
-
-
   def analyze_contract(self, contract_text):
     warnings.warn("use analyze_contract_doc", DeprecationWarning)
 
@@ -88,8 +88,6 @@ class ContractAnlysingContext(ParsingContext):
     self.contract.embedd_tokens(self.pattern_factory.embedder)
 
     return self.analyze_contract_doc(self.contract, reset_ctx=False)
-
-
 
   def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
     # assert contract.embeddings is not None
@@ -199,8 +197,8 @@ class ContractAnlysingContext(ParsingContext):
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
 
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
-    #TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
-    #TODO: const(loss) function should measure distance from actual span to expected span
+    # TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
+    # TODO: const(loss) function should measure distance from actual span to expected span
 
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
@@ -219,7 +217,7 @@ class ContractAnlysingContext(ParsingContext):
                                                                                              subject_attention_vector,
                                                                                              min_len=20)
 
-      if self.verbosity_level>2:
+      if self.verbosity_level > 2:
         print(f'--------------------confidence {subject_kind}=', confidence)
       if confidence > max_confidence:
         max_confidence = confidence
@@ -233,7 +231,7 @@ class ContractAnlysingContext(ParsingContext):
 
       return subject_tag
 
-  def find_contract_value_NEW(self, contract: ContractDocument) -> List[List[SemanticTag]]:
+  def find_contract_value_NEW(self, contract: ContractDocument) -> List[ContractValue]:
     # preconditions
     assert contract.sections is not None, 'find sections first'
 
@@ -253,33 +251,36 @@ class ContractAnlysingContext(ParsingContext):
         if self.verbosity_level > 1:
           self._logstep(f'searching for transaction values in section ["{section}"] "{_section_name}"')
 
-        groups: List[List[SemanticTag]] = find_value_sign_currency(value_section, self.pattern_factory)
-        if not groups:
+        values_list: List[ContractValue] = find_value_sign_currency(value_section, self.pattern_factory)
+        if not values_list:
           # search in next section
           self.warning(f'В разделе "{_section_name}" стоимость сделки не найдена!')
 
         else:
           # decrease confidence:
-          for g in groups:
-            for _r in g:
+          for g in values_list:
+            for _r in g.as_list():
               _r.confidence *= confidence_k
               _r.offset(value_section.start)
 
-          return groups
+          # ------
+          # reduce number of found values
+          # take only max value and most confident ones (we hope, it is the same finding)
+
+          max_confident_cv = max_confident(values_list)
+          max_valued_cv = max_value(values_list)
+          if max_confident_cv == max_valued_cv:
+            return [max_confident_cv]
+          else:
+            return [max_valued_cv, max_confident_cv]
+
 
       else:
         self.warning('Раздел про стоимость сделки не найден!')
 
-  # def _reduce_value_sign_currency_groups(self, groups: List[List[SemanticTag]])->  List[List[SemanticTag]]:
-  #   for group in groups:
-  #     for _r in g:
-  #       _r.confidence *= confidence_k
-  #       _r.offset(value_section.start)
-  #   return g
-
 
 def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
-  List[SemanticTag]]:
+  ContractValue]:
   if factory is not None:
     value_section_subdoc.calculate_distances_per_pattern(factory)
     vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
@@ -297,10 +298,19 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
   # Estimating confidence by looking at attention vector
   if attention_vector_tuned is not None:
     for value_sign_currency in values_list:
-      for t in value_sign_currency:
-        t.confidence *= estimate_confidence_by_mean_top_non_zeros(attention_vector_tuned[t.span[0]:t.span[1]])
+      for t in value_sign_currency.as_list():
+        t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
+          attention_vector_tuned[t.slice]))
 
   return values_list
+
+
+def max_confident(vals: List[ContractValue]) -> ContractValue:
+  return max(vals, key=lambda a: a.integral_sorting_confidence())
+
+
+def max_value(vals: List[ContractValue]) -> ContractValue:
+  return max(vals, key=lambda a: a.value.value)
 
 
 def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vector: FixedVector, min_len: int):
@@ -324,7 +334,7 @@ def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vect
   return span, confidence, paragraph_attention_vector
 
 
-def find_all_value_sign_currency(doc: LegalDocument) -> List[List[SemanticTag]]:
+def find_all_value_sign_currency(doc: LegalDocument) -> List[ContractValue]:
   warnings.warn("use find_value_sign_currency ", DeprecationWarning)
   """
   TODO: rename

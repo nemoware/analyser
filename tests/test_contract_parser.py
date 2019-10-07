@@ -8,7 +8,7 @@ import pickle
 import unittest
 import warnings
 
-from contract_parser import ContractAnlysingContext, ContractDocument
+from contract_parser import ContractAnlysingContext, ContractDocument, find_value_sign_currency
 from contract_patterns import ContractPatternFactory
 from documents import TextMap
 from legal_docs import LegalDocument
@@ -18,9 +18,9 @@ from structures import ContractTags
 
 class TestContractParser(unittest.TestCase):
 
-  def get_doc(self) -> (ContractDocument, ContractPatternFactory):
+  def get_doc(self, fn) -> (ContractDocument, ContractPatternFactory):
     pth = os.path.dirname(__file__)
-    with open(pth + '/2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
+    with open(os.path.join(pth, fn), 'rb') as handle:
       doc = pickle.load(handle)
 
     with open(pth + '/contract_pattern_factory.pickle', 'rb') as handle:
@@ -30,8 +30,31 @@ class TestContractParser(unittest.TestCase):
 
     return doc, factory
 
-  def _get_doc_factory_ctx(self):
-    doc, factory = self.get_doc()
+  def test_find_value_sign_currency(self):
+
+    doc, factory, ctx = self._get_doc_factory_ctx('Договор _2_.docx.pickle')
+
+
+    r = ctx.find_contract_value_NEW(doc)
+    print(len(r))
+    for group in r:
+      for tag in group.as_list():
+        print(tag)
+
+    self.assertLessEqual(len(r), 2)
+    # print(r)
+    #
+    # value = SemanticTag.find_by_kind(r[0], 'value')
+    # sign = SemanticTag.find_by_kind(r[0], 'sign')
+    # currency = SemanticTag.find_by_kind(r[0], 'currency')
+    #
+    # print(doc.tokens_map_norm.text_range(value.span))
+    # self.assertEqual(price, value.value, text)
+    # self.assertEqual(currency_exp, currency.value)
+    # print(f'{value}, {sign}, {currency}')
+
+  def _get_doc_factory_ctx(self, fn='2. Договор по благ-ти Радуга.docx.pickle'):
+    doc, factory = self.get_doc(fn)
 
     ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
     ctx.verbosity_level = 3
@@ -57,9 +80,9 @@ class TestContractParser(unittest.TestCase):
     print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]", tag.parent)
 
   def test_find_contract_value(self):
-    doc, factory = self.get_doc()
+    doc, factory = self.get_doc(fn='2. Договор по благ-ти Радуга.docx.pickle')
 
-    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
@@ -70,17 +93,15 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual(1, len(values))
     v = values[0]
 
-    value = SemanticTag.find_by_kind(v, ContractTags.Value.display_string)
-    sign = SemanticTag.find_by_kind(v, ContractTags.Sign.display_string)
-    currency = SemanticTag.find_by_kind(v, ContractTags.Currency.display_string)
 
-    self.print_semantic_tag(sign, doc.tokens_map)
-    self.print_semantic_tag(value, doc.tokens_map)
-    self.print_semantic_tag(currency, doc.tokens_map)
 
-    self.assertEqual(0, sign.value)
-    self.assertEqual(80000, value.value)
-    self.assertEqual('RUB', currency.value)
+    self.print_semantic_tag(v.sign, doc.tokens_map)
+    self.print_semantic_tag(v.value, doc.tokens_map)
+    self.print_semantic_tag(v.currency, doc.tokens_map)
+
+    self.assertEqual(0, v.sign.value)
+    self.assertEqual(80000, v.value.value)
+    self.assertEqual('RUB', v.currency.value)
 
   def test_find_contract_subject(self):
     warnings.warn("use find_contract_subject_region", DeprecationWarning)

@@ -46,3 +46,7 @@ nltk_data_download/tokenizers/punkt/italian.pickle
 nltk_data_download/tokenizers/punkt/portuguese.pickle
 
 nltk_data_download/tokenizers/punkt/PY3/italian.pickle
+
+tests/contracts-stats.csv
+
+tests/contracts-stats-1.csv

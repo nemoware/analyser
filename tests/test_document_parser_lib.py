@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import unittest
-# pprint library is used to make the output look more pretty
-from pprint import pprint
 
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import WordDocParser
@@ -17,18 +15,9 @@ class TestContractParser(unittest.TestCase):
   def n(self, txt):
     return normalize_text(txt, replacements_regex)
 
-  def test_mongodb_connection(self):
-    # client = MongoClient('mongodb://localhost:27017/')
-    db = get_mongodb_connection()
-
-    if db:
-      # Issue the serverStatus command and print the results
-      serverStatusResult = db.command("serverStatus")
-      pprint(serverStatusResult)
-
   def test_doc_parser(self):
     db = get_mongodb_connection()
-    if db is None:  # TODO: this is a weid way of detecting we're on CI
+    if db is None:  # TODO: this is a weird way of detecting we're on CI
       return
 
     FILENAME = "/Users/artem/work/nemo/goil/IN/Другие договоры/Договор Формула.docx"

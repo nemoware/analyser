@@ -13,7 +13,7 @@ from bson import json_util
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag
+  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum
 from parsing import print_prof_data
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
@@ -778,7 +778,21 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
 find_value_sign = detect_sign_2
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[SemanticTag]:
+class ContractValue:
+  def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
+    self.value = value
+    self.sign = sign
+    self.currency = currency
+    self.parent = parent
+
+  def as_list(self):
+    return [self.value, self.sign, self.currency, self.parent]
+
+  def integral_sorting_confidence(self) -> float:
+    return conditional_p_sum(  [self.parent.confidence, self.value.confidence , self.currency.confidence, self.sign.confidence])
+
+
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:
   subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
 
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
@@ -807,9 +821,9 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
     currency.parent = parent
     currency.offset(subdoc.start)
 
-    return [sign, value_tag, currency, group]
+    return ContractValue(sign, value_tag, currency, group)
   else:
-    return []
+    return None
 
 
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
