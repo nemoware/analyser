@@ -13,17 +13,18 @@ from ml_tools import SemanticTag
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
+    self.version='1.0.8'
     x = os.system("java -version")
     assert x == 0
     if 'documentparser' in os.environ:
       self.documentparser = os.environ['documentparser']
     else:
-      warnings.warn(
-        'please set "documentparser" environment variable to point '
-        'document-parser-1.0.5 unpacked lib '
-        '(downloadable from https://github.com/nemoware/document-parser)')
+      msg=f'please set "documentparser" environment variable to point ' \
+          f'document-parser-{self.version} unpacked lib ' \
+          f'(downloadable from https://github.com/nemoware/document-parser)'
+      warnings.warn(msg)
 
-      self.documentparser = '../tests/libs/document-parser-1.0.5'
+      self.documentparser = f'../tests/libs/document-parser-{self.version}'
 
     self.cp = f"{self.documentparser}/classes:{self.documentparser}/lib/*"
     print(self.cp)
@@ -89,7 +90,7 @@ if __name__ == '__main__':
   wp = WordDocParser()
   res = wp.read_doc("/Users/artem/work/nemo/goil/IN/Другие договоры/Договор Формула.docx")
   for p in res['paragraphs']:
-    print(p['paragraphHeader']['text'])
+    print(' 📃 ', p['paragraphHeader']['text'])
 
   c = join_paragraphs(res, 'Другие договоры/Договор Формула.docx')
   print(c.text)
