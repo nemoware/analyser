@@ -14,6 +14,7 @@ Tokens = List[str]
 
 
 def find_ner_end(tokens, start, max_len=20):
+  #TODO: use regex
   for i in range(start, len(tokens)):
     if tokens[i] == '"':
       return i
@@ -284,3 +285,45 @@ def replace_tokens(tokens: Tokens, replacements_map):
     else:
       result.append(t)
   return result
+
+
+def roman_to_arabic(n) -> int or None:
+  roman = n.upper().lstrip()
+  if not check_valid_roman(roman):
+    return None
+
+  keys = ['IV', 'IX', 'XL', 'XC', 'CD', 'CM', 'I', 'V', 'X', 'L', 'C', 'D', 'M']
+  to_arabic = {'IV': '4', 'IX': '9', 'XL': '40', 'XC': '90', 'CD': '400', 'CM': '900',
+               'I': '1', 'V': '5', 'X': '10', 'L': '50', 'C': '100', 'D': '500', 'M': '1000'}
+  for key in keys:
+    if key in roman:
+      roman = roman.replace(key, ' {}'.format(to_arabic.get(key)))
+
+  return sum(int(num) for num in roman.split())
+
+
+def check_valid_roman(roman) -> bool:
+  if len(roman.strip()) == 0:
+    return False
+  invalid = ['IIII', 'VV', 'XXXX', 'LL', 'CCCC', 'DD', 'MMMM', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  if any(sub in roman for sub in invalid):
+    return False
+  return True
+
+
+def roman_might_be(wrd)->int or None:
+  try:
+    return roman_to_arabic(wrd)
+  except:
+    return None
+
+
+def string_to_ip(txt)->list or None:
+  ret = []
+  n = txt.split('.')
+  for c in n:
+    try:
+      ret.append(int(c))
+    except:
+      pass
+  return ret

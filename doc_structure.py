@@ -1,8 +1,7 @@
 import re
 
-from documents import TextMap
 from ml_tools import *
-from text_tools import np, untokenize
+from text_tools import *
 
 
 def _count_start_whitespace(tokens: Tokens) -> int:
@@ -12,58 +11,18 @@ def _count_start_whitespace(tokens: Tokens) -> int:
   return len(tokens)
 
 
-def roman_to_arabic(n):
-  roman = n.upper().lstrip()
-  if not check_valid_roman(roman):
-    return None
-
-  keys = ['IV', 'IX', 'XL', 'XC', 'CD', 'CM', 'I', 'V', 'X', 'L', 'C', 'D', 'M']
-  to_arabic = {'IV': '4', 'IX': '9', 'XL': '40', 'XC': '90', 'CD': '400', 'CM': '900',
-               'I': '1', 'V': '5', 'X': '10', 'L': '50', 'C': '100', 'D': '500', 'M': '1000'}
-  for key in keys:
-    if key in roman:
-      roman = roman.replace(key, ' {}'.format(to_arabic.get(key)))
-  return sum(int(num) for num in roman.split())
-
-
-def check_valid_roman(roman):
-  if len(roman.strip()) == 0:
-    return False
-  invalid = ['IIII', 'VV', 'XXXX', 'LL', 'CCCC', 'DD', 'MMMM', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-  if any(sub in roman for sub in invalid):
-    return False
-  return True
-
-
-def roman_might_be(wrd):
-  try:
-    return roman_to_arabic(wrd)
-  except:
-    return None
-
-
-def string_to_ip(str):
-  ret = []
-  n = str.split('.')
-  for c in n:
-    try:
-      ret.append(int(c))
-    except:
-      pass
-  return ret
-
-
 def get_tokenized_line_number(tokens: Tokens, last_level):
-  """
-  :param tokens: list of stings, supposed to be lowercase
-  :return: number, number_region, line???, level (for 1.1.1 it is 3)
+  """	
+  :param tokens: list of stings, supposed to be lowercase	
+  :return: number, number_region, line???, level (for 1.1.1 it is 3)	
   """
 
   if len(tokens) == 0:
     return None, (0, 0), last_level + 1, False
 
   r = roman_might_be(tokens[0])
-  if r is not None:
+
+  if r:
     # Roman number
     return [r], (0, 1), 0, True
 
@@ -91,12 +50,9 @@ def get_tokenized_line_number(tokens: Tokens, last_level):
 
       return n, (0, offset), level, False
 
-
     else:
       # Number not found
-
       # searching for bulletpoints -
-      # x = re.search(r'^\s*[\-|•]\s*', tokens[token_index], flags=re.MULTILINE)
       x = re.search(r'^[\-|•]', tokens[token_index], flags=re.MULTILINE)
       if x is not None:
         return [-1], (0, 1), last_level, False
@@ -133,7 +89,7 @@ class StructureLine():
     counts = np.bincount(self._possible_levels)
     return np.argmax(counts)
 
-  def get_parent_number(self):
+  def _get_parent_number(self):
     if len(self.number) > 1:
       return self.number[-2]
 
@@ -142,55 +98,21 @@ class StructureLine():
   def add_possible_level(self, l):
     self._possible_levels.append(l)
 
-  def print(self, tokens_cc, suffix='', line_number=None):
-
-    offset = '  .  ' * self.level
-
-    number_str = '.'.join([str(x) for x in self.number])
-    if self.bullet:
-      number_str = '• '
-    if self.numbered:
-      number_str += '.'
-    #         print(offset, number_str, (self.tokens_cc[span[0] + number_tokens:span[1]]))
-    values = "not text so far"
-    if tokens_cc is not None:
-      values = self.to_string_no_number(tokens_cc)
-
-    ln = self.line_number
-    if line_number is not None:
-      ln = line_number
-
-    se = '+' * self.sequence_end
-    #     if self.sequence_end>0:
-    #       se=str(self.sequence_end)
-    print('ds>{}\t {}\t'.format(ln, se), offset, number_str, values, suffix)
-
-  def to_string_no_number(self, tokens_cc):
-    warnings.warn("deprecated", DeprecationWarning)
-    return untokenize(tokens_cc[self.span[0] + self.text_offset: self.span[1]])
-
-  def to_string(self, tokens):
-    warnings.warn("deprecated", DeprecationWarning)
-    return untokenize(tokens[self.slice])
-
-  def subtokens(self, tokens):
-    return tokens[self.span[0]: self.span[1]]
-
-  def get_numbered(self) -> bool:
+  def _is_numbered(self) -> bool:
     return len(self.number) > 0
 
-  def get_minor_number(self) -> int:
+  def _get_minor_number(self) -> int:
     if self.numbered:
       return self.number[-1]
 
-  numbered = property(get_numbered)
-  minor_number = property(get_minor_number)
-  parent_number = property(get_parent_number)
+  numbered = property(_is_numbered)
+  minor_number = property(_get_minor_number)
+  parent_number = property(_get_parent_number)
 
 
 def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev_sentence, prev_value) -> float:
-  """
-  _cc == original case
+  """	
+  _cc == original case	
   """
 
   sentence: Tokens = tokens_map[sentence_meta.span[0]: sentence_meta.span[1]]
@@ -217,7 +139,7 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
   if 3 <= len(sentence) <= 6:
     value += 1
 
-  # headline may not go after another headline
+  # headline may not appear right  after another headline
   if prev_value > 0:
     value -= prev_value / 2
 
@@ -230,11 +152,8 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
     if sentence[-r_off].isdigit():
       value -= 1.8
 
-  # span = sentence_meta.span
   _level = sentence_meta.level
-  # number, span, _level = get_tokenized_line_number(sentence, None)
-  # TODO:
-  # row = ' '.join(sentence[sentence_meta.text_offset:])[:40]
+
   row = tokens_map.text_range(sentence_meta.span)
   row = row.lstrip()
 
@@ -289,22 +208,17 @@ def headline_probability(tokens_map: TextMap, sentence_meta: StructureLine, prev
 
 class DocumentStructure:
 
-  def __init__(self):
+  def __init__(self, headline_probability_f=headline_probability):
     self.structure: List[StructureLine] = None
     self.headline_indexes: List[int] = []
-
-    self.headline_probability_func = headline_probability  # make it pluggable
-    # self._detect_document_structure(text)
+    self.headline_probability_func = headline_probability_f  # make it pluggable
 
   def detect_document_structure(self, tokens_map: TextMap):
+    assert tokens_map is not None
 
     last_level_known = 0
-
     structure = []
-
     romans = 0
-    # maxroman = 0
-
     lines_ranges = tokens_map.split_spans('\n', add_delimiter=True)
 
     for line_span in lines_ranges:
@@ -313,15 +227,15 @@ class DocumentStructure:
 
       bullet = False
 
-      if len(line_tokens) > 0:
+      if line_tokens:
         # not empty line
-        number, span, _level, roman = get_tokenized_line_number(line_tokens, last_level_known)
+        number, text_span, _level, roman = get_tokenized_line_number(line_tokens, last_level_known)
 
-        if roman: romans += 1
+        if roman:
+          romans += 1
 
-        if number is None:
+        if not number:
           number = []
-
         else:
           last_level_known = _level
           if number[-1] < 0:
@@ -329,17 +243,17 @@ class DocumentStructure:
             number = []
 
         # level , section number, is it a bullet, span : (start, end)
-        section_meta = StructureLine(
+        __section_meta = StructureLine(
           level=_level,  # 0
           number=number,  # 1
           bullet=bullet,  # 3
           span=(line_span[0], line_span[1]),
-          text_offset=span[1],
+          text_offset=text_span[1],
           line_number=len(structure),
           roman=roman
         )
 
-        structure.append(section_meta)
+        structure.append(__section_meta)
 
       if romans < 3:
         # not enough roman numbers, so these are not roman
@@ -413,12 +327,8 @@ class DocumentStructure:
     prev_value = 0
     for i in range(len(self.structure)):
       line = self.structure[i]
-      # line_tokens: Tokens = line.subtokens_map(tokens_map)
 
       p = self.headline_probability_func(tokens_map, line, prev_sentence, prev_value)
-
-      # headline_probability(  span: [int], sentence_meta: StructureLine, prev_sentence,
-      #                      prev_value) -> float:
 
       headlines_probability[i] = p
       line.add_possible_level(p)
@@ -447,19 +357,11 @@ class DocumentStructure:
 
   def _fix_structure(self, structure, verbose=False):
 
-    numbered = self._get_numbered_lines(structure)
+    numbered = self.get_numbered_lines(structure)
     if len(numbered) == 0:
       return structure
 
-    # for a in range(1):
-    # self._uplevel_non_numbered(structure)
     self._normalize_levels(structure)
-
-    # self._fix_top_level_lines(numbered)
-    # self._update_levels(structure, verbose)
-
-    # self._uplevel_non_numbered(structure)
-    # self._normalize_levels(structure)
 
     return structure
 
@@ -476,44 +378,23 @@ class DocumentStructure:
     for s in structure:
       s.level -= minlevel
 
-  def _get_numbered_lines(self, structure):
-    numbered = []
+  def get_numbered_lines(self, structure=None) -> List[StructureLine]:
+    if not structure:
+      structure = self.structure
+
+    numbered: List[StructureLine] = []
     for s in structure:
       if s.numbered:
         # numbered
         numbered.append(s)
     return numbered
 
-  def _update_levels(self, seq, verbose):
-    # DEBUG
-    for i in range(len(seq)):
-      line = seq[i]
-
-      # fixing:
-      if len(line.number) < 2:
-        line.level = line.get_median_possible_level()
-
-      # if verbose:
-      #   line.print(self.tokens_cc, str(line.level) + '--->' + str(line._possible_levels) + ' i:' + str(i))
-
-  def _uplevel_non_numbered(self, structure: List[StructureLine]):
-    for s in structure:
-      _last_level = 1
-      if s.numbered:
-        _last_level = s.level
-      else:
-        # non numbered
-        if len(s._possible_levels) > 0:
-          s.level = s.get_median_possible_level()
-        elif s.level < _last_level + 1:
-          s.level = _last_level + 1
-
-  def print_structured(self, doc, numbered_only=False):
-    ln = 0
-    for s in self.structure:
-      if s.numbered or not numbered_only:
-        s.print(doc.tokens_cc, str(s.level) + '->' + str(s._possible_levels), line_number=ln)
-        ln += 1
+  # def print_structured(self, doc, numbered_only=False):
+  #   ln = 0
+  #   for s in self.structure:
+  #     if s.numbered or not numbered_only:
+  #       s.print(doc.tokens_cc, str(s.level) + '->' + str(s._possible_levels), line_number=ln)
+  #       ln += 1
 
 
 # ---------------
@@ -525,7 +406,7 @@ def is_blank(s: str):
 
 
 # XXXL
-def remove_similar_indexes_considering_weights(indexes: List[int], weights: np.ndarray) -> List[int]:
+def remove_similar_indexes_considering_weights(indexes: List[int], weights: FixedVector) -> List[int]:
   hif = []
 
   def is_index_far(i):

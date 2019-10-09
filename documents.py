@@ -1,3 +1,6 @@
+import sys
+import traceback
+
 from text_tools import untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
@@ -6,6 +9,9 @@ import warnings
 import os, pickle
 from text_tools import Tokens, my_punctuation
 
+import nltk
+
+nltk.download('punkt')
 
 class TextMap:
 
@@ -18,9 +24,25 @@ class TextMap:
       # if len(map)<1:
       #   raise RuntimeError('Cannot deal with empty tokenization map')
 
-      self.map = map
+      self.map = list(map)
 
     self.untokenize = self.text_range  # alias
+
+  def __add__(self, other):
+    off = len(self._full_text)
+    self._full_text += other._full_text
+    # if len(self.map)>0:
+    #   off = self.map[-1][-1]
+    # else:
+    #   off=len(self._full_text)
+    for span in other.map:
+      self.map.append((span[0] + off, span[1] + off))
+
+    return self
+
+  def set_token(self, index, new_token):
+    assert len(new_token) == self.map[index][1] - self.map[index][0]
+    self._full_text = self._full_text[: self.map[index][0]] + new_token + self._full_text[self.map[index][1]:]
 
   def finditer(self, regexp):
     for m in regexp.finditer(self.text):
@@ -69,6 +91,7 @@ class TextMap:
     sliced = TextMap(self._full_text, self.map[span])
     if sliced.map:
       sliced._offset_chars = sliced.map[0][0]
+      sliced._full_text = sliced._full_text[0:  sliced.map[-1][-1]]
     else:
       sliced._offset_chars = 0
     # first_char_index = sliced.map[0][0]
@@ -106,6 +129,9 @@ class TextMap:
     return [0, self.get_len()]
 
   def text_range(self, span) -> str:
+    if span[0] >= len(self.map):
+      return ''
+
     try:
       start = self.map[span[0]][0]
       _last = min(len(self.map), span[1])
@@ -114,7 +140,9 @@ class TextMap:
       # assume map is ordered
       return self._full_text[start: stop]
     except:
-      raise RuntimeError(f'cannot deal with {span} ')
+      err = f'cannot deal with {span}'
+      traceback.print_exc(file=sys.stdout)
+      raise RuntimeError(err)
 
   def get_text(self):
     if len(self.map) == 0:
@@ -169,11 +197,16 @@ class CaseNormalizer:
 
   def normalize_tokens_map_case(self, map: TextMap) -> TextMap:
     norm_tokens = replace_tokens(map.tokens, self.replacements_map)
-    chars = list(map.text)
-    for i in range(0, len(map)):
-      r = map.map[i]
-      chars[r[0]:r[1]] = norm_tokens[i]
-    norm_map = TextMap(''.join(chars), map.map)
+    norm_map = TextMap(map._full_text, map.map)
+    for k in range(len(map)):
+      norm_map.set_token(k, norm_tokens[k])
+    # chars = list(map.text)
+    # for i in range(0, len(map)):
+    #   r = map.map[i]
+    #   chars[r[0]:r[1]] = norm_tokens[i]
+    # norm_map = TextMap(''.join(chars), list(map.map))
+    # # XXXX
+    # dfdfdfdf
     return norm_map
 
   def normalize_tokens(self, tokens: Tokens) -> Tokens:
@@ -194,42 +227,6 @@ class CaseNormalizer:
       return token
 
 
-class TokenizedText:
-
-  def __init__(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    super().__init__()
-
-    self.tokens_cc = None
-    self.tokens: Tokens = None
-
-  def get_len(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    return len(self.tokens)
-
-  def untokenize(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    return untokenize(self.tokens)
-
-  def untokenize_cc(self):
-    warnings.warn("deprecated", DeprecationWarning)
-    return untokenize(self.tokens_cc)
-
-  def concat(self, doc: "TokenizedText"):
-    warnings.warn("deprecated", DeprecationWarning)
-    self.tokens += doc.tokens
-    self.categories_vector += doc.categories_vector
-    if self.tokens_cc:
-      self.tokens_cc += doc.tokens_cc
-
-  def trim(self, sl: slice):
-    warnings.warn("deprecated", DeprecationWarning)
-    self.tokens = self.tokens[sl]
-    if self.tokens_cc:
-      self.tokens_cc = self.tokens_cc[sl]
-    self.categories_vector = self.categories_vector[sl]
-
-
 class EmbeddableText:
   warnings.warn("deprecated", DeprecationWarning)
 
@@ -237,29 +234,6 @@ class EmbeddableText:
     warnings.warn("deprecated", DeprecationWarning)
 
     self.embeddings = None
-
-
-class MarkedDoc(TokenizedText):
-
-  def __init__(self, tokens, categories_vector):
-    super().__init__()
-
-    self.tokens = tokens
-    self.categories_vector = categories_vector
-
-  def filter(self, filter_op):
-    new_tokens = []
-    new_categories_vector = []
-
-    for i in range(self.get_len()):
-      _tuple = filter_op(self.tokens[i], self.categories_vector[i])
-
-      if _tuple is not None:
-        new_tokens.append(_tuple[0])
-        new_categories_vector.append(_tuple[1])
-
-    self.tokens = new_tokens
-    self.categories_vector = new_categories_vector
 
 
 # ---------------------------------------------------
@@ -271,9 +245,6 @@ class GTokenizer:
 
   def untokenize(self, t: Tokens) -> str:
     raise NotImplementedError()
-
-
-import nltk
 
 
 def span_tokenize(text):
@@ -298,7 +269,10 @@ def span_tokenize(text):
 class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
-    nltk.download('punkt', download_dir='nltk_data_download')
+
+    # pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
+    # nltk.download('punkt', download_dir=pth)
+    pass
 
   def tokenize_line(self, line):
     return [line[t[0]:t[1]] for t in span_tokenize(line)]

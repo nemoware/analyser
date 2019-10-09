@@ -12,7 +12,7 @@ import numpy as np
 from contract_parser import ContractDocument, find_value_sign_currency
 from documents import TextMap
 from legal_docs import find_value_sign
-from ml_tools import SemanticTag
+from ml_tools import SemanticTag, conditional_p_sum
 from text_normalize import *
 from transaction_values import extract_sum, split_by_number_2
 
@@ -138,24 +138,19 @@ class PriceExtractTestCase(unittest.TestCase):
     r = find_value_sign_currency(doc)
     # =========================================
 
-    # sum, sign, currency = r[0]
-
-    value = SemanticTag.find_by_kind(r[0], 'value')
-    sign = SemanticTag.find_by_kind(r[0], 'sign')
-    currency = SemanticTag.find_by_kind(r[0], 'currency')
 
     # for sum, sign, currency in r:
 
-    print(f'{sum}, {sign}, {currency}')
+    print(f'{r[0].value}, {r[0].sign}, {r[0].currency}')
 
-    self.assertEqual('USD', currency.value)
-    self.assertEqual(1, sign.value)
-    self.assertEqual(2000000, value.value)
+    self.assertEqual('USD', r[0].currency.value)
+    self.assertEqual(1, r[0].sign.value)
+    self.assertEqual(2000000, r[0].value.value)
 
-    self.assertEqual('превышающую', doc.tokens_map_norm.text_range(sign.span))
+    self.assertEqual('превышающую', doc.tokens_map_norm.text_range(r[0].sign.span))
     self.assertEqual('2000000',
-                     doc.tokens_map_norm.text_range(value.span))  # TODO:  keep 2000000
-    self.assertEqual('долларов', doc.tokens_map_norm.text_range(currency.span))  # TODO: keep
+                     doc.tokens_map_norm.text_range(r[0].value.span))  # TODO:  keep 2000000
+    self.assertEqual('долларов', doc.tokens_map_norm.text_range(r[0].currency.span))  # TODO: keep
 
   def test_find_all_value_sign_currency_d(self):
     sign_exp, price, currency_exp, text = (0, 1000000.0, 'EURO', 'стоимость покупки: 1 000 000 евро ')
@@ -164,14 +159,10 @@ class PriceExtractTestCase(unittest.TestCase):
     doc.parse()
     r: List = find_value_sign_currency(doc)
 
-    value = SemanticTag.find_by_kind(r[0], 'value')
-    sign = SemanticTag.find_by_kind(r[0], 'sign')
-    currency = SemanticTag.find_by_kind(r[0], 'currency')
-
-    print(doc.tokens_map_norm.text_range(value.span))
-    self.assertEqual(price, value.value, text)
-    self.assertEqual(currency_exp, currency.value)
-    print(f'{value}, {sign}, {currency}')
+    print(doc.tokens_map_norm.text_range(r[0].value.span))
+    self.assertEqual(price, r[0].value.value, text)
+    self.assertEqual(currency_exp, r[0].currency.value)
+    print(f'{r[0].value}, {r[0].sign}, {r[0].currency}')
 
   def test_find_all_value_sign_currency_a(self):
     for (sign_exp, price, currency_exp, text) in data:
@@ -179,18 +170,13 @@ class PriceExtractTestCase(unittest.TestCase):
       doc.parse()
       r: List = find_value_sign_currency(doc)
       if r:
-        # sum, sign, currency = r[0]
-        value = SemanticTag.find_by_kind(r[0], 'value')
-        # print(value)
-        sign = SemanticTag.find_by_kind(r[0], 'sign')
-        currency = SemanticTag.find_by_kind(r[0], 'currency')
 
-        print(doc.tokens_map_norm.text_range(value.span))
-        self.assertEqual(price, value.value, text)
-        self.assertEqual(currency_exp, currency.value, text)
-        print(value.value)
-        print(f'{value}, {sign}, {currency}')
-        # dfdf
+        print(doc.tokens_map_norm.text_range(r[0].value.span))
+        self.assertEqual(price,r[0]. value.value, text)
+        self.assertEqual(currency_exp, r[0].currency.value, text)
+        print(r[0].value.value)
+        print(f'{r[0].value}, {r[0].sign}, {r[0].currency}')
+
 
   def test_extract(self):
 
@@ -244,6 +230,19 @@ class PriceExtractTestCase(unittest.TestCase):
         restored = t[0]
         print('\t-', t)
         self.assertTrue(restored[0].isdigit())
+
+  def test_conditional_p_sum(self):
+    v= [0.9,0.9]
+    s = conditional_p_sum(v )
+    for a in v:
+      self.assertGreater(s, a)
+      self.assertGreater(1, a)
+
+    v = [0.1, 0.2, 0.7, 0.9, 0.999]
+    s = conditional_p_sum(v)
+    for a in v:
+      self.assertGreater(s, a)
+      self.assertGreater(1, a)
 
 
 if __name__ == '__main__':

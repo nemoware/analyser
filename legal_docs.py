@@ -4,16 +4,17 @@
 
 
 # legal_docs.py
+import datetime
 import json
-import time
 from functools import wraps
 
-from doc_structure import DocumentStructure
+from bson import json_util
+
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag
-from parsing import print_prof_data, ParsingSimpleContext
+  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum
+from parsing import print_prof_data
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
 from text_normalize import *
@@ -49,17 +50,6 @@ def substract_search_results(a: PatternSearchResults, b: PatternSearchResults) -
   return result
 
 
-class HeadlineMeta:
-  def __init__(self, index, _type, confidence: float, subdoc):
-    self.index: int = index
-    self.confidence: float = confidence
-    self.type: str = _type
-    self.subdoc: LegalDocument = subdoc
-    self.body: LegalDocument = None
-
-    self.attention: List[float] = None  # optional
-
-
 def deprecated(fn):
   @wraps(fn)
   @wraps(fn)
@@ -74,14 +64,21 @@ def deprecated(fn):
   return with_reporting
 
 
+class Paragraph:
+  def __init__(self, header: SemanticTag, body: SemanticTag):
+    self.body: SemanticTag = body
+    self.header: SemanticTag = header
+
+
 class LegalDocument:
 
   def __init__(self, original_text=None, name="legal_doc"):
 
-    self.ID = None  # TODO
+    self._id = None  # TODO
+    self.date = None
+
     self.filename = None
     self._original_text = original_text
-
     self._normal_text = None
 
     # todo: use pandas' DataFrame
@@ -90,7 +87,8 @@ class LegalDocument:
     self.tokens_map: TextMap = None
     self.tokens_map_norm: TextMap = None
 
-    self.sections = None
+    self.sections = None  # TODO:deprecated
+    self.paragraphs: List[Paragraph] = []
     self.name = name
 
     # subdocs
@@ -99,6 +97,45 @@ class LegalDocument:
 
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
+
+  def parse(self, txt=None):
+    if txt is None:
+      txt = self.original_text
+
+    assert txt is not None
+
+    self._normal_text = self.preprocess_text(txt)
+    self.tokens_map = TextMap(self._normal_text)
+
+    self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+    return self
+
+  def __add__(self, suffix: 'LegalDocument'):
+    '''
+    1) dont forget to add spaces between concatenated docs!!
+    2) embeddings are lost
+    3)
+    :param suffix: doc to add
+    :return: self + suffix
+    '''
+    assert self._normal_text is not None
+    assert suffix._normal_text is not None
+
+    self.distances_per_pattern_dict = {}
+    self._normal_text += suffix.normal_text
+    self._original_text += suffix.original_text
+
+    self.tokens_map += suffix.tokens_map
+    self.tokens_map_norm += suffix.tokens_map_norm
+
+    self.sections = None
+
+    self.paragraphs += suffix.paragraphs
+    # subdocs
+    self.end = suffix.end
+    self.embeddings = None
+
+    return self
 
   def get_tags(self):
     raise NotImplementedError()
@@ -128,156 +165,9 @@ class LegalDocument:
   normal_text = property(get_normal_text)
   text = property(get_text)
 
-  def parse(self, txt=None) -> None:
-    if txt is None:
-      txt = self.original_text
-
-    assert txt is not None
-
-    self._normal_text = self.preprocess_text(txt)
-    self.tokens_map = TextMap(self._normal_text)
-
-    _case_normalizer = CaseNormalizer()
-    self.tokens_map_norm = _case_normalizer.normalize_tokens_map_case(self.tokens_map)
-
-    self.structure = DocumentStructure()
-    self.structure.detect_document_structure(self.tokens_map)
-
   def preprocess_text(self, txt):
-    if txt is None:
-      txt = self.original_text
+    assert txt is not None
     return normalize_text(txt, replacements_regex)
-
-  def find_sections_by_headlines_2(self, context: ParsingSimpleContext, head_types_list,
-                                   embedded_headlines: List['LegalDocument'], pattern_prefix,
-                                   threshold) -> dict:
-
-    hl_meta_by_index = {}
-    sections = {}
-
-    for head_type in head_types_list:
-
-      confidence_by_headline = self._find_best_headline_by_pattern_prefix_2(embedded_headlines,
-                                                                            pattern_prefix + head_type)
-      closest_headline_index = int(np.argmax(confidence_by_headline))
-
-      if confidence_by_headline[closest_headline_index] > threshold:
-
-        obj = HeadlineMeta(closest_headline_index,
-                           head_type,
-                           confidence=confidence_by_headline[closest_headline_index],
-                           subdoc=embedded_headlines[closest_headline_index])
-
-        if closest_headline_index in hl_meta_by_index:
-          # replace
-          e_obj = hl_meta_by_index[closest_headline_index]
-          if e_obj.confidence < obj.confidence:
-            # replace
-            hl_meta_by_index[closest_headline_index] = obj
-        else:
-          hl_meta_by_index[closest_headline_index] = obj
-
-
-      else:
-        context.warning(f'Cannot find headline matching pattern "{pattern_prefix + head_type}"*')
-
-    for hl in hl_meta_by_index.values():
-      try:
-        hl.body = self._doc_section_under_headline(hl, render=False)
-        sections[hl.type] = hl
-
-      except ValueError as error:
-        context.warning(str(error))
-        # print(error)
-
-    return sections
-
-  def _doc_section_under_headline(self, headline_info: HeadlineMeta, render=False):
-    warnings.warn("deprecated", DeprecationWarning)
-    if render:
-      print('Searching for section:', headline_info.type)
-
-    bi_next = headline_info.index + 1
-
-    headline_indexes = self.structure.headline_indexes
-
-    headline_index = self.structure.headline_indexes[headline_info.index]
-    if bi_next < len(headline_indexes):
-      headline_next_id = headline_indexes[headline_info.index + 1]
-    else:
-      headline_next_id = None
-
-    subdoc = subdoc_between_lines(headline_index, headline_next_id, self)
-
-    if len(subdoc.tokens) < 2:
-      raise ValueError(
-        'Empty "{}" section between detected headlines #{} and #{}'.format(headline_info.type, headline_index,
-                                                                           headline_next_id))
-
-    if render:
-      print('=' * 100)
-      print(headline_info.subdoc.text)
-      print('-' * 100)
-      print(subdoc.text)
-
-    return subdoc
-
-  def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
-                                            threshold):
-    warnings.warn("deprecated", DeprecationWarning)
-
-    import math
-
-    number_of_headlines = len(embedded_headlines)
-    confidence_by_headline = np.zeros(number_of_headlines)
-
-    attention_vectors_by_headline = {}
-
-    for i in range(number_of_headlines):
-      subdoc = embedded_headlines[i]
-
-      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
-                                                             relu_th=0.6)
-      headline_name_av = smooth_safe(headline_name_av, 4)
-
-      _max_id = np.argmax(headline_name_av)
-      _max = np.max(headline_name_av)
-      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
-
-      confidence_by_headline[i] = _max + _sum
-      attention_vectors_by_headline[i] = headline_name_av
-
-    closest_headline_index = int(np.argmax(confidence_by_headline))
-
-    if confidence_by_headline[closest_headline_index] < threshold:
-      raise ValueError('Cannot find headline matching pattern "{}"'.format(pattern_prefix))
-
-    return closest_headline_index, confidence_by_headline, attention_vectors_by_headline[closest_headline_index]
-
-  def _find_best_headline_by_pattern_prefix_2(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str):
-
-    import math
-
-    number_of_headlines = len(embedded_headlines)
-    confidence_by_headline = np.zeros(number_of_headlines)
-
-    attention_vectors_by_headline = {}
-
-    for i in range(number_of_headlines):
-      subdoc = embedded_headlines[i]
-
-      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
-                                                             relu_th=0.6)
-      headline_name_av = smooth_safe(headline_name_av, 4)
-
-      _max_id = np.argmax(headline_name_av)
-      _max = np.max(headline_name_av)
-      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
-
-      confidence_by_headline[i] = _max + _sum
-      attention_vectors_by_headline[i] = headline_name_av
-
-    return confidence_by_headline
 
   def find_sentence_beginnings(self, indices):
     return [find_token_before_index(self.tokens, i, '\n', 0) for i in indices]
@@ -291,9 +181,6 @@ class LegalDocument:
                                                                       pattern_prefix=pattern_prefix)
 
     return self.distances_per_pattern_dict
-
-  def print_structured(self, numbered_only=False):
-    self.structure.print_structured(self, numbered_only)
 
   def subdoc_slice(self, __s: slice, name='undef'):
     assert self.tokens_map is not None
@@ -343,7 +230,7 @@ class LegalDocument:
     attention_vector_name_soft = AV_SOFT + attention_vector_name
 
     for v in vectors:
-      if max(v) > 0.6:
+      if max(v) > 0.6:  # TODO: get rid of magic numbers
         vector_i, _ = improve_attention_vector(self.embeddings, v, relu_th=0.6, mix=0.9)
         vectors_i.append(vector_i)
       else:
@@ -407,11 +294,14 @@ class LegalDocument:
     self.embedd_tokens(pattern_factory.embedder)
 
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2):
-    max_tokens = 7000
-    if len(self.tokens_map_norm) > max_tokens:
-      self._embedd_large(embedder, max_tokens, verbosity)
+    if self.tokens:
+      max_tokens = 7000
+      if len(self.tokens_map_norm) > max_tokens:
+        self._embedd_large(embedder, max_tokens, verbosity)
+      else:
+        self.embeddings = self._emb(self.tokens, embedder)
     else:
-      self.embeddings = self._emb(self.tokens, embedder)
+      raise ValueError(f'cannot embed doc {self.filename}, no tokens')
 
   # @profile
   def _emb(self, tokens, embedder):
@@ -457,54 +347,83 @@ class LegalDocument:
     self.embeddings = embeddings
     # self.tokens = tokens
 
+  def tag_value(self, tagname):
+    t = SemanticTag.find_by_kind(self.get_tags(), tagname)
+    if t:
+      return t.value
+    else:
+      return None
+
 
 class DocumentJson:
 
-  def from_json(jsondata):
+  @staticmethod
+  def from_json(json_string: str) -> 'DocumentJson':
+    jsondata = json.loads(json_string, object_hook=json_util.object_hook)
+
     c = DocumentJson(None)
     c.__dict__ = jsondata
-    tags = []
-    for t in c.tags:
-      tag = SemanticTag(None, None, None)
-      tag.__dict__ = t
-      tags.append(tag)
-
-    c.tags = tags
+    # tags = []
+    # for t in c.tags:
+    #   tag = SemanticTag(None, None, None)
+    #   tag.__dict__ = t
+    #   tags.append(tag)
+    #
+    # c.tags = tags
     return c
 
   def __init__(self, doc: LegalDocument):
-    self.ID = None
-    self.filename = None
+
+    self._id: str = None
     self.original_text = None
     self.normal_text = None
 
-    self.import_timestamp = time.time()
-    self.analyze_timestamp = time.time()
+    self.import_timestamp = datetime.datetime.now()
+    self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
 
     if doc is None:
       return
 
     self.checksum = hash(doc.normal_text)
-    self.tokenization_maps['$words'] = doc.tokens_map.map
+    self.tokenization_maps['words'] = doc.tokens_map.map
 
     for field in doc.__dict__:
-      print(field)
+      # print(field)
       if field in self.__dict__:
         self.__dict__[field] = doc.__dict__[field]
 
     self.original_text = doc.original_text
     self.normal_text = doc.normal_text
 
+    self.attributes = self._tags_to_attributes(doc)
+
+  def _tags_to_attributes(self, doc: LegalDocument):
+    # collect all tags first
     _tags: [SemanticTag] = []
-
-    for hi in doc.structure.headline_indexes:
-      s = doc.structure.structure[hi]
-      _t = SemanticTag('headline', doc.tokens_map.text_range(s.span), s.span)
-      _tags.append(_t)
-
+    for hi in doc.paragraphs:
+      _tags.append(hi.header)
     _tags += doc.get_tags()
-    self.tags = [tag.__dict__ for tag in _tags]
+
+    cnt = 0
+    attributes = {}
+    for t in _tags:
+      cnt += 1
+      key = t.kind.replace('.', '_')
+      if key in attributes:
+        key = f'{key}_{cnt}'
+      attributes[key] = t.__dict__.copy()
+      del attributes[key]['kind']
+
+    if 'date' in doc.__dict__:
+      # TODO: this 'if' is for old unit tests only
+      attributes['date'] = {
+        'value': doc.date
+      }
+    return attributes
+
+  def dumps(self):
+    return json.dumps(self.__dict__, indent=2, ensure_ascii=False, default=json_util.default)
 
 
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
@@ -660,7 +579,7 @@ def split_into_sections(doc, caption_indexes):
     next_key = sorted_keys[i]
     start = caption_indexes[key]
     end = caption_indexes[next_key]
-    print(key, [start, end])
+    # print(key, [start, end])
 
     subdoc = doc.subdoc(start, end)
     subdoc.filename = key
@@ -807,26 +726,6 @@ def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention
   return constraints
 
 
-def subdoc_between_lines(line_a: int, line_b: int, doc):
-  _str = doc.structure.structure
-  start = _str[line_a].span[1]
-  if line_b is not None:
-    end = _str[line_b].span[0]
-  else:
-    end = len(doc.tokens)
-  return doc.subdoc(start, end)
-
-
-org_types = {
-  'org_unknown': 'undefined',
-  'org_ao': 'Акционерное общество',
-  'org_zao': 'Закрытое акционерное общество',
-  'org_oao': 'Открытое акционерное общество',
-  'org_ooo': 'Общество с ограниченной ответственностью',
-  'org_nc': 'Некоммерческая организация'
-}
-
-
 def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: AbstractPatternFactory,
                                     dist_function=DIST_FUNC, merge=False,
                                     pattern_prefix=None, verbosity=1):
@@ -879,7 +778,21 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
 find_value_sign = detect_sign_2
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[SemanticTag]:
+class ContractValue:
+  def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
+    self.value = value
+    self.sign = sign
+    self.currency = currency
+    self.parent = parent
+
+  def as_list(self):
+    return [self.value, self.sign, self.currency, self.parent]
+
+  def integral_sorting_confidence(self) -> float:
+    return conditional_p_sum(  [self.parent.confidence, self.value.confidence , self.currency.confidence, self.sign.confidence])
+
+
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:
   subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
 
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
@@ -889,7 +802,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
   # ======================================
 
   if results:
-    value_char_span, value, currency_char_span, currency=results
+    value_char_span, value, currency_char_span, currency = results
     value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
@@ -908,9 +821,9 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> List[Se
     currency.parent = parent
     currency.offset(subdoc.start)
 
-    return [sign, value_tag, currency, group]
+    return ContractValue(sign, value_tag, currency, group)
   else:
-    return []
+    return None
 
 
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:

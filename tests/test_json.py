@@ -4,8 +4,12 @@
 
 
 import json
+import os
+# import json
 import pickle
 import unittest
+
+from bson import json_util
 
 from contract_parser import ContractAnlysingContext, ContractDocument
 from contract_patterns import ContractPatternFactory
@@ -14,13 +18,14 @@ from legal_docs import DocumentJson
 from ml_tools import SemanticTag
 
 
-class TestContractParser(unittest.TestCase):
+class TestJsonExport(unittest.TestCase):
 
   def _get_doc(self) -> (ContractDocument, ContractPatternFactory):
-    with open('doc_4.pickle', 'rb') as handle:
+    pth = os.path.dirname(__file__)
+    with open(pth + '/2. Договор по благ-ти Радуга.docx.pickle', 'rb') as handle:
       doc = pickle.load(handle)
 
-    with open('contract_pattern_factory.pickle', 'rb') as handle:
+    with open(pth + '/contract_pattern_factory.pickle', 'rb') as handle:
       factory = pickle.load(handle)
 
     # self.assertEqual(2637, doc.embeddings.shape[-2])
@@ -42,12 +47,31 @@ class TestContractParser(unittest.TestCase):
 
   def test_to_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
-
     ctx.analyze_contract_doc(doc)
     json_struct = DocumentJson(doc)
-
-    _j = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
+    _j = json_struct.dumps()
     print(_j)
+    # TODO: compare with file
+
+  def test_from_json(self):
+    doc, factory, ctx = self._get_doc_factory_ctx()
+    ctx.analyze_contract_doc(doc)
+    json_struct = DocumentJson(doc)
+    json_string = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=json_util.default)
+
+    restored: DocumentJson = DocumentJson.from_json(json_string)
+    for key in restored.__dict__:
+      print(key)
+      self.assertIn(key, json_struct.__dict__.keys())
+
+    for key in restored.attributes:
+      self.assertIn(key, json_struct.attributes.keys())
+
+    for key in json_struct.attributes:
+      self.assertIn(key, restored.attributes.keys())
+
+    # self.assertDictEqual(json_struct.attributes, restored.attributes)
+
     # TODO: compare with file
 
 

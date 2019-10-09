@@ -55,7 +55,7 @@ r_quoted_name = r_group(r_quoted(r_name))
 spaces_regex = [
   (re.compile(r'\t'), ' '),
   (re.compile(r'[ ]{2}'), ' '),
-  (re.compile(r' '), ' ')  #this is not just space char! this is weird invisible symbol
+  (re.compile(r' '), ' ')  # this is not just space char! this is weird invisible symbol
 
   # ,
   # (re.compile(r'\n{2}'), '\n')
@@ -162,3 +162,22 @@ def normalize_text(_t: str, replacements_regex):
     t = reg.sub(to, t)
 
   return t
+
+
+_legal_entity_types_of_subsidiaries = ['АО', 'ООО', 'ТОО', 'ИООО', 'ЗАО', 'НИС а.о.']
+
+
+def normalize_company_name(name: str) -> (str, str):
+  legal_entity_type = ''
+  normal_name = name
+  for c in _legal_entity_types_of_subsidiaries:
+    if name.strip().startswith(c):
+      legal_entity_type = c
+      normal_name = name[len(c):]
+
+  normal_name = normal_name.replace('\t', ' ').replace('\n', ' ')
+  normal_name = normal_name.strip()
+  normal_name = re.sub(r'\s+', ' ', normal_name)
+  normal_name = re.sub(r'[\s ]*[-–v][\s ]*', '-', normal_name)
+  normal_name = re.sub(r'["\'«»]', '', normal_name)
+  return legal_entity_type, normal_name

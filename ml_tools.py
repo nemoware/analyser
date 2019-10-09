@@ -331,6 +331,15 @@ def max_exclusive_pattern(vectors: FixedVectors) -> FixedVector:
   return _sum
 
 
+def conditional_p_sum(vector: FixedVector) -> float:
+  _sum = 0
+  for x in vector:
+    a = _sum + x
+    b = _sum * x
+    _sum = a - b
+
+  return _sum
+
 def sum_probabilities(vectors: FixedVectors) -> FixedVector:
   _sum = np.zeros_like(vectors[0])
   for x in vectors:
@@ -354,7 +363,7 @@ class TokensWithAttention:
 
 
 class SemanticTag:
-  def __init__(self, kind, value, span: (int, int), span_map='$words'):
+  def __init__(self, kind, value, span: (int, int), span_map='words'):
     self.kind = kind
     self.value = value
     '''name of the parent (or group) tag '''
@@ -364,8 +373,11 @@ class SemanticTag:
     else:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
-    self.confidence = 1
+    self.confidence = 1.0
     self.display_value = value
+
+  def as_slice(self):
+    return slice(self.span[0], self.span[1])
 
   def isNotEmpty(self) -> bool:
     return self.span is not None and self.span[0] != self.span[1]
@@ -385,6 +397,7 @@ class SemanticTag:
   def quote(self, tm: TextMap):
     return tm.text_range(self.span)
 
+  slice = property(as_slice)
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
   assert vector is not None

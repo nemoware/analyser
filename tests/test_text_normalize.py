@@ -55,6 +55,28 @@ class CaseNormalizerTestCase(unittest.TestCase):
 
 class TestTextNormalization(unittest.TestCase):
 
+  def test_normalize_company_name(self):
+    a, b = normalize_company_name('ООО «Газпромнефть Марин Бункер»')
+    self.assertEqual('ООО', a)
+    self.assertEqual('Газпромнефть Марин Бункер', b)
+
+    a, b = normalize_company_name('НИС а.о. Нови Сад')
+    self.assertEqual('НИС а.о.', a)
+    self.assertEqual('Нови Сад', b)
+
+    a, b = normalize_company_name("ООО \"Газпромнефть-Трейд  Оренбург\"")
+    self.assertEqual('ООО', a)
+    self.assertEqual('Газпромнефть-Трейд Оренбург', b)
+
+    a, b = normalize_company_name("ООО \"Газпромнефть - Трейд  Оренбург\"")
+    self.assertEqual('ООО', a)
+    self.assertEqual('Газпромнефть-Трейд Оренбург', b)
+
+    a, b = normalize_company_name("АО «Газпромнефть – Аэро»")
+    self.assertEqual('АО', a)
+    self.assertEqual('Газпромнефть-Аэро', b)
+
+
   def _testNorm(self, a, b):
     _norm = normalize_text(a, replacements_regex)
     # _norm2 = normalize_text(_norm, replacements_regex)
@@ -129,6 +151,9 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm('Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается.',
                    'Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается.')
 
+
+    self._testNorm(' Общество с ограниченной ответственностью «Газпромнефть-Сахалин» (ООО «Газпромнефть-Сахалин»), именуемое в дальнейшем «Заказчик», в лице генерального директора Коробкова Александра Николаевича, действующего на основании Устава, с одной стороны, и',
+                   ' Общество с ограниченной ответственностью «Газпромнефть-Сахалин» (ООО «Газпромнефть-Сахалин»), именуемое в дальнейшем «Заказчик», в лице генерального директора Коробкова Александра Николаевича, действующего на основании Устава, с одной стороны, и')
 
     self._testNorm('3.000 (Три тысячи) рублей 00 коп.,', '3000 (Три тысячи) рублей 00 копеек,')
 

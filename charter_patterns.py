@@ -1,13 +1,13 @@
 import warnings
 from typing import List
 
-from legal_docs import org_types, make_soft_attention_vector, CharterDocument, deprecated, \
+from legal_docs import make_soft_attention_vector, CharterDocument, deprecated, \
   rectifyed_sum_by_pattern_prefix
 from ml_tools import cut_above, relu, momentum
 from ml_tools import filter_values_by_key_prefix
 from parsing import known_subjects
 from patterns import AbstractPatternFactoryLowCase, PatternSearchResult
-from structures import ContractSubject
+from structures import ContractSubject, org_types
 
 
 class CharterPatternFactory(AbstractPatternFactoryLowCase):

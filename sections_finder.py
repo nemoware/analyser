@@ -1,12 +1,32 @@
+import warnings
 from typing import List
 
 import numpy as np
 
-from legal_docs import LegalDocument, HeadlineMeta
+from legal_docs import LegalDocument
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
-  smooth_safe, max_exclusive_pattern
+  smooth_safe, max_exclusive_pattern, sum_probabilities
 from parsing import ParsingSimpleContext
 from patterns import AbstractPatternFactory, improve_attention_vector
+
+
+class HeadlineMeta:
+  def __init__(self, index, _type, confidence: float, subdoc, body=None):
+    warnings.warn("deprecated", DeprecationWarning)
+
+    self.index: int = index
+    self.confidence: float = confidence
+    self.type: str = _type
+
+    self.subdoc: LegalDocument = subdoc
+    self.body: LegalDocument = body
+
+    self.attention: List[float] = None  # optional
+
+  def get_header(self):
+    return self.subdoc.text
+
+  header = property(get_header)
 
 
 class SectionsFinder:
@@ -24,17 +44,57 @@ class FocusingSectionsFinder(SectionsFinder):
   def __init__(self, ctx: ParsingSimpleContext):
     SectionsFinder.__init__(self, ctx)
 
-  def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
+  def find_sections(self, contract: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
+                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None,
+                    confidence_threshold=0.7) -> dict:
+
+    sections_filtered = {}
+    for section_type in headlines:
+      # find best header for each section
+
+      pattern_prefix = f'headline.{section_type}'
+
+      headers = [contract.subdoc_slice(p.header.as_slice()) for p in contract.paragraphs]
+
+      _max_confidence = 0
+      _max_header_i = -1
+      for header_index in range(len(headers)):
+        header = headers[header_index]
+        vvs = header.calculate_distances_per_pattern(factory, pattern_prefix=pattern_prefix, merge=False)
+        vv = sum_probabilities(list(vvs.values()))  # bayes-aggregated vectors
+        _confidence = max(vv)
+
+        if _confidence > _max_confidence:
+          _max_confidence = _confidence
+          _max_header_i = header_index
+
+      if _max_confidence > confidence_threshold:
+        put_if_better(sections_filtered, _max_header_i, (_max_confidence, section_type), lambda a, b: a[1] > b[1])
+
+    sections = {}
+    for header_i in sections_filtered:
+      confidence, section_type = sections_filtered[header_i]
+
+      para = contract.paragraphs[header_i]
+      body = contract.subdoc_slice(para.body.as_slice(), name=section_type + '.body')
+      head = contract.subdoc_slice(para.header.as_slice(), name=section_type + ".head")
+      hl_info = HeadlineMeta(header_i, section_type, confidence, head, body)
+
+      sections[section_type] = hl_info
+
+    contract.sections = sections
+    return sections
+
+  def ___find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
+                       headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
 
     """
-    Fuzziy Finds sections in the doc
+    Fuzziy Finds maps sections to known (interresting) ones
     TODO: try it on Contracts and Protocols as well
     TODO: if well, move from here
-
     🍄 🍄 🍄 🍄 🍄 Keep in in the dark and feed it sh**
-
     """
+    warnings.warn("deprecated", DeprecationWarning)
 
     def is_hl_more_confident(a: HeadlineMeta, b: HeadlineMeta):
       return a.confidence > b.confidence
@@ -59,7 +119,7 @@ class FocusingSectionsFinder(SectionsFinder):
         put_if_better(section_by_index, key=sl.start, x=hl_info, is_better=is_hl_more_confident)
 
     # end-for
-    # s = slice(bounds[0], bounds[1])
+
     # now slicing the doc
     sorted_starts = [i for i in sorted(section_by_index.keys())]
     # // sorted_starts.append(len(doc.tokens))
@@ -75,10 +135,6 @@ class FocusingSectionsFinder(SectionsFinder):
       # end_alt = sorted_starts[i + 1]
       #
       section_len = end - start
-      # if section_len > 5000:
-      #   self.ctx.warning(
-      #     f'Section "{section.subdoc.untokenize_cc()[:100]}" is probably way too large {section_len}, timming to 5000 ')
-      #   section_len = 5000  #
 
       sli = slice(start, start + section_len)
       section.body = doc.subdoc_slice(sli, name=section.type)
@@ -93,24 +149,12 @@ class FocusingSectionsFinder(SectionsFinder):
 
   """ ❤️ == GOOD HEART LINE ====================================================== """
 
-  # def make_headline_attention_vector(self, doc):
-  #   level_by_line = [max(i._possible_levels) for i in doc.structure.structure]
-  #
-  #   headlines_attention_vector = []
-  #   for i in doc.structure.structure:
-  #     l = i.span[1] - i.span[0]
-  #     headlines_attention_vector += [level_by_line[i.line_number]] * l
-  #
-  #   return np.array(headlines_attention_vector)
-
   def make_headline_attention_vector(self, doc):
 
     headlines_attention_vector = np.zeros(len(doc.tokens))
-    for i in doc.structure.headline_indexes:
-      sl = doc.structure.structure[i]
-      l = slice(sl.span[0], sl.span[1])
-      level = max(sl._possible_levels)
-      headlines_attention_vector[l] = level
+    for p in doc.paragraphs:
+      l = slice(p.header.span[0], p.header.span[1])
+      headlines_attention_vector[l] = 1
 
     return np.array(headlines_attention_vector)
 
@@ -133,6 +177,7 @@ class FocusingSectionsFinder(SectionsFinder):
     assert headlines_attention_vector is not None
 
     vectors = filter_values_by_key_prefix(doc.distances_per_pattern_dict, headline_pattern_prefix)
+    # sum_probabilities
     # v = rectifyed_sum(vectors, 0.3)
     v = max_exclusive_pattern(vectors)
     v = relu(v, 0.6)
