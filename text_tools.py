@@ -5,12 +5,12 @@
 
 import warnings
 from typing import List
-
+Tokens = List[str]
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
-Tokens = List[str]
+
 
 
 def find_ner_end(tokens, start, max_len=20):

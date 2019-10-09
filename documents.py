@@ -10,7 +10,7 @@ import os, pickle
 from text_tools import Tokens, my_punctuation
 
 import nltk
-
+from hyperparams import models_path
 nltk.download('punkt')
 
 class TextMap:
@@ -188,8 +188,9 @@ class CaseNormalizer:
   def __init__(self):
     self.__dict__ = self.__shared_state
     if 'replacements_map' not in self.__dict__:
-      __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-      p = os.path.join(__location__, 'vocab', 'word_cases_stats.pickle')
+
+
+      p = os.path.join(models_path, 'word_cases_stats.pickle')
       print('loading word cases stats model', p)
 
       with open(p, 'rb') as handle:

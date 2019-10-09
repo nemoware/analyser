@@ -337,7 +337,7 @@ class DocumentStructure:
 
     """ 🧠🕺 Magic an Brainfu** inside """
     _contrasted_probability = self._highlight_headlines_probability(headlines_probability)
-    headline_indexes = sorted(np.nonzero(_contrasted_probability)[0])
+    headline_indexes = sorted( np.nonzero(_contrasted_probability)[0] )
 
     return remove_similar_indexes_considering_weights(headline_indexes, _contrasted_probability)
 
