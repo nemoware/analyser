@@ -19,7 +19,7 @@ from integration.word_document_parser import WordDocParser, join_paragraphs, PAR
 files_dir3 = '/Users/artem/Downloads/Telegram Desktop/X0/'
 files_dir2 = '/Users/artem/Google Drive/GazpromOil/Charters'
 files_dir1 = '/Users/artem/work/nemo/goil/IN/'
-
+from random import shuffle
 
 def doc_line_features(contract) -> []:
   tmap = contract.tokens_map
@@ -59,7 +59,8 @@ def read_all_contracts():
   wp = WordDocParser()
   filenames = wp.list_filenames(files_dir1)
   filenames += wp.list_filenames(files_dir2)
-  # shuffle(filenames)
+  filenames += wp.list_filenames(files_dir3)
+  shuffle(filenames)
   print(filenames)
 
   cnt = 0
@@ -142,7 +143,7 @@ if __name__ == '__main__':
   print('Testing Features Shape:', test_features.shape)
   print('Testing Labels Shape:', test_labels.shape)
 
-  rf = RandomForestClassifier(n_estimators=100, random_state=42, min_samples_split=8)
+  rf = RandomForestClassifier(n_estimators=150, random_state=42, min_samples_split=8)
   # Train the model
   rf.fit(train_features, train_labels)
 
