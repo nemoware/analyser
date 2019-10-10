@@ -14,7 +14,7 @@ Tokens = List[str]
 
 
 def find_ner_end(tokens, start, max_len=20):
-  #TODO: use regex
+  # TODO: use regex
   for i in range(start, len(tokens)):
     if tokens[i] == '"':
       return i
@@ -311,14 +311,14 @@ def check_valid_roman(roman) -> bool:
   return True
 
 
-def roman_might_be(wrd)->int or None:
+def roman_might_be(wrd) -> int or None:
   try:
     return roman_to_arabic(wrd)
   except:
     return None
 
 
-def string_to_ip(txt)->list or None:
+def string_to_ip(txt) -> list or None:
   ret = []
   n = txt.split('.')
   for c in n:

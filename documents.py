@@ -13,6 +13,7 @@ import nltk
 
 nltk.download('punkt')
 
+
 class TextMap:
 
   def __init__(self, text: str, map=None):
@@ -21,9 +22,6 @@ class TextMap:
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)
     else:
-      # if len(map)<1:
-      #   raise RuntimeError('Cannot deal with empty tokenization map')
-
       self.map = list(map)
 
     self.untokenize = self.text_range  # alias
@@ -52,7 +50,7 @@ class TextMap:
     """
     [span 0] out of span [span 1] [span 2]
 
-    :param char_index:
+    :param _char_index:
     :return:
     """
 
@@ -66,18 +64,12 @@ class TextMap:
       return len(self.map)
     return -1
 
-  #     for span_index in range(len(self.map)):
-  #       span = self.map[span_index]
-  #       if char_index < span[1]:
-  #         return span_index
-  # TODO: error is here!!!
-
   def token_indices_by_char_range_2(self, span: [int]) -> (int, int):
     a = self.token_index_by_char(span[0])
     b = self.token_index_by_char(span[1])
     if a == b and b >= 0:
       b = a + 1
-    return (a, b)
+    return a, b
 
   def token_indices_by_char_range(self, span: [int]) -> slice:
     warnings.warn("use token_indices_by_char_range_2", DeprecationWarning)
