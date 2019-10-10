@@ -455,7 +455,9 @@ def combined_attention_vectors(vectors_dict, vector_names):
   vectors = [vectors_dict[v] for v in vector_names]
   return sum_probabilities(vectors)
 
+
 sum_probabilities_by_name = combined_attention_vectors
+
 
 def find_non_zero_spans(tokens_map, attention_vector_relu):
   nonzeros = np.argwhere(attention_vector_relu > 0.001)[:, 0]
@@ -464,3 +466,36 @@ def find_non_zero_spans(tokens_map, attention_vector_relu):
 
 def find_first_gt(indx: int, indices) -> int or None:
   return min([i for i in indices if i > indx])
+
+
+def remove_colliding_spans(spans, eps=0):
+  if len(spans) == 0:
+    return []
+  """
+  [0..2][2..4][4..5] -> [4..5]
+  """
+  ret = []
+  for i in range(0, len(spans) - 1):
+    distance_to_next = abs(spans[i][1] - spans[i + 1][0])
+    if distance_to_next > eps:  # sections is not empty
+      ret.append(spans[i])
+  ret.append(spans[-1])
+  return np.array(ret)
+
+
+def merge_colliding_spans(spans, eps=0):
+  if len(spans) == 0:
+    return []
+  """
+  [0..2][2..4][4..5] -> [0..5]
+  """
+  ret = [spans[0]]
+
+  for i in range(1, len(spans)):
+    distance_to_next = abs(ret[-1][1] - spans[i][0])
+    if distance_to_next > eps:  # sections is not empty
+      ret.append(spans[i])
+    else:
+      ret[-1][1] = spans[i][1]
+
+  return np.array(ret)
