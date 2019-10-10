@@ -59,7 +59,7 @@ complete_re = re.compile(complete_re_str, re.MULTILINE)
 entities_types = ['type', 'name', 'alt_name', 'alias', 'type_ext']
 
 
-def clean_value(x: str) -> str:
+def clean_value(x: str) -> str or None:
   if x is None:
     return x
   return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()

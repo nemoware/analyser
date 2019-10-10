@@ -340,6 +340,7 @@ def conditional_p_sum(vector: FixedVector) -> float:
 
   return _sum
 
+
 def sum_probabilities(vectors: FixedVectors) -> FixedVector:
   _sum = np.zeros_like(vectors[0])
   for x in vectors:
@@ -398,6 +399,7 @@ class SemanticTag:
     return tm.text_range(self.span)
 
   slice = property(as_slice)
+
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
   assert vector is not None
