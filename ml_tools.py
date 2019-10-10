@@ -465,7 +465,10 @@ def find_non_zero_spans(tokens_map, attention_vector_relu):
 
 
 def find_first_gt(indx: int, indices) -> int or None:
-  return min([i for i in indices if i > indx])
+  gts = [i for i in indices if i > indx]
+  if gts:
+    return min(gts)
+  return None
 
 
 def remove_colliding_spans(spans, eps=0):
