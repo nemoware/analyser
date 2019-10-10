@@ -8,7 +8,7 @@ import traceback
 import numpy as np
 import pandas as pd
 from joblib import dump
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 
 from headers_detector import line_features
@@ -16,10 +16,16 @@ from hyperparams import models_path
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import WordDocParser, join_paragraphs, PARAGRAPH_DELIMITER
 
-files_dir3 = '/Users/artem/Downloads/Telegram Desktop/X0/'
-files_dir2 = '/Users/artem/Google Drive/GazpromOil/Charters'
-files_dir1 = '/Users/artem/work/nemo/goil/IN/'
+files_dirs = [
+  # '/Users/artem/Downloads/Telegram Desktop/X0/',
+              '/Users/artem/work/nemo/goil/IN/',
+              '/Users/artem/Google Drive/GazpromOil/Protocols', '/Users/artem/Google Drive/GazpromOil/Contracts',
+              '/Users/artem/Google Drive/GazpromOil/Charters']
+# MAX_DOCxS = 50 #0.0442
+# MAX_DOCS = 150 #0.0418
+MAX_DOCS = 500 #  0.0153 degrees.
 from random import shuffle
+
 
 def doc_line_features(contract) -> []:
   tmap = contract.tokens_map
@@ -29,9 +35,9 @@ def doc_line_features(contract) -> []:
   for p in contract.paragraphs:
 
     header_tokens = tmap[p.header.slice]
-    header_features = line_features(header_tokens, ln, _prev_features)
+    header_features = line_features(tmap, p.header.span, ln, _prev_features)
 
-    header_features['actual'] = 1
+    header_features['actual'] = 1.0
     print('☢️', header_tokens)
     features.append(header_features)
     _prev_features = header_features.copy()
@@ -41,9 +47,9 @@ def doc_line_features(contract) -> []:
     body_lines_ranges = bodymap.split_spans(PARAGRAPH_DELIMITER, add_delimiter=True)
     # line_number:int=0
     for line_span in body_lines_ranges:
-      line_tokens = bodymap.tokens_by_range(line_span)
+      # line_tokens = bodymap.tokens_by_range(line_span)
 
-      body_features = line_features(line_tokens, ln, _prev_features)
+      body_features = line_features(bodymap, line_span, ln, _prev_features)
       body_features['actual'] = 0
       features.append(body_features)
       _prev_features = body_features.copy()
@@ -57,9 +63,10 @@ def read_all_contracts():
   collection = db['legaldocs']
 
   wp = WordDocParser()
-  filenames = wp.list_filenames(files_dir1)
-  filenames += wp.list_filenames(files_dir2)
-  filenames += wp.list_filenames(files_dir3)
+  filenames=[]
+  for dir in files_dirs:
+    filenames += wp.list_filenames(dir)
+
   shuffle(filenames)
   print(filenames)
 
@@ -122,7 +129,7 @@ if __name__ == '__main__':
     features_dicts += _doc_features
 
     count += 1
-    if count > 500: break
+    if count > MAX_DOCS: break
 
   featuresX_data = pd.DataFrame.from_records(features_dicts)
 
@@ -143,7 +150,7 @@ if __name__ == '__main__':
   print('Testing Features Shape:', test_features.shape)
   print('Testing Labels Shape:', test_labels.shape)
 
-  rf = RandomForestClassifier(n_estimators=150, random_state=42, min_samples_split=8)
+  rf = RandomForestRegressor(n_estimators=150, random_state=42, min_samples_split=8)
   # Train the model
   rf.fit(train_features, train_labels)
 
