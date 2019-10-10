@@ -50,6 +50,12 @@ def join_paragraphs(res, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
 
+
+  fields = ['documentDate', 'documentNumber', 'documentType']
+
+  for key in fields:
+    doc.__dict__[key] = res[key]
+
   last = 0
   for p in res['paragraphs']:
     header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
@@ -95,3 +101,4 @@ if __name__ == '__main__':
 
   c = join_paragraphs(res, 'Другие договоры/Договор Формула.docx')
   print(c.text)
+  print(c.__dict__.keys())

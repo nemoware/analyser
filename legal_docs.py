@@ -347,6 +347,9 @@ class LegalDocument:
     self.embeddings = embeddings
     # self.tokens = tokens
 
+  def get_tag_text(self, tag:SemanticTag):
+    return self.tokens_map.text_range(tag.span)
+
   def tag_value(self, tagname):
     t = SemanticTag.find_by_kind(self.get_tags(), tagname)
     if t:
