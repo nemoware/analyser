@@ -8,6 +8,7 @@ import unittest
 from nltk import TreebankWordTokenizer
 
 from documents import TextMap, span_tokenize
+from integration.word_document_parser import PARAGRAPH_DELIMITER
 from legal_docs import CharterDocument, LegalDocument
 
 
@@ -270,6 +271,22 @@ class TokenisationTestCase(unittest.TestCase):
 
     self.assertEqual(3, len(tm))
 
+  def test_PARAGRAPH_DELIMITER(self):
+
+    tm = TextMap('a' + PARAGRAPH_DELIMITER + 'b')
+    print(tm.tokens)
+    self.assertEqual(3, len(tm))
+
+  def test_PARAGRAPH_DELIMITER_docs(self):
+
+    tm1 = LegalDocument(f'text\rprefix {PARAGRAPH_DELIMITER}  postfix').parse()
+
+    expected_tokens = ['text', 'prefix', '\n', 'postfix']
+
+    self.assertEqual(expected_tokens, tm1.tokens)
+    self.assertEqual('text\rprefix', tm1.tokens_map.text_range((0,2)))
+    self.assertEqual('text\rprefix', tm1.tokens_map_norm.text_range((0, 2)))
+
   def test_concat_TextMap(self):
 
     tm1 = TextMap('a')
@@ -314,7 +331,6 @@ class TokenisationTestCase(unittest.TestCase):
     tm1 = LegalDocument('text prefix \n').parse()
     tm2 = LegalDocument('more words').parse()
 
-
     N = 10
     expected_tokens = len(tm1.tokens) + N * len(tm2.tokens)
     for i in range(N):
@@ -328,16 +344,15 @@ class TokenisationTestCase(unittest.TestCase):
     tm1 = LegalDocument('text prefix \n').parse()
     tm2 = LegalDocument('\rmore words').parse()
 
-
     N = 10
     expected_tokens = len(tm1.tokens_cc) + N * len(tm2.tokens_cc)
     for i in range(N):
       tm1 += tm2
 
-    print (tm1.tokens_map_norm._full_text)
+    print(tm1.tokens_map_norm._full_text)
     # //tm1.parse()
     self.assertEqual(expected_tokens, len(tm1.tokens_cc))
-    self.assertEqual('more words',  tm1.tokens_map_norm.text_range((3,5)))
+    self.assertEqual('more words', tm1.tokens_map_norm.text_range((3, 5)))
 
   def test_get_by_index(self):
 

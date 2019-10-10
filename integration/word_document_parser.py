@@ -45,7 +45,7 @@ class WordDocParser(DirDocProvider):
     #
     return res
 
-
+PARAGRAPH_DELIMITER='\n'
 def join_paragraphs(res, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
@@ -58,7 +58,8 @@ def join_paragraphs(res, doc_id):
 
   last = 0
   for p in res['paragraphs']:
-    header_text = p['paragraphHeader']['text'] + '\n'
+    header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
+    header_text = header_text.replace('\n', '\r')
 
     header = LegalDocument(header_text)
     header.parse()
@@ -69,7 +70,7 @@ def join_paragraphs(res, doc_id):
     last = len(doc.tokens_map)
 
     if p['paragraphBody']:
-      body_text = p['paragraphBody']['text'] + '\n'
+      body_text = p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
       body = LegalDocument(body_text)
       body.parse()
       doc += body

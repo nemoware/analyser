@@ -6,14 +6,10 @@
 import os
 import pickle
 import unittest
-import warnings
 
-from contract_parser import ContractAnlysingContext, ContractDocument, find_value_sign_currency
+from contract_parser import ContractAnlysingContext, ContractDocument
 from contract_patterns import ContractPatternFactory
-from documents import TextMap
 from legal_docs import LegalDocument
-from ml_tools import SemanticTag
-from structures import ContractTags
 
 
 class TestContractParser(unittest.TestCase):
