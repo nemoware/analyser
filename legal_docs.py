@@ -29,10 +29,10 @@ import gc
 from ml_tools import put_if_better
 
 
-def remove_sr_duplicates_conditionally(list: PatternSearchResults):
+def remove_sr_duplicates_conditionally(list_: PatternSearchResults):
   ret = []
   dups = {}
-  for r in list:
+  for r in list_:
     put_if_better(dups, r.key_index, r, lambda a, b: a.confidence > b.confidence)
 
   for x in dups.values():
@@ -610,7 +610,7 @@ def _extract_sum_from_distances____(doc: LegalDocument, sums_no_padding):
 
   f, sentence = extract_sum_from_tokens(sentence_tokens)
 
-  return (f, (start, end), sentence)
+  return f, (start, end), sentence
 
 
 def _extract_sums_from_distances(doc: LegalDocument, x):
@@ -744,7 +744,7 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 
   # if verbosity > 0:
   #   print(distances_per_pattern_dict.keys())
-  if (c == 0):
+  if c == 0:
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
   return distances_per_pattern_dict
@@ -789,7 +789,8 @@ class ContractValue:
     return [self.value, self.sign, self.currency, self.parent]
 
   def integral_sorting_confidence(self) -> float:
-    return conditional_p_sum(  [self.parent.confidence, self.value.confidence , self.currency.confidence, self.sign.confidence])
+    return conditional_p_sum(
+      [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
 
 
 def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:

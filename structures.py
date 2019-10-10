@@ -31,7 +31,7 @@ class DisplayStringEnumMeta(EnumMeta):
 
 @unique
 class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
-  #TODO: define per org_types
+  # TODO: define per org_types
   ShareholdersGeneralMeeting = 3, 'Генеральное собрание акционеров'
   BoardOfDirectors = 2, 'Совет директоров'
   CEO = 1, 'Генеральный директор'
@@ -43,7 +43,7 @@ ORG_2_ORG = {
   'gen': OrgStructuralLevel.CEO,
   'directors': OrgStructuralLevel.BoardOfDirectors,
   'pravlenie': OrgStructuralLevel.BoardOfCompany,
-  #TODO: what?
+  # TODO: what?
   'head.all': OrgStructuralLevel.ShareholdersGeneralMeeting,
   'head.gen': OrgStructuralLevel.CEO,
   'head.directors': OrgStructuralLevel.BoardOfDirectors,

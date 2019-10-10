@@ -82,7 +82,7 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     sentences = []
     for sentence_subdoc in sentenses_i:
-      constraints: List[ValueConstraint] = extract_all_contraints_from_sentence(sentence_subdoc,
+      constraints: List[ProbableValue] = extract_all_contraints_from_sentence(sentence_subdoc,
                                                                                 sentence_subdoc.distances_per_pattern_dict[
                                                                                   'deal_value_attention_vector'])
 
@@ -177,10 +177,10 @@ class CharterDocumentParser(CharterConstraintsParser):
     return competence_v
 
   def ners(self):
-    '''
+    """
     org is depreceated, use org_type_tag and org_name_tag only!!
     :return:
-    '''
+    """
     if 'name' in self.doc.sections:
       section: HeadlineMeta = self.doc.sections['name']
       org, org_type_tag, org_name_tag = self.detect_ners(section.body)
