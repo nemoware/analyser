@@ -12,33 +12,32 @@ from integration.word_document_parser import PARAGRAPH_DELIMITER
 from ml_tools import sum_probabilities, FixedVector
 from text_tools import Tokens
 
+popular_headers = pd.DataFrame.from_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
+popular_headers = list(popular_headers['text'])
 
-def make_headline_attention_vector(doc) ->FixedVector:
+
+def make_headline_attention_vector(doc) -> FixedVector:
   '''
-  
+
   :param doc:
   :return:
   '''
 
-  headline_attention_vector_1 = np.zeros( len(doc.tokens_map) )
+  headline_attention_vector_1 = np.zeros(len(doc.tokens_map))
   headline_attention_vector_2 = np.zeros_like(headline_attention_vector_1)
 
   for p in doc.paragraphs:
     headline_attention_vector_1[p.header.slice] += 1
-
 
   features, body_lines_ranges = doc_features(doc.tokens_map)
   model = load_model()
   predictions = model.predict(features)
   for i in range(len(predictions)):
     span = body_lines_ranges[i]
-    headline_attention_vector_2[span[0]:span[1]]=predictions[i]
+    headline_attention_vector_2[span[0]:span[1]] = predictions[i]
 
-  headline_attention_vector = sum_probabilities( [headline_attention_vector_1*0.75, headline_attention_vector_2] )
+  headline_attention_vector = sum_probabilities([headline_attention_vector_1 * 0.75, headline_attention_vector_2])
   return headline_attention_vector
-
-popular_headers = pd.DataFrame.from_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
-popular_headers = list(popular_headers['text'])
 
 
 def doc_features(tokens_map: TextMap):
@@ -74,9 +73,9 @@ def _onehot(x: bool or int) -> float:
 
 
 def line_features(tokens_map, line_span, line_number, prev_features):
-  tokens:Tokens = tokens_map.tokens_by_range(line_span)
+  tokens: Tokens = tokens_map.tokens_by_range(line_span)
   # TODO: add previous and next lines features
-  txt:str = tokens_map.text_range(line_span)
+  txt: str = tokens_map.text_range(line_span)
 
   numbers, span, k, s = get_tokenized_line_number(tokens, 0)
   if not numbers:
@@ -94,7 +93,7 @@ def line_features(tokens_map, line_span, line_number, prev_features):
 
   features = {
     'line_number': line_number,
-    'popular': _onehot (header_id in popular_headers),
+    'popular': _onehot(header_id in popular_headers),
     # 'cr_count': txt.count('\r'),
 
     'has_contract': _onehot(txt.lower().find('договор')),
