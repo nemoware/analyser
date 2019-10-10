@@ -42,18 +42,9 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     print("ranges")
     print(ranges)
 
-  def test_tokenize_doc(self):
-    doc = LegalDocument()
-    tokens = doc.tokenize('aa bb cc')
-    print(tokens)
-    self.assertEqual(3, len(tokens))
 
-  def test_tokenize_doc_custom_padding(self):
-    doc = LegalDocument()
 
-    tokens = doc.tokenize('aa bb cc')
-    print(tokens)
-    self.assertEqual(3, len(tokens))
+
 
   def test_eval_distances_soft_pattern2(self):
     point1 = [1, 3]
@@ -175,7 +166,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     point3 = [1, 6]
 
     fp2 = FuzzyPattern(None)
-    fp2.set_embeddings(np.array([point2]))
+    fp2.set_embeddings(np.array([point2]), (0,1))
     # fp2 = FuzzyPattern(np.array([[point2]]))
 
     cp = CoumpoundFuzzyPattern()
@@ -190,7 +181,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     self.assertEqual(1, min_i)
 
   def test_etimate_confidence(self):
-    from patterns import  estimate_confidence
+    from ml_tools import estimate_confidence
     confidence, sum_, nonzeros_count, _max = estimate_confidence([])
     self.assertEqual(0, confidence)
     self.assertTrue( sum_ is np.nan)
@@ -198,7 +189,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     self.assertTrue( _max is np.nan)
 
   def test_etimate_confidence2(self):
-    from patterns import  estimate_confidence
+    from ml_tools import estimate_confidence
     confidence, sum_, nonzeros_count, _max = estimate_confidence([1])
     self.assertEqual(1, confidence)
     self.assertEqual( sum_ , 1)

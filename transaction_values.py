@@ -7,11 +7,11 @@
 
 import math
 import re
+import warnings
 from typing import List
 
-from ml_tools import TokensWithAttention
-from text_tools import np
-from text_tools import to_float, untokenize
+from ml_tools import TokensWithAttention, FixedVector
+from text_tools import np, Tokens, to_float, untokenize
 
 currencly_map = {
   'руб': 'RUB',
@@ -24,35 +24,39 @@ currencly_map = {
 
 class ValueConstraint:
   def __init__(self, value: float, currency: str, sign: int, context: TokensWithAttention):
+    warnings.warn("ValueConstraint is deprecated, use TaggedValueConstraint", DeprecationWarning)
     assert context is not None
 
+    self.value: float = value
+    self.currency: str = currency
+    self.sign: int = sign
 
-
-    self.value = value
-    self.currency = currency
-    self.sign = sign
     self.context: TokensWithAttention = context
 
-
+  def __str__(self):
+    return f'{self.value} {self.sign} {self.currency}'
 
 
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
-  r'(\d+([., ]\d+)*)'  # digits
-  r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'   # bullshit like 'от 1000000 ( одного ) миллиона рублей'
-  r'(\s*(тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'                 # *1000 qualifier
-  r'(\s*\((?:(?!\)).)+?\))?\s*'                               # some shit in parenthesis 
-  r'((руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'         # currency
-  r'(\s*\((?:(?!\)).)+?\))?\s*'                               # some shit in parenthesis 
-  r'(\s*(\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',                # cents
+  r'(?P<digits>\d+([., ]\d+)*)'  # digits #0
+  r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
+  r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
+  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
+  r'?((?P<currency>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
+  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
+  r'(\s*(?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?',  # cents
   re.MULTILINE | re.IGNORECASE
 )
 
-def extract_sum(sentence: str) -> (float, str):
-  r = complete_re.search(sentence)
+
+# for r in re.finditer(complete_re, text):
+def extract_sum(_sentence: str) -> (float, str):
+  warnings.warn("use find_value_spans", DeprecationWarning)
+  r = complete_re.search(_sentence)
 
   if r is None:
-    return None
+    return None, None
 
   number = to_float(r[1])
   r_num = r[4]
@@ -74,23 +78,27 @@ def extract_sum(sentence: str) -> (float, str):
   return number, currencly_map[curr.lower()]
 
 
-def extract_sum_from_tokens(sentence_tokens: List):
-  sentence = untokenize(sentence_tokens).lower().strip()
-  f = extract_sum(sentence)
-  return f, sentence
+def extract_sum_from_tokens(sentence_tokens: Tokens):
+  warnings.warn("method relies on untokenize, not good", DeprecationWarning)
+  _sentence = untokenize(sentence_tokens).lower().strip()
+  f = extract_sum(_sentence)
+  return f, _sentence
 
 
-def extract_sum_from_tokens_2(sentence_tokens: List):
+def extract_sum_from_tokens_2(sentence_tokens: Tokens):
+  warnings.warn("method relies on untokenize, not good", DeprecationWarning)
   f, __ = extract_sum_from_tokens(sentence_tokens)
   return f
 
 
 _re_greather_then_1 = re.compile(r'(не менее|не ниже)', re.MULTILINE)
-_re_less_then = re.compile(r'(до\s+|менее|не более|не выше|не превыша[а-я]{2,4})', re.MULTILINE)
-_re_greather_then = re.compile(r'(от\s+|больше|более|свыше|выше|превыша[а-я]{2,4})', re.MULTILINE)
+_re_greather_then = re.compile(r'(\sот\s+|больше|более|свыше|выше|превыша[а-я]{2,4})', re.MULTILINE)
+_re_less_then = re.compile(
+  r'(до\s+|менее|не может превышать|лимит соглашения[:]*|не более|не выше|не превыша[а-я]{2,4})', re.MULTILINE)
 
 
 def detect_sign(prefix: str):
+  warnings.warn("use detect_sign_2", DeprecationWarning)
   a = _re_greather_then_1.findall(prefix)
   if len(a) > 0:
     return +1
@@ -108,7 +116,7 @@ def detect_sign(prefix: str):
 number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 
 
-def split_by_number_2(tokens: List[str], attention: List[float], threshold) -> (
+def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
         List[List[str]], List[int], List[slice]):
   indexes = []
   last_token_is_number = False
@@ -163,29 +171,10 @@ def split_by_number(tokens: List[str], attention: List[float], threshold):
 VALUE_SIGN_MIN_TOKENS = 4
 
 
-def extract_sum_and_sign(subdoc, region) -> ValueConstraint:
-  subtokens = subdoc.tokens_cc[region[0] - VALUE_SIGN_MIN_TOKENS:region[1]]
-  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
-  _sign = detect_sign(_prefix)
-  # ======================================
-  _sum = extract_sum_from_tokens(subtokens)[0]
-  # ======================================
-
-  currency = "UNDEF"
-  value = np.nan
-  if _sum is not None:
-    currency = _sum[1]
-    if _sum[1] in currencly_map:
-      currency = currencly_map[_sum[1]]
-    value = _sum[0]
-
-  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([''], [0]))
-
-  return vc
-
-
 def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
+  warnings.warn("deprecated", DeprecationWarning)
+  # TODO: rename
+
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = subdoc.tokens_cc[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
@@ -208,7 +197,51 @@ def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
   return vc
 
 
+def find_value_spans(_sentence: str) -> (List[int], float, List[int], str):
+  for match in re.finditer(complete_re, _sentence):
+
+    # NUMBER
+    number_span = match.span('digits')
+
+    number = to_float(_sentence[number_span[0]:number_span[1]])
+
+    # NUMBER MULTIPLIER
+    qualifier_span = match.span('qualifier')
+    qualifier = _sentence[qualifier_span[0]:qualifier_span[1]]
+    if qualifier:
+      if qualifier.startswith('тыс'):
+        number *= 1000
+      else:
+        if qualifier.startswith('м'):
+          number *= 1000000
+
+    # FRACTION (CENTS, KOPs)
+    cents_span = match.span('cents')
+    r_cents = _sentence[cents_span[0]:cents_span[1]]
+    if r_cents:
+      frac, whole = math.modf(number)
+      if frac == 0:
+        number += to_float(r_cents) / 100.
+
+    # CURRENCY
+    currency_span = match.span('currency')
+    currency = _sentence[currency_span[0]:currency_span[1]]
+    curr = currency[0:3]
+    currencly_name = currencly_map[curr.lower()]
+
+    # TODO: include fration span to the return value
+    ret = number_span, number, currency_span, currencly_name
+
+    return ret
+
+
 if __name__ == '__main__':
+  ex = "составит - не более 1661 293,757 тыс. рублей  25 копеек ( с учетом ндс ) ( 0,93 % балансовой стоимости активов)"
+  val = find_value_spans(ex)
+  print('extract_sum', extract_sum(ex))
+  print('val', val)
+
+if __name__ == '__main__X':
   ex = """
   одобрение заключения , изменения или расторжения какой-либо сделки общества , не указанной прямо в пункте 17.1 устава или настоящем пункте 22.5 ( за исключением крупной сделки в определении действующего законодательства российской федерации , которая подлежит одобрению общим собранием участников в соответствии с настоящим уставом или действующим законодательством российской федерации ) , если предметом такой сделки ( а ) является деятельность , покрываемая в долгосрочном плане , и сделка имеет стоимость , равную или превышающую 5000000 ( пять миллионов ) долларов сша , либо ( b ) является деятельность , не покрываемая в долгосрочном плане , и сделка имеет стоимость , равную или превышающую 500000 ( пятьсот тысяч ) долларов сша ;
   """
@@ -246,6 +279,8 @@ if __name__ == '__main__':
     'не было получено предварительное одобрение на такое расходование от представителей участников , уполномоченных голосовать '
     'на общем собрании участников общества ;'))
 
+  s_ = """Стоимость оборудования 80 000,00 ( восемьдесят тысяч рублей рублей 00 копеек ) рублей, НДС не облагается."""
+  print(extract_sum(s_))
 
-  sentence = """ 1.1.1. Счет № 115 на приобретение спортивного оборудования ( теннисный стол, рукоход с перекладинами, шведская стенка ). Стоимость оборудования 80 000,00 ( восемьдесят тысяч рублей рублей 00 копеек ) рублей, НДС не облагается."""
-  print(extract_sum(sentence))
+  s_ = """Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей,"""
+  print(extract_sum(s_))

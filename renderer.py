@@ -1,10 +1,14 @@
+import html as escaper
 from typing import List
 
-from legal_docs import CharterDocument
+import numpy as np
+
+from legal_docs import CharterDocument, ProtocolDocument
 from ml_tools import ProbableValue
 from parsing import known_subjects, head_types_dict
 from patterns import AV_PREFIX, AV_SOFT, PatternSearchResult, ConstraintsSearchResult, PatternSearchResults
 from structures import ContractSubject
+from structures import OrgStructuralLevel
 from transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
@@ -13,7 +17,6 @@ head_types_colors = {'head.directors': 'crimson',
                      'head.shareholders': '#666600',
                      'head.pravlenie': '#0099cc',
                      'head.unknown': '#999999'}
-from structures import OrgStructuralLevel
 
 org_level_colors = {OrgStructuralLevel.BoardOfDirectors: 'crimson',
                     OrgStructuralLevel.ShareholdersGeneralMeeting: 'orange',
@@ -248,6 +251,44 @@ class HtmlRenderer(AbstractRenderer):
 
     return html
 
+  def _to_color_text(self, _tokens, weights, mpl, colormap='coolwarm', _range=None):
+    tokens = [escaper.escape(t) for t in _tokens]
+
+    if len(tokens) == 0:
+      return " - empty -"
+
+    if len(weights) != len(tokens):
+      raise ValueError("number of weights differs weights={} tokens={}".format(len(weights), len(tokens)))
+
+    #   if()
+    vmin = weights.min()
+    vmax = weights.max()
+
+    if _range is not None:
+      vmin = _range[0]
+      vmax = _range[1]
+
+    norm = mpl.colors.Normalize(vmin=vmin - 0.5, vmax=vmax)
+    cmap = mpl.cm.get_cmap(colormap)
+
+    html = ""
+
+    for d in range(0, len(weights)):
+      word = tokens[d]
+      if word == ' ':
+        word = '&nbsp;_ '
+
+      html += '<span title="{} {:.4f}" style="background-color:{}">{} </span>'.format(
+        d,
+        weights[d],
+        mpl.colors.to_hex(cmap(norm(weights[d]))),
+        word)
+
+      if tokens[d] == '\n':
+        html += "<br>"
+
+    return html
+
   def constraints_to_html(self, search_result: PatternSearchResult):
 
     constraints: List[ValueConstraint] = search_result.constraints
@@ -334,8 +375,22 @@ class HtmlRenderer(AbstractRenderer):
         AV_SOFT + AV_PREFIX + f'x_{subj}')
     return attention_vectors
 
+  def sign_to_text(self, sign: int):
+    if sign < 0: return " &lt; "
+    if sign > 0: return " &gt; "
+    return ' = '
 
-import numpy as np
+  def probable_value_to_html(self, pv):
+    vc = pv.value
+    color = '#333333'
+    if vc.sign > 0:
+      color = '#993300'
+    elif vc.sign < 0:
+      color = '#009933'
+
+    return f'<b style="color:{color}">{self.sign_to_text(vc.sign)} {vc.currency} {vc.value:20,.2f}' \
+           f'<sup>confidence={pv.confidence:20,.2f}</sup></b> '
+
 
 ''' AZ:- 🌈 -----🌈 ------🌈 --------------------------END-Rendering COLORS--------'''
 
@@ -345,7 +400,7 @@ def mixclr(color_map, dictionary, min_color=None, _slice=None):
   greens = None
   blues = None
 
-  fallback = (1, 1, 1)
+  fallback = (0.5, 0.5, 0.5)
 
   for c in dictionary:
     vector = np.array(dictionary[c])
@@ -406,3 +461,28 @@ def _as_smaller(txt):
 
 def as_c_quote(txt):
   return f'<div style="margin-top:0.2em; margin-left:2em; font-size:14px">"...{txt} ..."</div>'
+
+
+class BasicProtocolRenderer(HtmlRenderer):
+
+  def protocol_values_to_html(self, _doc: ProtocolDocument) -> str:
+
+    values = sorted(_doc.values, key=lambda item: -item.value.value - item.confidence)
+
+    if values is None or len(values) == 0:
+      return as_warning('сумма не найдена')
+      return
+
+    cc = 0
+    html = ''
+    for vl in values:
+
+      h = as_headline_3(self.probable_value_to_html(vl))
+      h += as_offset(self.to_color_text(vl.value.context.tokens, vl.value.context.attention, colormap='jet'))
+      if cc > 0:
+        h = as_offset(as_smaller(h))
+
+      html += h
+
+      cc += 1
+    return html

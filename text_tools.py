@@ -3,40 +3,40 @@
 # coding=utf-8
 
 
+import warnings
 from typing import List
 
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 
-nltk.download('punkt')
-
 Tokens = List[str]
 
 
 def find_ner_end(tokens, start, max_len=20):
+  # TODO: use regex
   for i in range(start, len(tokens)):
     if tokens[i] == '"':
       return i
 
-    if tokens[i] == '»':
+    elif tokens[i] == '»':
       return i
 
-    if tokens[i] == '\n':
+    elif tokens[i] == '\n':
       return i
 
-    if tokens[i] == '.':
+    elif tokens[i] == '.':
       return i
 
-    if tokens[i] == ';':
+    elif tokens[i] == ';':
       return i
 
   return min(len(tokens), start + max_len)
 
 
-def to_float(str):
+def to_float(string):
   try:
-    return float(str.replace(" ", "").replace(",", "."))
+    return float(string.replace(" ", "").replace(",", "."))
   except:
     return np.nan
 
@@ -52,18 +52,6 @@ def replace_with_map(txt, replacements):
 def remove_empty_lines(original_text):
   a = "\n".join([ll.strip() for ll in original_text.splitlines() if ll.strip()])
   return a.replace('\t', ' ')
-
-
-def tokenize_text(text):
-  sentences = text.split('\n')
-  result = []
-  for i in range(len(sentences)):
-    sentence = sentences[i]
-    result += nltk.word_tokenize(sentence)
-    if i < len(sentences) - 1:
-      result += ['\n']
-
-  return result
 
 
 # ----------------------------------------------------------------
@@ -126,8 +114,8 @@ For balance (symmetry) swap U & V and find the effort required to strech V sente
 
 
 def dist_frechet_cosine_directed(u, v):
-  D_ = distance.cdist(u, v, 'cosine')
-  return D_.min(0).sum()
+  d_ = distance.cdist(u, v, 'cosine')
+  return d_.min(0).sum()
 
 
 def dist_frechet_cosine_undirected(u, v):
@@ -137,8 +125,8 @@ def dist_frechet_cosine_undirected(u, v):
 
 
 def dist_frechet_eucl_directed(u, v):
-  D_ = distance.cdist(u, v, 'euclidean')
-  return D_.min(0).sum()
+  d_ = distance.cdist(u, v, 'euclidean')
+  return d_.min(0).sum()
 
 
 def dist_frechet_eucl_undirected(u, v):
@@ -152,8 +140,8 @@ def dist_mean_cosine_frechet(u, v):
 
 
 def dist_cosine_housedorff_directed(u, v):
-  D_ = distance.cdist(u, v, 'cosine')
-  return D_.min(0).max()
+  d_ = distance.cdist(u, v, 'cosine')
+  return d_.min(0).max()
 
 
 def dist_cosine_housedorff_undirected(u, v):
@@ -205,42 +193,137 @@ my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 
 
 def untokenize(tokens: Tokens) -> str:
+  warnings.warn("deprecated", DeprecationWarning)
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
 
-def find_token_before_index(tokens, index, token, default_ret=-1):
-  for i in reversed(range(index)):
+def tokenize_text(text):
+  warnings.warn("deprecated, use TextMap(text)", DeprecationWarning)
+
+  sentences = text.split('\n')
+  result = []
+  for i in range(len(sentences)):
+    sentence = sentences[i]
+    result += nltk.word_tokenize(sentence)
+    if i < len(sentences) - 1:
+      result += ['\n']
+
+  return result
+
+
+def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):
+  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+  for i in reversed(range(min(index, len(tokens)))):
     if tokens[i] == token:
       return i
   return default_ret
 
 
-def find_token_after_index(tokens, index, token, default_ret=-1):
-  for i in range(index, len(tokens)):
+def find_token_after_index(tokens: Tokens, index, token, default_ret=-1):
+  warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+  for i in (range(min(index, len(tokens)))):
     if tokens[i] == token:
       return i
   return default_ret
 
 
-def get_sentence_bounds_at_index(index, tokens):
-  start = find_token_before_index(tokens, index, '\n', 0)
-  end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
-  return start + 1, end
+#
+# def get_sentence_bounds_at_index(index, tokens):
+#   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+#   start = find_token_before_index(tokens, index, '\n', 0)
+#   end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
+#   return start + 1, end
 
 
-def get_sentence_slices_at_index(index, tokens) -> slice:
-  start = find_token_before_index(tokens, index, '\n')
-  end = find_token_after_index(tokens, index, '\n')
-  if start < 0:
-    start = 0
-  if end < 0:
-    end = len(tokens)
-  return slice(start + 1, end)
+# def get_sentence_slices_at_index(index, tokens) -> slice:
+#   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
+#   start = find_token_before_index(tokens, index, '\n')
+#   end = find_token_after_index(tokens, index, '\n')
+#   if start < 0:
+#     start = 0
+#   if end < 0:
+#     end = len(tokens)
+#   return slice(start + 1, end)
 
 
-def min_index_per_row(rows):
-  indexes = []
-  for row in rows:
-    indexes.append(np.argmin(row))
+def hot_quotes(tokens: Tokens) -> (np.ndarray, np.ndarray):
+  q_re_open = '\'\"«<{['
+  q_re_close = '\'\"»>]'
+  _quotes_open = np.zeros(len(tokens))
+  _quotes_closing = np.zeros(len(tokens))
 
-  return indexes
+  quotes_attention = 1
+  for i in range(len(tokens)):
+    if tokens[i][0] in q_re_open:
+      _quotes_open[i] = quotes_attention
+    if tokens[i][0] in q_re_close:
+      _quotes_closing[i] = quotes_attention
+
+  return _quotes_open, _quotes_closing
+
+
+def hot_punkt(tokens: Tokens) -> np.ndarray:
+  _hot_punkt = np.zeros(len(tokens))
+
+  for i in range(len(tokens)):
+    if tokens[i][0] in my_punctuation + '–«»()[] ':
+      _hot_punkt[i] = 1
+
+  return _hot_punkt
+
+
+def acronym(n):
+  return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
+
+
+def replace_tokens(tokens: Tokens, replacements_map):
+  result = []
+  for t in tokens:
+    key = t.lower()
+    if key in replacements_map:
+      result.append(replacements_map[key])
+    else:
+      result.append(t)
+  return result
+
+
+def roman_to_arabic(n) -> int or None:
+  roman = n.upper().lstrip()
+  if not check_valid_roman(roman):
+    return None
+
+  keys = ['IV', 'IX', 'XL', 'XC', 'CD', 'CM', 'I', 'V', 'X', 'L', 'C', 'D', 'M']
+  to_arabic = {'IV': '4', 'IX': '9', 'XL': '40', 'XC': '90', 'CD': '400', 'CM': '900',
+               'I': '1', 'V': '5', 'X': '10', 'L': '50', 'C': '100', 'D': '500', 'M': '1000'}
+  for key in keys:
+    if key in roman:
+      roman = roman.replace(key, ' {}'.format(to_arabic.get(key)))
+
+  return sum(int(num) for num in roman.split())
+
+
+def check_valid_roman(roman) -> bool:
+  if len(roman.strip()) == 0:
+    return False
+  invalid = ['IIII', 'VV', 'XXXX', 'LL', 'CCCC', 'DD', 'MMMM', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  if any(sub in roman for sub in invalid):
+    return False
+  return True
+
+
+def roman_might_be(wrd) -> int or None:
+  try:
+    return roman_to_arabic(wrd)
+  except:
+    return None
+
+
+def string_to_ip(txt) -> list or None:
+  ret = []
+  n = txt.split('.')
+  for c in n:
+    try:
+      ret.append(int(c))
+    except:
+      pass
+  return ret

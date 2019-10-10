@@ -1,16 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-
+from documents import EmbeddableText, CaseNormalizer
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject
 from transaction_values import ValueConstraint
 
-load_punkt = True
+load_punkt = False
 
 from text_tools import *
 
-TEXT_PADDING_SYMBOL = ' '
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
@@ -18,51 +17,26 @@ PATTERN_THRESHOLD = 0.75  # 0...1
 
 import numpy as np
 
-import sys
-
-WARN='\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
-
-russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/PY3/russian.pickle'
-save_nltk_dir = 'nltk_data_download/tokenizers/punkt/PY3/'
-if sys.version_info[0] < 3:
-  russian_punkt_url = 'https://github.com/Mottl/ru_punkt/raw/master/nltk_data/tokenizers/punkt/russian.pickle'
-  save_nltk_dir = 'nltk_data_download/tokenizers/punkt'
-
-import urllib.request
-import os
-
-if not os.path.exists(save_nltk_dir):
-  os.makedirs(save_nltk_dir)
-
-if load_punkt:
-  russian_punkt = urllib.request.urlopen(russian_punkt_url)
-  with open(save_nltk_dir + 'russian.pickle', 'wb') as output:
-    output.write(russian_punkt.read())
-
-  ru_tokenizer = nltk.data.load(save_nltk_dir + 'russian.pickle')
-  print(ru_tokenizer)
-
-
-class EmbeddableText:
-  def __init__(self):
-    self.tokens = None
-    self.embeddings = None
+WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 
 class FuzzyPattern(EmbeddableText):
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
     # assert prefix_pattern_suffix_tuple is not None
-    # assert prefix_pattern_suffix_tuple[1] != ''
+    # assert prefix_pattern_suffix_tuple[0].strip() == prefix_pattern_suffix_tuple[0], f'{_name}: {prefix_pattern_suffix_tuple} '
+    # assert prefix_pattern_suffix_tuple[2].strip() == prefix_pattern_suffix_tuple[2], f'{_name}: {prefix_pattern_suffix_tuple} '
     self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
     self.name = _name
     self.soft_sliding_window_borders = False
     self.embeddings = None
+    self.region = None
 
-  def set_embeddings(self, pattern_embedding):
+  def set_embeddings(self, pattern_embedding, region=None):
     # TODO: check dimensions
     assert pattern_embedding[0][0]
     self.embeddings = pattern_embedding
+    self.region = region
 
   def _eval_distances(self, _text, dist_function=DIST_FUNC, whd_padding=0, wnd_mult=1):
     assert self.embeddings is not None
@@ -166,8 +140,8 @@ class ExclusivePattern(CompoundPattern):
 
     return a
 
-  def calc_exclusive_distances(self, text_ebd):
-
+  def calc_exclusive_distances(self, text_ebd) -> ([float], [], {}):
+    warnings.warn("calc_exclusive_distances is deprecated ", DeprecationWarning)
     distances_per_pattern = np.zeros((len(self.patterns), len(text_ebd)))
 
     for pattern_index in range(len(self.patterns)):
@@ -182,7 +156,7 @@ class ExclusivePattern(CompoundPattern):
 
     # p1 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
     # p2 [ [ min, max, mean  ] [ d1, d2, d3, nan, d5 ... ] ]
-    ranges = []
+    ranges: [[float, float, float]] = []
     for row in distances_per_pattern:
       b = row
 
@@ -269,12 +243,12 @@ class AbstractPatternFactory:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb = self.embedder.embedd_contextualized_patterns(arr)
+    patterns_emb, regions = self.embedder.embedd_contextualized_patterns(arr)
     assert len(patterns_emb) == len(self.patterns)
     # =========
 
     for i in range(len(patterns_emb)):
-      self.patterns[i].set_embeddings(patterns_emb[i])
+      self.patterns[i].set_embeddings(patterns_emb[i], regions[i])
 
   def average_embedding_pattern(self, pattern_prefix):
     av_emb = None
@@ -306,13 +280,19 @@ class AbstractPatternFactory:
     return pat
 
 
+_case_normalizer = CaseNormalizer()
+
+
 class AbstractPatternFactoryLowCase(AbstractPatternFactory):
   def __init__(self, embedder):
     AbstractPatternFactory.__init__(self, embedder)
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, ppp):
-    _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
+    _ppp = (_case_normalizer.normalize_text(ppp[0]),
+            _case_normalizer.normalize_text(ppp[1]),
+            _case_normalizer.normalize_text(ppp[2]))
+
     fp = FuzzyPattern(_ppp, _name=pattern_name)
 
     if pattern_name in self.patterns_dict:
@@ -380,29 +360,16 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
   return improved
 
 
-def estimate_confidence(vector: List[float]) -> (float, float, int, float):
-  assert vector is not None
-  if len(vector) == 0:
-    return 0, np.nan, 0, np.nan
-
-  sum_ = sum(vector)
-  _max = np.max(vector)
-  nonzeros_count = len(np.nonzero(vector)[0])
-  confidence = 0
-
-  if nonzeros_count > 0:
-    confidence = sum_ / nonzeros_count
-
-  return confidence, sum_, nonzeros_count, _max
-
-
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'
 
 from structures import OrgStructuralLevel
 
-class PatternMatch ():
+
+class PatternMatch():
+
   def __init__(self, region):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     assert region.stop - region.start > 0
     self.subject_mapping = {
       'subj': ContractSubject.Other,
@@ -413,15 +380,17 @@ class PatternMatch ():
     self.confidence: float = 0
     self.pattern_prefix: str = None
     self.attention_vector_name: str = None
-    self.parent  = None # 'LegalDocument'
+    self.parent = None  # 'LegalDocument'
 
   def get_attention(self, name=None):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     if name is None:
       return self.parent.distances_per_pattern_dict[self.attention_vector_name][self.region]
     else:
       return self.parent.distances_per_pattern_dict[name][self.region]
 
   def get_index(self):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     return self.region.start
 
   key_index = property(get_index)
@@ -433,19 +402,21 @@ class PatternMatch ():
 
 
 class PatternSearchResult(PatternMatch):
-  def __init__(self, org_level:OrgStructuralLevel, region):
+  def __init__(self, org_level: OrgStructuralLevel, region):
+    warnings.warn("use SemanticTag", DeprecationWarning)
     super(PatternSearchResult, self).__init__(region)
-    self.org_level:OrgStructuralLevel = org_level
+
+    self.org_level: OrgStructuralLevel = org_level
 
 
 class ConstraintsSearchResult:
-
   def __init__(self):
-    print(WARN+'ConstraintsSearchResult is deprecated ☠️, use PatternSearchResult.constraints istead')
+    warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
     self.constraints: List[ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
   def get_context(self) -> PatternSearchResult:  # alias
+    warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
     return self.subdoc
 
   context = property(get_context)

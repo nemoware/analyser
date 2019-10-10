@@ -1,14 +1,26 @@
-from typing import List
+import warnings
+from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
 
+from documents import TextMap
 from text_tools import Tokens
 
+FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
+Vector = TypeVar('Vector', FixedVector, Iterable[float])
+Vectors = TypeVar('Vectors', List[Vector], Iterable[Vector])
+FixedVectors = TypeVar('FixedVectors', List[FixedVector], Iterable[FixedVector])
 
-class ProbableValue:
-  def __init__(self, value, confidence: float):
+T = TypeVar('T')  # just type variable
+
+
+class ProbableValue(Generic[T]):
+  def __init__(self, value: T, confidence: float):
+    self.value: T = value
     self.confidence: float = confidence
-    self.value = value
+
+  def __str__(self):
+    return f'{self.value} \t {self.confidence:2f}'
 
 
 def split_by_token(tokens: List[str], token):
@@ -25,7 +37,8 @@ def split_by_token(tokens: List[str], token):
   return res
 
 
-def split_by_token_into_ranges(tokens: List[str], token) -> List[slice]:
+def split_by_token_into_ranges(tokens: List, token) -> List[slice]:
+  warnings.warn("deprecated", DeprecationWarning)
   res = []
 
   p = 0
@@ -43,7 +56,7 @@ def estimate_threshold(a, min_th=0.3):
   return max(min_th, np.max(a) * 0.7)
 
 
-def normalize(x, out_range=(0, 1)):
+def normalize(x: FixedVector, out_range=(0, 1)):
   domain = np.min(x), np.max(x)
   if (domain[1] - domain[0]) == 0:
     # all same
@@ -54,15 +67,15 @@ def normalize(x, out_range=(0, 1)):
   return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
 
 
-def smooth_safe(x, window_len=10, window='hanning'):
-  _blur = int(min(window_len, 2 + len(x) / 3.0))
+def smooth_safe(x: FixedVector, window_len=10, window='hanning'):
+  _blur = int(min([window_len, 2 + len(x) / 3.0]))
   _blur = int(_blur / 2) * 2
-  if (_blur > (len(x))):
+  if _blur > (len(x)):
     return x
   return smooth(x, window_len=_blur, window=window)
 
 
-def smooth(x, window_len=11, window='hanning'):
+def smooth(x: FixedVector, window_len=11, window='hanning'):
   """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
@@ -120,61 +133,40 @@ def smooth(x, window_len=11, window='hanning'):
   return y[(halflen - 1):-halflen]
 
 
-def relu(x, relu_th: float = 0.0):
+def relu(x: np.ndarray, relu_th: float = 0.0) -> np.ndarray:
   assert type(x) is np.ndarray
 
-  relu = x * (x > relu_th)
-  return relu
+  _relu = x * (x > relu_th)
+  return _relu
 
 
-def extremums(x):
-  extremums = [0]
+def extremums(x: FixedVector) -> List[int]:
+  _extremums = [0]
   for i in range(1, len(x) - 1):
     if x[i - 1] < x[i] > x[i + 1]:
-      extremums.append(i)
-  return extremums
+      _extremums.append(i)
+  return _extremums
 
 
-def softmax(v):
+def softmax(v: np.ndarray) -> np.ndarray:
   x = normalize(v)
   x /= len(x)
   return x
 
 
-def make_echo(av, k=0.5):
+def make_echo(av: FixedVector, k=0.5) -> np.ndarray:
   innertia = np.zeros(len(av))
-  sum = 0
+  _sum = 0
 
   for i in range(len(av)):
     if av[i] > k:
-      sum = av[i]
-    innertia[i] = sum
+      _sum = av[i]
+    innertia[i] = _sum
   #     sum-=0.0005
   return innertia
 
 
-# def momentum(av, decay=0.9):
-#   innertia = np.zeros(len(av))
-#   m = 0
-#   for i in range(len(innertia)):
-#     m += av[i]
-#     if m > 2:
-#       m=2
-#     innertia[i] = m
-
-#     m *= decay
-
-#   return innertia
-
-
-# def momentum(av, decay=0.9):
-#   m = np.zeros(len(av))
-#   m[0]=av[0]
-#   for i in range(len(av)):
-#     m[i] = max(av[i], m[i-1]*decay)
-#   return m
-
-def momentum_(x, decay=0.99):
+def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
   for i in range(len(x)):
@@ -185,7 +177,7 @@ def momentum_(x, decay=0.99):
   return innertia
 
 
-def momentum(x, decay=0.999):
+def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
   for i in range(len(x)):
@@ -196,7 +188,46 @@ def momentum(x, decay=0.999):
   return innertia
 
 
-def momentum_reversed(x, decay=0.999):
+import math
+
+
+def momentum_t(x: FixedVector, half_decay: int = 10, left=False) -> np.ndarray:
+  assert half_decay > 0
+
+  decay = math.pow(2, -1 / half_decay)
+  innertia = np.zeros(len(x))
+  m = 0
+  _r = range(len(x))
+  if left:
+    _r = reversed(_r)
+  for i in _r:
+    m = max(m, x[i])
+    innertia[i] = m
+
+    m *= decay
+
+  return innertia
+
+
+def momentum_p(x, half_decay: int = 10, left=False) -> np.ndarray:
+  assert half_decay > 0
+
+  decay = math.pow(2, -1 / half_decay)
+  innertia = np.zeros(len(x))
+  m = 0
+  _r = range(len(x))
+  if left:
+    _r = reversed(_r)
+  for i in _r:
+    m = m + x[i] - (m * x[i])
+    innertia[i] = m
+
+    m *= decay
+
+  return innertia
+
+
+def momentum_reversed(x: FixedVector, decay=0.999) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
   for i in reversed(range(0, len(x))):
@@ -207,7 +238,7 @@ def momentum_reversed(x, decay=0.999):
   return innertia
 
 
-def onehot_column(a, mask=-2 ** 32, replacement=None):
+def onehot_column(a: np.ndarray, mask=-2 ** 32, replacement=None):
   """
 
   Searches for maximum in every column.
@@ -230,12 +261,12 @@ def onehot_column(a, mask=-2 ** 32, replacement=None):
   return a
 
 
-def most_popular_in(arr):
+def most_popular_in(arr: FixedVector) -> int:
   if len(arr) == 0:
-    return None
+    return np.nan
 
   counts = np.bincount(arr)
-  return np.argmax(counts)
+  return int(np.argmax(counts))
 
 
 def remove_similar_indexes(indexes: List[int], min_section_size=20):
@@ -250,7 +281,7 @@ def remove_similar_indexes(indexes: List[int], min_section_size=20):
   return indexes_zipped
 
 
-def cut_above(x: np.ndarray, threshold: float) -> List[float]:
+def cut_above(x: np.ndarray, threshold: float) -> np.ndarray:
   float___threshold = (x * float(-1.0)) + threshold
 
   return threshold + relu(float___threshold) * -1.0
@@ -264,26 +295,23 @@ def put_if_better(destination: dict, key, x, is_better: staticmethod):
     destination[key] = x
 
 
-def rectifyed_sum(vectors, relu_th: float = 0.0):
-  assert len(vectors) > 0
-
-  sum = None
+def rectifyed_sum(vectors: FixedVectors, relu_th: float = 0.0) -> np.ndarray:
+  _sum = None
 
   for x in vectors:
-    if sum is None:
-      sum = np.zeros(len(x))
-    sum += relu(x, relu_th)
+    if _sum is None:
+      _sum = np.zeros(len(x))
+    _sum += relu(x, relu_th)
 
-  return sum
+  assert _sum is not None
+
+  return _sum
 
 
-def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> List[List[float]]:
-  vectors = []
+def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> Vectors:
   for p in dictionary:
     if str(p).startswith(prefix):
-      x = dictionary[p]
-      vectors.append(x)
-  return vectors
+      yield dictionary[p]
 
 
 def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
@@ -292,7 +320,7 @@ def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
   return max_exclusive_pattern(vectors)
 
 
-def max_exclusive_pattern(vectors: List[List[float]]) -> List[float]:
+def max_exclusive_pattern(vectors: FixedVectors) -> FixedVector:
   _sum = None
   for x in vectors:
     if _sum is None:
@@ -303,8 +331,121 @@ def max_exclusive_pattern(vectors: List[List[float]]) -> List[float]:
   return _sum
 
 
+def conditional_p_sum(vector: FixedVector) -> float:
+  _sum = 0
+  for x in vector:
+    a = _sum + x
+    b = _sum * x
+    _sum = a - b
+
+  return _sum
+
+
+def sum_probabilities(vectors: FixedVectors) -> FixedVector:
+  _sum = np.zeros_like(vectors[0])
+  for x in vectors:
+    a = _sum + x
+    b = _sum * x
+    _sum = a - b
+
+  return _sum
+
+
+def subtract_probability(a: FixedVector, b: FixedVector) -> FixedVector:
+  return 1.0 - sum_probabilities([1.0 - a, b])
+
+
 class TokensWithAttention:
-  def __init__(self, tokens: Tokens, attention: List[float]):
+  def __init__(self, tokens: Tokens, attention: FixedVector):
+    warnings.warn("TokensWithAttention is deprecated, use ...", DeprecationWarning)
     assert len(tokens) == len(attention)
     self.tokens = tokens
     self.attention = attention
+
+
+class SemanticTag:
+  def __init__(self, kind, value, span: (int, int), span_map='words'):
+    self.kind = kind
+    self.value = value
+    '''name of the parent (or group) tag '''
+    self.parent: str = None
+    if span:
+      self.span = (int(span[0]), int(span[1]))  # kind of type checking
+    else:
+      self.span = (0, 0)  # TODO: might be keep None?
+    self.span_map = span_map
+    self.confidence = 1.0
+    self.display_value = value
+
+  def as_slice(self):
+    return slice(self.span[0], self.span[1])
+
+  def isNotEmpty(self) -> bool:
+    return self.span is not None and self.span[0] != self.span[1]
+
+  @staticmethod
+  def find_by_kind(list: List['SemanticTag'], kind: str) -> 'SemanticTag':
+    for s in list:
+      if s.kind == kind:
+        return s
+
+  def offset(self, span_add: int):
+    self.span = self.span[0] + span_add, self.span[1] + span_add
+
+  def __str__(self):
+    return f'SemanticTag: {self.kind} {self.span} {self.value} {self.display_value}  {self.confidence}'
+
+  def quote(self, tm: TextMap):
+    return tm.text_range(self.span)
+
+  slice = property(as_slice)
+
+
+def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
+  assert vector is not None
+  if len(vector) == 0:
+    return 0, np.nan, 0, np.nan
+
+  sum_ = sum(vector)
+  _max = np.max(vector)
+  nonzeros_count = len(np.nonzero(vector)[0])
+  confidence = 0
+
+  if nonzeros_count > 0:
+    confidence = sum_ / nonzeros_count
+
+  return confidence, sum_, nonzeros_count, _max
+
+
+def estimate_confidence_by_mean_top_non_zeros(x: FixedVector, head_size: int = 10) -> float:
+  top10 = sorted(x)[-head_size:]
+
+  nonzeros_count = len(np.nonzero(top10)[0])
+  sum_ = sum(top10)
+  confidence = 0
+
+  if nonzeros_count > 0:
+    confidence = sum_ / nonzeros_count
+  return confidence
+
+
+def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> float:
+  """
+  taking mean of max 10 values
+  """
+  return float(np.mean(sorted(x)[-head_size:]))
+
+
+def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
+                                          equality_range=0.0) -> ProbableValue:
+  try:
+    if abs(a.value.value - alternative.value.value) < equality_range:
+      if a.confidence > alternative.confidence:
+        return a
+      else:
+        return alternative
+  except:
+    # TODO: why dan hell we should have an exception here??
+    return a
+
+  return a

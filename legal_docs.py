@@ -4,22 +4,23 @@
 
 
 # legal_docs.py
-
+import datetime
+import json
 from functools import wraps
 
-from doc_structure import DocumentStructure, StructureLine
-from embedding_tools import embedd_tokenized_sentences_list
-from ml_tools import normalize, smooth, extremums, smooth_safe, remove_similar_indexes, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention
-from parsing import profile, print_prof_data, ParsingSimpleContext
+from bson import json_util
+
+from documents import TextMap
+from embedding_tools import AbstractEmbedder
+from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
+  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum
+from parsing import print_prof_data
 from patterns import *
-from patterns import AV_SOFT, AV_PREFIX, PatternSearchResult, PatternSearchResults
-from structures import ORG_2_ORG
+from structures import ORG_2_ORG, ContractTags
 from text_normalize import *
 from text_tools import *
-from text_tools import untokenize, np
-from transaction_values import extract_sum_from_tokens, split_by_number_2, extract_sum_and_sign_2, ValueConstraint, \
-  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map
+from transaction_values import complete_re, extract_sum_from_tokens, ValueConstraint, \
+  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, find_value_spans
 
 REPORTED_DEPRECATED = {}
 
@@ -28,10 +29,10 @@ import gc
 from ml_tools import put_if_better
 
 
-def remove_sr_duplicates_conditionally(list: PatternSearchResults):
+def remove_sr_duplicates_conditionally(list_: PatternSearchResults):
   ret = []
   dups = {}
-  for r in list:
+  for r in list_:
     put_if_better(dups, r.key_index, r, lambda a, b: a.confidence > b.confidence)
 
   for x in dups.values():
@@ -49,17 +50,6 @@ def substract_search_results(a: PatternSearchResults, b: PatternSearchResults) -
   return result
 
 
-class HeadlineMeta:
-  def __init__(self, index, _type, confidence: float, subdoc):
-    self.index: int = index
-    self.confidence: float = confidence
-    self.type: str = _type
-    self.subdoc: LegalDocument = subdoc
-    self.body: LegalDocument = None
-
-    self.attention: List[float] = None  # optional
-
-
 def deprecated(fn):
   @wraps(fn)
   @wraps(fn)
@@ -74,23 +64,39 @@ def deprecated(fn):
   return with_reporting
 
 
-class LegalDocument(EmbeddableText):
+class Paragraph:
+  def __init__(self, header: SemanticTag, body: SemanticTag):
+    self.body: SemanticTag = body
+    self.header: SemanticTag = header
+
+
+class LegalDocument:
 
   def __init__(self, original_text=None, name="legal_doc"):
-    super().__init__()
-    self.original_text = original_text
+
+    self._id = None  # TODO
+    self.date = None
+
     self.filename = None
-    self.tokens = None
-    self.tokens_cc = None
-    self.embeddings = None
-    self.normal_text = None
+    self._original_text = original_text
+    self._normal_text = None
+
+    # todo: use pandas' DataFrame
     self.distances_per_pattern_dict = {}
 
-    self.sections = None
+    self.tokens_map: TextMap = None
+    self.tokens_map_norm: TextMap = None
+
+    self.sections = None  # TODO:deprecated
+    self.paragraphs: List[Paragraph] = []
     self.name = name
+
     # subdocs
-    self.start = None
-    self.end = None
+    self.start = 0
+    self.end = None  # TODO:
+
+    # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
+    self.embeddings = None
 
   def parse(self, txt=None):
     if txt is None:
@@ -98,195 +104,75 @@ class LegalDocument(EmbeddableText):
 
     assert txt is not None
 
-    self.normal_text = self.preprocess_text(txt)
+    self._normal_text = self.preprocess_text(txt)
+    self.tokens_map = TextMap(self._normal_text)
 
-    self.structure = DocumentStructure()
-    self.tokens, self.tokens_cc = self.structure.detect_document_structure(self.normal_text)
+    self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+    return self
 
-    # self.tokens = self.tokenize(self.normal_text)
-    # self.tokens_cc = np.array(self.tokens)
-    return self.tokens
+  def __add__(self, suffix: 'LegalDocument'):
+    '''
+    1) dont forget to add spaces between concatenated docs!!
+    2) embeddings are lost
+    3)
+    :param suffix: doc to add
+    :return: self + suffix
+    '''
+    assert self._normal_text is not None
+    assert suffix._normal_text is not None
 
-  def preprocess_text(self, text):
-    return normalize_text(text, replacements_regex)
+    self.distances_per_pattern_dict = {}
+    self._normal_text += suffix.normal_text
+    self._original_text += suffix.original_text
 
-  def __del__(self):
-    print(f"----------------- LegalDocument {self.name} deleted. Ciao bella!")
+    self.tokens_map += suffix.tokens_map
+    self.tokens_map_norm += suffix.tokens_map_norm
 
-  def find_sections_by_headlines_2(self, context: ParsingSimpleContext, head_types_list,
-                                   embedded_headlines: List['LegalDocument'], pattern_prefix,
-                                   threshold) -> dict:
+    self.sections = None
 
-    hl_meta_by_index = {}
-    sections = {}
+    self.paragraphs += suffix.paragraphs
+    # subdocs
+    self.end = suffix.end
+    self.embeddings = None
 
-    for head_type in head_types_list:
+    return self
 
-      confidence_by_headline = self._find_best_headline_by_pattern_prefix_2(embedded_headlines,
-                                                                            pattern_prefix + head_type)
-      closest_headline_index = int(np.argmax(confidence_by_headline))
+  def get_tags(self):
+    raise NotImplementedError()
 
-      if confidence_by_headline[closest_headline_index] > threshold:
+  def to_json(self) -> str:
+    j = DocumentJson(self)
+    return json.dumps(j.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
 
-        obj = HeadlineMeta(closest_headline_index,
-                           head_type,
-                           confidence=confidence_by_headline[closest_headline_index],
-                           subdoc=embedded_headlines[closest_headline_index])
+  def get_tokens_cc(self):
+    return self.tokens_map.tokens
 
-        if closest_headline_index in hl_meta_by_index:
-          # replace
-          e_obj = hl_meta_by_index[closest_headline_index]
-          if e_obj.confidence < obj.confidence:
-            # replace
-            hl_meta_by_index[closest_headline_index] = obj
-        else:
-          hl_meta_by_index[closest_headline_index] = obj
+  def get_tokens(self):
+    return self.tokens_map_norm.tokens
 
+  def get_original_text(self):
+    return self._original_text
 
-      else:
-        context.warning(f'Cannot find headline matching pattern "{pattern_prefix + head_type}"*')
+  def get_normal_text(self):
+    return self._normal_text
 
-    for hl in hl_meta_by_index.values():
-      try:
-        hl.body = self._doc_section_under_headline(hl, render=False)
-        sections[hl.type] = hl
+  def get_text(self):
+    return self.tokens_map.text
 
-      except ValueError as error:
-        context.warning(str(error))
-        # print(error)
+  tokens_cc = property(get_tokens_cc)
+  tokens = property(get_tokens)
+  original_text = property(get_original_text)
+  normal_text = property(get_normal_text)
+  text = property(get_text)
 
-    return sections
+  def preprocess_text(self, txt):
+    assert txt is not None
+    return normalize_text(txt, replacements_regex)
 
-  def _doc_section_under_headline(self, headline_info: HeadlineMeta, render=False):
-    if render:
-      print('Searching for section:', headline_info.type)
+  def find_sentence_beginnings(self, indices):
+    return [find_token_before_index(self.tokens, i, '\n', 0) for i in indices]
 
-    bi_next = headline_info.index + 1
-
-    headline_indexes = self.structure.headline_indexes
-
-    headline_index = self.structure.headline_indexes[headline_info.index]
-    if bi_next < len(headline_indexes):
-      headline_next_id = headline_indexes[headline_info.index + 1]
-    else:
-      headline_next_id = None
-
-    subdoc = subdoc_between_lines(headline_index, headline_next_id, self)
-
-    if len(subdoc.tokens) < 2:
-      raise ValueError(
-        'Empty "{}" section between detected headlines #{} and #{}'.format(headline_info.type, headline_index,
-                                                                           headline_next_id))
-
-    if render:
-      print('=' * 100)
-      print(headline_info.subdoc.untokenize_cc())
-      print('-' * 100)
-      print(subdoc.untokenize_cc())
-
-    return subdoc
-
-  @deprecated
-  def embedd_headlines(self, factory: AbstractPatternFactory, headline_indexes: List[int] = None, max_len=40) -> List[
-    'LegalDocument']:
-
-    if headline_indexes is None:
-      headline_indexes = self.structure.headline_indexes
-
-    _str = self.structure.structure
-
-    embedded_headlines: List['LegalDocument'] = []
-
-    tokenized_sentences_list = []
-    for i in headline_indexes:
-      line: StructureLine = _str[i]
-
-      _len = line.span[1] - line.span[0]
-      _len = min(max_len, _len)
-
-      subdoc = self.subdoc(line.span[0], line.span[0] + _len)
-
-      tokenized_sentences_list.append(subdoc.tokens)
-      embedded_headlines.append(subdoc)
-
-    sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-    for i in range(len(headline_indexes)):
-      embedded_headlines[i].embeddings = sentences_emb[i][0:lens[i]]
-      embedded_headlines[i].calculate_distances_per_pattern(factory)
-
-    return embedded_headlines
-
-  @deprecated
-  def _find_best_headline_by_pattern_prefix(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str,
-                                            threshold):
-
-    import math
-
-    number_of_headlines = len(embedded_headlines)
-    confidence_by_headline = np.zeros(number_of_headlines)
-
-    attention_vectors_by_headline = {}
-
-    for i in range(number_of_headlines):
-      subdoc = embedded_headlines[i]
-
-      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
-                                                             relu_th=0.6)
-      headline_name_av = smooth_safe(headline_name_av, 4)
-
-      _max_id = np.argmax(headline_name_av)
-      _max = np.max(headline_name_av)
-      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
-
-      confidence_by_headline[i] = _max + _sum
-      attention_vectors_by_headline[i] = headline_name_av
-
-    closest_headline_index = int(np.argmax(confidence_by_headline))
-
-    if confidence_by_headline[closest_headline_index] < threshold:
-      raise ValueError('Cannot find headline matching pattern "{}"'.format(pattern_prefix))
-
-    return closest_headline_index, confidence_by_headline, attention_vectors_by_headline[closest_headline_index]
-
-  def _find_best_headline_by_pattern_prefix_2(self, embedded_headlines: List['LegalDocument'], pattern_prefix: str):
-
-    import math
-
-    number_of_headlines = len(embedded_headlines)
-    confidence_by_headline = np.zeros(number_of_headlines)
-
-    attention_vectors_by_headline = {}
-
-    for i in range(number_of_headlines):
-      subdoc = embedded_headlines[i]
-
-      headline_name_av, _c = rectifyed_sum_by_pattern_prefix(subdoc.distances_per_pattern_dict, pattern_prefix,
-                                                             relu_th=0.6)
-      headline_name_av = smooth_safe(headline_name_av, 4)
-
-      _max_id = np.argmax(headline_name_av)
-      _max = np.max(headline_name_av)
-      _sum = math.log(1 + np.sum(headline_name_av[_max_id - 1:_max_id + 2]))
-
-      confidence_by_headline[i] = _max + _sum
-      attention_vectors_by_headline[i] = headline_name_av
-
-    return confidence_by_headline
-
-  def untokenize_cc(self):
-    return untokenize(self.tokens_cc)
-
-  def untokenize(self):
-    return untokenize(self.tokens)
-
-  def find_sum_in_section(self):
-    raise Exception('not implemented')
-
-  def find_sentence_beginnings(self, best_indexes):
-    return [find_token_before_index(self.tokens, i, '\n', 0) for i in best_indexes]
-
-  @profile
+  # @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
                                       verbosity=1, merge=False, pattern_prefix=None):
     assert self.embeddings is not None
@@ -296,11 +182,9 @@ class LegalDocument(EmbeddableText):
 
     return self.distances_per_pattern_dict
 
-  def print_structured(self, numbered_only=False):
-    self.structure.print_structured(self, numbered_only)
-
-  def subdoc_slice(self, _s: slice, name='undef'):
-    assert self.tokens is not None
+  def subdoc_slice(self, __s: slice, name='undef'):
+    assert self.tokens_map is not None
+    _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
     klazz = self.__class__
     sub = klazz("REF")
@@ -315,28 +199,24 @@ class LegalDocument(EmbeddableText):
       for d in self.distances_per_pattern_dict:
         sub.distances_per_pattern_dict[d] = self.distances_per_pattern_dict[d][_s]
 
-    sub.tokens = self.tokens[_s]
-    sub.tokens_cc = self.tokens_cc[_s]
+    sub.tokens_map = self.tokens_map.slice(_s)
+    sub.tokens_map_norm = self.tokens_map_norm.slice(_s)
+
     sub.name = f'{self.name}.{name}'
     return sub
 
+  def __getitem__(self, key):
+    if isinstance(key, slice):
+      # Get the start, stop, and step from the slice
+      return self.subdoc_slice(key)
+    else:
+      raise TypeError("Invalid argument type.")
+
   @deprecated
   def subdoc(self, start, end):
-    assert self.tokens is not None
-    _s = slice(start, end)
+    warnings.warn("use subdoc_slice", DeprecationWarning)
+    _s = slice(max(0, start), end)
     return self.subdoc_slice(_s)
-
-  def normalize_sentences_bounds(self, text):
-    """
-        splits text into sentences, join sentences with \n
-        :param text:
-        :return:
-        """
-    sents = ru_tokenizer.tokenize(text)
-    for s in sents:
-      s.replace('\n', ' ')
-
-    return '\n'.join(sents)
 
   def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
     # ---takes time
@@ -350,7 +230,7 @@ class LegalDocument(EmbeddableText):
     attention_vector_name_soft = AV_SOFT + attention_vector_name
 
     for v in vectors:
-      if max(v) > 0.6:
+      if max(v) > 0.6:  # TODO: get rid of magic numbers
         vector_i, _ = improve_attention_vector(self.embeddings, v, relu_th=0.6, mix=0.9)
         vectors_i.append(vector_i)
       else:
@@ -364,19 +244,20 @@ class LegalDocument(EmbeddableText):
     return x, attention_vector_name
 
   def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
-    """
 
+    """
     :param factory:
     :param pattern_prefix:
     :return:
     """
-
+    warnings.warn("use find_sentences_by_attention_vector", DeprecationWarning)
     attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
 
     results: PatternSearchResults = []
 
     for i in np.nonzero(attention)[0]:
-      _slice = get_sentence_slices_at_index(i, self.tokens)
+      _b = self.tokens_map.sentence_at_index(i)
+      _slice = slice(_b[0], _b[1])
 
       if _slice.stop != _slice.start:
 
@@ -401,108 +282,159 @@ class LegalDocument(EmbeddableText):
 
     return results
 
-  def read(self, name):
-    print("reading...", name)
-    self.filename = name
-    txt = ""
-    with open(name, 'r') as f:
-      self.set_original_text(f.read())
-
-  def set_original_text(self, txt):
-    self.original_text = txt
-    self.tokens = None
-    self.embeddings = None
-    self.normal_text = None
-
-  def tokenize(self, _txt):
-
-    _words = tokenize_text(_txt)
-
-    sparse_words = []
-    end = len(_words)
-    last_cr_index = 0
-    for i in range(end):
-      if (_words[i] == '\n') or i == end - 1:
-        chunk = _words[last_cr_index:i + 1]
-
-        sparse_words += chunk
-        last_cr_index = i + 1
-
-    return sparse_words
-
   def reset_embeddings(self):
-    print ('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
+    print('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
     del self.embeddings
     self.embeddings = None
     gc.collect()
 
+  @deprecated
   def embedd(self, pattern_factory):
-    max_tokens = 6000
-    if len(self.tokens) > max_tokens:
-      self._embedd_large(pattern_factory.embedder, max_tokens)
+    warnings.warn("use embedd_tokens, provide embedder", DeprecationWarning)
+    self.embedd_tokens(pattern_factory.embedder)
+
+  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2):
+    if self.tokens:
+      max_tokens = 7000
+      if len(self.tokens_map_norm) > max_tokens:
+        self._embedd_large(embedder, max_tokens, verbosity)
+      else:
+        self.embeddings = self._emb(self.tokens, embedder)
     else:
-      self.embeddings = self._emb(self.tokens, pattern_factory.embedder)
+      raise ValueError(f'cannot embed doc {self.filename}, no tokens')
 
-    print_prof_data()
-
-  @profile
+  # @profile
   def _emb(self, tokens, embedder):
     embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
     embeddings = embeddings[0]
     return embeddings
 
-  @profile
-  def _embedd_large(self, embedder, max_tokens=6000):
+  def _embedd_large(self, embedder, max_tokens=8000, verbosity=2):
 
-    overlap = int(max_tokens / 5)  # 20%
+    overlap = 100  # max_tokens // 5
 
-    number_of_windows = 1 + int(len(self.tokens) / max_tokens)
+    number_of_windows = 1 + len(self.tokens_map_norm) // max_tokens
     window = max_tokens
 
-    print(
-      "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
-        len(self.tokens), number_of_windows, overlap))
+    if verbosity > 1:
+      print(
+        "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
+          len(self.tokens_map_norm), number_of_windows, overlap))
+
     start = 0
     embeddings = None
-    tokens = []
-    while start < len(self.tokens):
-      #             start_time = time.time()
-      subtokens = self.tokens[start:start + window + overlap]
-      print("Embedding region:", start, len(subtokens))
+    # tokens = []
+    while start < len(self.tokens_map_norm):
 
-      sub_embeddings = self._emb(subtokens, embedder)
+      subtokens = self.tokens_map_norm[start:start + window + overlap]
+      if verbosity > 2:
+        print("Embedding region:", start, len(subtokens))
 
-      sub_embeddings = sub_embeddings[0:window]
-      subtokens = subtokens[0:window]
+      sub_embeddings = self._emb(subtokens, embedder)[0:window]
+
+      # sub_embeddings = sub_embeddings[0:window]
+      # subtokens = subtokens[0:window]
 
       if embeddings is None:
         embeddings = sub_embeddings
       else:
         embeddings = np.concatenate([embeddings, sub_embeddings])
-      tokens += subtokens
+      # tokens += subtokens
 
       start += window
-      #             elapsed_time = time.time() - start_time
-      #             print ("Elapsed time %d".format(t))
       print_prof_data()
 
     self.embeddings = embeddings
-    self.tokens = tokens
+    # self.tokens = tokens
+
+  def tag_value(self, tagname):
+    t = SemanticTag.find_by_kind(self.get_tags(), tagname)
+    if t:
+      return t.value
+    else:
+      return None
 
 
-class ContractDocument(LegalDocument):
-  def __init__(self, original_text):
-    LegalDocument.__init__(self, original_text)
+class DocumentJson:
+
+  @staticmethod
+  def from_json(json_string: str) -> 'DocumentJson':
+    jsondata = json.loads(json_string, object_hook=json_util.object_hook)
+
+    c = DocumentJson(None)
+    c.__dict__ = jsondata
+    # tags = []
+    # for t in c.tags:
+    #   tag = SemanticTag(None, None, None)
+    #   tag.__dict__ = t
+    #   tags.append(tag)
+    #
+    # c.tags = tags
+    return c
+
+  def __init__(self, doc: LegalDocument):
+
+    self._id: str = None
+    self.original_text = None
+    self.normal_text = None
+
+    self.import_timestamp = datetime.datetime.now()
+    self.analyze_timestamp = datetime.datetime.now()
+    self.tokenization_maps = {}
+
+    if doc is None:
+      return
+
+    self.checksum = hash(doc.normal_text)
+    self.tokenization_maps['words'] = doc.tokens_map.map
+
+    for field in doc.__dict__:
+      # print(field)
+      if field in self.__dict__:
+        self.__dict__[field] = doc.__dict__[field]
+
+    self.original_text = doc.original_text
+    self.normal_text = doc.normal_text
+
+    self.attributes = self._tags_to_attributes(doc)
+
+  def _tags_to_attributes(self, doc: LegalDocument):
+    # collect all tags first
+    _tags: [SemanticTag] = []
+    for hi in doc.paragraphs:
+      _tags.append(hi.header)
+    _tags += doc.get_tags()
+
+    cnt = 0
+    attributes = {}
+    for t in _tags:
+      cnt += 1
+      key = t.kind.replace('.', '_')
+      if key in attributes:
+        key = f'{key}_{cnt}'
+      attributes[key] = t.__dict__.copy()
+      del attributes[key]['kind']
+
+    if 'date' in doc.__dict__:
+      # TODO: this 'if' is for old unit tests only
+      attributes['date'] = {
+        'value': doc.date
+      }
+    return attributes
+
+  def dumps(self):
+    return json.dumps(self.__dict__, indent=2, ensure_ascii=False, default=json_util.default)
 
 
-@deprecated
 def rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th: float = 0.0):
+  warnings.warn("rectifyed_sum_by_pattern_prefix is deprecated", DeprecationWarning)
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
+  vectors = [x for x in vectors]
   return rectifyed_sum(vectors, relu_th), len(vectors)
 
 
-@deprecated
 def mean_by_pattern_prefix(distances_per_pattern_dict, prefix):
+  warnings.warn("deprecated", DeprecationWarning)
   #     print('mean_by_pattern_prefix', prefix, relu_th)
   _sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th=0.0)
   return normalize(_sum)
@@ -526,18 +458,6 @@ class BasicContractDocument(LegalDocument):
 
   def get_subject_ranges(self, indexes_zipped, section_indexes: List):
 
-    # res = [None] * len(section_indexes)
-    # for sec in section_indexes:
-    #     for i in range(len(indexes_zipped) - 1):
-    #         if indexes_zipped[i][0] == sec:
-    #             range1 = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-    #             res[sec] = range1
-    #
-    #     if res[sec] is None:
-    #         print("WARNING: Section #{} not found!".format(sec))
-    #
-    # return res
-
     subj_range = None
     head_range = None
     for i in range(len(indexes_zipped) - 1):
@@ -557,54 +477,6 @@ class BasicContractDocument(LegalDocument):
       subj_range = range(0, _end)
     return head_range, subj_range
 
-  def find_subject_section(self, pattern_fctry: AbstractPatternFactory, numbers_of_patterns):
-
-    self.split_into_sections(pattern_fctry.paragraph_split_pattern)
-    indexes_zipped = self.section_indexes
-
-    head_range, subj_range = self.get_subject_ranges(indexes_zipped, [0, 1])
-
-    distances_per_subj_pattern_, ranges_, winning_patterns = pattern_fctry.subject_patterns.calc_exclusive_distances(
-      self.embeddings)
-    distances_per_pattern_t = distances_per_subj_pattern_[:, subj_range.start:subj_range.stop]
-
-    ranges = [np.nanmin(distances_per_subj_pattern_),
-              np.nanmax(distances_per_subj_pattern_)]
-
-    weight_per_pat = []
-    for row in distances_per_pattern_t:
-      weight_per_pat.append(np.nanmin(row))
-
-    print("weight_per_pat", weight_per_pat)
-
-    _ch_r = numbers_of_patterns['charity']
-    _co_r = numbers_of_patterns['commerce']
-
-    chariy_slice = weight_per_pat[_ch_r[0]:_ch_r[1]]
-    commerce_slice = weight_per_pat[_co_r[0]:_co_r[1]]
-
-    min_charity_index = min_index(chariy_slice)
-    min_commerce_index = min_index(commerce_slice)
-
-    print("min_charity_index, min_commerce_index", min_charity_index, min_commerce_index)
-    self.per_subject_distances = [
-      np.nanmin(chariy_slice),
-      np.nanmin(commerce_slice)]
-
-    self.subj_range = subj_range
-    self.head_range = head_range
-
-    return ranges, winning_patterns
-
-  #     return
-
-  def analyze(self, pattern_factory):
-    self.embedd(pattern_factory)
-    self._find_sum(pattern_factory)
-
-    self.subj_ranges, self.winning_subj_patterns = self.find_subject_section(
-      pattern_factory, {"charity": [0, 5], "commerce": [5, 5 + 7]})
-
 
 # SUMS -----------------------------
 
@@ -613,18 +485,6 @@ class ProtocolDocument(LegalDocument):
 
   def __init__(self, original_text=None):
     LegalDocument.__init__(self, original_text)
-
-  def make_solutions_mask(self):
-    section_name_to_weight_dict = {}
-    for i in range(1, 5):
-      cap = 'p_cap_solution{}'.format(i)
-      section_name_to_weight_dict[cap] = 0.5
-
-    mask = mask_sections(section_name_to_weight_dict, self)
-    mask += 0.5
-
-    mask = smooth(mask, window_len=12)
-    return mask
 
 
 # Support masking ==================
@@ -661,25 +521,37 @@ class CharterDocument(LegalDocument):
     self._constraints: List[PatternSearchResult] = []
     self.value_constraints = {}
 
-    self.org = None
+    self._org = None
+
+    self.org_type_tag: SemanticTag = None
+    self.org_name_tag: SemanticTag = None
 
     # TODO:remove it
     self._charity_constraints_old = {}
     self._value_constraints_old = {}
 
+  def get_tags(self) -> [SemanticTag]:
+    return [self.org_type_tag, self.org_name_tag]
+
+  def get_org(self):
+    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
+    return self._org
+
+  def set_org(self, org):
+    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
+    self._org = org
+
   def get_constraints_old(self):
     return self._value_constraints_old
 
   constraints_old = property(get_constraints_old)
+  org = property(get_org, set_org)
 
   def constraints_by_org_level(self, org_level: OrgStructuralLevel, constraint_subj: ContractSubject = None) -> List[
     PatternSearchResult]:
     for p in self._constraints:
       if p.org_level is org_level and (constraint_subj is None or p.subject_mapping['subj'] == constraint_subj):
         yield p
-
-  def tokenize(self, _txt):
-    return tokenize_text(_txt)
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):
@@ -707,7 +579,7 @@ def split_into_sections(doc, caption_indexes):
     next_key = sorted_keys[i]
     start = caption_indexes[key]
     end = caption_indexes[next_key]
-    print(key, [start, end])
+    # print(key, [start, end])
 
     subdoc = doc.subdoc(start, end)
     subdoc.filename = key
@@ -733,12 +605,12 @@ def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
 
 def _extract_sum_from_distances____(doc: LegalDocument, sums_no_padding):
   max_i = np.argmax(sums_no_padding)
-  start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+  start, end = doc.tokens_map.sentence_at_index(max_i)
   sentence_tokens = doc.tokens[start + 1:end]
 
   f, sentence = extract_sum_from_tokens(sentence_tokens)
 
-  return (f, (start, end), sentence)
+  return f, (start, end), sentence
 
 
 def _extract_sums_from_distances(doc: LegalDocument, x):
@@ -746,7 +618,7 @@ def _extract_sums_from_distances(doc: LegalDocument, x):
 
   results = []
   for max_i in maximas:
-    start, end = get_sentence_bounds_at_index(max_i, doc.tokens)
+    start, end = doc.tokens_map.sentence_at_index(max_i)
     sentence_tokens = doc.tokens[start + 1:end]
 
     f, sentence = extract_sum_from_tokens(sentence_tokens)
@@ -767,11 +639,12 @@ MIN_DOC_LEN = 5
 
 
 @deprecated
-def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+def make_soft_attention_vector(doc: LegalDocument, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  warnings.warn("make_soft_attention_vector is deprecated", DeprecationWarning)
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
-    print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
+    print("----ERROR: make_soft_attention_vector: too few tokens {} ".format(doc.text))
     return np.full(len(doc.tokens), 0.0001)
 
   attention_vector, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix,
@@ -794,10 +667,11 @@ def make_soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=T
 
 @deprecated
 def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
+  warnings.warn("deprecated", DeprecationWarning)
   assert doc.distances_per_pattern_dict is not None
 
   if len(doc.tokens) < MIN_DOC_LEN:
-    print("----ERROR: soft_attention_vector: too few tokens {} ".format(untokenize(doc.tokens_cc)))
+    print("----ERROR: soft_attention_vector: too few tokens {} ".format(doc.text))
     return np.full(len(doc.tokens), 0.0001)
 
   attention_vector, c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, pattern_prefix, relu_th=relu_th)
@@ -818,56 +692,16 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
   return attention_vector
 
 
-def _find_sentences_by_attention_vector(doc, _attention_vector, relu_th=0.5):
-  attention_vector = relu(_attention_vector, relu_th)
-  maxes = extremums(attention_vector)[1:]
-  maxes = doc.find_sentence_beginnings(maxes)
-  maxes = remove_similar_indexes(maxes, 6)
-
-  res = {}
-  for i in maxes:
-    s, e = get_sentence_bounds_at_index(i + 1, doc.tokens)
-    if e - s > 0:
-      res[s] = e
-
-  return res, attention_vector, maxes
-
-
 def _expand_slice(s: slice, exp):
   return slice(s.start - exp, s.stop + exp)
 
 
-@deprecated
-def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
+def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[
   ProbableValue]:
-  tokens = sentence_subdoc.tokens
-  assert len(attention_vector) == len(tokens)
-
-  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
-
-  constraints: List[ProbableValue] = []
-  if len(indexes) > 0:
-
-    for region in ranges:
-      vc = extract_sum_and_sign_2(sentence_subdoc, region)
-
-      _e = _expand_slice(region, 10)
-      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
-      confidence = attention_vector[region.start]
-      pv = ProbableValue(vc, confidence)
-
-      constraints.append(pv)
-
-  return constraints
-
-
-from transaction_values import complete_re
-
-
-def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector: List[float]) -> List[
-  ProbableValue]:
+  warnings.warn("use extract_all_contraints_from_sr_2", DeprecationWarning)
 
   def __tokens_before_index(string, index):
+    warnings.warn("deprecated", DeprecationWarning)
     return len(string[:index].split(' '))
 
   sentence = ' '.join(search_result.tokens)
@@ -881,7 +715,7 @@ def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector
 
     region = slice(token_index_s, token_index_e)
 
-    vc = extract_sum_and_sign_3(search_result, region)
+    vc: ValueConstraint = extract_sum_and_sign_3(search_result, region)
     _e = _expand_slice(region, 10)
     vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
     confidence = attention_vector[region.start]
@@ -890,96 +724,6 @@ def extract_all_contraints_from_sr(search_result: PatternMatch, attention_vector
     constraints.append(pv)
 
   return constraints
-
-
-@deprecated
-def embedd_generic_tokenized_sentences(strings: List[str], factory: AbstractPatternFactory) -> \
-        List[LegalDocument]:
-  embedded_docs = []
-  if strings is None or len(strings) == 0:
-    return []
-
-  tokenized_sentences_list = []
-  for i in range(len(strings)):
-    s = strings[i]
-
-    words = nltk.word_tokenize(s)
-
-    subdoc = LegalDocument()
-
-    subdoc.tokens = words
-    subdoc.tokens_cc = words
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_docs.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(factory.embedder, tokenized_sentences_list)
-
-  for i in range(len(embedded_docs)):
-    l = lens[i]
-    tokens = wrds[i][:l]
-
-    line_emb = sentences_emb[i][:l]
-
-    embedded_docs[i].tokens = tokens
-    embedded_docs[i].tokens_cc = tokens
-    embedded_docs[i].embeddings = line_emb
-    embedded_docs[i].calculate_distances_per_pattern(factory)
-
-  return embedded_docs
-
-
-def embedd_generic_tokenized_sentences_2(strings: List[str], embedder) -> \
-        List[LegalDocument]:
-  embedded_docs = []
-  if strings is None or len(strings) == 0:
-    return []
-
-  tokenized_sentences_list = []
-  for i in range(len(strings)):
-    s = strings[i]
-
-    words = nltk.word_tokenize(s)
-
-    subdoc = LegalDocument()
-
-    subdoc.tokens = words
-    subdoc.tokens_cc = words
-
-    tokenized_sentences_list.append(subdoc.tokens)
-    embedded_docs.append(subdoc)
-
-  sentences_emb, wrds, lens = embedd_tokenized_sentences_list(embedder, tokenized_sentences_list)
-
-  for i in range(len(embedded_docs)):
-    l = lens[i]
-    tokens = wrds[i][:l]
-
-    line_emb = sentences_emb[i][:l]
-
-    embedded_docs[i].tokens = tokens
-    embedded_docs[i].tokens_cc = tokens
-    embedded_docs[i].embeddings = line_emb
-
-  return embedded_docs
-
-
-def subdoc_between_lines(line_a: int, line_b: int, doc):
-  _str = doc.structure.structure
-  start = _str[line_a].span[1]
-  if line_b is not None:
-    end = _str[line_b].span[0]
-  else:
-    end = len(doc.tokens)
-  return doc.subdoc(start, end)
-
-
-org_types = {
-  'org_unknown': 'undefined',
-  'org_ao': 'Акционерное общество',
-  'org_zao': 'Закрытое акционерное общество',
-  'org_oao': 'Открытое акционерное общество',
-  'org_ooo': 'Общество с ограниченной ответственностью'}
 
 
 def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: AbstractPatternFactory,
@@ -1000,13 +744,92 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 
   # if verbosity > 0:
   #   print(distances_per_pattern_dict.keys())
-  if (c == 0):
+  if c == 0:
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
   return distances_per_pattern_dict
 
 
+from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1
+
+
+def detect_sign_2(txt: TextMap) -> (int, (int, int)):
+  """
+  todo: rename to 'find_value_sign'
+  :param txt:
+  :return:
+  """
+
+  a = next(txt.finditer(_re_greather_then_1), None)  # не менее, не превышающую
+  if a:
+    return +1, a
+
+  a = next(txt.finditer(_re_less_then), None)  # менее
+  if a:
+    return -1, a
+  else:
+    a = next(txt.finditer(_re_greather_then), None)
+    if a:
+      return +1, a
+
+  return 0, None
+
+
+find_value_sign = detect_sign_2
+
+
+class ContractValue:
+  def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
+    self.value = value
+    self.sign = sign
+    self.currency = currency
+    self.parent = parent
+
+  def as_list(self):
+    return [self.value, self.sign, self.currency, self.parent]
+
+  def integral_sorting_confidence(self) -> float:
+    return conditional_p_sum(
+      [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
+
+
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:
+  subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
+
+  _sign, _sign_span = find_value_sign(subdoc.tokens_map)
+
+  # ======================================
+  results = find_value_spans(subdoc.text)
+  # ======================================
+
+  if results:
+    value_char_span, value, currency_char_span, currency = results
+    value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
+    currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
+
+    parent = f'sign-value-currency-{region[0]}:{region[1]}'
+    group = SemanticTag(parent, None, region)
+
+    sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
+    sign.parent = parent
+    sign.offset(subdoc.start)
+
+    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span)
+    value_tag.parent = parent
+    value_tag.offset(subdoc.start)
+
+    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span)
+    currency.parent = parent
+    currency.offset(subdoc.start)
+
+    return ContractValue(sign, value_tag, currency, group)
+  else:
+    return None
+
+
 def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
+  warnings.warn("use extract_sum_sign_currency", DeprecationWarning)
+
   _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
   subtokens = sr.tokens[_slice]
   _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]

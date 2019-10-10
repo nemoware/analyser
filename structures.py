@@ -1,11 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
+from enum import Enum, unique, EnumMeta
 from typing import List
 
-from enum import Enum, unique, EnumMeta
-
 from ml_tools import TokensWithAttention
+
+org_types = {
+  'org_unknown': 'undefined',
+  'org_ao': 'Акционерное общество',
+  'org_zao': 'Закрытое акционерное общество',
+  'org_oao': 'Открытое акционерное общество',
+  'org_ooo': 'Общество с ограниченной ответственностью',
+  'org_nc': 'Некоммерческая организация'
+}
 
 
 class DisplayStringEnumMeta(EnumMeta):
@@ -23,28 +31,42 @@ class DisplayStringEnumMeta(EnumMeta):
 
 @unique
 class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
+  # TODO: define per org_types
   ShareholdersGeneralMeeting = 3, 'Генеральное собрание акционеров'
-  BoardOfDirectors = 2,           'Совет директоров'
-  CEO = 1,                        'Генеральный директор'
-  BoardOfCompany = 0,             'Правление общества'
+  BoardOfDirectors = 2, 'Совет директоров'
+  CEO = 1, 'Генеральный директор'
+  BoardOfCompany = 0, 'Правление общества'
+
 
 ORG_2_ORG = {
   'all': OrgStructuralLevel.ShareholdersGeneralMeeting,
-  'gen':OrgStructuralLevel.CEO,
-  'directors':OrgStructuralLevel.BoardOfDirectors,
-  'pravlenie':OrgStructuralLevel.BoardOfCompany,
+  'gen': OrgStructuralLevel.CEO,
+  'directors': OrgStructuralLevel.BoardOfDirectors,
+  'pravlenie': OrgStructuralLevel.BoardOfCompany,
+  # TODO: what?
   'head.all': OrgStructuralLevel.ShareholdersGeneralMeeting,
-  'head.gen':OrgStructuralLevel.CEO,
-  'head.directors':OrgStructuralLevel.BoardOfDirectors,
-  'head.pravlenie':OrgStructuralLevel.BoardOfCompany
+  'head.gen': OrgStructuralLevel.CEO,
+  'head.directors': OrgStructuralLevel.BoardOfDirectors,
+  'head.pravlenie': OrgStructuralLevel.BoardOfCompany
 }
+
+
+@unique
+class ContractTags(Enum, metaclass=DisplayStringEnumMeta):
+  Value = 0, 'value'
+  Currency = 1, 'currency'
+  Sign = 2, 'sign'
+
 
 @unique
 class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
-  Deal = 0,       'Сделка'
-  Charity = 1,    'Благотворительность'
-  Other = 2,      'Другое'
-  Lawsuit = 3,    'Судебные издержки'
+  '''
+  TODO: rename ContractSubject->DocumentSubject, because contract subjects are only a subset of this
+  '''
+  Deal = 0, 'Сделка'
+  Charity = 1, 'Благотворительность'
+  Other = 2, 'Другое'
+  Lawsuit = 3, 'Судебные издержки'
   RealEstate = 4, 'Недвижимость'
 
 
@@ -69,27 +91,26 @@ class CharterConstraint(Citation):
 
 class Charter(Citation):
   def __init__(self, org_name, constraints: List[CharterConstraint], date=None, *args, **kwargs) -> None:
-    super(Charter, self).__init__( *args, **kwargs)
+    super(Charter, self).__init__(*args, **kwargs)
     self.org_name = org_name
     self.date = date
     self.constraints = constraints
 
   # sorted!
-  def find_constraints(self, subject: ContractSubject, value = None):
+  def find_constraints(self, subject: ContractSubject, value=None):
     l = []
     if value is None:
       l = [c for c in self.constraints if c.subject == subject]
     else:
       l = [c for c in self.constraints if c.subject == subject and c.in_range(value)]
 
-    return sorted(l, key = lambda c: c.subject.value, reverse=True)
-
+    return sorted(l, key=lambda c: c.subject.value, reverse=True)
 
 
 class Contract(Citation):
   def __init__(self, org_name: str, subject: ContractSubject, sum: float, contractor_name: str = None,
                date=None, *args, **kwargs) -> None:
-    super(Contract, self).__init__( *args, **kwargs)
+    super(Contract, self).__init__(*args, **kwargs)
     self.org_name = org_name
     self.subject = subject
     self.value = sum
@@ -100,7 +121,7 @@ class Contract(Citation):
 
 class Protocol(Contract):
   def __init__(self, *args, **kwargs) -> None:
-    super(Protocol, self).__init__( *args, **kwargs)
+    super(Protocol, self).__init__(*args, **kwargs)
 
 
 class FinalViolationLog:
@@ -114,20 +135,22 @@ class FinalViolationLog:
   def check_contract(self, contract: Contract):
     self.contract = contract
 
-    contract_constraint: List[CharterConstraint] = self.charter.find_constraints(self.contract.subject, self.contract.value)
+    contract_constraint: List[CharterConstraint] = self.charter.find_constraints(self.contract.subject,
+                                                                                 self.contract.value)
 
     if contract_constraint:
       if contract_constraint[0].level > OrgStructuralLevel.CEO:
         self.need_protocol = True
-        print('Нужен протокол!') #TODO debug print
+        print('Нужен протокол!')  # TODO debug print
       else:
         self.has_violations = False
         print(f'Нарушений нет: '
               f'Уровень:{contract_constraint[0].level.display_string} '
-              f'сумма: {contract_constraint[0].lower}<{self.contract.value}<{contract_constraint[0].upper}' ) #TODO debug print
+              f'сумма: {contract_constraint[0].lower}<{self.contract.value}<{contract_constraint[0].upper}')  # TODO debug print
     else:
       self.has_violations = True
-      print(f'Нарушение(?): Не найдено ни одного ограничения для суммы договора в {self.contract.value}')   #TODO debug print
+      print(
+        f'Нарушение(?): Не найдено ни одного ограничения для суммы договора в {self.contract.value}')  # TODO debug print
 
   def check_protocol(self, protocol: Protocol):
     self.protocol = protocol
@@ -150,13 +173,13 @@ class FinalViolationLog:
 
 if __name__ == '__main__':
   l = [
-    CharterConstraint(1000, 100, ContractSubject.Charity, OrgStructuralLevel.BoardOfCompany, cite = None),
-    CharterConstraint(10, 1, ContractSubject.Other, OrgStructuralLevel.ShareholdersGeneralMeeting, cite = None),
-    CharterConstraint(100, 10, ContractSubject.Charity, OrgStructuralLevel.CEO, cite = None),
-    CharterConstraint(100, 10, ContractSubject.Charity, OrgStructuralLevel.ShareholdersGeneralMeeting, cite = None),
+    CharterConstraint(1000, 100, ContractSubject.Charity, OrgStructuralLevel.BoardOfCompany, cite=None),
+    CharterConstraint(10, 1, ContractSubject.Other, OrgStructuralLevel.ShareholdersGeneralMeeting, cite=None),
+    CharterConstraint(100, 10, ContractSubject.Charity, OrgStructuralLevel.CEO, cite=None),
+    CharterConstraint(100, 10, ContractSubject.Charity, OrgStructuralLevel.ShareholdersGeneralMeeting, cite=None),
   ]
 
-  c = Charter('dd', l, cite = None)
+  c = Charter('dd', l, cite=None)
   print(c.find_constraints(ContractSubject.Charity))
 
   print(f'{ContractSubject.Charity.name}')
@@ -167,5 +190,3 @@ if __name__ == '__main__':
 
   for level in OrgStructuralLevel:
     print(f'{level.display_string}')
-
-

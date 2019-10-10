@@ -1,17 +1,15 @@
 # origin: charter_parser.py
 
 from charter_patterns import make_constraints_attention_vectors
-from legal_docs import HeadlineMeta, LegalDocument, org_types, CharterDocument, extract_all_contraints_from_sentence, \
-  deprecated, \
-  extract_all_contraints_from_sr
+from legal_docs import LegalDocument, CharterDocument, \
+  extract_all_contraints_from_sr, _expand_slice
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
-from patterns import FuzzyPattern, find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
+from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults
-from sections_finder import SectionsFinder, FocusingSectionsFinder
+from sections_finder import SectionsFinder, FocusingSectionsFinder, HeadlineMeta
 from structures import *
-from text_tools import untokenize
-from transaction_values import extract_sum, ValueConstraint
+from transaction_values import extract_sum, ValueConstraint, extract_sum_and_sign_2, split_by_number_2
 from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
@@ -55,11 +53,9 @@ class CharterConstraintsParser(ParsingSimpleContext):
     sentenses_having_values: List[LegalDocument] = []
     # senetences = split_by_token(body.tokens, '\n')
 
-    ranges = split_by_token_into_ranges(body.tokens, '\n')
+    for _slice in body.tokens_map_norm.split_spans('\n'):
 
-    for _slice in ranges:
-
-      __line = untokenize(body.tokens[_slice])
+      __line = body.tokens_map_norm.text_range(_slice)
       _sum = extract_sum(__line)
 
       if _sum is not None:
@@ -71,21 +67,22 @@ class CharterConstraintsParser(ParsingSimpleContext):
 
     r_by_head_type = {
       'section': head_types_dict[section.type],
-      'caption': untokenize(section.subdoc.tokens_cc),
+      'caption': section.subdoc.tokens_map.text,
       'sentences': self.__extract_constraint_values_from_region(sentenses_having_values)
     }
-    self._logstep(f"Finding margin transaction values in section {untokenize(section.subdoc.tokens_cc)}")
+    self._logstep(f"Finding margin transaction values in section {section.subdoc.tokens_map.text}")
     return r_by_head_type
 
   ##---------------------------------------
   @staticmethod
   def __extract_constraint_values_from_region(sentenses_i: List[LegalDocument]):
+    warnings.warn("deprecated: this method must be rewritten completely", DeprecationWarning)
     if sentenses_i is None or len(sentenses_i) == 0:
       return []
 
     sentences = []
     for sentence_subdoc in sentenses_i:
-      constraints: List[ValueConstraint] = extract_all_contraints_from_sentence(sentence_subdoc,
+      constraints: List[ProbableValue] = extract_all_contraints_from_sentence(sentence_subdoc,
                                                                                 sentence_subdoc.distances_per_pattern_dict[
                                                                                   'deal_value_attention_vector'])
 
@@ -98,7 +95,30 @@ class CharterConstraintsParser(ParsingSimpleContext):
     return sentences
 
 
-""" ❤️ == GOOD CharterDocumentParser  ====================================== """
+def extract_all_contraints_from_sentence(sentence_subdoc: LegalDocument, attention_vector: List[float]) -> List[
+  ProbableValue]:
+  warnings.warn("deprecated", DeprecationWarning)
+  tokens = sentence_subdoc.tokens
+  assert len(attention_vector) == len(tokens)
+
+  text_fragments, indexes, ranges = split_by_number_2(tokens, attention_vector, 0.2)
+
+  constraints: List[ProbableValue] = []
+  if len(indexes) > 0:
+
+    for region in ranges:
+      vc = extract_sum_and_sign_2(sentence_subdoc, region)
+
+      _e = _expand_slice(region, 10)
+      vc.context = TokensWithAttention(tokens[_e], attention_vector[_e])
+      confidence = attention_vector[region.start]
+      pv = ProbableValue(vc, confidence)
+
+      constraints.append(pv)
+
+  return constraints
+
+
 """ ❤️ == GOOD CharterDocumentParser  ====================================== """
 
 
@@ -109,11 +129,11 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
 
-    self.doc = None
+    self.doc: CharterDocument = None
 
     self.violations_finder = ViolationsFinder()
 
-  def analyze_charter(self, txt, verbose=False):
+  def analyze_charter(self, txt, verbosity=2):
     """
     🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀
     :param txt:
@@ -126,18 +146,18 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     # 1. find top level structure
     _charter_doc.parse()
-    _charter_doc.embedd(self.pattern_factory)
+    _charter_doc.embedd_tokens(self.pattern_factory.embedder, verbosity)
     self.doc: CharterDocument = _charter_doc
 
     """ 2. ✂️ 📃 -> 📄📄📄  finding headlines (& sections) ==== ️"""
 
     competence_v = self._make_competence_attention_v()
-
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.', additional_attention=competence_v)
 
     """ 2. NERS 🏦 🏨 🏛==== ️"""
-    self.charter.org = self.ners()
+    _org_, self.charter.org_type_tag, self.charter.org_name_tag = self.ners()
+    self.charter.org = _org_  # TODO: remove it, this is just for compatibility
 
     """ 3. CONSTRAINTS 💰 💵 ==== ️"""
     self.find_contraints_2()
@@ -151,24 +171,30 @@ class CharterDocumentParser(CharterConstraintsParser):
   def _make_competence_attention_v(self):
     self.doc.calculate_distances_per_pattern(self.pattern_factory, pattern_prefix='competence', merge=True)
     filtered = filter_values_by_key_prefix(self.doc.distances_per_pattern_dict, 'competence')
+
     competence_v = rectifyed_sum(filtered, 0.3)
     competence_v, c = improve_attention_vector(self.doc.embeddings, competence_v, mix=1)
     return competence_v
 
   def ners(self):
+    """
+    org is depreceated, use org_type_tag and org_name_tag only!!
+    :return:
+    """
     if 'name' in self.doc.sections:
       section: HeadlineMeta = self.doc.sections['name']
-      org = self.detect_ners(section.body)
+      org, org_type_tag, org_name_tag = self.detect_ners(section.body)
 
     else:
       self.warning('Секция наименования компнании не найдена')
       self.warning('Попытаемся искать просто в начале документа 🚑')
-      org = self.detect_ners(self.doc.subdoc_slice(slice(0, 3000), name='name_section'))
+      org, org_type_tag, org_name_tag = self.detect_ners(self.doc.subdoc_slice(slice(0, 3000), name='name_section'))
 
     self._logstep("extracting NERs (named entities 🏦 🏨 🏛)")
 
     """ 🚀️ = 🍄 🍄 🍄 🍄 🍄   TODO: ============================ """
-    return org
+    # todo: do not return org
+    return org, org_type_tag, org_name_tag
 
   """ 🚀️ == GOOD CharterDocumentParser  ====================================================== """
 
@@ -180,18 +206,6 @@ class CharterDocumentParser(CharterConstraintsParser):
     # 💵 💵 💰
     # TODO: move to doc.dict
     self.value_attention = None  # make_improved_attention_vector(self.doc, 'sum__')
-
-  # ---------------------------------------
-
-  @deprecated
-  def find_contraints(self):
-    # 5. extract constraint values
-    sections_filtered = self._get_head_sections()
-    # value_containing_sections = find_sentences_by_pattern_prefix(self.doc, self.pattern_factory,
-    #                                                              self._get_head_sections(), 'x_charity_')
-
-    rz = self.extract_constraint_values_from_sections(sections_filtered)
-    return rz
 
   def _get_head_sections(self, prefix='head.'):
     sections_filtered = {}
@@ -251,18 +265,23 @@ class CharterDocumentParser(CharterConstraintsParser):
     return constraints_a, constraints_b, all_margin_values, charity_constraints  # TODO: hope there is no intersection
 
   def get_constraints(self):
-    print(WARN + f'CharterParser.constraints are deprecated ☠️! \n Use CharterDocument.value_constraints')
+    warnings.warn(f'CharterParser.get_constraints are deprecated ☠️! \n Use CharterDocument.value_constraints',
+                  DeprecationWarning)
     return self.charter.constraints_old
 
   def get_charity_constraints(self):
-    print(WARN + f'CharterParser.harity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints')
+    warnings.warn(
+      f'CharterParser.get_charity_constraints are deprecated ☠️! \n Use CharterDocument.charity_constraints',
+      DeprecationWarning)
     return self.charter._charity_constraints_old
 
   def get_org(self):
-    print(WARN + f'CharterParser.org is deprecated ☠️! \n Use CharterDocument.org')
+    warnings.warn(
+      f'CharterParser.org are deprecated ☠️! \n Use CharterDocument.org',
+      DeprecationWarning)
     return self.charter.org
 
-  def get_charter(self):
+  def get_charter(self) -> CharterDocument:
     return self.doc
 
   charity_constraints = property(get_charity_constraints)
@@ -271,7 +290,7 @@ class CharterDocumentParser(CharterConstraintsParser):
   org = property(get_org)
 
   def map_to_subject(self, psearch_results: List[PatternSearchResult]):
-    from patterns import estimate_confidence
+    from ml_tools import estimate_confidence
 
     for psearch_result in psearch_results:
       _max_subj = ContractSubject.Other
@@ -281,7 +300,7 @@ class CharterDocumentParser(CharterConstraintsParser):
         pattern_prefix = f'x_{subj}'
 
         v = psearch_result.get_attention(AV_PREFIX + pattern_prefix)
-        confidence, sum_, nonzeros_count, _max = estimate_confidence(v)
+        confidence, _, _, _ = estimate_confidence(v)
 
         if confidence > _max_conf:
           _max_conf = confidence
@@ -293,15 +312,16 @@ class CharterDocumentParser(CharterConstraintsParser):
       }
 
   def __extract_constraint_values_from_sr(self, sentenses_i: PatternSearchResults) -> List[ConstraintsSearchResult]:
+    warnings.warn("use __extract_constraint_values_from_sr_2", DeprecationWarning)
     """
     :type sentenses_i: PatternSearchResults
     """
-    if sentenses_i is None or len(sentenses_i) == 0:
+    if not sentenses_i:
       return []
 
     sentences = []
     for pattern_sr in sentenses_i:
-      constraints: List[ValueConstraint] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
+      constraints: List[ProbableValue] = extract_all_contraints_from_sr(pattern_sr, pattern_sr.get_attention())
 
       # todo: ConstraintsSearchResult is deprecated
       csr = ConstraintsSearchResult()
@@ -326,26 +346,34 @@ class CharterDocumentParser(CharterConstraintsParser):
     :return:
     """
     assert section is not None
-    factory = self.pattern_factory
 
     org_by_type_dict, org_type = self._detect_org_type_and_name(section)
+    org_type_tag = org_by_type_dict[org_type]
+    start = org_type_tag.span[0]
+    start = start + len(self.pattern_factory.patterns_dict[org_type].embeddings)  # typically +1 or +2
 
-    start = org_by_type_dict[org_type][0]
-    start = start + len(factory.patterns_dict[org_type].embeddings)
     end = 1 + find_ner_end(section.tokens, start)
 
     orgname_sub_section: LegalDocument = section.subdoc(start, end)
-    org_name = orgname_sub_section.untokenize_cc()
+    org_name = orgname_sub_section.tokens_map.text
 
+    # TODO: use same format that is used in agents_info
     rez = {
       'type': org_type,
       'name': org_name,
       'type_name': org_types[org_type],
       'tokens': section.tokens_cc,
-      'attention_vector': section.distances_per_pattern_dict[org_type]
+      'attention_vector': section.distances_per_pattern_dict[org_type],
     }
 
-    return rez
+    # org_type_span=section.start+
+    # org_type_tag = SemanticTag('org_type', org_type, org_type_span)
+
+    org_name_span = section.start + orgname_sub_section.start, section.start + orgname_sub_section.end
+    org_name_tag = SemanticTag('org_name', org_name, org_name_span)
+    org_type_tag.offset(section.start)
+
+    return rez, org_type_tag, org_name_tag
 
   def _detect_org_type_and_name(self, section: LegalDocument):
 
@@ -373,7 +401,12 @@ class CharterDocumentParser(CharterConstraintsParser):
         _max = val
         best_org_type = org_type
 
-      org_by_type[org_type] = [idx, val]
+      type_name = org_types[org_type]
+      tag = SemanticTag('org_type', org_type, (idx, idx + len(type_name.split(' '))))
+      tag.confidence = val
+      tag.display_value = type_name
+
+      org_by_type[org_type] = tag
 
     if self.verbosity_level > 2:
       print('_detect_org_type_and_name', org_by_type)
@@ -394,32 +427,9 @@ class CharterDocumentParser(CharterConstraintsParser):
     # return ranges_by_group
 
 
-# ---
-
-
-# -----------
-
-
 def put_if_better(destination: dict, key, x, is_better: staticmethod):
   if key in destination:
     if is_better(x, destination[key]):
       destination[key] = x
   else:
     destination[key] = x
-
-
-# ❤️ == GOOD HEART LINE ========================================================
-
-def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
-  assert attention_vector is not None
-  if name is None:
-    import random
-    name = 's-meta-na-' + str(random.random())
-
-  best_id = np.argmax(attention_vector)
-  confidence = attention_vector[best_id]
-  best_embedding_v = embeddings[best_id]
-  meta_pattern = FuzzyPattern(None, _name=name)
-  meta_pattern.embeddings = np.array([best_embedding_v])
-
-  return meta_pattern, confidence, best_id
