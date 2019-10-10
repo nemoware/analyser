@@ -32,14 +32,14 @@ class TestHeaderDetector(unittest.TestCase):
 
   def test_doc_features_predict(self):
     with open(os.path.join(os.path.dirname(__file__), '2. Договор по благ-ти Радуга.docx.pickle'), 'rb') as handle:
-      contract: LegalDocument = pickle.load(handle)
+      doc: LegalDocument = pickle.load(handle)
 
-    features, body_lines_ranges = doc_features(contract.tokens_map)
+    features, body_lines_ranges = doc_features(doc.tokens_map)
 
     model = load_model()
     predictions = model.predict(features)
 
-    headlines_cnt = print_predictions(contract, predictions, body_lines_ranges)
+    headlines_cnt = print_predictions(doc, predictions, body_lines_ranges)
     self.assertLess(headlines_cnt, 12)
     self.assertGreater(headlines_cnt, 6)
 

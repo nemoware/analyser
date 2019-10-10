@@ -9,7 +9,33 @@ from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from hyperparams import models_path
 from integration.word_document_parser import PARAGRAPH_DELIMITER
+from ml_tools import sum_probabilities, FixedVector
 from text_tools import Tokens
+
+
+def make_headline_attention_vector(doc) ->FixedVector:
+  '''
+  
+  :param doc:
+  :return:
+  '''
+
+  headline_attention_vector_1 = np.zeros( len(doc.tokens_map) )
+  headline_attention_vector_2 = np.zeros_like(headline_attention_vector_1)
+
+  for p in doc.paragraphs:
+    headline_attention_vector_1[p.header.slice] += 1
+
+
+  features, body_lines_ranges = doc_features(doc.tokens_map)
+  model = load_model()
+  predictions = model.predict(features)
+  for i in range(len(predictions)):
+    span = body_lines_ranges[i]
+    headline_attention_vector_2[span[0]:span[1]]=predictions[i]
+
+  headline_attention_vector = sum_probabilities( [headline_attention_vector_1*0.75, headline_attention_vector_2] )
+  return headline_attention_vector
 
 popular_headers = pd.DataFrame.from_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
 popular_headers = list(popular_headers['text'])
