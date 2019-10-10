@@ -449,3 +449,18 @@ def select_most_confident_if_almost_equal(a: ProbableValue, alternative: Probabl
     return a
 
   return a
+
+
+def combined_attention_vectors(vectors_dict, vector_names):
+  vectors = [vectors_dict[v] for v in vector_names]
+  return sum_probabilities(vectors)
+
+sum_probabilities_by_name = combined_attention_vectors
+
+def find_non_zero_spans(tokens_map, attention_vector_relu):
+  nonzeros = np.argwhere(attention_vector_relu > 0.001)[:, 0]
+  return np.unique([tokens_map.sentence_at_index(i) for i in nonzeros], axis=0)
+
+
+def find_first_gt(indx: int, indices) -> int or None:
+  return min([i for i in indices if i > indx])
