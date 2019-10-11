@@ -18,6 +18,13 @@ popular_headers = list(popular_headers['text'])
 from hyperparams import HyperParameters
 
 
+def load_model() -> RandomForestRegressor:
+  if 'rf_model' not in globals():
+    loaded_model = load(os.path.join(models_path, 'rf_headers_detector_model.joblib'))
+    globals()['rf_model'] = loaded_model
+  return globals()['rf_model']
+
+
 def make_headline_attention_vector(doc, return_components=False) -> FixedVector or (
         FixedVector, FixedVector, FixedVector):
   """
@@ -64,11 +71,6 @@ def doc_features(tokens_map: TextMap):
   doc_features_data = np.array(doc_featuresX_data)
 
   return doc_features_data, _line_spans
-
-
-def load_model() -> RandomForestRegressor:
-  loaded_model = load(os.path.join(models_path, 'rf_headers_detector_model.joblib'))
-  return loaded_model
 
 
 def _onehot(x: bool or int) -> float:

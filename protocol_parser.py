@@ -235,7 +235,7 @@ class ProtocolAnlysingContext(ParsingContext):
 
     self.protocol: ProtocolDocument = None
 
-  def process(self, text) -> ProtocolDocument:
+  def process(self, text:str) -> ProtocolDocument:
     self._reset_context()
 
     if self.protocols_factory is None:
