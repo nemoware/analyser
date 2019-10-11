@@ -8,3 +8,4 @@ class HyperParameters:
   subsidiary_name_match_min_jaro_similarity = 0.8
 
   confidence_epsilon = 0.001
+  parser_headline_attention_vector_denominator = 0.75
