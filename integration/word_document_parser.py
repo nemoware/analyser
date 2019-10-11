@@ -13,7 +13,7 @@ from ml_tools import SemanticTag
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
-    self.version='1.0.8'
+    self.version='1.0.9'
     x = os.system("java -version")
     assert x == 0
     if 'documentparser' in os.environ:
@@ -24,7 +24,7 @@ class WordDocParser(DirDocProvider):
           f'(downloadable from https://github.com/nemoware/document-parser)'
       warnings.warn(msg)
 
-      self.documentparser = f'../tests/libs/document-parser-{self.version}'
+      self.documentparser = f'../libs/document-parser-{self.version}'
 
     self.cp = f"{self.documentparser}/classes:{self.documentparser}/lib/*"
     print(self.cp)
