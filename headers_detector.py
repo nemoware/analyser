@@ -15,29 +15,35 @@ from text_tools import Tokens
 popular_headers = pd.DataFrame.from_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
 popular_headers = list(popular_headers['text'])
 
+from hyperparams import HyperParameters
 
-def make_headline_attention_vector(doc) -> FixedVector:
-  '''
 
-  :param doc:
-  :return:
-  '''
+def make_headline_attention_vector(doc, return_components=False) -> FixedVector or (
+        FixedVector, FixedVector, FixedVector):
+  """
+  moved to headers_detector
+  """
 
-  headline_attention_vector_1 = np.zeros(len(doc.tokens_map))
-  headline_attention_vector_2 = np.zeros_like(headline_attention_vector_1)
+  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+  predicted_headline_attention_vector = np.zeros_like(parser_headline_attention_vector)
 
   for p in doc.paragraphs:
-    headline_attention_vector_1[p.header.slice] += 1
+    parser_headline_attention_vector[p.header.slice] = 1
 
   features, body_lines_ranges = doc_features(doc.tokens_map)
   model = load_model()
   predictions = model.predict(features)
   for i in range(len(predictions)):
     span = body_lines_ranges[i]
-    headline_attention_vector_2[span[0]:span[1]] = predictions[i]
+    predicted_headline_attention_vector[span[0]:span[1]] = predictions[i]
 
-  headline_attention_vector = sum_probabilities([headline_attention_vector_1 * 0.75, headline_attention_vector_2])
-  return headline_attention_vector
+  headline_attention_vector = sum_probabilities(
+    [parser_headline_attention_vector * HyperParameters.parser_headline_attention_vector_denominator,
+     predicted_headline_attention_vector])
+  if return_components:
+    return headline_attention_vector, parser_headline_attention_vector, predicted_headline_attention_vector
+  else:
+    return headline_attention_vector
 
 
 def doc_features(tokens_map: TextMap):
