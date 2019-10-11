@@ -464,6 +464,9 @@ def find_non_zero_spans(tokens_map, attention_vector_relu):
   return np.unique([tokens_map.sentence_at_index(i) for i in nonzeros], axis=0)
 
 
+find_sentences_with_attention = find_non_zero_spans
+
+
 def find_first_gt(indx: int, indices) -> int or None:
   gts = [i for i in indices if i > indx]
   if gts:
