@@ -396,14 +396,10 @@ class DocumentJson:
     self.original_text = doc.original_text
     self.normal_text = doc.normal_text
 
-    self.attributes = self._tags_to_attributes(doc)
+    self.attributes = self.__tags_to_attributes(doc.get_tags())
+    self.headers = self.__tags_to_attributes([hi.header for hi in doc.paragraphs])
 
-  def _tags_to_attributes(self, doc: LegalDocument):
-    # collect all tags first
-    _tags: [SemanticTag] = []
-    for hi in doc.paragraphs:
-      _tags.append(hi.header)
-    _tags += doc.get_tags()
+  def __tags_to_attributes(self, _tags):
 
     cnt = 0
     attributes = {}
@@ -415,11 +411,6 @@ class DocumentJson:
       attributes[key] = t.__dict__.copy()
       del attributes[key]['kind']
 
-    if 'date' in doc.__dict__:
-      # TODO: this 'if' is for old unit tests only
-      attributes['date'] = {
-        'value': doc.date
-      }
     return attributes
 
   def dumps(self):
