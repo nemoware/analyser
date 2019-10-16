@@ -120,10 +120,14 @@ class ElmoEmbedder(AbstractEmbedder):
 
     self.session = None
 
-    self.build_graph()
+    self.__build_graph()
 
-  def build_graph(self):
+  def __build_graph(self):
     embedding_graph = tf.Graph()
+
+    signature = "tokens"
+    if self.layer_name == 'default':
+      signature = "default"
 
     with embedding_graph.as_default():
       self.elmo = hub.Module(self.module_url, trainable=False)
@@ -132,13 +136,20 @@ class ElmoEmbedder(AbstractEmbedder):
       self.text_input = tf.placeholder(dtype=tf.string, name="text_input")
       self.text_lengths = tf.placeholder(dtype=tf.int32, name='text_lengths')
 
-      self.embedded_out = self.elmo(
-        inputs={
+      if signature == "tokens":
+        inputs = {
           "tokens": self.text_input,
           "sequence_len": self.text_lengths
-        },
-        signature="tokens",
-        as_dict=True)["elmo"]
+        }
+      elif signature == "default":
+        inputs = self.text_lengths
+      else:
+        raise RuntimeError(signature+" is unknown")
+
+      self.embedded_out = self.elmo(
+        inputs=inputs,
+        signature=signature,
+        as_dict=True)[self.layer_name]
 
       init_op = tf.group([tf.global_variables_initializer(), tf.tables_initializer()])
 
