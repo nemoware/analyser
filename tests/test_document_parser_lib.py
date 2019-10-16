@@ -29,37 +29,38 @@ class TestContractParser(unittest.TestCase):
     doc.parse()
 
     last = 0
-    for p in res['paragraphs']:
-      header_text = p['paragraphHeader']['text'] + '\n'
-      body_text = p['paragraphBody']['text'] + '\n'
+    for d in res['documents']:
+      for p in d['paragraphs']:
+        header_text = p['paragraphHeader']['text'] + '\n'
+        body_text = p['paragraphBody']['text'] + '\n'
 
-      header = LegalDocument(header_text)
-      header.parse()
-      # self.assertEqual(self.n(header_text), header.text)
+        header = LegalDocument(header_text)
+        header.parse()
+        # self.assertEqual(self.n(header_text), header.text)
 
-      doc += header
-      headerspan = (last, len(doc.tokens_map))
-      print(headerspan)
-      last = len(doc.tokens_map)
+        doc += header
+        headerspan = (last, len(doc.tokens_map))
+        print(headerspan)
+        last = len(doc.tokens_map)
 
-      body = LegalDocument(body_text)
-      body.parse()
-      doc += body
-      bodyspan = (last, len(doc.tokens_map))
+        body = LegalDocument(body_text)
+        body.parse()
+        doc += body
+        bodyspan = (last, len(doc.tokens_map))
 
-      header_tag = SemanticTag('headline', header_text, headerspan)
-      body_tag = SemanticTag('paragraphBody', None, bodyspan)
+        header_tag = SemanticTag('headline', header_text, headerspan)
+        body_tag = SemanticTag('paragraphBody', None, bodyspan)
 
-      print(header_tag)
-      # print(body_tag)
-      para = Paragraph(header_tag, body_tag)
-      doc.paragraphs.append(para)
-      last = len(doc.tokens_map)
+        print(header_tag)
+        # print(body_tag)
+        para = Paragraph(header_tag, body_tag)
+        doc.paragraphs.append(para)
+        last = len(doc.tokens_map)
 
-      h_subdoc = doc.subdoc_slice(para.header.as_slice())
-      b_subdoc = doc.subdoc_slice(para.body.as_slice())
-      # self.assertEqual(self.n(header_text), h_subdoc.text)
-      # self.assertEqual(self.n(body_text), b_subdoc.text)
+        h_subdoc = doc.subdoc_slice(para.header.as_slice())
+        b_subdoc = doc.subdoc_slice(para.body.as_slice())
+        # self.assertEqual(self.n(header_text), h_subdoc.text)
+        # self.assertEqual(self.n(body_text), b_subdoc.text)
 
     print('-' * 100)
     print(doc.text)
