@@ -65,7 +65,7 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       ep.add_pattern(self.create_pattern('t_deal_1', (PRFX, 'Об одобрении сделки', 'связанной с продажей')))
       ep.add_pattern(self.create_pattern('t_deal_2', (
         PRFX + 'О согласии на', 'совершение сделки', 'связанной с заключением договора')))
-      ep.add_pattern(self.create_pattern('t_deal_2', (
+      ep.add_pattern(self.create_pattern('t_deal_3', (
         PRFX + 'об одобрении', 'крупной сделки', 'связанной с продажей недвижимого имущества')))
 
       for p in ep.patterns:
@@ -121,8 +121,7 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       # IDX 1
       p_solution = CoumpoundFuzzyPattern()
       p_solution.name = "p_solution"
-      p_solution.add_pattern(
-        self.create_pattern('p_solution1', (PRFX, 'решение', 'принятое по вопросу повестки дня: одобрить')))
+      p_solution.add_pattern(self.create_pattern('p_solution1', (PRFX, 'решение', 'принятое по вопросу повестки дня: одобрить')))
       p_solution.add_pattern(self.create_pattern('p_solution2', (PRFX + 'формулировка', 'решения', ':одобрить')))
 
       sect_pt.add_pattern(p_solution)

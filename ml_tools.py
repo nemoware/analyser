@@ -4,7 +4,7 @@ from typing import List, TypeVar, Iterable, Generic
 import numpy as np
 
 from documents import TextMap
-from text_tools import Tokens
+from text_tools import Tokens, dist_cosine_to_point
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
 Vector = TypeVar('Vector', FixedVector, Iterable[float])
@@ -505,3 +505,11 @@ def merge_colliding_spans(spans, eps=0):
       ret[-1][1] = spans[i][1]
 
   return np.array(ret)
+
+
+def per_token_similarity_cosine(text_emb, pattern_emb):
+  a_distances = np.zeros(len(text_emb))
+  for p in pattern_emb:
+    t_distances = 1 - dist_cosine_to_point(text_emb, p)
+    a_distances = sum_probabilities([t_distances, a_distances])
+  return a_distances

@@ -5,12 +5,11 @@
 
 import warnings
 from typing import List
+
 Tokens = List[str]
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
-
-
 
 
 def find_ner_end(tokens, start, max_len=20):
@@ -57,6 +56,18 @@ def remove_empty_lines(original_text):
 # ----------------------------------------------------------------
 # DISTANCES
 # ----------------------------------------------------------------
+
+
+def dist_cosine_to_point(text_emb, pt):
+  t_distances = np.zeros(len(text_emb))
+  for i in range(len(text_emb)):
+
+    d = distance.cosine(text_emb[i], pt)
+    if d > 1: d = 1
+    t_distances[i] = d
+
+  return t_distances
+
 
 def dist_hausdorff(u, v):
   return max(distance.directed_hausdorff(v, u, 4)[0], distance.directed_hausdorff(u, v, 4)[0]) / 40

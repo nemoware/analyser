@@ -30,23 +30,19 @@ class WordDocParser(DirDocProvider):
     print(self.cp)
 
   def read_doc(self, fn) -> dict:
-    FILENAME = fn.encode('utf-8')
+    fn = fn.encode('utf-8')
 
-    assert os.path.isfile(FILENAME), f'{FILENAME} does not exist'
+    assert os.path.isfile(fn), f'{fn} does not exist'
 
-    s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", FILENAME]
-
-    # s=['pwd']
+    s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", fn]
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
-    # print(f'result=[{result.stdout}]')
 
     res = json.loads(result.stdout)
 
-    #
     return res
 
 PARAGRAPH_DELIMITER='\n'
-def join_paragraphs(res, doc_id):
+def join_paragraphs(response, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
 
@@ -54,10 +50,10 @@ def join_paragraphs(res, doc_id):
   fields = ['documentDate', 'documentNumber', 'documentType']
 
   for key in fields:
-    doc.__dict__[key] = res[key]
+    doc.__dict__[key] = response[key]
 
   last = 0
-  for p in res['paragraphs']:
+  for p in response['paragraphs']:
     header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
     header_text = header_text.replace('\n', '\r')
 
@@ -86,9 +82,11 @@ def join_paragraphs(res, doc_id):
 
   # doc.parse()
 
-  if res["documentDate"]:
-    date_time_obj = datetime.datetime.strptime(res["documentDate"], '%Y-%m-%d')
-    doc.date = date_time_obj
+  if response["documentDate"]:
+    doc.date = datetime.datetime.strptime(response["documentDate"], '%Y-%m-%d')
+
+
+
   doc._id = doc_id
   return doc
 

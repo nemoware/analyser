@@ -54,8 +54,8 @@ class TestHeaderDetector(unittest.TestCase):
     predictions = model.predict(features)
 
     headlines_cnt = print_predictions(contract, predictions, body_lines_ranges)
-    self.assertLess(headlines_cnt, 22)
-    self.assertGreater( headlines_cnt, 10)
+    self.assertLess(headlines_cnt, 25)
+    self.assertGreater( headlines_cnt, 12)
 
 
   def test_doc_features_predict_2(self):
