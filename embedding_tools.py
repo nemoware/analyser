@@ -142,9 +142,11 @@ class ElmoEmbedder(AbstractEmbedder):
           "sequence_len": self.text_lengths
         }
       elif signature == "default":
-        inputs = self.text_lengths
+        inputs = {
+          "strings": self.text_input
+        }
       else:
-        raise RuntimeError(signature+" is unknown")
+        raise RuntimeError(signature + " is unknown")
 
       self.embedded_out = self.elmo(
         inputs=inputs,
@@ -160,6 +162,7 @@ class ElmoEmbedder(AbstractEmbedder):
     return embedding_graph
 
   def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> (np.ndarray, Tokens):
+    assert self.layer_name == 'elmo', "this method works with elmo layer only"
     feed_dict = {
       self.text_input: words,  # text_input
       self.text_lengths: text_lens,  # text_lengths
@@ -169,7 +172,16 @@ class ElmoEmbedder(AbstractEmbedder):
 
     return out, words
 
+  def embedd_strings(self, strings: [str]):
+    feed_dict = {
+      self.text_input: strings,  # text_input
+    }
+
+    out = self.session.run(self.embedded_out, feed_dict=feed_dict)
+
+    return out
+
 
 if __name__ == '__main__':
-  ee = ElmoEmbedder(layer_name='elmo')
+  ee = ElmoEmbedder(layer_name='default')
   ee.embedd_tokenized_text([['просто', 'одно', 'предложение']], [3])
