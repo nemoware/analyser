@@ -13,7 +13,9 @@ from ml_tools import SemanticTag
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
-    self.version='1.0.9'
+ 
+    self.version='1.1.3'
+
     x = os.system("java -version")
     assert x == 0
     if 'documentparser' in os.environ:
@@ -49,7 +51,6 @@ PARAGRAPH_DELIMITER='\n'
 def join_paragraphs(res, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
-
 
   fields = ['documentDate', 'documentNumber', 'documentType']
 
@@ -96,9 +97,14 @@ def join_paragraphs(res, doc_id):
 if __name__ == '__main__':
   wp = WordDocParser()
   res = wp.read_doc("/Users/artem/work/nemo/goil/IN/Другие договоры/Договор Формула.docx")
-  for p in res['paragraphs']:
-    print(' 📃 ', p['paragraphHeader']['text'])
+  for d in res['documents']:
+    print("-"*100)
+    for p in d['paragraphs']:
+      print(' 📃 ', p['paragraphHeader']['text'])
 
-  c = join_paragraphs(res, 'Другие договоры/Договор Формула.docx')
-  print(c.text)
-  print(c.__dict__.keys())
+  print("=" * 100)
+  for d in res['documents']:
+    print("-" * 100)
+    c = join_paragraphs(d, 'Другие договоры/Договор Формула.docx')
+    print(c.text)
+    print(c.__dict__.keys())
