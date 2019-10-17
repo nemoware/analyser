@@ -40,6 +40,8 @@ class WordDocParser(DirDocProvider):
 
     # s=['pwd']
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
+    if result.returncode != 0:
+      raise RuntimeError('cannot execute '+ result.args)
     # print(f'result=[{result.stdout}]')
 
     res = json.loads(result.stdout)

@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from headers_detector import line_features
 from hyperparams import models_path
-from integration.db import get_mongodb_connection
+from integration.db import get_mongodb_connection, _get_local_mongodb_connection
 from integration.word_document_parser import WordDocParser, join_paragraphs, PARAGRAPH_DELIMITER
 
 files_dirs = [
@@ -59,7 +59,7 @@ def doc_line_features(contract) -> []:
 
 
 def read_all_contracts():
-  db = get_mongodb_connection()
+  db = _get_local_mongodb_connection()
   collection = db['legaldocs']
 
   wp = WordDocParser()
@@ -121,14 +121,16 @@ if __name__ == '__main__':
   features_dicts = []
   count = 0
 
-  for c in read_all_contracts():
+  for resp in read_all_contracts():
+    for d in resp['documents']:
     # doctype = c['documentType']
-    contract = join_paragraphs(c, c['_id'])
+      contract = join_paragraphs(d, resp['_id'])
 
-    _doc_features = doc_line_features(contract)
-    features_dicts += _doc_features
+      _doc_features = doc_line_features(contract)
+      features_dicts += _doc_features
 
-    count += 1
+      count += 1
+
     if count > MAX_DOCS: break
 
   featuresX_data = pd.DataFrame.from_records(features_dicts)

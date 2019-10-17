@@ -21,5 +21,12 @@ def get_mongodb_connection():
   return None
 
 
+def _get_local_mongodb_connection():
+
+  client = MongoClient(f'mongodb://localhost:27017/')
+  return client['gpn']
+
+
+
 if __name__ == '__main__':
   get_mongodb_connection()
