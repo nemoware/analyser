@@ -30,7 +30,8 @@ r_few_words_s = r'\s+[А-Яа-я\-, ]{0,80}'
 r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
 r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
 # _r_name = r'[А-ЯA-Z][А-Яа-яA-Za-z\-–\[\]. ]{0,40}[а-яa-z.]'
-_r_name_ru = r'[А-Я][А-Яа-я\-–\[\].\s]{0,40}[А-Яа-я.,]'
+# _r_name_ru_having_quote = r'«([А-Я][А-Яа-я\-–\[\].\s«]{0,40}[А-Яа-я.,])»'
+_r_name_ru = r'[А-Я][А-Яа-я\-–\[\].\s«]{0,40}[А-Яа-я.,]'
 _r_name_lat = r'[A-Z][A-Za-z\-–\[\].\s]{0,40}[A-Za-z,]'
 _r_name = r_group(_r_name_ru) + '|' + r_group(_r_name_lat)
 r_name = r_group(_r_name, 'name')
@@ -183,5 +184,7 @@ def normalize_company_name(name: str) -> (str, str):
   normal_name = normal_name.strip()
   normal_name = re.sub(r'\s+', ' ', normal_name)
   normal_name = re.sub(r'[\s ]*[-–v][\s ]*', '-', normal_name)
-  normal_name = re.sub(r'["\'«»]', '', normal_name)
+  normal_name = re.sub(r'["\']', '', normal_name)
+  if normal_name.find('«') >= 0 and normal_name.find('»') < 0:  # TODO: hack
+    normal_name += '»'
   return legal_entity_type, normal_name
