@@ -6,10 +6,7 @@
 import unittest
 
 from contract_agents import *
-from contract_agents import _find_org_names
 from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
-
-find_org_names = _find_org_names
 
 
 def normalize_contract(_t: str) -> str:
@@ -24,9 +21,7 @@ def n(x):
   return normalize_contract(x)
 
 
-class TestTextNormalization(unittest.TestCase):
-  # def _testr(self, r, str, expected):
-  #
+class TestContractAgentsSearch(unittest.TestCase):
 
   def test_ru_cap(self):
     x = ru_cap(n('Государственной автономной учрежденией'))
@@ -123,52 +118,37 @@ class TestTextNormalization(unittest.TestCase):
     self.assertEqual('( или "Иначе")', x['alt_name'])
     self.assertEqual('Как-то так', x['alias'])
 
+  def _validate_org(self, tags, org_n, expectation):
+
+    def tag_val(name):
+      tag = SemanticTag.find_by_kind(tags, name)
+      if tag is not None:
+        return tag.value
+
+    self.assertEqual(expectation[1], tag_val(f'org.{org_n}.name'))
+    self.assertEqual(expectation[0], tag_val(f'org.{org_n}.type'))
+    self.assertEqual(expectation[2], tag_val(f'org.{org_n}.alias'))
+
   def test_org_dict_1(self):
-    r = re.compile(complete_re_str, re.MULTILINE)
 
-    t = n("""
-    ООО «Газпромнефть-Региональные продажи», в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о
-    нижеследующем:
-    """)
-    #
-    x = r.search(t)
-    for c in range(16):
-      print(c, x[c])
+    t = n("ООО «Газпромнефть-Региональные продажи», в лице начальника управления по связям с общественностью "
+          "Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», "
+          "с другой стороны заключили настоящий Договор о нижеследующем: \n")
 
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('ООО', r['type'][0])
-    self.assertEqual('Газпромнефть-Региональные продажи', r['name'][0])
-    self.assertEqual('Благотворитель', r['alias'][0])
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+
+    self._validate_org(tags, 1, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_2(self):
-    r = re.compile(complete_re_str, re.MULTILINE)
 
     t = n("""
-    ООО «Газпромнефть-Региональные продажи» в дальнейшем «Благотворитель», с другой стороны
+    ООО «Газпромнефть-Региональные продажи» в дальнейшем «БлаготворЮтель», с другой стороны
     """)
 
-    r1 = re.compile(r_quoted_name, re.MULTILINE)
-    x1 = r1.search(t)
-    print(x1['name'])
-    # for c in range(16):
-    #   print(c, x1[c])
-
-    #
-    x = r.search(t)
-    for c in range(16):
-      print(c, x[c])
-
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('ООО', r['type'][0])
-    self.assertEqual('Газпромнефть-Региональные продажи', r['name'][0])
-    self.assertEqual('Благотворитель', r['alias'][0])
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('ООО', 'Газпромнефть-Региональные продажи', 'БлаготворЮтель'))
 
   def test_org_dict_3(self):
-    r = re.compile(complete_re_str, re.MULTILINE)
 
     t = n("""
     Муниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем
@@ -176,74 +156,37 @@ class TestTextNormalization(unittest.TestCase):
     Устава, с одной стороны, и ООО «Газпромнефть-Региональные продажи», аааааааа аааа в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о
     нижеследующем:
     """)
-    #
-    x = r.search(t)
 
-    #
-    # self.assertEqual('Муниципальное бюджетное учреждение', x[1])
-    # self.assertEqual('Радуга', x[5])
-    # # self.assertEqual('( или "Иначе")', x[7])
-    # self.assertEqual('Благополучатель', x[15])
-
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('Муниципальное бюджетное учреждение', r['type'][0])
-    self.assertEqual('Радуга', r['name'][0])
-    self.assertEqual('Благополучатель', r['alias'][0])
-
-    # onames = find_org_names(t[200:])
-    print(onames[1])
-    r = onames[1]
-    self.assertEqual('ООО', r['type'][0])
-    self.assertEqual('Газпромнефть-Региональные продажи', r['name'][0])
-    self.assertEqual('Благотворитель', r['alias'][0])
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
+    self._validate_org(tags, 2, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_4(self):
-    r = re.compile(complete_re_str, re.MULTILINE)
 
     t = n("""
     Сибирь , и Индивидуальный предприниматель « Петров В. В. » , именуемый в дальнейшем « Исполнитель » , с другой стороны , именуемые в дальнейшем совместно « Стороны » , а по отдельности - « Сторона » , заключили настоящий договор о нижеследующем : 
     """)
 
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('Индивидуальный предприниматель', r['type'][0])
-    self.assertEqual('Петров В. В.', r['name'][0])
-    self.assertEqual('Исполнитель', r['alias'][0])
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('Индивидуальный предприниматель', 'Петров В. В.', 'Исполнитель'))
+
+  def test_org_dict_4_1(self):
 
     t = n(
       """Автономная некоммерческая организация дополнительного профессионального образования «ООО», именуемое далее Исполнитель, в лице Директора Уткиной Е.В., действующей на основании Устава, с одной стороны,""")
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('некоммерческая организация', r['type'][0])
-    self.assertEqual('ООО', r['name'][0])
-    # self.assertEqual('Исполнитель', r['alias'][0])
 
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, (
+      'Автономная некоммерческая организация', 'ООО', 'Исполнитель'))
+
+  def test_org_dict_4_2(self):
     t = n(
       """Государственное автономное  учреждение дополнительного профессионального образования Свердловской области «Армавирский учебно-технический центр»,  на основании Лицензии на право осуществления образовательной деятельности в лице директора  Птицына Евгения Георгиевича, действующего на основании Устава, с одной стороны, """)
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('Государственное автономное учреждение', r['type'][0])
-    self.assertEqual('Армавирский учебно-технический центр', r['name'][0])
 
-  # def test_augment_contract(self):
-  #   t = """
-  #       Муниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем
-  #       «Благополучатель», в лице директора Соляной Марины Александровны, действующая на основании
-  #       Устава, с одной стороны, и
-  #
-  #       ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о нижеследующем:
-  #       """
-  #   onames = find_org_names(t)
-  #   x,y = augment_contract(t, onames)
-  #   print(x, y)
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('Государственное автономное учреждение', 'Армавирский учебно-технический центр', None))
 
   def test_org_dict(self):
-    r = re.compile(complete_re_str, re.MULTILINE)
 
     t = """
     Муниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем
@@ -252,30 +195,10 @@ class TestTextNormalization(unittest.TestCase):
     
     ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о нижеследующем:
     """
-    #
-    x = r.search(t)
 
-    #
-    # self.assertEqual('Муниципальное бюджетное учреждение', x[1])
-    # self.assertEqual('Радуга', x[5])
-    # # self.assertEqual('( или "Иначе")', x[7])
-    # self.assertEqual('Благополучатель', x[15])
-
-    onames = find_org_names(t)
-    print(onames[0])
-    r = onames[0]
-    self.assertEqual('Муниципальное бюджетное учреждение', r['type'][0])
-    self.assertEqual('Радуга', r['name'][0])
-    self.assertEqual('Благополучатель', r['alias'][0])
-
-    # onames = find_org_names(t[200:])
-    print(onames[1])
-    r = onames[1]
-    self.assertEqual('ООО', r['type'][0])
-    self.assertEqual('Газпромнефть-Региональные продажи', r['name'][0])
-    self.assertEqual('Благотворитель', r['alias'][0])
-
-    # //self.assertEqual(x[0], 'Общество с ограниченной ответственностью')
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
+    self._validate_org(tags, 2, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_r_types(self):
     r = re.compile(r_types, re.MULTILINE)

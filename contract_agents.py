@@ -27,6 +27,7 @@ ORG_TYPES_re = [
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
   ru_cap('Федеральное казенное учреждение'),
   ru_cap('Некоммерческая организация'),
+  ru_cap('Автономная некоммерческая организация'), 'АНО',
   ru_cap('Благотворительный фонд'),
   ru_cap('Индивидуальный предприниматель'), 'ИП',
 
@@ -103,6 +104,9 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   tags = []
   org_i = 0
 
+  def span_ok(span):
+    return span[1]-span[0] > 1
+
   for m in re.finditer(complete_re, doc.text):
     org_i += 1
 
@@ -112,7 +116,7 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
         char_span = m.span(entity_type)
         span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
         val = doc.tokens_map_norm.text_range(span)
-        if _is_valid(val):
+        if span_ok(char_span) and _is_valid(val):
           if 'name' == entity_type:
             legal_entity_type, val = normalize_company_name(val)
             known_org_name, _ = find_closest_org_name(subsidiaries, val,
@@ -155,6 +159,8 @@ def compare_masked_strings(a, b, masked_substrings):
 
 
 def find_closest_org_name(subsidiaries, pattern, threshold=0.85):
+  if pattern is None:
+    return None, 0
   best_similarity = 0
   finding = None
   _entity_type, pn = normalize_company_name(pattern)

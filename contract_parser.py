@@ -104,12 +104,15 @@ class ContractAnlysingContext(ParsingContext):
 
     self.contract = contract
 
+    # ------ lazy embedding
     if self.contract.embeddings is None:
       self.contract.embedd_tokens(self.pattern_factory.embedder)
 
+    # ------ agents
     contract.agents_tags = find_org_names(contract)
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
+    # ------ structure
     self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
