@@ -51,7 +51,7 @@ def r_quoted(x):
   return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
 
 
-r_quoted_name = r_group(r_quoted(r_name))
+r_quoted_name = r_group(r_quoted(r_name), 'r_quoted_name')
 
 spaces_regex = [
   (re.compile(r'\t'), ' '),
