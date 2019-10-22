@@ -1,5 +1,3 @@
-import os
-
 from integration.db import get_mongodb_connection
 
 data = {
@@ -141,7 +139,8 @@ data = {
       "_id": "Газпромнефть-МНПЗ",
       "legal_entity_type": "АО",
       "aliases": [
-        "Газпромнефть-МНПЗ"
+        "Газпромнефть-МНПЗ",
+        "Газпромнефть–Московский НПЗ"
       ]
     },
     {
@@ -419,6 +418,7 @@ data = {
         "Газпромнефть-Хантос"
       ]
     },
+
     {
       "_id": "Южно-Приобский ГПЗ",
       "legal_entity_type": "ООО",
@@ -493,9 +493,11 @@ data = {
       "_id": "ГПН-Сахалин",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Сахалин"
+        "ГПН-Сахалин",
+        "Газпромнефть-Сахалин"
       ]
     },
+
     {
       "_id": "Газпромнефть Бизнес-сервис",
       "legal_entity_type": "ООО",
@@ -639,11 +641,9 @@ data = {
   ]
 }
 
-
 subsidiaries = data['Subsidiary']
 
 if __name__ == '__main__':
-
   db = get_mongodb_connection()
   # db['Subsidiary'].insert_many( subsidiaries)
 # if db:

@@ -22,11 +22,15 @@ ORG_TYPES_re = [
   ru_cap('Открытое акционерное общество'), 'ОАО',
   ru_cap('Государственное автономное учреждение'),
   ru_cap('Муниципальное бюджетное учреждение'),
-  ru_cap('учреждение'),
+  # ru_cap('учреждение'),
+  ru_cap('Федеральное государственное бюджетное образовательное учреждение высшего образования'), 'ФГБОУ',
+  ru_cap('Частное учреждение дополнительного профессионального образования'), 'ЧУДПО',
+  ru_cap('Частное учреждение'),
   ru_cap('Общественная организация'),
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
   ru_cap('Федеральное казенное учреждение'),
   ru_cap('Некоммерческая организация'),
+  ru_cap('Автономная некоммерческая организация'), 'АНО',
   ru_cap('Благотворительный фонд'),
   ru_cap('Индивидуальный предприниматель'), 'ИП',
 
@@ -40,10 +44,10 @@ r_few_words = r'\s+[А-Я]{1}[а-я\-, ]{1,80}'
 r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
-r_quoted_name_alias = r_group(r_quoted(r_name_alias))
+r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
 r_alias_prefix = r_group(''
                          + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                         + r_group(r'далее\s?[–\-]?\s?'))
+                         + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
 r_types = r_group(f'{_r_types_}', 'type')
@@ -52,7 +56,7 @@ r_type_and_name = r_types + r_type_ext + r_quoted_name
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
 complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
 # ----------------------------------
-complete_re = re.compile(complete_re_str, re.MULTILINE)
+complete_re = re.compile(complete_re_str, re.MULTILINE| re.IGNORECASE)
 
 # ----------------------------------
 
@@ -103,6 +107,9 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   tags = []
   org_i = 0
 
+  def span_ok(span):
+    return span[1]-span[0] > 1
+
   for m in re.finditer(complete_re, doc.text):
     org_i += 1
 
@@ -110,9 +117,15 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
       for entity_type in entities_types:
         tagname = f'org.{org_i}.{entity_type}'
         char_span = m.span(entity_type)
-        span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
-        val = doc.tokens_map_norm.text_range(span)
-        if _is_valid(val):
+
+        # span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
+        # val = doc.tokens_map_norm.text_range(span)
+
+        span = doc.tokens_map.token_indices_by_char_range_2(char_span)
+        val = doc.tokens_map.text_range(span)
+
+
+        if span_ok(char_span) and _is_valid(val):
           if 'name' == entity_type:
             legal_entity_type, val = normalize_company_name(val)
             known_org_name, _ = find_closest_org_name(subsidiaries, val,
@@ -123,7 +136,8 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
           tag = SemanticTag(tagname, val, span)
           tags.append(tag)
         else:
-          warnings.warn(f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}")
+          msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
+          warnings.warn(msg)
 
   # fitering tags
   # ignore distant matches
@@ -155,6 +169,8 @@ def compare_masked_strings(a, b, masked_substrings):
 
 
 def find_closest_org_name(subsidiaries, pattern, threshold=0.85):
+  if pattern is None:
+    return None, 0
   best_similarity = 0
   finding = None
   _entity_type, pn = normalize_company_name(pattern)
