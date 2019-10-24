@@ -6,7 +6,7 @@ import numpy as np
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument
 from ml_tools import put_if_better, cut_above, relu, filter_values_by_key_prefix, \
-  smooth_safe, max_exclusive_pattern, sum_probabilities
+  smooth_safe, max_exclusive_pattern
 from parsing import ParsingSimpleContext
 from patterns import AbstractPatternFactory, improve_attention_vector
 
@@ -47,7 +47,7 @@ class FocusingSectionsFinder(SectionsFinder):
 
   def find_sections(self, contract: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
                     headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None,
-                    confidence_threshold = HyperParameters.header_topic_min_confidence ) -> dict:
+                    confidence_threshold=HyperParameters.header_topic_min_confidence) -> dict:
 
     sections_filtered = {}
     for section_type in headlines:
@@ -62,7 +62,7 @@ class FocusingSectionsFinder(SectionsFinder):
       for header_index in range(len(headers)):
         header = headers[header_index]
         vvs = header.calculate_distances_per_pattern(factory, pattern_prefix=pattern_prefix, merge=False)
-        vv = sum_probabilities(list(vvs.values()))  # bayes-aggregated vectors
+        vv = max_exclusive_pattern(list(vvs.values()))
         _confidence = max(vv)
 
         if _confidence > _max_confidence:
