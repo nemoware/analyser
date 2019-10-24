@@ -1,0 +1,93 @@
+1.1. Договор пожертвования.docx:	org_2_name 
+	 expected: 'Детская городская больница №1' 
+	   ACTUAL: 'Ромашка'
+3 этап по правилам/O_final.docx:	org_2_name 
+	 expected: 'Шеферсон Лазарь Абрамович' 
+	   ACTUAL: 'Газпромнефть-Сахалин'
+3 этап по правилам/Д_И.docx:	value 
+	 expected: '86500.0' 
+	   ACTUAL: 'nan'
+3 этап по правилам/ДД_5.docx:	org_1_name 
+	 expected: 'Газпромнефть-Сахалин' 
+	   ACTUAL: 'nan'
+3 этап по правилам/ДД_5.docx:	org_2_name 
+	 expected: 'Частная охранная организация «СТАР»' 
+	   ACTUAL: 'Частная охранная организация «'
+3 этап по правилам/ДД_8.doc:	org_1_name 
+	 expected: 'Газпромнефть-Битумные материалы' 
+	   ACTUAL: 'Газпромнефть-СМ'
+3 этап по правилам/Договор 12.docx:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'RealEstate'
+3 этап по правилам/Договор 15.doc:	org_2_name 
+	 expected: 'А' 
+	   ACTUAL: 'Газпромнефть-Сахалин'
+3 этап по правилам/Договор 15.doc:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'RealEstate'
+3 этап по правилам/Договор 17.docx:	org_1_name 
+	 expected: 'Ромашка' 
+	   ACTUAL: 'РОМАШКА'
+3 этап по правилам/Договор 18.docx:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'RealEstate'
+3 этап по правилам/Договор _2_.docx:	value 
+	 expected: '499999.0' 
+	   ACTUAL: 'nan'
+3 этап по правилам/Договор _6.docx:	org_2_name 
+	 expected: 'Смирнова А.А.' 
+	   ACTUAL: 'Ромашка'
+3 этап по правилам/Договор _7.doc:	org_1_name 
+	 expected: 'Телефон' 
+	   ACTUAL: 'Ромашка'
+3 этап по правилам/Договор _7.doc:	org_2_name 
+	 expected: 'Ромашка' 
+	   ACTUAL: 'РОМАШКА'
+3 этап по правилам/Договор Г.docx:	org_2_name 
+	 expected: 'Герберт' 
+	   ACTUAL: 'Газпромнефть-Сахалин'
+3 этап по правилам/Договор Г.docx:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'RealEstate'
+3 этап по правилам/Договор И.docx:	value 
+	 expected: '24359906.0' 
+	   ACTUAL: '24359906.8'
+3 этап по правилам/Договор ИК.docx:	value 
+	 expected: '1110635.4' 
+	   ACTUAL: 'nan'
+3 этап по правилам/Договор ИК.docx:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'nan'
+3 этап по правилам/Договор поставки_1_.docx:	value 
+	 expected: 'nan' 
+	   ACTUAL: '100000.0'
+3 этап по правилам/договор.4.doc:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'nan'
+3 этап по правилам/договор.4.docx:	org_1_name 
+	 expected: 'Радуга' 
+	   ACTUAL: 'Газпромнефть-Сахалин'
+3 этап по правилам/договор.4.docx:	org_2_name 
+	 expected: 'Газпромнефть–Сахалин' 
+	   ACTUAL: 'nan'
+3 этап по правилам/договор.5.docx:	value 
+	 expected: 'nan' 
+	   ACTUAL: '500000.0'
+3 этап по правилам/договор.5_.docx:	org_1_name 
+	 expected: 'Газпромнефть–Сахалин' 
+	   ACTUAL: 'Газпромнефть-Сахалин'
+3 этап по правилам/договор.5_.docx:	value 
+	 expected: '-0.0' 
+	   ACTUAL: '50000000.0'
+3 этап по правилам/договор.7.docx:	value 
+	 expected: '1000000.0' 
+	   ACTUAL: '0.0'
+3 этап по правилам/договор.9.docx:	subject 
+	 expected: 'Deal' 
+	   ACTUAL: 'RealEstate'
+3 этап по правилам/договор.9_.docx:	value 
+	 expected: '100000.0' 
+	   ACTUAL: '1000.0'
+====================================================================================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERRRORS: 	30 of 52 docs

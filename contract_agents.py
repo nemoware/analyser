@@ -28,6 +28,7 @@ ORG_TYPES_re = [
   ru_cap('Частное учреждение'),
   ru_cap('Общественная организация'),
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
+  ru_cap('Партнерство с ограниченной ответственностью'),
   ru_cap('Федеральное казенное учреждение'),
   ru_cap('Некоммерческая организация'),
   ru_cap('Автономная некоммерческая организация'), 'АНО',
@@ -56,7 +57,7 @@ r_type_and_name = r_types + r_type_ext + r_quoted_name
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
 complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
 # ----------------------------------
-complete_re = re.compile(complete_re_str, re.MULTILINE| re.IGNORECASE)
+complete_re = re.compile(complete_re_str, re.MULTILINE | re.IGNORECASE)
 
 # ----------------------------------
 
@@ -108,7 +109,7 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   org_i = 0
 
   def span_ok(span):
-    return span[1]-span[0] > 1
+    return span[1] - span[0] > 1
 
   for m in re.finditer(complete_re, doc.text):
     org_i += 1
@@ -123,7 +124,6 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
 
         span = doc.tokens_map.token_indices_by_char_range_2(char_span)
         val = doc.tokens_map.text_range(span)
-
 
         if span_ok(char_span) and _is_valid(val):
           if 'name' == entity_type:
