@@ -110,6 +110,9 @@ class LegalDocument:
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
     return self
 
+  def __len__(self):
+    return self.tokens_map.get_len()
+
   def __add__(self, suffix: 'LegalDocument'):
     '''
     1) dont forget to add spaces between concatenated docs!!

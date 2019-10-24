@@ -124,17 +124,24 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
 
         span = doc.tokens_map.token_indices_by_char_range_2(char_span)
         val = doc.tokens_map.text_range(span)
-
+        confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
         if span_ok(char_span) and _is_valid(val):
           if 'name' == entity_type:
             legal_entity_type, val = normalize_company_name(val)
-            known_org_name, _ = find_closest_org_name(subsidiaries, val,
-                                                      HyperParameters.subsidiary_name_match_min_jaro_similarity)
+            known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
+                                                                    HyperParameters.subsidiary_name_match_min_jaro_similarity)
             if known_org_name is not None:
               val = known_org_name['_id']
+              confidence *= best_similarity
 
           tag = SemanticTag(tagname, val, span)
-          tags.append(tag)
+          tag.confidence = confidence
+          if confidence>0.2:
+            tags.append(tag)
+          else:
+            msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
+            warnings.warn(msg)
+
         else:
           msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
           warnings.warn(msg)

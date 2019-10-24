@@ -8,6 +8,8 @@ import unittest
 from contract_agents import *
 from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
 
+_suffix =  " слово" * 1000
+
 
 def normalize_contract(_t: str) -> str:
   t = _t
@@ -131,7 +133,8 @@ class TestContractAgentsSearch(unittest.TestCase):
 
   def test_org_dict_0_1(self):
 
-    t0 = """Общество с ограниченной ответственностью «Газпромнефть-Захалин», в лице Генерального директора, Имя Имя Имя, действующего на основании Устава, именуемое в дальнейшем «Заказчик», и ЧАСТНОЕ"""
+    t0 = """Общество с ограниченной ответственностью «Газпромнефть-Захалин», в лице Генерального директора, Имя Имя Имя, действующего на основании Устава, именуемое в дальнейшем «Заказчик», и ЧАСТНОЕ"""\
+         +_suffix
     tags: List[SemanticTag] = find_org_names(LegalDocument(t0).parse())
 
     self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Сахалин', 'Заказчик'))
@@ -144,7 +147,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     tags: List[SemanticTag] = find_org_names(LegalDocument(t0).parse())
 
     self._validate_org(tags, 1, (
-    'Общество с ограниченной ответственностью', 'Частная охранная организация «СТАР»', 'Исполнитель'))
+      'Общество с ограниченной ответственностью', 'Частная охранная организация «СТАР»', 'Исполнитель'))
 
   def test_org_dict_0(self):
 
@@ -279,7 +282,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     Устава, с одной стороны, и 
     
     ООО «Газпромнефть-Региональные продажи» в лице начальника управления по связям с общественностью Иванова Семена Евгеньевича, действующего на основании Доверенности в дальнейшем «Благотворитель», с другой стороны заключили настоящий Договор о нижеследующем:
-    """
+    """ + _suffix
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
     self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
