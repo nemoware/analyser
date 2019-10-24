@@ -128,7 +128,7 @@ class TestContractParser(unittest.TestCase):
       print(p.header.value)
 
     self.assertIn('subj', doc.sections)
-    self.assertIn('price.', doc.sections)
+    self.assertIn('cvalue', doc.sections)
     self.assertIn('pricecond', doc.sections)
 
     self.assertEqual('1. ПРЕДМЕТ ДОГОВОРА.', doc.sections['subj'].header.strip())

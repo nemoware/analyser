@@ -239,7 +239,7 @@ class ContractAnlysingContext(ParsingContext):
     assert contract.sections is not None, 'find sections first'
 
     search_sections_order = [
-      ['price.', 1], ['subj', 0.75], ['pricecond', 0.75], [None, 0.5]  # todo: check 'price', not 'price.'
+      ['cvalue', 1], ['subj', 0.75], ['pricecond', 0.75], [None, 0.5]  # todo: check 'price', not 'price.'
     ]
 
     for section, confidence_k in search_sections_order:
