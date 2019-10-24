@@ -13,17 +13,17 @@ from ml_tools import SemanticTag
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
- 
-    self.version='1.1.3'
+
+    self.version = '1.1.5'
 
     x = os.system("java -version")
     assert x == 0
     if 'documentparser' in os.environ:
       self.documentparser = os.environ['documentparser']
     else:
-      msg=f'please set "documentparser" environment variable to point ' \
-          f'document-parser-{self.version} unpacked lib ' \
-          f'(downloadable from https://github.com/nemoware/document-parser)'
+      msg = f'please set "documentparser" environment variable to point ' \
+            f'document-parser-{self.version} unpacked lib ' \
+            f'(downloadable from https://github.com/nemoware/document-parser)'
       warnings.warn(msg)
 
       self.documentparser = f'../libs/document-parser-{self.version}'
@@ -41,7 +41,7 @@ class WordDocParser(DirDocProvider):
     # s=['pwd']
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
     if result.returncode != 0:
-      raise RuntimeError('cannot execute '+ result.args)
+      raise RuntimeError('cannot execute ' + result.args)
     # print(f'result=[{result.stdout}]')
 
     res = json.loads(result.stdout)
@@ -49,7 +49,10 @@ class WordDocParser(DirDocProvider):
     #
     return res
 
-PARAGRAPH_DELIMITER='\n'
+
+PARAGRAPH_DELIMITER = '\n'
+
+
 def join_paragraphs(res, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
@@ -100,7 +103,7 @@ if __name__ == '__main__':
   wp = WordDocParser()
   res = wp.read_doc("/Users/artem/work/nemo/goil/IN/Другие договоры/Договор Формула.docx")
   for d in res['documents']:
-    print("-"*100)
+    print("-" * 100)
     for p in d['paragraphs']:
       print(' 📃 ', p['paragraphHeader']['text'])
 

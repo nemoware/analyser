@@ -23,12 +23,14 @@ ORG_TYPES_re = [
   ru_cap('Государственное автономное учреждение'),
   ru_cap('Муниципальное бюджетное учреждение'),
   # ru_cap('учреждение'),
+  ru_cap('Федеральное государственное унитарное предприятие'), 'ФГУП',
   ru_cap('Федеральное государственное бюджетное образовательное учреждение высшего образования'), 'ФГБОУ',
+  ru_cap('Федеральное казенное учреждение'),
   ru_cap('Частное учреждение дополнительного профессионального образования'), 'ЧУДПО',
   ru_cap('Частное учреждение'),
   ru_cap('Общественная организация'),
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
-  ru_cap('Федеральное казенное учреждение'),
+  ru_cap('Партнерство с ограниченной ответственностью'),
   ru_cap('Некоммерческая организация'),
   ru_cap('Автономная некоммерческая организация'), 'АНО',
   ru_cap('Благотворительный фонд'),
@@ -56,7 +58,7 @@ r_type_and_name = r_types + r_type_ext + r_quoted_name
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
 complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
 # ----------------------------------
-complete_re = re.compile(complete_re_str, re.MULTILINE| re.IGNORECASE)
+complete_re = re.compile(complete_re_str, re.MULTILINE | re.IGNORECASE)
 
 # ----------------------------------
 
@@ -108,7 +110,7 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   org_i = 0
 
   def span_ok(span):
-    return span[1]-span[0] > 1
+    return span[1] - span[0] > 1
 
   for m in re.finditer(complete_re, doc.text):
     org_i += 1
@@ -123,18 +125,24 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
 
         span = doc.tokens_map.token_indices_by_char_range_2(char_span)
         val = doc.tokens_map.text_range(span)
-
-
+        confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
         if span_ok(char_span) and _is_valid(val):
           if 'name' == entity_type:
             legal_entity_type, val = normalize_company_name(val)
-            known_org_name, _ = find_closest_org_name(subsidiaries, val,
-                                                      HyperParameters.subsidiary_name_match_min_jaro_similarity)
+            known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
+                                                                    HyperParameters.subsidiary_name_match_min_jaro_similarity)
             if known_org_name is not None:
               val = known_org_name['_id']
+              confidence *= best_similarity
 
           tag = SemanticTag(tagname, val, span)
-          tags.append(tag)
+          tag.confidence = confidence
+          if confidence>0.2:
+            tags.append(tag)
+          else:
+            msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
+            warnings.warn(msg)
+
         else:
           msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
           warnings.warn(msg)

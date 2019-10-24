@@ -8,7 +8,7 @@ import pickle
 import unittest
 import warnings
 
-from contract_parser import ContractAnlysingContext, ContractDocument, find_value_sign_currency
+from contract_parser import ContractAnlysingContext, ContractDocument
 from contract_patterns import ContractPatternFactory
 from documents import TextMap
 from legal_docs import LegalDocument
@@ -33,7 +33,6 @@ class TestContractParser(unittest.TestCase):
   def test_find_value_sign_currency(self):
 
     doc, factory, ctx = self._get_doc_factory_ctx('Договор _2_.docx.pickle')
-
 
     r = ctx.find_contract_value_NEW(doc)
     print(len(r))
@@ -93,8 +92,6 @@ class TestContractParser(unittest.TestCase):
     self.assertEqual(1, len(values))
     v = values[0]
 
-
-
     self.print_semantic_tag(v.sign, doc.tokens_map)
     self.print_semantic_tag(v.value, doc.tokens_map)
     self.print_semantic_tag(v.currency, doc.tokens_map)
@@ -131,8 +128,7 @@ class TestContractParser(unittest.TestCase):
       print(p.header.value)
 
     self.assertIn('subj', doc.sections)
-    self.assertIn('price.', doc.sections)
-    self.assertIn('pricecond', doc.sections)
+     
 
     self.assertEqual('1. ПРЕДМЕТ ДОГОВОРА.', doc.sections['subj'].header.strip())
 
