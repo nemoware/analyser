@@ -13,7 +13,7 @@ from ml_tools import SemanticTag
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
-    self.version='1.1.3'
+    self.version='1.1.5'
     x = os.system("java -version")
     assert x == 0
     if 'documentparser' in os.environ:
