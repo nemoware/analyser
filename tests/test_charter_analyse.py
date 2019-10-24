@@ -12,7 +12,7 @@ from embedding_tools import ElmoEmbedder
 
 class TestAnalyse(unittest.TestCase):
 
-  #TODO: disabled, because it is slow.
+  # TODO: disabled, because it is slow.
   def ___test_on_smallText(self):
     microsample = """
     Общие положения

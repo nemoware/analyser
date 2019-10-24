@@ -125,7 +125,6 @@ def export_csv(rows, headline=['1', '2', '3', '4', '5', '6', '7', '8', '9']):
 
 
 def dump_contracts_from_db_to_jsons(output_path):
-
   client = MongoClient('mongodb://localhost:27017/')
   db = client['docsdatabase']
   collection = db['legaldocs']
@@ -141,11 +140,12 @@ def dump_contracts_from_db_to_jsons(output_path):
 
     res = collection.find_one({"_id": _doc_id})
     if res is not None:
-      json_name = _doc_id.replace('/','_')
+      json_name = _doc_id.replace('/', '_')
       with open(f'{output_path}/{json_name}.json', 'w') as file:
         _j = json.dumps(res, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
         file.write(_j)
         print(f'saved file to {json_name}')
+
 
 if __name__ == '__main__':
   # read_all_contracts()

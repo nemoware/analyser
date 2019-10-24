@@ -9,7 +9,7 @@ from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternS
   ConstraintsSearchResult, PatternSearchResults
 from sections_finder import SectionsFinder, FocusingSectionsFinder, HeadlineMeta
 from structures import *
-from transaction_values import extract_sum, ValueConstraint, extract_sum_and_sign_2, split_by_number_2
+from transaction_values import extract_sum, extract_sum_and_sign_2, split_by_number_2
 from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
@@ -83,8 +83,8 @@ class CharterConstraintsParser(ParsingSimpleContext):
     sentences = []
     for sentence_subdoc in sentenses_i:
       constraints: List[ProbableValue] = extract_all_contraints_from_sentence(sentence_subdoc,
-                                                                                sentence_subdoc.distances_per_pattern_dict[
-                                                                                  'deal_value_attention_vector'])
+                                                                              sentence_subdoc.distances_per_pattern_dict[
+                                                                                'deal_value_attention_vector'])
 
       sentence = {
         'subdoc': sentence_subdoc,

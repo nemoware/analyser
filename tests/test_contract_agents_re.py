@@ -143,7 +143,8 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t0).parse())
 
-    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Частная охранная организация «СТАР»', 'Исполнитель'))
+    self._validate_org(tags, 1, (
+    'Общество с ограниченной ответственностью', 'Частная охранная организация «СТАР»', 'Исполнитель'))
 
   def test_org_dict_0(self):
 
@@ -391,9 +392,6 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     x = rgc.search('что-то именуемое в дальнейшем «Жертвователь», и ')
     self.assertEqual('Жертвователь', x['alias'])
-
-
-
 
   def test_replace_alias(self):
     r = sub_alias_quote

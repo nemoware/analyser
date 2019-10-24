@@ -6,7 +6,7 @@
 import unittest
 
 from contract_agents import find_org_names, compare_masked_strings, find_closest_org_name
-from contract_parser import ContractDocument3, ContractDocument
+from contract_parser import ContractDocument3
 from gpn.gpn import subsidiaries
 from hyperparams import HyperParameters
 
@@ -72,14 +72,14 @@ class ContractAgentsTestCase(unittest.TestCase):
 
   def test_find_closest_org_names2(self):
     for s1 in subsidiaries:
-      pt = s1['_id']+'x'
+      pt = s1['_id'] + 'x'
       known_org_name, _ = find_closest_org_name(subsidiaries, pt,
                                                 HyperParameters.subsidiary_name_match_min_jaro_similarity)
 
       self.assertEqual(s1['_id'], known_org_name['_id'])
 
     for s1 in subsidiaries:
-      pt = 'c'+ s1['_id']
+      pt = 'c' + s1['_id']
       known_org_name, _ = find_closest_org_name(subsidiaries, pt,
                                                 HyperParameters.subsidiary_name_match_min_jaro_similarity)
 
@@ -92,7 +92,6 @@ class ContractAgentsTestCase(unittest.TestCase):
 
       self.assertIsNotNone(known_org_name, pt)
       self.assertEqual(s1['_id'], known_org_name['_id'])
-
 
 
 if __name__ == '__main__':
