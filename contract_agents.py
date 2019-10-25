@@ -176,19 +176,24 @@ def compare_masked_strings(a, b, masked_substrings):
   return distance.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
 
 
-def find_closest_org_name(subsidiaries, pattern, threshold=0.85):
+def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
   if pattern is None:
     return None, 0
   best_similarity = 0
   finding = None
   _entity_type, pn = normalize_company_name(pattern)
+
   for s in subsidiaries:
-    for alias in s['aliases']:
+    for alias in s['aliases']+[s['_id']]:
       similarity = compare_masked_strings(pn, alias, [])
-      if similarity > best_similarity and similarity > threshold:
+      if similarity > best_similarity:
         best_similarity = similarity
         finding = s
-  return finding, best_similarity
+
+  if best_similarity>threshold:
+    return finding, best_similarity
+  else:
+    return None, best_similarity
 
 
 if __name__ == '__main__':

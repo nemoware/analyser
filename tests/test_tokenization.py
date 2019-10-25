@@ -8,6 +8,7 @@ import unittest
 from nltk import TreebankWordTokenizer
 
 from documents import TextMap, span_tokenize
+from integration.word_document_parser import PARAGRAPH_DELIMITER
 from legal_docs import CharterDocument, LegalDocument
 
 
@@ -269,6 +270,22 @@ class TokenisationTestCase(unittest.TestCase):
     tm = TextMap(text)
 
     self.assertEqual(3, len(tm))
+
+  def test_PARAGRAPH_DELIMITER(self):
+
+    tm = TextMap('a' + PARAGRAPH_DELIMITER + 'b')
+    print(tm.tokens)
+    self.assertEqual(3, len(tm))
+
+  def test_PARAGRAPH_DELIMITER_docs(self):
+
+    tm1 = LegalDocument(f'text\rprefix {PARAGRAPH_DELIMITER}  postfix').parse()
+
+    expected_tokens = ['text', 'prefix', '\n', 'postfix']
+
+    self.assertEqual(expected_tokens, tm1.tokens)
+    self.assertEqual('text\rprefix', tm1.tokens_map.text_range((0,2)))
+    self.assertEqual('text\rprefix', tm1.tokens_map_norm.text_range((0, 2)))
 
   def test_concat_TextMap(self):
 
