@@ -110,6 +110,9 @@ class LegalDocument:
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
     return self
 
+  def __len__(self):
+    return self.tokens_map.get_len()
+
   def __add__(self, suffix: 'LegalDocument'):
     '''
     1) dont forget to add spaces between concatenated docs!!
@@ -366,13 +369,7 @@ class DocumentJson:
 
     c = DocumentJson(None)
     c.__dict__ = jsondata
-    # tags = []
-    # for t in c.tags:
-    #   tag = SemanticTag(None, None, None)
-    #   tag.__dict__ = t
-    #   tags.append(tag)
-    #
-    # c.tags = tags
+
     return c
 
   def __init__(self, doc: LegalDocument):
@@ -381,7 +378,6 @@ class DocumentJson:
     self.original_text = None
     self.normal_text = None
 
-    self.import_timestamp = datetime.datetime.now()
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
 
@@ -392,21 +388,25 @@ class DocumentJson:
     self.tokenization_maps['words'] = doc.tokens_map.map
 
     for field in doc.__dict__:
-      # print(field)
       if field in self.__dict__:
         self.__dict__[field] = doc.__dict__[field]
 
     self.original_text = doc.original_text
     self.normal_text = doc.normal_text
 
-    self.attributes = self._tags_to_attributes(doc)
+    self.attributes = self.__tags_to_attributes_dict(doc.get_tags())
+    self.headers = self.__tags_to_attributes_list([hi.header for hi in doc.paragraphs])
 
-  def _tags_to_attributes(self, doc: LegalDocument):
-    # collect all tags first
-    _tags: [SemanticTag] = []
-    for hi in doc.paragraphs:
-      _tags.append(hi.header)
-    _tags += doc.get_tags()
+  def __tags_to_attributes_list(self, _tags):
+
+    attributes = []
+    for t in _tags:
+      val = t.__dict__.copy()
+      attributes.append(val)
+      del val['kind']
+    return attributes
+
+  def __tags_to_attributes_dict(self, _tags):
 
     cnt = 0
     attributes = {}
@@ -418,11 +418,6 @@ class DocumentJson:
       attributes[key] = t.__dict__.copy()
       del attributes[key]['kind']
 
-    if 'date' in doc.__dict__:
-      # TODO: this 'if' is for old unit tests only
-      attributes['date'] = {
-        'value': doc.date
-      }
     return attributes
 
   def dumps(self):

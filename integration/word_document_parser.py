@@ -13,15 +13,17 @@ from ml_tools import SemanticTag
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
-    self.version='1.0.9'
+
+    self.version = '1.1.5'
+
     x = os.system("java -version")
     assert x == 0
     if 'documentparser' in os.environ:
       self.documentparser = os.environ['documentparser']
     else:
-      msg=f'please set "documentparser" environment variable to point ' \
-          f'document-parser-{self.version} unpacked lib ' \
-          f'(downloadable from https://github.com/nemoware/document-parser)'
+      msg = f'please set "documentparser" environment variable to point ' \
+            f'document-parser-{self.version} unpacked lib ' \
+            f'(downloadable from https://github.com/nemoware/document-parser)'
       warnings.warn(msg)
 
       self.documentparser = f'../libs/document-parser-{self.version}'
@@ -41,11 +43,13 @@ class WordDocParser(DirDocProvider):
 
     return res
 
-PARAGRAPH_DELIMITER='\n'
+
+PARAGRAPH_DELIMITER = '\n'
+
+
 def join_paragraphs(response, doc_id):
   # TODO: check type of res
   doc: ContractDocument = ContractDocument('').parse()
-
 
   fields = ['documentDate', 'documentNumber', 'documentType']
 
@@ -53,7 +57,9 @@ def join_paragraphs(response, doc_id):
     doc.__dict__[key] = response[key]
 
   last = 0
+
   for p in response['paragraphs']:
+
     header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
     header_text = header_text.replace('\n', '\r')
 
@@ -85,8 +91,6 @@ def join_paragraphs(response, doc_id):
   if response["documentDate"]:
     doc.date = datetime.datetime.strptime(response["documentDate"], '%Y-%m-%d')
 
-
-
   doc._id = doc_id
   return doc
 
@@ -94,9 +98,14 @@ def join_paragraphs(response, doc_id):
 if __name__ == '__main__':
   wp = WordDocParser()
   res = wp.read_doc("/Users/artem/work/nemo/goil/IN/Другие договоры/Договор Формула.docx")
-  for p in res['paragraphs']:
-    print(' 📃 ', p['paragraphHeader']['text'])
+  for d in res['documents']:
+    print("-" * 100)
+    for p in d['paragraphs']:
+      print(' 📃 ', p['paragraphHeader']['text'])
 
-  c = join_paragraphs(res, 'Другие договоры/Договор Формула.docx')
-  print(c.text)
-  print(c.__dict__.keys())
+  print("=" * 100)
+  for d in res['documents']:
+    print("-" * 100)
+    c = join_paragraphs(d, 'Другие договоры/Договор Формула.docx')
+    print(c.text)
+    print(c.__dict__.keys())

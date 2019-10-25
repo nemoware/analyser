@@ -16,7 +16,6 @@ from legal_docs import DocumentJson
 
 files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
 
-from sklearn.ensemble import RandomForestClassifier
 
 def read_all_contracts():
   client = MongoClient('mongodb://localhost:27017/')

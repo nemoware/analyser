@@ -6,10 +6,11 @@
 import warnings
 from typing import List
 
-Tokens = List[str]
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
+
+Tokens = List[str]
 
 
 def find_ner_end(tokens, start, max_len=20):
@@ -338,3 +339,21 @@ def string_to_ip(txt) -> list or None:
     except:
       pass
   return ret
+
+
+def unquote(s):
+  if not s:
+    return s
+  if len(s) < 2:
+    return s
+
+  if s[0] == '«' and s[-1] == '»':
+    return s[1:-1]
+
+  if s[0] == '"' and s[-1] == '"':
+    return s[1:-1]
+
+  if s[0] == '\'' and s[-1] == '\'':
+    return s[1:-1]
+
+  return s

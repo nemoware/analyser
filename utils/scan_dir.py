@@ -1,7 +1,8 @@
 import glob
 import json
-import docx2txt
 import os
+
+import docx2txt
 
 
 def read_doc(fn):
@@ -32,7 +33,7 @@ def read_documents(filename_prefix):
       "len": len(text),
       "filename": file,
       "checksum": hash(text),
-      "analyse":{}
+      "analyse": {}
     }
     texts.append(fi)
     # print(fi)
@@ -48,4 +49,3 @@ if __name__ == "__main__":
   with open('/Users/artem/work/nemo/goil/gpn-ui/projects/gpn-ui/src/assets/list_documents.json', 'w') as file:
     _j = json.dumps(texts, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
     file.write(_j)
-    

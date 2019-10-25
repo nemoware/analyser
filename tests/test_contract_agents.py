@@ -6,7 +6,7 @@
 import unittest
 
 from contract_agents import find_org_names, compare_masked_strings, find_closest_org_name
-from contract_parser import ContractDocument3, ContractDocument
+from contract_parser import ContractDocument3
 from gpn.gpn import subsidiaries
 from hyperparams import HyperParameters
 
@@ -70,55 +70,88 @@ class ContractAgentsTestCase(unittest.TestCase):
     self.assertIsNotNone(known_org_name)
     self.assertEqual(mc['_id'], known_org_name['_id'])
 
-  def test_find_closest_org_names2(self):
-    for s1 in subsidiaries:
-      pt = s1['_id']+'x'
-      known_org_name, _ = find_closest_org_name(subsidiaries, pt,
-                                                HyperParameters.subsidiary_name_match_min_jaro_similarity)
 
+
+  def test_compare_masked_strings_1(self):
+    s = compare_masked_strings('Многофункциональный комплекс «Лахта центр»', 'Многофункциональный комплекс «Лахта центр»', [])
+    print(s)
+    for s1 in subsidiaries:
+      for name in s1['aliases']:
+        s = compare_masked_strings(name, name, [])
+        self.assertEqual(s,1)
+
+  def test_find_closest_org_name_solo(self):
+    # s = compare_masked_strings('Многофункциональный комплекс «Лахта центр»',
+    #                            'Многофункциональный комплекс «Лахта центр»', [])
+
+    s = find_closest_org_name(subsidiaries,  'Многофункциональный комплекс «Лахта центр»', 0)
+    print(s)
+    # print(s)
+    # for s1 in subsidiaries:
+    #   for name in s1['aliases']:
+
+
+  def test_find_closest_org_names_self(self):
+    _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity
+    #finding self
+    for s1 in subsidiaries:
+      augmented = s1['_id']
+      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
+      self.assertIsNotNone(known_org_name, f'{augmented} -> NOTHING {similarity}')
       self.assertEqual(s1['_id'], known_org_name['_id'])
 
-    for s1 in subsidiaries:
-      pt = 'c'+ s1['_id']
-      known_org_name, _ = find_closest_org_name(subsidiaries, pt,
-                                                HyperParameters.subsidiary_name_match_min_jaro_similarity)
+  def test_find_closest_org_uppercased(self):
+    _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity
 
+    # finding uppercased
+    for s1 in subsidiaries:
+      augmented = s1['_id'].upper()
+      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
+      self.assertIsNotNone(known_org_name,  f'{augmented} -> NOTHING {similarity}')
       self.assertEqual(s1['_id'], known_org_name['_id'])
 
-    for s1 in subsidiaries:
-      pt = s1['_id'][1:]
-      known_org_name, _ = find_closest_org_name(subsidiaries, pt,
-                                                HyperParameters.subsidiary_name_match_min_jaro_similarity)
 
-      self.assertIsNotNone(known_org_name, pt)
+  def test_find_closest_org_postfix(self):
+    _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity
+
+    # finding uppercased
+    for s1 in subsidiaries:
+      augmented = s1['_id'] + ' x'
+      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
+      self.assertIsNotNone(known_org_name,  f'{augmented} -> NOTHING {similarity}')
       self.assertEqual(s1['_id'], known_org_name['_id'])
 
-  def test_find_agents(self):
-    doc_text = """Акционерное общество «Газпромнефть - МАбильная карта» (АО «ГВК»), именуемое в \
-    дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
-    организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
-    с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
-    в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
-    именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
-    """
+  def test_find_closest_org_postfix_2(self):
+    _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity
 
-    cd = ContractDocument(doc_text)
-    cd.parse()
+    # finding uppercased
+    for s1 in subsidiaries:
+      augmented = s1['_id'] + ' 2'
+      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
+      self.assertIsNotNone(known_org_name,  f'{augmented} -> NOTHING {similarity}')
+      self.assertEqual(s1['_id'], known_org_name['_id'])
 
-    # agent_infos = find_org_names_spans(cd.tokens_map_norm)
-    cd.agents_tags = find_org_names(cd)
+  def test_find_closest_org_prefix (self):
+    _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity
 
-    _dict = {}
-    for tag in cd.agents_tags:
-      print(tag)
-      _dict[tag.kind] = tag.value
+    # finding uppercased
+    for s1 in subsidiaries:
+      augmented = 'c' + s1['_id']
+      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
+      self.assertIsNotNone(known_org_name,  f'{augmented} -> NOTHING {similarity}')
+      self.assertEqual(s1['_id'], known_org_name['_id'])
 
-    self.assertEqual('Акционерное Общество', _dict['org.1.type'])
-    self.assertEqual('фонд поддержки социальных инициатив', _dict['org.2.type'])
-    self.assertEqual('Интерстеларные пущи', _dict['org.2.name'])
-    self.assertEqual('Газпромнефть-Мобильная карта', _dict['org.1.name'])
 
-    # self.assertEqual('фонд поддержки социальных инициатив ', cd.agents_tags[6]['value'])
+  def test_find_closest_org_names_cut_begin(self):
+    _threshold = 0.8
+
+    for s1 in subsidiaries:
+      augmented = s1['_id'][1:]
+      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
+      self.assertIsNotNone(known_org_name, f'{augmented} -> NOTHING {similarity}')
+      self.assertEqual(s1['_id'], known_org_name['_id'])
+
+
 
 
 if __name__ == '__main__':

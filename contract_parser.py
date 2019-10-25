@@ -104,12 +104,15 @@ class ContractAnlysingContext(ParsingContext):
 
     self.contract = contract
 
+    # ------ lazy embedding
     if self.contract.embeddings is None:
       self.contract.embedd_tokens(self.pattern_factory.embedder)
 
+    # ------ agents
     contract.agents_tags = find_org_names(contract)
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
+    # ------ structure
     self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
@@ -236,7 +239,7 @@ class ContractAnlysingContext(ParsingContext):
     assert contract.sections is not None, 'find sections first'
 
     search_sections_order = [
-      ['price.', 1], ['subj', 0.75], ['pricecond', 0.75], [None, 0.5]  # todo: check 'price', not 'price.'
+      ['cvalue', 1], ['pricecond', 0.75], ['subj', 0.75], [None, 0.5]  # todo: check 'price', not 'price.'
     ]
 
     for section, confidence_k in search_sections_order:
@@ -252,9 +255,10 @@ class ContractAnlysingContext(ParsingContext):
           self._logstep(f'searching for transaction values in section ["{section}"] "{_section_name}"')
 
         values_list: List[ContractValue] = find_value_sign_currency(value_section, self.pattern_factory)
+
         if not values_list:
           # search in next section
-          self.warning(f'В разделе "{_section_name}" стоимость сделки не найдена!')
+          self.warning(f'В разделе "{_section_name}" ["{section}"] стоимость сделки не найдена!')
 
         else:
           # decrease confidence:
@@ -276,7 +280,7 @@ class ContractAnlysingContext(ParsingContext):
 
 
       else:
-        self.warning('Раздел про стоимость сделки не найден!')
+        self.warning(f'Раздел [{section}]  не обнаружен')
 
 
 def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
