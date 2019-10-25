@@ -21,6 +21,7 @@ def print_predictions(contract, predictions, body_lines_ranges):
 
 class TestHeaderDetector(unittest.TestCase):
 
+  @unittest.skip("headers detector should be retrained")
   def test_doc_features(self):
     with open(os.path.join(os.path.dirname(__file__), '2. Договор по благ-ти Радуга.docx.pickle'), 'rb') as handle:
       contract: LegalDocument = pickle.load(handle)
@@ -72,6 +73,7 @@ class TestHeaderDetector(unittest.TestCase):
     self.assertLess(headlines_cnt, 12)
     self.assertGreater( headlines_cnt, 8)
 
+  @unittest.skip("headers detector should be retrained")
   def test_doc_features_predict_3(self):
 
     with open(os.path.join(os.path.dirname(__file__), 'Договор _2_.docx.pickle'), 'rb') as handle:
