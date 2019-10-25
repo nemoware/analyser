@@ -5,6 +5,7 @@
 
 # legal_docs.py
 import datetime
+import gc
 import json
 from functools import wraps
 
@@ -13,20 +14,16 @@ from bson import json_util
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum
-from parsing import print_prof_data
+  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum, put_if_better
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
 from text_normalize import *
 from text_tools import *
-from transaction_values import complete_re, extract_sum_from_tokens, ValueConstraint, \
+from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, complete_re, \
+  extract_sum_from_tokens, ValueConstraint, \
   VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, find_value_spans
 
 REPORTED_DEPRECATED = {}
-
-import gc
-
-from ml_tools import put_if_better
 
 
 def remove_sr_duplicates_conditionally(list_: PatternSearchResults):
@@ -84,8 +81,8 @@ class LegalDocument:
     # todo: use pandas' DataFrame
     self.distances_per_pattern_dict = {}
 
-    self.tokens_map: TextMap = None
-    self.tokens_map_norm: TextMap = None
+    self.tokens_map: TextMap or None = None
+    self.tokens_map_norm: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
     self.paragraphs: List[Paragraph] = []
@@ -345,7 +342,7 @@ class LegalDocument:
       # tokens += subtokens
 
       start += window
-      print_prof_data()
+
 
     self.embeddings = embeddings
     # self.tokens = tokens
@@ -474,36 +471,8 @@ class BasicContractDocument(LegalDocument):
 
 
 # SUMS -----------------------------
+ProtocolDocument = LegalDocument
 
-
-class ProtocolDocument(LegalDocument):
-
-  def __init__(self, original_text=None):
-    LegalDocument.__init__(self, original_text)
-
-
-# Support masking ==================
-
-def find_section_by_caption(cap, subdocs):
-  solution_section = None
-  mx = 0
-  for subdoc in subdocs:
-    d = subdoc.distances_per_pattern_dict[cap]
-    _mx = d.max()
-    if _mx > mx:
-      solution_section = subdoc
-      mx = _mx
-  return solution_section
-
-
-def mask_sections(section_name_to_weight_dict, doc):
-  mask = np.zeros(len(doc.tokens))
-
-  for name in section_name_to_weight_dict:
-    section = find_section_by_caption(name, doc.subdocs)
-    #         print([section.start, section.end])
-    mask[section.start:section.end] = section_name_to_weight_dict[name]
-  return mask
 
 
 # Charter Docs
@@ -743,9 +712,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
   return distances_per_pattern_dict
-
-
-from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1
 
 
 def detect_sign_2(txt: TextMap) -> (int, (int, int)):

@@ -5,7 +5,7 @@ from ml_tools import *
 
 from parsing import ParsingConfig, ParsingContext
 from patterns import AV_SOFT, AV_PREFIX
-from renderer import AbstractRenderer
+
 from sections_finder import FocusingSectionsFinder
 from structures import ContractSubject
 
@@ -61,9 +61,9 @@ def filter_nans(vcs: List[ProbableValue]) -> List[ProbableValue]:
 
 class ContractAnlysingContext(ParsingContext):
 
-  def __init__(self, embedder, renderer: AbstractRenderer = None, pattern_factory=None):
+  def __init__(self, embedder, renderer=None, pattern_factory=None):
     ParsingContext.__init__(self, embedder)
-    self.renderer: AbstractRenderer = renderer
+
     if not pattern_factory:
       self.pattern_factory = ContractPatternFactory(embedder)
     else:

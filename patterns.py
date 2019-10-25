@@ -1,21 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
+import random
+
 from documents import EmbeddableText, CaseNormalizer
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
-from structures import ContractSubject
+from structures import ContractSubject, OrgStructuralLevel
+from text_tools import *
 from transaction_values import ValueConstraint
 
 load_punkt = False
-
-from text_tools import *
-
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
 PATTERN_THRESHOLD = 0.75  # 0...1
-
-import numpy as np
 
 WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
@@ -320,9 +318,6 @@ def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=D
   return dists
 
 
-import random
-
-
 def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
   assert attention_vector is not None
   if name is None:
@@ -362,8 +357,6 @@ def make_improved_attention_vector(distances_per_pattern_dict, embeddings, patte
 
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'
-
-from structures import OrgStructuralLevel
 
 
 class PatternMatch():
