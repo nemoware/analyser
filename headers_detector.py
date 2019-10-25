@@ -12,7 +12,7 @@ from integration.word_document_parser import PARAGRAPH_DELIMITER
 from ml_tools import sum_probabilities, FixedVector
 from text_tools import Tokens
 
-popular_headers = pd.DataFrame.from_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
+popular_headers = pd.read_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
 popular_headers = list(popular_headers['text'])
 
 from hyperparams import HyperParameters
