@@ -251,7 +251,7 @@ class HtmlRenderer(AbstractRenderer):
 
     return html
 
-  def _to_color_text(self, _tokens, weights, mpl, colormap='coolwarm', _range=None):
+  def _to_color_text(self, _tokens, weights, mpl, colormap='coolwarm', _range=None, separator=' '):
     tokens = [escaper.escape(t) for t in _tokens]
 
     if len(tokens) == 0:
@@ -277,12 +277,8 @@ class HtmlRenderer(AbstractRenderer):
       word = tokens[d]
       if word == ' ':
         word = '&nbsp;_ '
-
-      html += '<span title="{} {:.4f}" style="background-color:{}">{} </span>'.format(
-        d,
-        weights[d],
-        mpl.colors.to_hex(cmap(norm(weights[d]))),
-        word)
+      token_color = mpl.colors.to_hex(cmap(norm(weights[d])))
+      html += f'<span title="{d} {weights[d]:.4f}" style="background-color:{token_color}">{word}{separator}</span>'
 
       if tokens[d] == '\n':
         html += "<br>"
