@@ -5,6 +5,7 @@
 
 # legal_docs.py
 import datetime
+import gc
 import json
 from functools import wraps
 
@@ -13,20 +14,17 @@ from bson import json_util
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum
-from parsing import print_prof_data
+  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum, put_if_better
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
+from tests.test_text_tools import split_sentences_into_map
 from text_normalize import *
 from text_tools import *
-from transaction_values import complete_re, extract_sum_from_tokens, ValueConstraint, \
+from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, complete_re, \
+  extract_sum_from_tokens, ValueConstraint, \
   VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, find_value_spans
 
 REPORTED_DEPRECATED = {}
-
-import gc
-
-from ml_tools import put_if_better
 
 
 def remove_sr_duplicates_conditionally(list_: PatternSearchResults):
@@ -85,7 +83,7 @@ class LegalDocument:
     self.distances_per_pattern_dict = {}
 
     self.tokens_map: TextMap = None
-    self.tokens_map_norm: TextMap = None
+    self.tokens_map_norm: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
     self.paragraphs: List[Paragraph] = []
@@ -345,12 +343,14 @@ class LegalDocument:
       # tokens += subtokens
 
       start += window
-      print_prof_data()
 
     self.embeddings = embeddings
     # self.tokens = tokens
 
-  def get_tag_text(self, tag:SemanticTag):
+  def get_tag_text(self, tag: SemanticTag):
+    return self.tokens_map.text_range(tag.span)
+
+  def substr(self, tag: SemanticTag) -> str:
     return self.tokens_map.text_range(tag.span)
 
   def tag_value(self, tagname):
@@ -477,36 +477,7 @@ class BasicContractDocument(LegalDocument):
 
 
 # SUMS -----------------------------
-
-
-class ProtocolDocument(LegalDocument):
-
-  def __init__(self, original_text=None):
-    LegalDocument.__init__(self, original_text)
-
-
-# Support masking ==================
-
-def find_section_by_caption(cap, subdocs):
-  solution_section = None
-  mx = 0
-  for subdoc in subdocs:
-    d = subdoc.distances_per_pattern_dict[cap]
-    _mx = d.max()
-    if _mx > mx:
-      solution_section = subdoc
-      mx = _mx
-  return solution_section
-
-
-def mask_sections(section_name_to_weight_dict, doc):
-  mask = np.zeros(len(doc.tokens))
-
-  for name in section_name_to_weight_dict:
-    section = find_section_by_caption(name, doc.subdocs)
-    #         print([section.start, section.end])
-    mask[section.start:section.end] = section_name_to_weight_dict[name]
-  return mask
+ProtocolDocument = LegalDocument
 
 
 # Charter Docs
@@ -748,9 +719,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
-from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1
-
-
 def detect_sign_2(txt: TextMap) -> (int, (int, int)):
   """
   todo: rename to 'find_value_sign'
@@ -849,6 +817,7 @@ def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
 
   return vc
 
+
 #
 #
 # if __name__ == '__main__':
@@ -919,3 +888,12 @@ def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
 #
 #
 #   extract_all_contraints_from_sr(ex)
+
+
+def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
+  tm = TextMap('', [])
+  for p in doc.paragraphs:
+    tm += split_sentences_into_map(doc.substr(p.header), max_len_chars)
+    tm += split_sentences_into_map(doc.substr(p.body), max_len_chars)
+
+  return tm

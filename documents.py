@@ -1,16 +1,15 @@
+import os
+import pickle
 import sys
 import traceback
-
-from text_tools import untokenize, replace_tokens, tokenize_text
-
-TEXT_PADDING_SYMBOL = ' '
-
 import warnings
-import os, pickle
-from text_tools import Tokens, my_punctuation
 
 import nltk
+
 from hyperparams import models_path
+from text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
+
+TEXT_PADDING_SYMBOL = ' '
 nltk.download('punkt')
 
 
@@ -180,8 +179,6 @@ class CaseNormalizer:
   def __init__(self):
     self.__dict__ = self.__shared_state
     if 'replacements_map' not in self.__dict__:
-
-
       p = os.path.join(models_path, 'word_cases_stats.pickle')
       print('loading word cases stats model', p)
 

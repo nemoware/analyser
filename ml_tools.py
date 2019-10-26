@@ -1,3 +1,4 @@
+import math
 import warnings
 from typing import List, TypeVar, Iterable, Generic
 
@@ -188,7 +189,6 @@ def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
   return innertia
 
 
-import math
 
 
 def momentum_t(x: FixedVector, half_decay: int = 10, left=False) -> np.ndarray:
