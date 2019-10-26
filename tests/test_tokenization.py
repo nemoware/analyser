@@ -3,16 +3,34 @@
 # coding=utf-8
 
 
+import os
+import pickle
 import unittest
 
+import numpy as np
 from nltk import TreebankWordTokenizer
 
 from documents import TextMap, span_tokenize
 from integration.word_document_parser import PARAGRAPH_DELIMITER
-from legal_docs import CharterDocument, LegalDocument
+from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map
 
 
 class TokenisationTestCase(unittest.TestCase):
+
+  def test_tokenize_doc_into_sentences(self):
+    pth = os.path.dirname(__file__)
+    with open(os.path.join(pth, '2. Договор по благ-ти Радуга.docx.pickle'), 'rb') as handle:
+      doc = pickle.load(handle)
+
+    maxlen = 100
+    tm = tokenize_doc_into_sentences_map(doc, maxlen)
+
+    lens = [len(t) for t in tm.tokens]
+    print(min(lens))
+    print(max(lens))
+    print(np.mean(lens))
+
+    self.assertLessEqual(max(lens), maxlen)
 
   def test_normalize_doc_slice(self):
     doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
@@ -284,7 +302,7 @@ class TokenisationTestCase(unittest.TestCase):
     expected_tokens = ['text', 'prefix', '\n', 'postfix']
 
     self.assertEqual(expected_tokens, tm1.tokens)
-    self.assertEqual('text\rprefix', tm1.tokens_map.text_range((0,2)))
+    self.assertEqual('text\rprefix', tm1.tokens_map.text_range((0, 2)))
     self.assertEqual('text\rprefix', tm1.tokens_map_norm.text_range((0, 2)))
 
   def test_concat_TextMap(self):

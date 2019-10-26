@@ -17,6 +17,7 @@ from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
   max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum, put_if_better
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
+from tests.test_text_tools import split_sentences_into_map
 from text_normalize import *
 from text_tools import *
 from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, complete_re, \
@@ -81,7 +82,7 @@ class LegalDocument:
     # todo: use pandas' DataFrame
     self.distances_per_pattern_dict = {}
 
-    self.tokens_map: TextMap or None = None
+    self.tokens_map: TextMap = None
     self.tokens_map_norm: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
@@ -343,9 +344,11 @@ class LegalDocument:
 
       start += window
 
-
     self.embeddings = embeddings
     # self.tokens = tokens
+
+  def substr(self, tag: SemanticTag) -> str:
+    return self.tokens_map.text_range(tag.span)
 
   def tag_value(self, tagname):
     t = SemanticTag.find_by_kind(self.get_tags(), tagname)
@@ -472,7 +475,6 @@ class BasicContractDocument(LegalDocument):
 
 # SUMS -----------------------------
 ProtocolDocument = LegalDocument
-
 
 
 # Charter Docs
@@ -812,6 +814,7 @@ def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
 
   return vc
 
+
 #
 #
 # if __name__ == '__main__':
@@ -882,3 +885,12 @@ def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
 #
 #
 #   extract_all_contraints_from_sr(ex)
+
+
+def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
+  tm = TextMap('', [])
+  for p in doc.paragraphs:
+    tm += split_sentences_into_map(doc.substr(p.header), max_len_chars)
+    tm += split_sentences_into_map(doc.substr(p.body), max_len_chars)
+
+  return tm

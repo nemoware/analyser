@@ -366,8 +366,8 @@ def split_into_sentences(txt, max_len_chars=150):
   while begin < len(txt):
     segment = txt[begin:begin + max_len_chars]
     end = find_best_sentence_end(segment)
-    span = (begin, begin + end)
-    begin = span[1] + 1
+    span = begin, begin + end
+    begin = span[1]
     spans.append(span)
 
   return spans
