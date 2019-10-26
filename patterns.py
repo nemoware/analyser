@@ -15,15 +15,16 @@ DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
 PATTERN_THRESHOLD = 0.75  # 0...1
 
-WARN = '\033[1;31m======== Dear Artem, ACHTUNG! 🔞 '
 
 
-class FuzzyPattern(EmbeddableText):
+
+class FuzzyPattern( ):
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
     # assert prefix_pattern_suffix_tuple is not None
     # assert prefix_pattern_suffix_tuple[0].strip() == prefix_pattern_suffix_tuple[0], f'{_name}: {prefix_pattern_suffix_tuple} '
     # assert prefix_pattern_suffix_tuple[2].strip() == prefix_pattern_suffix_tuple[2], f'{_name}: {prefix_pattern_suffix_tuple} '
+
     self.prefix_pattern_suffix_tuple = prefix_pattern_suffix_tuple
     self.name = _name
     self.soft_sliding_window_borders = False
