@@ -893,7 +893,12 @@ def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
 def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
   for p in doc.paragraphs:
-    tm += split_sentences_into_map(doc.substr(p.header), max_len_chars)
-    tm += split_sentences_into_map(doc.substr(p.body), max_len_chars)
+    header_lines = doc.substr(p.header).splitlines(True)
+    for line in header_lines:
+      tm += split_sentences_into_map(line, max_len_chars)
+
+    body_lines = doc.substr(p.body).splitlines(True)
+    for line in body_lines:
+      tm += split_sentences_into_map(line, max_len_chars)
 
   return tm
