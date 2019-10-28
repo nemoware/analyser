@@ -99,6 +99,25 @@ class TokenisationTestCase(unittest.TestCase):
     print(spans)
     self.assertEqual(3, len(spans))
 
+  def test_concat_then_slice(self):
+    text1 = 'этилен мама'
+    text2 = 'этилен папа'
+
+    tm0 = TextMap('')
+    tm1 = TextMap(text1)
+    tm2 = TextMap(text2)
+
+    tm0 += tm1
+    tm0 += tm2
+
+    print(tm1.tokens)
+    self.assertEqual(text1 + text2, tm0.text)
+    self.assertEqual('мамаэтилен', tm0.text_range([1,3]))
+
+    tm3 = tm0.slice(slice(1, 3))
+    self.assertEqual('мамаэтилен', tm3.text)
+
+    # //text_range(doc.tokens_map, [0, 10])
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
