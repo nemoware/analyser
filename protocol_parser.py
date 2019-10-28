@@ -4,10 +4,12 @@ from typing import List
 
 from numpy import ma as ma
 
+from contract_agents import find_org_names
 from contract_parser import extract_all_contraints_from_sr_2
+from hyperparams import HyperParameters
 from legal_docs import BasicContractDocument, deprecated
 from legal_docs import LegalDocument
-from ml_tools import ProbableValue, FixedVector
+from ml_tools import ProbableValue, FixedVector, SemanticTag
 from ml_tools import select_most_confident_if_almost_equal
 from parsing import ParsingContext
 from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern, np
@@ -121,7 +123,8 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       # IDX 1
       p_solution = CoumpoundFuzzyPattern()
       p_solution.name = "p_solution"
-      p_solution.add_pattern(self.create_pattern('p_solution1', (PRFX, 'решение', 'принятое по вопросу повестки дня: одобрить')))
+      p_solution.add_pattern(
+        self.create_pattern('p_solution1', (PRFX, 'решение', 'принятое по вопросу повестки дня: одобрить')))
       p_solution.add_pattern(self.create_pattern('p_solution2', (PRFX + 'формулировка', 'решения', ':одобрить')))
 
       sect_pt.add_pattern(p_solution)
@@ -294,3 +297,11 @@ class ProtocolAnlysingContext(ParsingContext):
     return self.protocol.values
 
   values = property(get_value)
+
+
+def find_protocol_org(protocol) -> List[SemanticTag]:
+  ret = []
+  x: List[SemanticTag] = find_org_names(protocol[:HyperParameters.protocol_caption_max_size_words])
+  ret.append(SemanticTag.find_by_kind(x, 'org.1.name'))
+  ret.append(SemanticTag.find_by_kind(x, 'org.1.type'))
+  return x
