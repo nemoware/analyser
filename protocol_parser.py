@@ -15,6 +15,23 @@ from parsing import ParsingContext
 from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern, np
 
 
+class ProtocolDocument3(LegalDocument):
+  '''
+
+  '''
+
+  # TODO: rename it
+
+  def __init__(self, doc: LegalDocument):
+    super().__init__()
+    self.__dict__ = doc.__dict__
+
+    # self.subjects = None
+    # self.contract_values: List[ContractValue] = []
+
+    self.agents_tags = None
+
+
 class ProtocolPatternFactory(AbstractPatternFactory):
   def create_pattern(self, pattern_name, ppp):
     _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
@@ -299,9 +316,10 @@ class ProtocolAnlysingContext(ParsingContext):
   values = property(get_value)
 
 
-def find_protocol_org(protocol: LegalDocument) -> List[SemanticTag]:
+def find_protocol_org(protocol: ProtocolDocument3) -> List[SemanticTag]:
   ret = []
   x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
   ret.append(SemanticTag.find_by_kind(x, 'org.1.name'))
   ret.append(SemanticTag.find_by_kind(x, 'org.1.type'))
-  return x
+  protocol.agents_tags = ret
+  return ret

@@ -139,7 +139,7 @@ class LegalDocument:
     return self
 
   def get_tags(self):
-    raise NotImplementedError()
+    return []
 
   def to_json(self) -> str:
     j = DocumentJson(self)
