@@ -16,7 +16,7 @@ nltk.download('punkt')
 class TextMap:
 
   def __init__(self, text: str, map=None):
-    self._full_text = text
+    self._full_text = str(text)
     self._offset_chars = 0
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)

@@ -52,7 +52,7 @@ r_alias_prefix = r_group(''
                          + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
-r_types = r_group(f'{_r_types_}', 'type')
+r_types = r_group(f'{_r_types_}', 'type')+'\s'
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')

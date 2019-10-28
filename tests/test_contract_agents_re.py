@@ -8,7 +8,7 @@ import unittest
 from contract_agents import *
 from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
 
-_suffix =  " слово" * 1000
+_suffix = " слово" * 1000
 
 
 def normalize_contract(_t: str) -> str:
@@ -133,8 +133,8 @@ class TestContractAgentsSearch(unittest.TestCase):
 
   def test_org_dict_0_1(self):
 
-    t0 = """Общество с ограниченной ответственностью «Газпромнефть-Захалин», в лице Генерального директора, Имя Имя Имя, действующего на основании Устава, именуемое в дальнейшем «Заказчик», и ЧАСТНОЕ"""\
-         +_suffix
+    t0 = """Общество с ограниченной ответственностью «Газпромнефть-Захалин», в лице Генерального директора, Имя Имя Имя, действующего на основании Устава, именуемое в дальнейшем «Заказчик», и ЧАСТНОЕ""" \
+         + _suffix
     tags: List[SemanticTag] = find_org_names(LegalDocument(t0).parse())
 
     self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Сахалин', 'Заказчик'))
@@ -293,25 +293,25 @@ class TestContractAgentsSearch(unittest.TestCase):
     r = re.compile(r_types, re.MULTILINE)
 
     x = r.search('с большой Общество с ограниченной ответственностью « Газпромнефть-Региональные продажи »')
-    self.assertEqual(x[0], 'Общество с ограниченной ответственностью')
+    self.assertEqual('Общество с ограниченной ответственностью', x['type'])
 
     x = r.search('Общество с ограниченной ответственностью и прочим « Газпромнефть-Региональные продажи »')
-    self.assertEqual(x[0], 'Общество с ограниченной ответственностью')
+    self.assertEqual('Общество с ограниченной ответственностью', x['type'])
 
     x = r.search('ООО « Газпромнефть-Региональные продажи »')
-    self.assertEqual(x[0], 'ООО')
+    self.assertEqual('ООО', x['type'])
 
-    x = r.search('с большой Государственной автономной учрежденией')
-    self.assertEqual(x[0], 'Государственной автономной учрежденией')
+    x = r.search('с большой Государственной автономной учрежденией\n')
+    self.assertEqual('Государственной автономной учрежденией', x['type'])
 
     x = r.search('акционерное Общество с ограниченной ответственностью и прочим « Газпромнефть-Региональные продажи »')
-    self.assertEqual(x[0], 'акционерное Общество')
+    self.assertEqual('акционерное Общество', x['type'])
 
     x = r.search('АО  и прочим « Газпромнефть-Региональные продажи »')
-    self.assertEqual(x[0], 'АО')
+    self.assertEqual('АО', x['type'])
 
     x = r.search('префикс АО  и прочим « Газпромнефть-Региональные продажи »')
-    self.assertEqual(x[0], 'АО')
+    self.assertEqual('АО', x['type'])
 
   def test_r_alias_prefix(self):
     r = re.compile(r_alias_prefix, re.MULTILINE)
