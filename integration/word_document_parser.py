@@ -8,6 +8,7 @@ from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
 from legal_docs import LegalDocument, Paragraph
 from ml_tools import SemanticTag
+from protocol_parser import ProtocolDocument3
 
 
 class WordDocParser(DirDocProvider):
@@ -49,7 +50,16 @@ PARAGRAPH_DELIMITER = '\n'
 
 def join_paragraphs(response, doc_id):
   # TODO: check type of res
-  doc: LegalDocument = LegalDocument('').parse()
+  doc = None
+  if response['documentType'] == 'CONTRACT':
+    doc: LegalDocument = ContractDocument('')
+  elif response['documentType'] == 'PROTOCOL':
+    doc: LegalDocument = ProtocolDocument3(None)
+  else:
+    warnings.warn("Unsupported document type:", response['documentType'])
+    doc: LegalDocument = LegalDocument('')
+
+  doc.parse()
 
   fields = ['documentDate', 'documentNumber', 'documentType']
 

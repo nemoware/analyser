@@ -13,6 +13,7 @@ from contract_patterns import ContractPatternFactory
 from documents import TextMap
 from legal_docs import LegalDocument
 from ml_tools import SemanticTag
+from protocol_parser import ProtocolDocument3
 from structures import ContractTags
 
 
@@ -60,6 +61,11 @@ class TestContractParser(unittest.TestCase):
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
     return doc, factory, ctx
+
+  def test_ProtocolDocument3_init(self):
+    doc, __ = self.get_doc('2. Договор по благ-ти Радуга.docx.pickle')
+    pr = ProtocolDocument3(doc)
+    print(pr.__dict__['date'])
 
   def test_contract_analyze(self):
     doc, factory, ctx = self._get_doc_factory_ctx()

@@ -23,8 +23,9 @@ class ProtocolDocument3(LegalDocument):
   # TODO: rename it
 
   def __init__(self, doc: LegalDocument):
-    super().__init__()
-    self.__dict__ = doc.__dict__
+    super().__init__('')
+    if doc is not None:
+      self.__dict__ = doc.__dict__
 
     # self.subjects = None
     # self.contract_values: List[ContractValue] = []
@@ -35,7 +36,6 @@ class ProtocolDocument3(LegalDocument):
     tags = []
     tags += self.agents_tags
 
-     
     return tags
 
 
