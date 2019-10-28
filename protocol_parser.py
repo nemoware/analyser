@@ -299,9 +299,9 @@ class ProtocolAnlysingContext(ParsingContext):
   values = property(get_value)
 
 
-def find_protocol_org(protocol) -> List[SemanticTag]:
+def find_protocol_org(protocol: LegalDocument) -> List[SemanticTag]:
   ret = []
-  x: List[SemanticTag] = find_org_names(protocol[:HyperParameters.protocol_caption_max_size_words])
+  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
   ret.append(SemanticTag.find_by_kind(x, 'org.1.name'))
   ret.append(SemanticTag.find_by_kind(x, 'org.1.type'))
   return x

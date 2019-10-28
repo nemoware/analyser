@@ -49,7 +49,7 @@ PARAGRAPH_DELIMITER = '\n'
 
 def join_paragraphs(response, doc_id):
   # TODO: check type of res
-  doc: ContractDocument = ContractDocument('').parse()
+  doc: LegalDocument = LegalDocument('').parse()
 
   fields = ['documentDate', 'documentNumber', 'documentType']
 

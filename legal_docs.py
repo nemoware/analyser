@@ -185,6 +185,7 @@ class LegalDocument:
 
   def subdoc_slice(self, __s: slice, name='undef'):
     assert self.tokens_map is not None
+    #TODO: support None in slice begin
     _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
     klazz = self.__class__
