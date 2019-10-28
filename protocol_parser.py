@@ -29,7 +29,14 @@ class ProtocolDocument3(LegalDocument):
     # self.subjects = None
     # self.contract_values: List[ContractValue] = []
 
-    self.agents_tags = None
+    self.agents_tags: [SemanticTag] = []
+
+  def get_tags(self) -> [SemanticTag]:
+    tags = []
+    tags += self.agents_tags
+
+     
+    return tags
 
 
 class ProtocolPatternFactory(AbstractPatternFactory):
