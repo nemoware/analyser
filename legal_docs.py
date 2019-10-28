@@ -189,7 +189,7 @@ class LegalDocument:
     _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
     klazz = self.__class__
-    sub = klazz("REF")
+    sub = klazz(None)
     sub.start = _s.start
     sub.end = _s.stop
 
