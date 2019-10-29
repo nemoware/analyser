@@ -33,10 +33,12 @@ class ProtocolDocument3(LegalDocument):
     # self.contract_values: List[ContractValue] = []
 
     self.agents_tags: [SemanticTag] = []
+    self.org_level: [SemanticTag] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
     tags += self.agents_tags
+    tags += self.org_level
 
     return tags
 
