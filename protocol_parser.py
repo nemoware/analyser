@@ -7,10 +7,8 @@ from numpy import ma as ma
 from contract_agents import find_org_names, ORG_LEVELS_re
 from contract_parser import extract_all_contraints_from_sr_2
 from hyperparams import HyperParameters
-from legal_docs import BasicContractDocument, deprecated
-from legal_docs import LegalDocument
-from ml_tools import ProbableValue, FixedVector, SemanticTag
-from ml_tools import select_most_confident_if_almost_equal
+from legal_docs import BasicContractDocument, deprecated, LegalDocument
+from ml_tools import ProbableValue, FixedVector, SemanticTag, select_most_confident_if_almost_equal
 from parsing import ParsingContext
 from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern, np
 from structures import ORG_LEVELS_names
@@ -374,7 +372,9 @@ def find_org_structural_level(doc: LegalDocument):
 
     confidence = conf * (1.0 - (span[0] / len(doc)))  # relative distance from the beginning of the document
     if span_len(char_span) > 1 and is_long_enough(val):
-      tag = SemanticTag(entity_type, val, span)
-      tag.confidence = confidence
-      if confidence > 0.2:
+
+      if confidence > HyperParameters.org_level_min_confidence:
+        tag = SemanticTag(entity_type, val, span)
+        tag.confidence = confidence
+
         yield tag
