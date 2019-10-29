@@ -4,7 +4,7 @@ from typing import List
 
 from numpy import ma as ma
 
-from contract_agents import find_org_names
+from contract_agents import find_org_names, ORG_LEVELS_re
 from contract_parser import extract_all_contraints_from_sr_2
 from hyperparams import HyperParameters
 from legal_docs import BasicContractDocument, deprecated
@@ -13,6 +13,8 @@ from ml_tools import ProbableValue, FixedVector, SemanticTag
 from ml_tools import select_most_confident_if_almost_equal
 from parsing import ParsingContext
 from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern, np
+from structures import ORG_LEVELS_names
+from text_tools import is_long_enough, span_len
 
 
 class ProtocolDocument3(LegalDocument):
@@ -336,3 +338,41 @@ def find_protocol_org(protocol: ProtocolDocument3) -> List[SemanticTag]:
 
   protocol.agents_tags = ret
   return ret
+
+
+import re
+
+from pyjarowinkler import distance
+
+
+def closest_name(pattern: str, knowns: [str]) -> (str, int):
+  #
+  min_distance = 0
+  found = None
+  for b in knowns:
+    d = distance.get_jaro_distance(pattern, b, winkler=True, scaling=0.1)
+    if d > min_distance:
+      found = b
+      min_distance = d
+
+  return found, min_distance
+
+
+def find_org_structural_level(doc: LegalDocument):
+  compiled_re = re.compile(ORG_LEVELS_re, re.MULTILINE | re.IGNORECASE | re.UNICODE)
+
+  entity_type = 'org_structural_level'
+  for m in re.finditer(compiled_re, doc.text):
+
+    char_span = m.span(entity_type)
+    span = doc.tokens_map.token_indices_by_char_range_2(char_span)
+    val = doc.tokens_map.text_range(span)
+
+    val, conf = closest_name(val, ORG_LEVELS_names)
+
+    confidence = conf * (1.0 - (span[0] / len(doc)))  # relative distance from the beginning of the document
+    if span_len(char_span) > 1 and is_long_enough(val):
+      tag = SemanticTag(entity_type, val, span)
+      tag.confidence = confidence
+      if confidence > 0.2:
+        yield tag

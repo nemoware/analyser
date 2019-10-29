@@ -385,6 +385,20 @@ def split_into_sentences(txt, max_len_chars=150):
   return spans
 
 
+def is_long_enough(val: str, minlen=2) -> bool:
+  if not val:
+    return False
+  if val.strip() == '':
+    return False
+  if len(val.strip()) < minlen:
+    return False
+  return True
+
+
+def span_len(span: [int]) -> int:
+  return abs(span[1] - span[0])
+
+
 if __name__ == '__main__':
   x = '12345 aaaa.1234 ttt. dfdfd. 0123456789'
   be = find_best_sentence_end(x)

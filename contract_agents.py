@@ -13,8 +13,14 @@ from gpn.gpn import subsidiaries
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument
 from ml_tools import SemanticTag
+from structures import ORG_LEVELS_names
 from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name, normalize_company_name
+from text_tools import is_long_enough, span_len
+
+_is_valid = is_long_enough
+
+ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + '\s'
 
 ORG_TYPES_re = [
   ru_cap('Акционерное общество'), 'АО',
@@ -52,7 +58,7 @@ r_alias_prefix = r_group(''
                          + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
-r_types = r_group(f'{_r_types_}', 'type')+'\s'
+r_types = r_group(f'{_r_types_}', 'type') + '\s'
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
@@ -95,22 +101,9 @@ def _find_org_names(text: str) -> List[Dict]:
   return list(org_names.values())
 
 
-def _is_valid(val: str) -> bool:
-  if not val:
-    return False
-  if val.strip() == '':
-    return False
-  if len(val.strip()) < 2:
-    return False
-  return True
-
-
 def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   tags = []
   org_i = 0
-
-  def span_ok(span):
-    return span[1] - span[0] > 1
 
   for m in re.finditer(complete_re, doc.text):
     org_i += 1
@@ -126,7 +119,7 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
         span = doc.tokens_map.token_indices_by_char_range_2(char_span)
         val = doc.tokens_map.text_range(span)
         confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
-        if span_ok(char_span) and _is_valid(val):
+        if span_len(char_span) > 1 and _is_valid(val):
           if 'name' == entity_type:
             legal_entity_type, val = normalize_company_name(val)
             known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
@@ -137,7 +130,7 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
 
           tag = SemanticTag(tagname, val, span)
           tag.confidence = confidence
-          if confidence>0.2:
+          if confidence > 0.2:
             tags.append(tag)
           else:
             msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
@@ -184,13 +177,13 @@ def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsi
   _entity_type, pn = normalize_company_name(pattern)
 
   for s in subsidiaries:
-    for alias in s['aliases']+[s['_id']]:
+    for alias in s['aliases'] + [s['_id']]:
       similarity = compare_masked_strings(pn, alias, [])
       if similarity > best_similarity:
         best_similarity = similarity
         finding = s
 
-  if best_similarity>threshold:
+  if best_similarity > threshold:
     return finding, best_similarity
   else:
     return None, best_similarity

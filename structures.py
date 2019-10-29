@@ -38,6 +38,8 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
   BoardOfCompany = 0, 'Правление общества'
 
 
+ORG_LEVELS_names = [x.display_string for x in OrgStructuralLevel]
+
 ORG_2_ORG = {
   'all': OrgStructuralLevel.ShareholdersGeneralMeeting,
   'gen': OrgStructuralLevel.CEO,
