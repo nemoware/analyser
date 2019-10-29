@@ -13,6 +13,7 @@ from contract_parser import ContractDocument
 from contract_patterns import ContractPatternFactory
 from legal_docs import LegalDocument
 from protocol_parser import find_protocol_org, find_org_structural_level
+from text_normalize import ru_cap, r_quoted, r_group
 
 
 class TestProtocolParser(unittest.TestCase):
@@ -64,7 +65,6 @@ class TestProtocolParser(unittest.TestCase):
     self.assertEqual('Совета директоров', x['org_structural_level'])
 
   def test_find_org_structural_level(self):
-
     t = '''
     ПРОТОКОЛ \
     заседания Совета директоров ООО «Газпромнефть - Внеземная Любофьи» (далее – ООО «Газпромнефть-ВНЛ» или «Общество»)\
@@ -80,12 +80,30 @@ class TestProtocolParser(unittest.TestCase):
     t = '''
     ПРОТОКОЛ ночного заседания Правления общества ООО «Газпромнефть - Внеземная Любофь» (далее – ООО «Газпромнефть- ВНЛ» или «Общество»)\
     Место проведения заседания:
-    '''+ ' ' * 900
+    ''' + ' ' * 900
     doc = LegalDocument(t)
     doc.parse()
 
     tags = list(find_org_structural_level(doc))
     self.assertEqual('Правление общества', tags[0].value)
+
+  def test_find_protocol_votes(self):
+    doc = self.get_doc('Протокол_СД_ 3.docx.pickle')
+
+    itog1 = ru_cap('итоги голосования') + '|' + ru_cap('результаты голосования')
+    something = '(.{0,120})\s'
+    za = r_group(r_quoted('за')+something)
+    pr = r_group(r_quoted('против')+something)
+    vo = r_group(r_quoted('воздержался')+something)
+
+
+    complete = itog1 + something +r_group(  za + something + pr + something + vo)
+
+    r = re.compile(za+pr+vo, re.MULTILINE | re.IGNORECASE | re.UNICODE)
+    x = r.search(doc.text)
+
+    # for f in x:
+    print(doc.text[ x.span()[0]:x.span()[1] ] )
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

@@ -187,7 +187,6 @@ class ContractAnlysingContext(ParsingContext):
     return x
 
   def find_contract_subject_region(self, doc) -> SemanticTag:
-
     if 'subj' in doc.sections:
       subj_section = doc.sections['subj']
       subject_subdoc = subj_section.body
@@ -212,13 +211,15 @@ class ContractAnlysingContext(ParsingContext):
     max_confidence = 0
     max_subject_kind = None
     max_paragraph_span = None
+
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
       subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind,
                                                                                    subject_headline_attention)
 
       paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(section,
                                                                                              subject_attention_vector,
-                                                                                             min_len=20)
+                                                                                             min_len=20,
+                                                                                             return_delimiters=False)
 
       if self.verbosity_level > 2:
         print(f'--------------------confidence {subject_kind}=', confidence)
@@ -317,17 +318,20 @@ def max_value(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.value.value)
 
 
-def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vector: FixedVector, min_len: int):
+def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vector: FixedVector, min_len: int,
+                                  return_delimiters=True):
   # paragraph_attention_vector = smooth(attention_vector, 6)
-  _padding = 23
-  _blur = 10
+
+  _blur = HyperParameters.subject_paragraph_attention_blur
+  _padding = _blur * 2 + 1
 
   paragraph_attention_vector = smooth_safe(np.pad(subject_attention_vector, _padding, mode='constant'), _blur)[
                                _padding:-_padding]
+
   top_index = int(np.argmax(paragraph_attention_vector))
   span = section.tokens_map.sentence_at_index(top_index)
   if min_len is not None and span[1] - span[0] < min_len:
-    next_span = section.tokens_map.sentence_at_index(span[1] + 1)
+    next_span = section.tokens_map.sentence_at_index(span[1] + 1, return_delimiters)
     span = (span[0], next_span[1])
 
   # confidence = paragraph_attention_vector[top_index]

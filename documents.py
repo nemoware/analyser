@@ -112,10 +112,14 @@ class TextMap:
         last = i + 1
     yield [last, self.get_len()]
 
-  def sentence_at_index(self, i: int) -> (int, int):
-    sent_spans = self.split_spans('\n', add_delimiter=True)
+  def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
+    sent_spans = self.split_spans('\n', add_delimiter=return_delimiters)
+    d_add = 1
+    if return_delimiters:
+      d_add = 0
+
     for s in sent_spans:
-      if i >= s[0] and i < s[1]:
+      if i >= s[0] and i < s[1] + d_add:
         return s
     return [0, self.get_len()]
 

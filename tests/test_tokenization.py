@@ -112,12 +112,13 @@ class TokenisationTestCase(unittest.TestCase):
 
     print(tm1.tokens)
     self.assertEqual(text1 + text2, tm0.text)
-    self.assertEqual('мамаэтилен', tm0.text_range([1,3]))
+    self.assertEqual('мамаэтилен', tm0.text_range([1, 3]))
 
     tm3 = tm0.slice(slice(1, 3))
     self.assertEqual('мамаэтилен', tm3.text)
 
     # //text_range(doc.tokens_map, [0, 10])
+
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -137,7 +138,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual('мама', tm3.text_range([0, 1]))
     self.assertEqual('мама', tm3.text_range([0, 2]))
 
-  def test_sentence_at_index(self):
+  def test_sentence_at_index_return_delimiters(self):
 
     tm = TextMap('стороны Заключили\n  договор  ПРЕДМЕТ \nДОГОВОРА')
     for i in range(len(tm)):
@@ -156,6 +157,28 @@ class TokenisationTestCase(unittest.TestCase):
 
     for i in range(6, 7):
       bounds = tm.sentence_at_index(i)
+      self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
+
+  def test_sentence_at_index_no_delimiters(self):
+
+    tm = TextMap('стороны Заключили\n  договор  ПРЕДМЕТ \nДОГОВОРА')
+    for i in range(len(tm)):
+      print(i, tm[i])
+
+    bounds = tm.sentence_at_index(0, return_delimiters=False)
+    print(bounds)
+    print(tm.text_range(bounds))
+
+    for i in range(0, 3):
+      bounds = tm.sentence_at_index(i, return_delimiters=False)
+      self.assertEqual('стороны Заключили', tm.text_range(bounds), str(i))
+
+    for i in range(3, 5):
+      bounds = tm.sentence_at_index(i, return_delimiters=False)
+      self.assertEqual('договор  ПРЕДМЕТ', tm.text_range(bounds))
+
+    for i in range(6, 7):
+      bounds = tm.sentence_at_index(i, return_delimiters=False)
       self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
 
   def test_tokens_in_range(self):
@@ -278,7 +301,7 @@ class TokenisationTestCase(unittest.TestCase):
     for k in tm.split('\n'):
       print(k)
 
-  def test_split_span(self):
+  def test_split_span_add_delimiters(self):
     text = '1 2 3\nмама\nಶ್ರೀರಾಮ'
     tm = TextMap(text)
 
@@ -287,6 +310,18 @@ class TokenisationTestCase(unittest.TestCase):
       print(tm.text_range(k))
 
     self.assertEqual('1 2 3\n', tm.text_range(spans[0]))
+
+  def test_split_span_no_delimiters(self):
+    text = '1 2 3\nмама\nಶ್ರೀರಾಮ'
+    tm = TextMap(text)
+
+    spans = [s for s in tm.split_spans('\n', add_delimiter=False)]
+    for k in spans:
+      print(tm.text_range(k))
+
+    self.assertEqual('1 2 3', tm.text_range(spans[0]))
+    self.assertEqual('мама', tm.text_range(spans[1]))
+    self.assertEqual('ಶ್ರೀರಾಮ', tm.text_range(spans[2]))
 
   def test_map_text_range(self):
     text = """1.2. мама   молилась ಶ್ರೀರಾಮ\n\nРама -- Вишну, А Вишну 
