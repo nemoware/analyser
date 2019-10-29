@@ -12,8 +12,20 @@ from ml_tools import ProbableValue, FixedVector, SemanticTag, select_most_confid
 from parsing import ParsingContext
 from patterns import AbstractPatternFactory, FuzzyPattern, CoumpoundFuzzyPattern, ExclusivePattern, np
 from structures import ORG_LEVELS_names
+from text_normalize import r_group, ru_cap, r_quoted
 from text_tools import is_long_enough, span_len
 
+import re
+
+something = '(.{0,120})\s'
+_itog1 = r_group(ru_cap('итоги голосования') + '|' + ru_cap('результаты голосования'))
+
+za = r_group(r_quoted('за') + something)
+pr = r_group(r_quoted('против') + something)
+vo = r_group(r_quoted('воздержался') + something)
+
+protocol_votes_ = _itog1 + something + r_group(za + something + pr + something + vo)
+protocol_votes_re = re.compile(protocol_votes_, re.MULTILINE | re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument3(LegalDocument):
   '''
