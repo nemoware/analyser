@@ -3,6 +3,7 @@ import warnings
 from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
+import scipy.spatial.distance as distance
 
 from documents import TextMap
 from text_tools import Tokens, dist_cosine_to_point
@@ -187,8 +188,6 @@ def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
     m *= decay
 
   return innertia
-
-
 
 
 def momentum_t(x: FixedVector, half_decay: int = 10, left=False) -> np.ndarray:
@@ -506,10 +505,22 @@ def merge_colliding_spans(spans, eps=0):
 
   return np.array(ret)
 
+#
+# def per_token_similarity_cosine(text_emb, pattern_emb):
+#   a_distances = np.zeros(len(text_emb))
+#   for p in pattern_emb:
+#     t_distances = 1 - dist_cosine_to_point(text_emb, p)
+#     a_distances = sum_probabilities([t_distances, a_distances])
+#   return a_distances
 
-def per_token_similarity_cosine(text_emb, pattern_emb):
-  a_distances = np.zeros(len(text_emb))
-  for p in pattern_emb:
-    t_distances = 1 - dist_cosine_to_point(text_emb, p)
-    a_distances = sum_probabilities([t_distances, a_distances])
-  return a_distances
+
+def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_func=distance.cosine):
+  assert len(pattern_embedding.shape) == 1
+  assert len(sentences_embeddings_.shape) == 2
+  assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
+
+  _distances = np.ones(len(sentences_embeddings_))
+  for word_index in range(0, len(sentences_embeddings_)):
+    _distances[word_index] = max(0, min(1, 1.0 - dist_func(sentences_embeddings_[word_index], pattern_embedding)))
+
+  return _distances
