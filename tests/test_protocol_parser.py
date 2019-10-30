@@ -12,8 +12,7 @@ from contract_agents import ORG_LEVELS_re
 from contract_parser import ContractDocument
 from contract_patterns import ContractPatternFactory
 from legal_docs import LegalDocument
-from protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re, itog1, za
-from text_normalize import ru_cap, r_quoted, r_group
+from protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re
 
 
 class TestProtocolParser(unittest.TestCase):
@@ -88,7 +87,6 @@ class TestProtocolParser(unittest.TestCase):
     self.assertEqual('Правление общества', tags[0].value)
 
   def test_find_protocol_votes(self):
-
     doc = self.get_doc('Протокол_СД_ 3.docx.pickle')
     x = protocol_votes_re.search(doc.text)
 
@@ -96,7 +94,6 @@ class TestProtocolParser(unittest.TestCase):
     print(doc.text[x.span()[0]:x.span()[1]])
 
   def test_find_protocol_votes_2(self):
-
     t = '''
 Предварительно утвердить годовой отчет Общества за 2017 год.
 Итоги голосования:
@@ -106,13 +103,14 @@ class TestProtocolParser(unittest.TestCase):
 РЕШЕНИЕ ПРИНЯТО.
 Решение, принятое по первому вопросу повестки дня:
 Предварительно утвердить годовой отчет Общества за 2017 год.'''
-    # print(t)
+
     doc = LegalDocument(t)
     doc.parse()
-    # x = re.compile(za) .search(doc.text)
+
     x = protocol_votes_re.search(doc.text)
-    # for f in x:
-    print(doc.text[x.span()[0]:x.span()[1]])
+
+    match = doc.text[x.span()[0]:x.span()[1]]
+    print(f'[{match}]')
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
