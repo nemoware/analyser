@@ -13,16 +13,14 @@ from bson import json_util
 
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
-from ml_tools import normalize, smooth, extremums, smooth_safe, ProbableValue, \
-  max_exclusive_pattern, TokensWithAttention, SemanticTag, conditional_p_sum, put_if_better
+from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better
 from patterns import *
 from structures import ORG_2_ORG, ContractTags
 from tests.test_text_tools import split_sentences_into_map
 from text_normalize import *
 from text_tools import *
-from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, complete_re, \
-  extract_sum_from_tokens, ValueConstraint, \
-  VALUE_SIGN_MIN_TOKENS, detect_sign, extract_sum_from_tokens_2, currencly_map, find_value_spans
+from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
+  find_value_spans
 
 REPORTED_DEPRECATED = {}
 
@@ -556,55 +554,6 @@ def split_into_sections(doc, caption_indexes):
     doc.subdocs.append(subdoc)
 
 
-def extract_sum_from_doc(doc: LegalDocument, attention_mask=None, relu_th=0.5):
-  sum_pos, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max', relu_th=relu_th)
-  sum_neg, _c = rectifyed_sum_by_pattern_prefix(doc.distances_per_pattern_dict, 'sum_max_neg', relu_th=relu_th)
-
-  sum_pos -= sum_neg
-
-  sum_pos = smooth(sum_pos, window_len=8)
-  #     sum_pos = relu(sum_pos, 0.65)
-
-  if attention_mask is not None:
-    sum_pos *= attention_mask
-
-  sum_pos = normalize(sum_pos)
-
-  return _extract_sums_from_distances(doc, sum_pos), sum_pos
-
-
-def _extract_sum_from_distances____(doc: LegalDocument, sums_no_padding):
-  max_i = np.argmax(sums_no_padding)
-  start, end = doc.tokens_map.sentence_at_index(max_i)
-  sentence_tokens = doc.tokens[start + 1:end]
-
-  f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-  return f, (start, end), sentence
-
-
-def _extract_sums_from_distances(doc: LegalDocument, x):
-  maximas = extremums(x)
-
-  results = []
-  for max_i in maximas:
-    start, end = doc.tokens_map.sentence_at_index(max_i)
-    sentence_tokens = doc.tokens[start + 1:end]
-
-    f, sentence = extract_sum_from_tokens(sentence_tokens)
-
-    if f is not None:
-      result = {
-        'sum': f,
-        'region': (start, end),
-        'sentence': sentence,
-        'confidence': x[max_i]
-      }
-      results.append(result)
-
-  return results
-
-
 MIN_DOC_LEN = 5
 
 
@@ -664,36 +613,6 @@ def soft_attention_vector(doc, pattern_prefix, relu_th=0.5, blur=60, norm=True):
 
 def _expand_slice(s: slice, exp):
   return slice(s.start - exp, s.stop + exp)
-
-
-def extract_all_contraints_from_sr(search_result: PatternSearchResult, attention_vector: List[float]) -> List[
-  ProbableValue]:
-  warnings.warn("use extract_all_contraints_from_sr_2", DeprecationWarning)
-
-  def __tokens_before_index(string, index):
-    warnings.warn("deprecated", DeprecationWarning)
-    return len(string[:index].split(' '))
-
-  sentence = ' '.join(search_result.tokens)
-  all_values = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
-  constraints: List[ProbableValue] = []
-
-  for a in all_values:
-    # print(tokens_before_index(sentence, a.start), 'from', sentence[a])
-    token_index_s = __tokens_before_index(sentence, a.start) - 1
-    token_index_e = __tokens_before_index(sentence, a.stop)
-
-    region = slice(token_index_s, token_index_e)
-
-    vc: ValueConstraint = extract_sum_and_sign_3(search_result, region)
-    _e = _expand_slice(region, 10)
-    vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
-    confidence = attention_vector[region.start]
-    pv = ProbableValue(vc, confidence)
-
-    constraints.append(pv)
-
-  return constraints
 
 
 def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: AbstractPatternFactory,
@@ -792,31 +711,6 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     return ContractValue(sign, value_tag, currency, group)
   else:
     return None
-
-
-def extract_sum_and_sign_3(sr: PatternMatch, region: slice) -> ValueConstraint:
-  warnings.warn("use extract_sum_sign_currency", DeprecationWarning)
-
-  _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
-  subtokens = sr.tokens[_slice]
-  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
-  _sign = detect_sign(_prefix)
-  # ======================================
-  _sum = extract_sum_from_tokens_2(subtokens)
-  # ======================================
-
-  currency = "UNDEF"
-  value = np.nan
-  if _sum is not None:
-    currency = _sum[1]
-    if _sum[1] in currencly_map:
-      currency = currencly_map[_sum[1]]
-    value = _sum[0]
-
-  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
-
-  return vc
 
 
 #
