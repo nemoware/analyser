@@ -119,6 +119,20 @@ class TokenisationTestCase(unittest.TestCase):
 
     # //text_range(doc.tokens_map, [0, 10])
 
+
+
+  def test_char_range(self):
+    text = 'этилен мама ಶ್ರೀರಾಮ'
+    tm = TextMap(text)
+    cr = tm.char_range([0, 1])
+    self.assertEqual('этилен', text[cr[0]:cr[1]])
+
+    cr = tm.char_range([2, None])
+    self.assertEqual('ಶ್ರೀರಾಮ', text[cr[0]:cr[1]])
+
+    cr = tm.char_range([None, 1])
+    self.assertEqual('этилен', text[cr[0]:cr[1]])
+
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)

@@ -115,14 +115,32 @@ class TextMap:
     return [0, self.get_len()]
 
   def char_range(self, span) -> (int, int):
-    if span[0] >= len(self.map):
+    a = span[0]
+    b = span[1]
+
+    if a is None:
+      a = 0
+
+    if b is None:
+      b = len(self.map)
+
+    if a >= len(self.map):
       return 0, 0
 
-    start = self.map[span[0]][0]
-    _last = min(len(self.map), span[1])
+    start = self.map[a][0]
+
+    _last = min(len(self.map), b)
     stop = self.map[_last - 1][1]
 
     return start, stop
+
+  def remap_spans(self, spans, target_map: 'TextMap'):
+    ret = []
+    for span in spans:
+      char_range = self.char_range([span.start, span.stop])
+      words_range = target_map.token_indices_by_char_range(char_range)
+      ret.append(words_range)
+    return ret
 
   def text_range(self, span) -> str:
     try:
