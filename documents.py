@@ -70,13 +70,7 @@ class TextMap:
       b = a + 1
     return a, b
 
-  def token_indices_by_char_range(self, span: [int]) -> slice:
-    warnings.warn("use token_indices_by_char_range_2", DeprecationWarning)
-    a = self.token_index_by_char(span[0])
-    b = self.token_index_by_char(span[1])
-    if a == b and b >= 0:
-      b = a + 1
-    return slice(a, b)
+  token_indices_by_char_range = token_indices_by_char_range_2
 
   def slice(self, span: slice) -> 'TextMap':
     sliced = TextMap(self._full_text, self.map[span])
@@ -85,10 +79,7 @@ class TextMap:
       sliced._full_text = sliced._full_text[0:  sliced.map[-1][-1]]
     else:
       sliced._offset_chars = 0
-    # first_char_index = sliced.map[0][0]
-    # for _s in sliced.map:
-    #   _s[0] -= first_char_index
-    #   _s[1] -= first_char_index
+
     return sliced
 
   def split(self, delimiter: str) -> [Tokens]:
@@ -123,16 +114,19 @@ class TextMap:
         return s
     return [0, self.get_len()]
 
-  def text_range(self, span) -> str:
+  def char_range(self, span) -> (int, int):
     if span[0] >= len(self.map):
-      return ''
+      return 0, 0
 
+    start = self.map[span[0]][0]
+    _last = min(len(self.map), span[1])
+    stop = self.map[_last - 1][1]
+
+    return start, stop
+
+  def text_range(self, span) -> str:
     try:
-      start = self.map[span[0]][0]
-      _last = min(len(self.map), span[1])
-      stop = self.map[_last - 1][1]
-
-      # assume map is ordered
+      start, stop = self.char_range(span)
       return self._full_text[start: stop]
     except:
       err = f'cannot deal with {span}'

@@ -1,7 +1,7 @@
 import re
 import warnings
 from collections.__init__ import Counter
-from typing import List
+from typing import List, Generator
 
 from numpy import ma as ma
 
@@ -25,7 +25,6 @@ vo = r_group(r_quoted('воздержался') + something)
 
 protocol_votes_ = r_group(itog1 + something) + r_group(za + something + pr + something + vo)
 protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
-
 
 
 class ProtocolDocument3(LegalDocument):
@@ -371,7 +370,7 @@ def closest_name(pattern: str, knowns: [str]) -> (str, int):
   return found, min_distance
 
 
-def find_org_structural_level(doc: LegalDocument):
+def find_org_structural_level(doc: LegalDocument) -> Generator:
   compiled_re = re.compile(ORG_LEVELS_re, re.MULTILINE | re.IGNORECASE | re.UNICODE)
 
   entity_type = 'org_structural_level'
