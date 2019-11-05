@@ -6,7 +6,7 @@ import warnings
 
 from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
-from legal_docs import LegalDocument, Paragraph
+from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
 from ml_tools import SemanticTag
 from protocol_parser import ProtocolDocument3
 
@@ -43,9 +43,6 @@ class WordDocParser(DirDocProvider):
     res = json.loads(result.stdout)
 
     return res
-
-
-PARAGRAPH_DELIMITER = '\n'
 
 
 def join_paragraphs(response, doc_id):

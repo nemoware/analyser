@@ -245,6 +245,7 @@ class ContractAnlysingContext(ParsingContext):
 
     for section, confidence_k in search_sections_order:
       if section in contract.sections or section is None:
+
         if section in contract.sections:
           value_section = contract.sections[section].body
           _section_name = contract.sections[section].subdoc.text.strip()
@@ -266,7 +267,7 @@ class ContractAnlysingContext(ParsingContext):
           for g in values_list:
             for _r in g.as_list():
               _r.confidence *= confidence_k
-              _r.offset(value_section.start)
+              # _r.offset(value_section.start)
 
           # ------
           # reduce number of found values
@@ -284,8 +285,8 @@ class ContractAnlysingContext(ParsingContext):
         self.warning(f'Раздел [{section}]  не обнаружен')
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
-  ContractValue]:
+def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[ContractValue]:
+
   if factory is not None:
     value_section_subdoc.calculate_distances_per_pattern(factory)
     vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
@@ -306,6 +307,10 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
       for t in value_sign_currency.as_list():
         t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
           attention_vector_tuned[t.slice]))
+
+  for g in values_list:
+    for _r in g.as_list():
+      _r.offset(value_section_subdoc.start)
 
   return values_list
 

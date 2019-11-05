@@ -793,11 +793,11 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 
   if doc.paragraphs:
     for p in doc.paragraphs:
-      header_lines = doc.substr(p.header).splitlines(True)
+      header_lines = (doc.substr(p.header) + PARAGRAPH_DELIMITER).splitlines(True)
       for line in header_lines:
         tm += split_sentences_into_map(line, max_len_chars)
 
-      body_lines = doc.substr(p.body).splitlines(True)
+      body_lines = (doc.substr(p.body) + PARAGRAPH_DELIMITER).splitlines(True)
       for line in body_lines:
         tm += split_sentences_into_map(line, max_len_chars)
   else:
@@ -806,3 +806,6 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
       tm += split_sentences_into_map(line, max_len_chars)
 
   return tm
+
+
+PARAGRAPH_DELIMITER = '\n'

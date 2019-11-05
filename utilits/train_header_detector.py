@@ -14,7 +14,8 @@ from sklearn.model_selection import train_test_split
 from headers_detector import line_features
 from hyperparams import models_path
 from integration.db import get_mongodb_connection
-from integration.word_document_parser import WordDocParser, join_paragraphs, PARAGRAPH_DELIMITER
+from integration.word_document_parser import WordDocParser, join_paragraphs
+from legal_docs import PARAGRAPH_DELIMITER
 
 files_dirs = [
   # '/Users/artem/Downloads/Telegram Desktop/X0/',

@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from hyperparams import models_path
-from integration.word_document_parser import PARAGRAPH_DELIMITER
+from legal_docs import PARAGRAPH_DELIMITER
 from ml_tools import sum_probabilities, FixedVector
 from text_tools import Tokens
 

@@ -11,8 +11,7 @@ import numpy as np
 from nltk import TreebankWordTokenizer
 
 from documents import TextMap, span_tokenize
-from integration.word_document_parser import PARAGRAPH_DELIMITER
-from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map
+from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
