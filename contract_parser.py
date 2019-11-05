@@ -285,8 +285,8 @@ class ContractAnlysingContext(ParsingContext):
         self.warning(f'Раздел [{section}]  не обнаружен')
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[ContractValue]:
-
+def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
+  ContractValue]:
   if factory is not None:
     value_section_subdoc.calculate_distances_per_pattern(factory)
     vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
@@ -298,6 +298,11 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
     # HATI-HATI: this case is for Unit Testing only
     attention_vector_tuned = None
 
+  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned)
+
+
+def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None) -> List[
+  ContractValue]:
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = [extract_sum_sign_currency(value_section_subdoc, span) for span in spans]
 
