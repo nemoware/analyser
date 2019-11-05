@@ -281,7 +281,7 @@ class HtmlRenderer(AbstractRenderer):
       html += f'<span title="{d} {weights[d]:.4f}" style="background-color:{token_color}">{word}{separator}</span>'
 
       if tokens[d] == '\n':
-        html += "<br>"
+        html += "¶<br>"
 
     return html
 
