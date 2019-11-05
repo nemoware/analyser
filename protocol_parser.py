@@ -74,15 +74,15 @@ class ProtocolPatternFactory(AbstractPatternFactory):
 
     sum_comp_pat = CoumpoundFuzzyPattern()
 
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max1', (prefix + 'стоимость', 'не более 0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max2', (prefix + 'цена', 'не больше 0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max3', (prefix + 'стоимость <', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max4', (prefix + 'цена менее', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max5', (prefix + 'стоимость не может превышать', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max6', (prefix + 'общая сумма может составить', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max7', (prefix + 'лимит соглашения', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max8', (prefix + 'верхний лимит стоимости', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max9', (prefix + 'максимальная сумма', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_1', (prefix + 'стоимость', 'не более 0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_2', (prefix + 'цена', 'не больше 0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_3', (prefix + 'стоимость <', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_4', (prefix + 'цена менее', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_5', (prefix + 'стоимость не может превышать', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_6', (prefix + 'общая сумма может составить', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_7', (prefix + 'лимит соглашения', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_8', (prefix + 'верхний лимит стоимости', '0', suffix)))
+    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_9', (prefix + 'максимальная сумма', '0', suffix)))
 
     sum_comp_pat.add_pattern(
       self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца')), -0.8)
