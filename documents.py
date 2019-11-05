@@ -114,7 +114,7 @@ class TextMap:
         return s
     return [0, self.get_len()]
 
-  def char_range(self, span) -> (int, int):
+  def char_range(self, span: [int]) -> (int, int):
     a = span[0]
     b = span[1]
 
@@ -319,3 +319,19 @@ class DefaultGTokenizer(GTokenizer):
 
 # TODO: use it!
 TOKENIZER_DEFAULT = DefaultGTokenizer()
+
+import numpy as np
+
+
+def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
+  q_sent_indices = np.nonzero(attention_v)[0]
+  w_spans_attention = np.zeros(len(words_map))
+  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
+
+  w_spans = []
+  for char_range, a in char_ranges:
+    words_range = words_map.token_indices_by_char_range(char_range)
+    w_spans.append(words_range)
+    w_spans_attention[words_range[0]:words_range[1]] += a
+
+  return w_spans, w_spans_attention

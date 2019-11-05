@@ -6,7 +6,7 @@ import numpy as np
 import scipy.spatial.distance as distance
 
 from documents import TextMap
-from text_tools import Tokens, dist_cosine_to_point
+from text_tools import Tokens
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
 Vector = TypeVar('Vector', FixedVector, Iterable[float])
@@ -505,6 +505,7 @@ def merge_colliding_spans(spans, eps=0):
 
   return np.array(ret)
 
+
 #
 # def per_token_similarity_cosine(text_emb, pattern_emb):
 #   a_distances = np.zeros(len(text_emb))
@@ -524,3 +525,27 @@ def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_fun
     _distances[word_index] = max(0, min(1, 1.0 - dist_func(sentences_embeddings_[word_index], pattern_embedding)))
 
   return _distances
+
+
+def spans_between_non_zero_attention(attention_v: FixedVector):
+  # finding non-zero attention points (after ReLu)
+  q_sent_indices = np.nonzero(attention_v)[0]
+
+  q_sent_spans = []
+  if len(q_sent_indices) > 0:
+    q_sent_spans.append(slice(None, q_sent_indices[0]))
+    ## re-group indices by spans question slices
+    q_sent_spans += [slice(q_sent_indices[i], q_sent_indices[i + 1]) for i in range(len(q_sent_indices) - 1)]
+    ## add last segment
+    q_sent_spans.append(slice(q_sent_indices[-1], None))
+
+  # print(q_sent_spans)
+  return q_sent_spans
+
+
+def spans_to_attention(spans: [[int]], length: int) -> FixedVector:
+  selection = np.zeros(length)
+  for span in list(spans):
+    selection[span[0]:span[1]] += 1
+
+  return selection
