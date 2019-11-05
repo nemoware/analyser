@@ -29,6 +29,7 @@ class TokenisationTestCase(unittest.TestCase):
     print(max(lens))
     print(np.mean(lens))
 
+    self.assertEqual(doc.tokens_map.text, tm.text)
     self.assertLessEqual(max(lens), maxlen)
 
   def test_tokenize_doc_into_sentences_2(self):

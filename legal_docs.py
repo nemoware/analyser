@@ -62,8 +62,9 @@ def deprecated(fn):
 
 class Paragraph:
   def __init__(self, header: SemanticTag, body: SemanticTag):
-    self.body: SemanticTag = body
     self.header: SemanticTag = header
+    self.body: SemanticTag = body
+
 
 
 class LegalDocument:
@@ -791,19 +792,19 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
 def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
 
-  if doc.paragraphs:
-    for p in doc.paragraphs:
-      header_lines = (doc.substr(p.header) + PARAGRAPH_DELIMITER).splitlines(True)
-      for line in header_lines:
-        tm += split_sentences_into_map(line, max_len_chars)
-
-      body_lines = (doc.substr(p.body) + PARAGRAPH_DELIMITER).splitlines(True)
-      for line in body_lines:
-        tm += split_sentences_into_map(line, max_len_chars)
-  else:
-    body_lines = doc.text.splitlines(True)
-    for line in body_lines:
-      tm += split_sentences_into_map(line, max_len_chars)
+  # if doc.paragraphs:
+  #   for p in doc.paragraphs:
+  #     header_lines = doc.substr(p.header).splitlines(True)
+  #     for line in header_lines:
+  #       tm += split_sentences_into_map(line, max_len_chars)
+  #
+  #     body_lines = doc.substr(p.body).splitlines(True)
+  #     for line in body_lines:
+  #       tm += split_sentences_into_map(line, max_len_chars)
+  # else:
+  body_lines = doc.text.splitlines(True)
+  for line in body_lines:
+    tm += split_sentences_into_map(line, max_len_chars)
 
   return tm
 

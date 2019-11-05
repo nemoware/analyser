@@ -20,7 +20,7 @@ from text_tools import is_long_enough, span_len
 
 _is_valid = is_long_enough
 
-ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + '\s'
+ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + r'\s'
 
 ORG_TYPES_re = [
   ru_cap('Акционерное общество'), 'АО',
@@ -58,11 +58,11 @@ r_alias_prefix = r_group(''
                          + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
-r_types = r_group(f'{_r_types_}', 'type') + '\s'
+r_types = r_group(f'{_r_types_}', 'type') + r'\s'
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
-complete_re_str = r_type_and_name + '\s*' + r_alter + r_alias + '?'
+complete_re_str = r_type_and_name + r'\s*' + r_alter + r_alias + '?'
 # ----------------------------------
 complete_re = re.compile(complete_re_str, re.MULTILINE | re.IGNORECASE)
 
@@ -145,9 +145,9 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
   return tags
 
 
-r_ip = r_group('(\s|^)' + ru_cap('Индивидуальный предприниматель') + '\s*' + '|(\s|^)ИП\s*', 'ip')
+r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')
 sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
-sub_org_name_quoter = (re.compile(r_quoted_name + '\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
+sub_org_name_quoter = (re.compile(r_quoted_name + r'\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
 
 sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
 alias_quote_regex = [

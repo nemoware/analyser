@@ -135,6 +135,7 @@ class TextMap:
     return start, stop
 
   def remap_spans(self, spans, target_map: 'TextMap'):
+    assert self._full_text == target_map._full_text
     ret = []
     for span in spans:
       char_range = self.char_range([span.start, span.stop])
@@ -257,21 +258,19 @@ def span_tokenize(text):
   start_from = 0
   text = text.replace('`', '!')
   text = text.replace('"', '!')
-  tokens=list(nltk.word_tokenize(text))
-  __debug=[]
-
-
+  tokens = list(nltk.word_tokenize(text))
+  __debug = []
 
   for search_token in tokens:
 
     ix_new = text.find(search_token, start_from)
     if ix_new < 0:
-      msg =  f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
+      msg = f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
       warnings.warn(msg)
     else:
       start_from = ix_new
       end = start_from + len(search_token)
-      __debug.append( (search_token, start_from, end)  )
+      __debug.append((search_token, start_from, end))
       yield [start_from, end]
       start_from = end
 
