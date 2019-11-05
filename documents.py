@@ -255,19 +255,23 @@ class GTokenizer:
 
 def span_tokenize(text):
   start_from = 0
-  for token in nltk.word_tokenize(text):
-    if token == "''":
-      token = '"'
+  text = text.replace('`', '!')
+  text = text.replace('"', '!')
+  tokens=list(nltk.word_tokenize(text))
+  __debug=[]
 
-    if token == "``":
-      token = '"'
 
-    ix_new = text.find(token, start_from)
+
+  for search_token in tokens:
+
+    ix_new = text.find(search_token, start_from)
     if ix_new < 0:
-      print(f'ACHTUNG! [{token}] not found with text.find, next text is: {text[start_from:start_from + 30]}')
+      msg =  f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
+      warnings.warn(msg)
     else:
       start_from = ix_new
-      end = start_from + len(token)
+      end = start_from + len(search_token)
+      __debug.append( (search_token, start_from, end)  )
       yield [start_from, end]
       start_from = end
 

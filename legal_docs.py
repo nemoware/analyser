@@ -104,6 +104,9 @@ class LegalDocument:
     self.tokens_map = TextMap(self._normal_text)
 
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+    # body = SemanticTag(kind=None, value=None, span=(0, len(self.tokens_map)));
+    # header = SemanticTag(kind=None, value=None, span=(0, 0));
+    # self.paragraphs = [Paragraph(header, body)]
     return self
 
   def __len__(self):
@@ -183,7 +186,7 @@ class LegalDocument:
 
   def subdoc_slice(self, __s: slice, name='undef'):
     assert self.tokens_map is not None
-    #TODO: support None in slice begin
+    # TODO: support None in slice begin
     _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
     klazz = self.__class__
@@ -787,12 +790,18 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
 
 def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
-  for p in doc.paragraphs:
-    header_lines = doc.substr(p.header).splitlines(True)
-    for line in header_lines:
-      tm += split_sentences_into_map(line, max_len_chars)
 
-    body_lines = doc.substr(p.body).splitlines(True)
+  if doc.paragraphs:
+    for p in doc.paragraphs:
+      header_lines = doc.substr(p.header).splitlines(True)
+      for line in header_lines:
+        tm += split_sentences_into_map(line, max_len_chars)
+
+      body_lines = doc.substr(p.body).splitlines(True)
+      for line in body_lines:
+        tm += split_sentences_into_map(line, max_len_chars)
+  else:
+    body_lines = doc.text.splitlines(True)
     for line in body_lines:
       tm += split_sentences_into_map(line, max_len_chars)
 
