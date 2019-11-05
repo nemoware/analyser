@@ -138,6 +138,15 @@ class TextMap:
     assert self._full_text == target_map._full_text
     ret = []
     for span in spans:
+      char_range = self.char_range(span)
+      words_range = target_map.token_indices_by_char_range(char_range)
+      ret.append(words_range)
+    return ret
+
+  def remap_slices(self, spans, target_map: 'TextMap'):
+    assert self._full_text == target_map._full_text
+    ret = []
+    for span in spans:
       char_range = self.char_range([span.start, span.stop])
       words_range = target_map.token_indices_by_char_range(char_range)
       ret.append(words_range)
