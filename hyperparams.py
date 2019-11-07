@@ -17,4 +17,4 @@ class HyperParameters:
 
   org_level_min_confidence = 0.8
 
-  subject_paragraph_attention_blur=10
+  subject_paragraph_attention_blur = 10

@@ -196,11 +196,9 @@ def normalize_company_name(name: str) -> (str, str):
 
   # normal_name = re.sub(r'["\']', '', normal_name)
 
-
   normal_name = unquote(normal_name)
 
   if normal_name.find('«') >= 0 and normal_name.find('»') < 0:  # TODO: hack
     normal_name += '»'
-
 
   return legal_entity_type, normal_name

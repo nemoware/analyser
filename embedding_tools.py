@@ -97,4 +97,3 @@ class AbstractEmbedder:
       patterns_emb = sentences_emb
 
     return patterns_emb, regions
-

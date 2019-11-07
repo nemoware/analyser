@@ -139,14 +139,14 @@ class LegalDocument:
 
     return self
 
-  def get_tags(self):
+  def get_tags(self) -> [SemanticTag]:
     return []
 
   def get_tags_attention(self):
     _attention = np.zeros(self.__len__())
 
     for t in self.get_tags():
-      _attention[t.as_slice()] += 1
+      _attention[t.as_slice()] += t.confidence
     return _attention
 
   def to_json(self) -> str:

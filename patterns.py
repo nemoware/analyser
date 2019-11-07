@@ -3,7 +3,7 @@
 # coding=utf-8
 import random
 
-from documents import EmbeddableText, CaseNormalizer
+from documents import CaseNormalizer
 from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
 from structures import ContractSubject, OrgStructuralLevel
 from text_tools import *
@@ -16,9 +16,7 @@ DIST_FUNC = dist_mean_cosine
 PATTERN_THRESHOLD = 0.75  # 0...1
 
 
-
-
-class FuzzyPattern( ):
+class FuzzyPattern():
 
   def __init__(self, prefix_pattern_suffix_tuple, _name='undefined'):
     # assert prefix_pattern_suffix_tuple is not None

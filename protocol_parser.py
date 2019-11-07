@@ -53,7 +53,9 @@ class ProtocolDocument4(LegalDocument):
 
     return tags
 
+
 ProtocolDocument = ProtocolDocument4
+
 
 class ProtocolParser(ParsingContext):
   patterns_dict = [
@@ -99,7 +101,7 @@ class ProtocolParser(ParsingContext):
     patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
 
-  def ebmedd(self, doc:ProtocolDocument):
+  def ebmedd(self, doc: ProtocolDocument):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
 
     ### ⚙️🔮 SENTENCES embedding
@@ -157,7 +159,7 @@ class ProtocolParser(ParsingContext):
     v_sections_attention = relu(v_sections_attention, 0.7)
     return v_sections_attention
 
-  def _get_value_attention_vector(self, doc:LegalDocument):
+  def _get_value_attention_vector(self, doc: LegalDocument):
     s_value_attention_vector = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_p_')
     s_value_attention_vector_neg = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
     s_value_attention_vector -= s_value_attention_vector_neg / 3
