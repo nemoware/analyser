@@ -527,6 +527,18 @@ def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_fun
   return _distances
 
 
+def calc_distances_per_pattern_dict(sentences_embeddings_, patterns_dict, patterns_embeddings):
+  # TODO: see https://keras.io/layers/merge/#dot
+
+  distances_per_pattern_dict = {}
+  for i in range(len(patterns_dict)):
+    pattern = patterns_dict[i]
+    _distances = calc_distances_to_pattern(sentences_embeddings_, patterns_embeddings[i])
+
+    distances_per_pattern_dict[pattern[0]] = _distances
+  return distances_per_pattern_dict
+
+
 def spans_between_non_zero_attention(attention_v: FixedVector):
   # finding non-zero attention points (after ReLu)
   q_sent_indices = np.nonzero(attention_v)[0]
