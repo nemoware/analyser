@@ -17,7 +17,7 @@ from protocol_parser import find_protocol_org, find_org_structural_level, protoc
 
 class TestProtocolParser(unittest.TestCase):
 
-  def get_doc(self, fn) -> (ContractDocument, ContractPatternFactory):
+  def get_doc(self, fn) -> (LegalDocument, ContractPatternFactory):
     pth = os.path.dirname(__file__)
     with open(os.path.join(pth, fn), 'rb') as handle:
       doc = pickle.load(handle)

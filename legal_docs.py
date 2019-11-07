@@ -66,7 +66,6 @@ class Paragraph:
     self.body: SemanticTag = body
 
 
-
 class LegalDocument:
 
   def __init__(self, original_text=None, name="legal_doc"):
@@ -142,6 +141,13 @@ class LegalDocument:
 
   def get_tags(self):
     return []
+
+  def get_tags_attention(self):
+    _attention = np.zeros(self.__len__())
+
+    for t in self.get_tags():
+      _attention[t.as_slice()] += 1
+    return _attention
 
   def to_json(self) -> str:
     j = DocumentJson(self)
