@@ -13,7 +13,7 @@ from contract_patterns import ContractPatternFactory
 from documents import TextMap
 from legal_docs import LegalDocument
 from ml_tools import SemanticTag
-from protocol_parser import ProtocolDocument3
+from protocol_parser import ProtocolDocument
 from structures import ContractTags
 
 
@@ -64,7 +64,7 @@ class TestContractParser(unittest.TestCase):
 
   def test_ProtocolDocument3_init(self):
     doc, __ = self.get_doc('2. Договор по благ-ти Радуга.docx.pickle')
-    pr = ProtocolDocument3(doc)
+    pr = ProtocolDocument(doc)
     print(pr.__dict__['date'])
 
   def test_contract_analyze(self):
@@ -134,7 +134,6 @@ class TestContractParser(unittest.TestCase):
       print(p.header.value)
 
     self.assertIn('subj', doc.sections)
-     
 
     self.assertEqual('1. ПРЕДМЕТ ДОГОВОРА.', doc.sections['subj'].header.strip())
 

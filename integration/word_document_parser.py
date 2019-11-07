@@ -8,14 +8,14 @@ from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
 from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
 from ml_tools import SemanticTag
-from protocol_parser import ProtocolDocument3
+from protocol_parser import ProtocolDocument
 
 
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.5'
+    self.version = '1.1.9'
 
     x = os.system("java -version")
     assert x == 0
@@ -51,7 +51,7 @@ def join_paragraphs(response, doc_id):
   if response['documentType'] == 'CONTRACT':
     doc: LegalDocument = ContractDocument('')
   elif response['documentType'] == 'PROTOCOL':
-    doc: LegalDocument = ProtocolDocument3(None)
+    doc: LegalDocument = ProtocolDocument(None)
   else:
     warnings.warn("Unsupported document type:", response['documentType'])
     doc: LegalDocument = LegalDocument('')
