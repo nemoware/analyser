@@ -168,7 +168,8 @@ class ProtocolParser(ParsingContext):
   def _get_value_attention_vector(self, doc: LegalDocument):
     s_value_attention_vector = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_p_')
     s_value_attention_vector_neg = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
-    s_value_attention_vector -= s_value_attention_vector_neg / 3
+    s_value_attention_vector_neg = relu(s_value_attention_vector_neg, 0.5)
+    s_value_attention_vector -= s_value_attention_vector_neg * 0.8
     s_value_attention_vector = relu(s_value_attention_vector, 0.25)
     return s_value_attention_vector
 
