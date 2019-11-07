@@ -62,8 +62,8 @@ def deprecated(fn):
 
 class Paragraph:
   def __init__(self, header: SemanticTag, body: SemanticTag):
-    self.body: SemanticTag = body
     self.header: SemanticTag = header
+    self.body: SemanticTag = body
 
 
 class LegalDocument:
@@ -104,6 +104,9 @@ class LegalDocument:
     self.tokens_map = TextMap(self._normal_text)
 
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+    # body = SemanticTag(kind=None, value=None, span=(0, len(self.tokens_map)));
+    # header = SemanticTag(kind=None, value=None, span=(0, 0));
+    # self.paragraphs = [Paragraph(header, body)]
     return self
 
   def __len__(self):
@@ -136,8 +139,15 @@ class LegalDocument:
 
     return self
 
-  def get_tags(self):
-    raise NotImplementedError()
+  def get_tags(self) -> [SemanticTag]:
+    return []
+
+  def get_tags_attention(self):
+    _attention = np.zeros(self.__len__())
+
+    for t in self.get_tags():
+      _attention[t.as_slice()] += t.confidence
+    return _attention
 
   def to_json(self) -> str:
     j = DocumentJson(self)
@@ -183,10 +193,11 @@ class LegalDocument:
 
   def subdoc_slice(self, __s: slice, name='undef'):
     assert self.tokens_map is not None
+    # TODO: support None in slice begin
     _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
     klazz = self.__class__
-    sub = klazz("REF")
+    sub = klazz(None)
     sub.start = _s.start
     sub.end = _s.stop
 
@@ -344,6 +355,9 @@ class LegalDocument:
 
     self.embeddings = embeddings
     # self.tokens = tokens
+
+  def get_tag_text(self, tag: SemanticTag):
+    return self.tokens_map.text_range(tag.span)
 
   def substr(self, tag: SemanticTag) -> str:
     return self.tokens_map.text_range(tag.span)
@@ -783,8 +797,22 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
 
 def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
-  for p in doc.paragraphs:
-    tm += split_sentences_into_map(doc.substr(p.header), max_len_chars)
-    tm += split_sentences_into_map(doc.substr(p.body), max_len_chars)
+
+  # if doc.paragraphs:
+  #   for p in doc.paragraphs:
+  #     header_lines = doc.substr(p.header).splitlines(True)
+  #     for line in header_lines:
+  #       tm += split_sentences_into_map(line, max_len_chars)
+  #
+  #     body_lines = doc.substr(p.body).splitlines(True)
+  #     for line in body_lines:
+  #       tm += split_sentences_into_map(line, max_len_chars)
+  # else:
+  body_lines = doc.text.splitlines(True)
+  for line in body_lines:
+    tm += split_sentences_into_map(line, max_len_chars)
 
   return tm
+
+
+PARAGRAPH_DELIMITER = '\n'

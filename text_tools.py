@@ -58,6 +58,18 @@ def remove_empty_lines(original_text):
 # DISTANCES
 # ----------------------------------------------------------------
 
+
+def dist_cosine_to_point(text_emb, pt):
+  t_distances = np.zeros(len(text_emb))
+  for i in range(len(text_emb)):
+
+    d = distance.cosine(text_emb[i], pt)
+    if d > 1: d = 1
+    t_distances[i] = d
+
+  return t_distances
+
+
 def dist_hausdorff(u, v):
   return max(distance.directed_hausdorff(v, u, 4)[0], distance.directed_hausdorff(u, v, 4)[0]) / 40
 
@@ -371,6 +383,20 @@ def split_into_sentences(txt, max_len_chars=150):
     spans.append(span)
 
   return spans
+
+
+def is_long_enough(val: str, minlen=2) -> bool:
+  if not val:
+    return False
+  if val.strip() == '':
+    return False
+  if len(val.strip()) < minlen:
+    return False
+  return True
+
+
+def span_len(span: [int]) -> int:
+  return abs(span[1] - span[0])
 
 
 if __name__ == '__main__':
