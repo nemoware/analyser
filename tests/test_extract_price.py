@@ -14,7 +14,8 @@ from documents import TextMap
 from legal_docs import find_value_sign
 from ml_tools import conditional_p_sum
 from text_normalize import *
-from transaction_values import extract_sum, split_by_number_2
+from transaction_values import extract_sum
+from charter_parser import split_by_number_2
 
 data = [
   (0, 41752.62, 'RUB',

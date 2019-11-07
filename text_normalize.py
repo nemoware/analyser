@@ -5,6 +5,8 @@
 
 import re
 
+from text_tools import unquote
+
 
 def r_group(x, name=None):
   if name is not None:
@@ -188,14 +190,15 @@ def normalize_company_name(name: str) -> (str, str):
   normal_name = re.sub(r'\s+', ' ', normal_name)
   normal_name = re.sub(r'[\s ]*[-–][\s ]*', '-', normal_name)
 
-  x = r_quoted_name_contents_c.search(normal_name)
-  if x is not None and x['r_quoted_name_contents'] is not None:
-    normal_name = x['r_quoted_name_contents']
+  # x = r_quoted_name_contents_c.search(normal_name)
+  # if x is not None and x['r_quoted_name_contents'] is not None:
+  #   normal_name = x['r_quoted_name_contents']
 
   # normal_name = re.sub(r'["\']', '', normal_name)
+
+  normal_name = unquote(normal_name)
+
   if normal_name.find('«') >= 0 and normal_name.find('»') < 0:  # TODO: hack
     normal_name += '»'
 
-  if normal_name[0] == '«' and normal_name[-1] == '»':
-    normal_name = normal_name[1:-1]
   return legal_entity_type, normal_name

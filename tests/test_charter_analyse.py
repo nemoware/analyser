@@ -7,7 +7,7 @@ import unittest
 
 from charter_parser import CharterDocumentParser
 from charter_patterns import CharterPatternFactory
-from embedding_tools import ElmoEmbedder
+from tf_support.embedder_elmo import ElmoEmbedder
 
 
 class TestAnalyse(unittest.TestCase):

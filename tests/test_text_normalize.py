@@ -49,6 +49,10 @@ class CaseNormalizerTestCase(unittest.TestCase):
 class TestTextNormalization(unittest.TestCase):
 
   def test_normalize_company_name(self):
+    a, b = normalize_company_name('Многофункциональный комплекс «Лахта центр»')
+    self.assertEqual('', a)
+    self.assertEqual('Многофункциональный комплекс «Лахта центр»', b)
+
     a, b = normalize_company_name('ООО «Газпромнефть Марин Бункер»')
     self.assertEqual('ООО', a)
     self.assertEqual('Газпромнефть Марин Бункер', b)

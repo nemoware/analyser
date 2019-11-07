@@ -1,7 +1,9 @@
+import math
 import warnings
 from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
+import scipy.spatial.distance as distance
 
 from documents import TextMap
 from text_tools import Tokens
@@ -186,9 +188,6 @@ def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
     m *= decay
 
   return innertia
-
-
-import math
 
 
 def momentum_t(x: FixedVector, half_decay: int = 10, left=False) -> np.ndarray:
@@ -505,3 +504,74 @@ def merge_colliding_spans(spans, eps=0):
       ret[-1][1] = spans[i][1]
 
   return np.array(ret)
+
+
+#
+# def per_token_similarity_cosine(text_emb, pattern_emb):
+#   a_distances = np.zeros(len(text_emb))
+#   for p in pattern_emb:
+#     t_distances = 1 - dist_cosine_to_point(text_emb, p)
+#     a_distances = sum_probabilities([t_distances, a_distances])
+#   return a_distances
+
+
+def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_func=distance.cosine):
+  assert len(pattern_embedding.shape) == 1
+  assert len(sentences_embeddings_.shape) == 2
+  assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
+
+  _distances = np.ones(len(sentences_embeddings_))
+  for word_index in range(0, len(sentences_embeddings_)):
+    _distances[word_index] = max(0, min(1, 1.0 - dist_func(sentences_embeddings_[word_index], pattern_embedding)))
+
+  return _distances
+
+
+def calc_distances_per_pattern_dict(sentences_embeddings_, patterns_dict, patterns_embeddings):
+  # TODO: see https://keras.io/layers/merge/#dot
+
+  distances_per_pattern_dict = {}
+  for i in range(len(patterns_dict)):
+    pattern = patterns_dict[i]
+    _distances = calc_distances_to_pattern(sentences_embeddings_, patterns_embeddings[i])
+
+    distances_per_pattern_dict[pattern[0]] = _distances
+  return distances_per_pattern_dict
+
+
+def spans_between_non_zero_attention(attention_v: FixedVector):
+  # finding non-zero attention points (after ReLu)
+  q_sent_indices = np.nonzero(attention_v)[0]
+
+  q_sent_spans = []
+  if len(q_sent_indices) > 0:
+    q_sent_spans.append(slice(None, q_sent_indices[0]))
+    ## re-group indices by spans question slices
+    q_sent_spans += [slice(q_sent_indices[i], q_sent_indices[i + 1]) for i in range(len(q_sent_indices) - 1)]
+    ## add last segment
+    q_sent_spans.append(slice(q_sent_indices[-1], None))
+
+  # print(q_sent_spans)
+  return q_sent_spans
+
+
+def spans_to_attention(spans: [[int]], length: int) -> FixedVector:
+  selection = np.zeros(length)
+  for span in list(spans):
+    selection[span[0]:span[1]] += 1
+
+  return selection
+
+
+def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
+  q_sent_indices = np.nonzero(attention_v)[0]
+  w_spans_attention = np.zeros(len(words_map))
+  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
+
+  w_spans = []
+  for char_range, a in char_ranges:
+    words_range = words_map.token_indices_by_char_range(char_range)
+    w_spans.append(words_range)
+    w_spans_attention[words_range[0]:words_range[1]] += a
+
+  return w_spans, w_spans_attention

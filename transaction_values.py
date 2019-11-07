@@ -10,8 +10,8 @@ import re
 import warnings
 from typing import List
 
-from ml_tools import TokensWithAttention, FixedVector
-from text_tools import np, Tokens, to_float, untokenize
+from ml_tools import TokensWithAttention
+from text_tools import to_float
 
 currencly_map = {
   'руб': 'RUB',
@@ -78,19 +78,6 @@ def extract_sum(_sentence: str) -> (float, str):
   return number, currencly_map[curr.lower()]
 
 
-def extract_sum_from_tokens(sentence_tokens: Tokens):
-  warnings.warn("method relies on untokenize, not good", DeprecationWarning)
-  _sentence = untokenize(sentence_tokens).lower().strip()
-  f = extract_sum(_sentence)
-  return f, _sentence
-
-
-def extract_sum_from_tokens_2(sentence_tokens: Tokens):
-  warnings.warn("method relies on untokenize, not good", DeprecationWarning)
-  f, __ = extract_sum_from_tokens(sentence_tokens)
-  return f
-
-
 _re_greather_then_1 = re.compile(r'(не менее|не ниже)', re.MULTILINE)
 _re_greather_then = re.compile(r'(\sот\s+|больше|более|свыше|выше|превыша[а-я]{2,4})', re.MULTILINE)
 _re_less_then = re.compile(
@@ -115,86 +102,7 @@ def detect_sign(prefix: str):
 
 number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 
-
-def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
-        List[List[str]], List[int], List[slice]):
-  indexes = []
-  last_token_is_number = False
-  for i in range(len(tokens)):
-
-    if attention[i] > threshold and len(number_re.findall(tokens[i])) > 0:
-      if not last_token_is_number:
-        indexes.append(i)
-      last_token_is_number = True
-    else:
-      last_token_is_number = False
-
-  text_fragments = []
-  ranges: List[slice] = []
-  if len(indexes) > 0:
-    for i in range(1, len(indexes)):
-      _slice = slice(indexes[i - 1], indexes[i])
-      text_fragments.append(tokens[_slice])
-      ranges.append(_slice)
-
-    text_fragments.append(tokens[indexes[-1]:])
-    ranges.append(slice(indexes[-1], len(tokens)))
-  return text_fragments, indexes, ranges
-
-
-def split_by_number(tokens: List[str], attention: List[float], threshold):
-  indexes = []
-  last_token_is_number = False
-  for i in range(len(tokens)):
-
-    if attention[i] > threshold and len(number_re.findall(tokens[i])) > 0:
-      if not last_token_is_number:
-        indexes.append(i)
-      last_token_is_number = True
-    else:
-      last_token_is_number = False
-
-  text_fragments = []
-  ranges = []
-  if len(indexes) > 0:
-    for i in range(1, len(indexes)):
-      s = indexes[i - 1]
-      e = indexes[i]
-      text_fragments.append(tokens[s:e])
-      ranges.append((s, e))
-
-    text_fragments.append(tokens[indexes[-1]:])
-    ranges.append((indexes[-1], len(tokens)))
-  return text_fragments, indexes, ranges
-
-
 VALUE_SIGN_MIN_TOKENS = 4
-
-
-def extract_sum_and_sign_2(subdoc, region: slice) -> ValueConstraint:
-  warnings.warn("deprecated", DeprecationWarning)
-  # TODO: rename
-
-  _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
-  subtokens = subdoc.tokens_cc[_slice]
-  _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-  _prefix = untokenize(_prefix_tokens)
-  _sign = detect_sign(_prefix)
-  # ======================================
-  _sum = extract_sum_from_tokens_2(subtokens)
-  # ======================================
-
-  currency = "UNDEF"
-  value = np.nan
-  if _sum is not None:
-    currency = _sum[1]
-    if _sum[1] in currencly_map:
-      currency = currencly_map[_sum[1]]
-    value = _sum[0]
-
-  vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
-
-  return vc
 
 
 def find_value_spans(_sentence: str) -> (List[int], float, List[int], str):

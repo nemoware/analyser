@@ -1,21 +1,18 @@
 1.1. Договор пожертвования.docx:	org_2_name 
 	 expected: 'Детская городская больница №1' 
 	   ACTUAL: 'nan'
-3 этап по правилам/1 Договор.docx:	value 
-	 expected: 'nan' 
-	   ACTUAL: '720000.0'
 3 этап по правилам/O_final.docx:	org_2_name 
 	 expected: 'Шеферсон Лазарь Абрамович' 
 	   ACTUAL: 'nan'
-3 этап по правилам/ДД_2.docx:	value 
-	 expected: 'nan' 
-	   ACTUAL: '25000.0'
+3 этап по правилам/ДД_2.docx:	org_2_name 
+	 expected: 'Логарифм' 
+	   ACTUAL: 'nan'
 3 этап по правилам/ДД_5.docx:	org_1_name 
 	 expected: 'Газпромнефть-Сахалин' 
 	   ACTUAL: 'nan'
 3 этап по правилам/ДД_5.docx:	org_2_name 
 	 expected: 'Частная охранная организация «СТАР»' 
-	   ACTUAL: 'Частная охранная организация «'
+	   ACTUAL: '«Частная охранная организация «»'
 3 этап по правилам/Договор 12.docx:	subject 
 	 expected: 'Deal' 
 	   ACTUAL: 'RealEstate'
@@ -55,9 +52,6 @@
 3 этап по правилам/договор.4.docx:	org_2_name 
 	 expected: 'Газпромнефть–Сахалин' 
 	   ACTUAL: 'nan'
-3 этап по правилам/договор.5.docx:	org_2_name 
-	 expected: 'Многофункциональный комплекс «Лахта центр»' 
-	   ACTUAL: 'МФК «Лахта центр»'
 3 этап по правилам/договор.5.docx:	value 
 	 expected: 'nan' 
 	   ACTUAL: '500000.0'
@@ -83,4 +77,4 @@
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	28 of 52 docs
+ERRRORS: 	26 of 52 docs
