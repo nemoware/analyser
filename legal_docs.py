@@ -681,8 +681,13 @@ class ContractValue:
     self.currency = currency
     self.parent = parent
 
-  def as_list(self):
+  def as_list(self) -> [SemanticTag]:
     return [self.value, self.sign, self.currency, self.parent]
+
+  def span(self):
+    left = min([tag.span[0] for tag in self.as_list()])
+    right = max([tag.span[0] for tag in self.as_list()])
+    return left, right
 
   def integral_sorting_confidence(self) -> float:
     return conditional_p_sum(

@@ -42,14 +42,15 @@ class ProtocolDocument4(LegalDocument):
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
     self.agenda_questions: [SemanticTag] = []
-    self.margin_values: [SemanticTag] = []
+    self.margin_values: [ContractValue] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
     tags += self.agents_tags
     tags += self.org_level
     tags += self.agenda_questions
-    tags += self.margin_values
+    for mv in self.margin_values:
+      tags += mv.as_list()
 
     return tags
 
@@ -123,6 +124,20 @@ class ProtocolParser(ParsingContext):
     doc.org_level = list(find_org_structural_level(doc))
     doc.agents_tags = list(find_protocol_org(doc))
     doc.agenda_questions = self.find_question_decision_sections(doc)
+    doc.margin_values = self.find_values(doc)
+
+  def find_values(self, doc)->[ContractValue]:
+    values: [ContractValue] = find_value_sign_currency_attention(doc, doc.distances_per_pattern_dict[
+      'relu_value_attention_vector'])
+
+    # set parents for values
+    for tag in doc.agenda_questions:
+      for v in values:
+        if tag.is_nested(v.span()):
+          for t in v.as_list():
+            t.parent = tag.kind
+
+    return values
 
   def collect_spans_having_votes(self, segments, textmap):
     """
