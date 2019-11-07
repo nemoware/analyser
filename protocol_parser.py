@@ -45,6 +45,8 @@ class ProtocolDocument3(LegalDocument):
     self.sentence_map: TextMap = None
     self.sentences_embeddings = None
 
+    self.distances_per_sentence_pattern_dict = {}
+
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
 
@@ -139,8 +141,6 @@ class ProtocolPatternFactory(AbstractPatternFactory):
       ep.add_pattern(t_char_mix)
 
     self.subject_pattern = ep
-
-
 
 
 class ProtocolDocument(BasicContractDocument):
@@ -293,6 +293,10 @@ class ProtocolAnalyser(ParsingContext):
     doc.calculate_distances_per_pattern(self.protocols_factory)
     # ------
 
+    doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
+                                                                              self.patterns_dict,
+                                                                              self.patterns_embeddings)
+
     sections_tags = self.find_question_decision_sections(doc)
     pass
 
@@ -328,13 +332,6 @@ class ProtocolAnalyser(ParsingContext):
 
     v_sections_attention = sum_probabilities(vv_)
 
-    # v_deal_approval = max_exclusive_pattern_by_prefix(distances_per_pattern_dict, 'deal_approval_')
-    # v_deal_approval = relu(v_deal_approval, 0.5)
-
-    # v_question = max_exclusive_pattern_by_prefix(distances_per_pattern_dict, 'question_')
-    # v_question = relu(v_question, 0.5)
-
-    # v_sections_attention = sum_probabilities([v_deal_approval, v_question])
     v_sections_attention = relu(v_sections_attention, 0.7)
     return v_sections_attention
 
@@ -347,9 +344,7 @@ class ProtocolAnalyser(ParsingContext):
 
   def find_question_decision_sections(self, doc: ProtocolDocument3):
 
-    distances_per_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings, self.patterns_dict,
-                                                                 self.patterns_embeddings)
-    v_sections_attention = self.find_protocol_sections_edges(distances_per_pattern_dict)
+    v_sections_attention = self.find_protocol_sections_edges(doc.distances_per_sentence_pattern_dict)
 
     # --------------
     question_spans_sent = spans_between_non_zero_attention(v_sections_attention)
@@ -364,12 +359,11 @@ class ProtocolAnalyser(ParsingContext):
     votes_attention = spans_to_attention(spans_having_votes_words, len(doc))
 
     # v_deal_approval_words = sentence_map.remap_spans(v_deal_approval,  doc.tokens_map )
-    v_deal_approval = max_exclusive_pattern_by_prefix(distances_per_pattern_dict, 'deal_approval_')
+    v_deal_approval = max_exclusive_pattern_by_prefix(doc.distances_per_sentence_pattern_dict, 'deal_approval_')
     _spans, v_deal_approval_words_attention = sentences_attention_to_words(v_deal_approval, doc.sentence_map,
                                                                            doc.tokens_map)
 
     ## value attention
-
 
     s_value_attention_vector = self._get_value_attention_vector(doc)
 
@@ -379,7 +373,7 @@ class ProtocolAnalyser(ParsingContext):
 
     value_attention_vector = relu(value_attention_vector, 0.5)
 
-    words_spans_having_votes = doc.sentence_map.remap_slices(spans_having_votes, doc.tokens_map)
+    # // words_spans_having_votes = doc.sentence_map.remap_slices(spans_having_votes, doc.tokens_map)
 
     values: List[ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
