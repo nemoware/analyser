@@ -316,8 +316,9 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
             attention_vector_tuned[t.slice]))
 
   for g in values_list:
-    for _r in g.as_list():
-      _r.offset(value_section_subdoc.start)
+    if g is not None:
+      for _r in g.as_list():
+        _r.offset(value_section_subdoc.start)
 
   return values_list
 
