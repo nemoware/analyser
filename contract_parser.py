@@ -265,8 +265,9 @@ class ContractAnlysingContext(ParsingContext):
         else:
           # decrease confidence:
           for g in values_list:
-            for _r in g.as_list():
-              _r.confidence *= confidence_k
+            if g is not None:
+              for _r in g.as_list():
+                _r.confidence *= confidence_k
               # _r.offset(value_section.start)
 
           # ------
