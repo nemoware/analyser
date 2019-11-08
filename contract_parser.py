@@ -265,10 +265,9 @@ class ContractAnlysingContext(ParsingContext):
         else:
           # decrease confidence:
           for g in values_list:
-            if g is not None:
-              for _r in g.as_list():
-                _r.confidence *= confidence_k
-              # _r.offset(value_section.start)
+            for _r in g.as_list():
+              _r.confidence *= confidence_k
+
 
           # ------
           # reduce number of found values
@@ -305,20 +304,20 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
 def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None) -> List[
   ContractValue]:
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
-  values_list = [extract_sum_sign_currency(value_section_subdoc, span) for span in spans]
+  values_list = []
 
-  # Estimating confidence by looking at attention vector
-  if attention_vector_tuned is not None:
-    for value_sign_currency in values_list:
-      if value_sign_currency is not None:
+  for span in spans:
+    value_sign_currency = extract_sum_sign_currency(value_section_subdoc, span)
+    if value_sign_currency is not None:
+
+      # Estimating confidence by looking at attention vector
+      if attention_vector_tuned is not None:
         for t in value_sign_currency.as_list():
           t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
             attention_vector_tuned[t.slice]))
+          t.offset(value_section_subdoc.start)
 
-  for g in values_list:
-    if g is not None:
-      for _r in g.as_list():
-        _r.offset(value_section_subdoc.start)
+      values_list.append(value_sign_currency)
 
   return values_list
 

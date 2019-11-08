@@ -694,7 +694,7 @@ class ContractValue:
       [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) ->  ContractValue or None:
   subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
 
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
