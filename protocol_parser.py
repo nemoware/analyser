@@ -52,7 +52,7 @@ class ProtocolDocument4(LegalDocument):
     return tags
 
 
-ProtocolDocument = ProtocolDocument4
+ProtocolDocument = ProtocolDocument4  # aliasing
 
 
 class ProtocolParser(ParsingContext):
@@ -106,7 +106,7 @@ class ProtocolParser(ParsingContext):
     doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
 
     ### ⚙️🔮 WORDS Ebmedding
-    doc.embedd(self.protocols_factory)
+    doc.embedd_tokens(self.embedder)
 
     doc.calculate_distances_per_pattern(self.protocols_factory)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
@@ -122,6 +122,26 @@ class ProtocolParser(ParsingContext):
     doc.agents_tags = list(find_protocol_org(doc))
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
+
+    doc.agents_tags += list(self.find_agents_in_all_sections(doc, doc.agenda_questions))
+
+  def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
+    ret = []
+    for parent in agenda_questions:
+      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_')
+      if x:
+        ret += x
+    return ret
+
+  def _find_agents_in_section(self, protocol: LegalDocument, parent, tag_kind_prefix: str) -> List[SemanticTag]:
+    span = parent.span
+    x: List[SemanticTag] = find_org_names(protocol[span[0]:span[1]], max_names=10, tag_kind_prefix=tag_kind_prefix)
+
+    for org in x:
+      org.offset(span[0])
+      org.parent = parent.kind
+
+    return x
 
   def find_values(self, doc) -> [ContractValue]:
     values: [ContractValue] = find_value_sign_currency_attention(doc, doc.distances_per_pattern_dict[

@@ -101,7 +101,7 @@ def _find_org_names(text: str) -> List[Dict]:
   return list(org_names.values())
 
 
-def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
+def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[SemanticTag]:
   tags = []
   org_i = 0
 
@@ -110,7 +110,7 @@ def find_org_names(doc: LegalDocument, max_names=2) -> List[SemanticTag]:
 
     if org_i <= max_names:
       for entity_type in entities_types:
-        tagname = f'org.{org_i}.{entity_type}'
+        tagname = f'{tag_kind_prefix}org.{org_i}.{entity_type}'
         char_span = m.span(entity_type)
 
         # span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
