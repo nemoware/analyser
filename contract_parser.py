@@ -309,9 +309,10 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
   # Estimating confidence by looking at attention vector
   if attention_vector_tuned is not None:
     for value_sign_currency in values_list:
-      for t in value_sign_currency.as_list():
-        t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
-          attention_vector_tuned[t.slice]))
+      if value_sign_currency is not None:
+        for t in value_sign_currency.as_list():
+          t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
+            attention_vector_tuned[t.slice]))
 
   for g in values_list:
     for _r in g.as_list():
