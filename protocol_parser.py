@@ -149,10 +149,10 @@ class ProtocolParser(ParsingContext):
 
     # set parents for values
     for tag in doc.agenda_questions:
+
       for v in values:
         if tag.is_nested(v.span()):
-          for t in v.as_list():
-            t.parent = tag.kind
+          v.parent.parent = tag.kind
 
     return values
 
