@@ -708,7 +708,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) ->  Contra
     value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
-    parent = f'sign-value-currency-{region[0]}:{region[1]}'
+    parent = f'sign_value_currency_{region[0]}_{region[1]}'
     group = SemanticTag(parent, None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
