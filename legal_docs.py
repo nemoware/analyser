@@ -681,15 +681,20 @@ class ContractValue:
     self.currency = currency
     self.parent = parent
 
-  def as_list(self):
+  def as_list(self) -> [SemanticTag]:
     return [self.value, self.sign, self.currency, self.parent]
+
+  def span(self):
+    left = min([tag.span[0] for tag in self.as_list()])
+    right = max([tag.span[0] for tag in self.as_list()])
+    return left, right
 
   def integral_sorting_confidence(self) -> float:
     return conditional_p_sum(
       [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) ->  ContractValue or None:
   subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
 
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
@@ -703,7 +708,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
-    parent = f'sign-value-currency-{region[0]}:{region[1]}'
+    parent = f'sign_value_currency_{region[0]}_{region[1]}'
     group = SemanticTag(parent, None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
