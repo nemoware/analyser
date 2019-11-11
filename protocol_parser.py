@@ -187,10 +187,17 @@ class ProtocolParser(ParsingContext):
 
   def _get_value_attention_vector(self, doc: LegalDocument):
     s_value_attention_vector = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_p_')
-    s_value_attention_vector_neg = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
-    s_value_attention_vector_neg = relu(s_value_attention_vector_neg, 0.5)
-    s_value_attention_vector -= s_value_attention_vector_neg * 0.8
-    s_value_attention_vector = relu(s_value_attention_vector, 0.25)
+
+    doc.distances_per_pattern_dict['__max_value_av'] = s_value_attention_vector  # just for debugging
+    not_value_av = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'not_sum_')
+
+    not_value_av = smooth_safe(not_value_av, window_len=5)
+
+    not_value_av = relu(not_value_av, 0.5)
+    doc.distances_per_pattern_dict['__not_value_av'] = not_value_av  # just for debugging
+
+    s_value_attention_vector -= not_value_av * 0.8
+    s_value_attention_vector = relu(s_value_attention_vector, 0.3)
     return s_value_attention_vector
 
   def find_question_decision_sections(self, doc: ProtocolDocument):
@@ -272,17 +279,25 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_8', (prefix + 'верхний лимит стоимости', '0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_9', (prefix + 'максимальная сумма', '0', suffix)))
 
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца')), -0.8)
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек')),
-                             -0.8)
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи')), -0.8)
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания ')), -0.8)
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.')), -0.8)
+    # self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца'))
+    # self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек') )
+    # self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи'))
+    # self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания '))
+    # self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.'))
 
-    self.sum_pattern = sum_comp_pat
+    f = self
+    f.create_pattern('not_sum_0', ('', 'пункт 0.', ''))
+    f.create_pattern('not_sum_1', ('', '0 дней', ''))
+    f.create_pattern('not_sum_1.1', ('', 'в течение 0 ( ноля ) дней', ''))
+    f.create_pattern('not_sum_1.2', ('', '0 января', ''))
+    f.create_pattern('not_sum_2', ('', '0 минут', ''))
+    f.create_pattern('not_sum_3', ('', '0 часов', ''))
+    f.create_pattern('not_sum_4', ('', '0 процентов', ''))
+    f.create_pattern('not_sum_5', ('', '0 %', ''))
+    f.create_pattern('not_sum_5.1', ('', '0 % голосов', ''))
+    f.create_pattern('not_sum_6', ('', '2000 год', ''))
+    f.create_pattern('not_sum_7', ('', '0 человек', ''))
+    f.create_pattern('not_sum_8', ('', '0 метров', ''))
 
   def _build_subject_pattern(self):
     ep = ExclusivePattern()
