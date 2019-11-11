@@ -11,8 +11,7 @@ import numpy as np
 from nltk import TreebankWordTokenizer
 
 from documents import TextMap, span_tokenize
-from integration.word_document_parser import PARAGRAPH_DELIMITER
-from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map
+from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
@@ -30,7 +29,37 @@ class TokenisationTestCase(unittest.TestCase):
     print(max(lens))
     print(np.mean(lens))
 
+    self.assertEqual(doc.tokens_map.text, tm.text)
     self.assertLessEqual(max(lens), maxlen)
+
+  def test_tokenize_doc_into_sentences_2(self):
+    doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
+            дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
+            организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
+            с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
+            в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
+            именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
+            """
+    doc = CharterDocument(doc_text)
+    doc.parse()
+
+    maxlen = 50
+    tm = tokenize_doc_into_sentences_map(doc, maxlen)
+
+    lens = [len(t) for t in tm.tokens]
+    print(min(lens))
+    print(max(lens))
+    print(np.mean(lens))
+
+    self.assertLessEqual(max(lens), maxlen)
+
+  def test_normalize_doc_slice_1(self):
+    doc_text = """\n\n\nАкционерное 3`4`` общество «Газпром - 'Вибраниум' и Криптонит» (АО «ГВК»), "именуемое" в собранием `` акционеров собранием `` акционеров \'\' \
+        дальнейшем «Благотворитель», 
+        """
+    doc_o = CharterDocument(doc_text)
+    doc_o.parse()
+    print(doc_o.tokens_map.tokens)
 
   def test_normalize_doc_slice(self):
     doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
@@ -112,12 +141,27 @@ class TokenisationTestCase(unittest.TestCase):
 
     print(tm1.tokens)
     self.assertEqual(text1 + text2, tm0.text)
-    self.assertEqual('мамаэтилен', tm0.text_range([1,3]))
+    self.assertEqual('мамаэтилен', tm0.text_range([1, 3]))
 
     tm3 = tm0.slice(slice(1, 3))
     self.assertEqual('мамаэтилен', tm3.text)
 
     # //text_range(doc.tokens_map, [0, 10])
+
+
+
+  def test_char_range(self):
+    text = 'этилен мама ಶ್ರೀರಾಮ'
+    tm = TextMap(text)
+    cr = tm.char_range([0, 1])
+    self.assertEqual('этилен', text[cr[0]:cr[1]])
+
+    cr = tm.char_range([2, None])
+    self.assertEqual('ಶ್ರೀರಾಮ', text[cr[0]:cr[1]])
+
+    cr = tm.char_range([None, 1])
+    self.assertEqual('этилен', text[cr[0]:cr[1]])
+
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -137,7 +181,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual('мама', tm3.text_range([0, 1]))
     self.assertEqual('мама', tm3.text_range([0, 2]))
 
-  def test_sentence_at_index(self):
+  def test_sentence_at_index_return_delimiters(self):
 
     tm = TextMap('стороны Заключили\n  договор  ПРЕДМЕТ \nДОГОВОРА')
     for i in range(len(tm)):
@@ -156,6 +200,28 @@ class TokenisationTestCase(unittest.TestCase):
 
     for i in range(6, 7):
       bounds = tm.sentence_at_index(i)
+      self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
+
+  def test_sentence_at_index_no_delimiters(self):
+
+    tm = TextMap('стороны Заключили\n  договор  ПРЕДМЕТ \nДОГОВОРА')
+    for i in range(len(tm)):
+      print(i, tm[i])
+
+    bounds = tm.sentence_at_index(0, return_delimiters=False)
+    print(bounds)
+    print(tm.text_range(bounds))
+
+    for i in range(0, 3):
+      bounds = tm.sentence_at_index(i, return_delimiters=False)
+      self.assertEqual('стороны Заключили', tm.text_range(bounds), str(i))
+
+    for i in range(3, 5):
+      bounds = tm.sentence_at_index(i, return_delimiters=False)
+      self.assertEqual('договор  ПРЕДМЕТ', tm.text_range(bounds))
+
+    for i in range(6, 7):
+      bounds = tm.sentence_at_index(i, return_delimiters=False)
       self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
 
   def test_tokens_in_range(self):
@@ -278,7 +344,7 @@ class TokenisationTestCase(unittest.TestCase):
     for k in tm.split('\n'):
       print(k)
 
-  def test_split_span(self):
+  def test_split_span_add_delimiters(self):
     text = '1 2 3\nмама\nಶ್ರೀರಾಮ'
     tm = TextMap(text)
 
@@ -287,6 +353,18 @@ class TokenisationTestCase(unittest.TestCase):
       print(tm.text_range(k))
 
     self.assertEqual('1 2 3\n', tm.text_range(spans[0]))
+
+  def test_split_span_no_delimiters(self):
+    text = '1 2 3\nмама\nಶ್ರೀರಾಮ'
+    tm = TextMap(text)
+
+    spans = [s for s in tm.split_spans('\n', add_delimiter=False)]
+    for k in spans:
+      print(tm.text_range(k))
+
+    self.assertEqual('1 2 3', tm.text_range(spans[0]))
+    self.assertEqual('мама', tm.text_range(spans[1]))
+    self.assertEqual('ಶ್ರೀರಾಮ', tm.text_range(spans[2]))
 
   def test_map_text_range(self):
     text = """1.2. мама   молилась ಶ್ರೀರಾಮ\n\nРама -- Вишну, А Вишну 

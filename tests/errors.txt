@@ -4,6 +4,9 @@
 3 этап по правилам/O_final.docx:	org_2_name 
 	 expected: 'Шеферсон Лазарь Абрамович' 
 	   ACTUAL: 'nan'
+3 этап по правилам/ДД_2.docx:	org_2_name 
+	 expected: 'Логарифм' 
+	   ACTUAL: 'nan'
 3 этап по правилам/ДД_5.docx:	org_1_name 
 	 expected: 'Газпромнефть-Сахалин' 
 	   ACTUAL: 'nan'
@@ -74,4 +77,4 @@
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	25 of 52 docs
+ERRRORS: 	26 of 52 docs
