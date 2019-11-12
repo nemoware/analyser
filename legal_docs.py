@@ -419,17 +419,18 @@ class DocumentJson:
 
     attributes = {}
     for t in _tags:
-      key = t.kind.replace('.', '_')
-      if t.parent is not None:
-        key = t.parent+'.' + key
-
+      key = t.get_key()
       if key in attributes:
         raise RuntimeError(key+' duplicated key')
 
       attributes[key] = t.__dict__.copy()
       del attributes[key]['kind']
-      if t.parent is  None:
-        del attributes[key]['parent']
+      if '_SemanticTag__parent_tag' in  attributes[key]:
+        attributes[key]['parent'] = t.parent
+        del attributes[key]['_SemanticTag__parent_tag']
+
+      # if t.parent is None:
+      #   del attributes[key]['parent']
 
     return attributes
 

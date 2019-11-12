@@ -368,13 +368,14 @@ class SemanticTag:
     self.kind = kind
     self.value = value
     '''name of the parent (or group) tag '''
-    self.parent: str or None = None
+
+    self.__parent_tag: 'SemanticTag' = parent
 
     if parent is not None:
       if type(parent) is SemanticTag:
-        self.parent = parent.get_id()
+        self.__parent = parent.get_id()
       else:
-        self.parent = parent
+        self.__parent = parent
 
     if span:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
@@ -383,6 +384,20 @@ class SemanticTag:
     self.span_map = span_map
     self.confidence = 1.0
     self.display_value = value
+
+  def get_parent(self) -> str or None:
+    if self.__parent_tag is not None:
+      return self.__parent_tag.get_key()
+    else:
+      return None
+
+  parent = property(get_parent)
+
+  def get_key(self):
+    key = self.kind.replace('.', '_')
+    if self.__parent_tag is not None:
+      key = self.__parent_tag.get_key() + '.' + key
+    return key
 
   def get_id(self):
     return f'{self.kind}__{self.span[0]}_{self.span[1]}'
