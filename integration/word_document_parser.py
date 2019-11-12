@@ -53,7 +53,8 @@ def join_paragraphs(response, doc_id):
   elif response['documentType'] == 'PROTOCOL':
     doc: LegalDocument = ProtocolDocument(None)
   else:
-    warnings.warn("Unsupported document type:", response['documentType'])
+    msg = f"Unsupported document type: {response['documentType']}"
+    warnings.warn(msg)
     doc: LegalDocument = LegalDocument('')
 
   doc.parse()
