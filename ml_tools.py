@@ -363,11 +363,19 @@ class TokensWithAttention:
 
 
 class SemanticTag:
-  def __init__(self, kind, value, span: (int, int), span_map='words'):
+
+  def __init__(self, kind, value, span: (int, int), span_map='words', parent: 'SemanticTag' = None):
     self.kind = kind
     self.value = value
     '''name of the parent (or group) tag '''
     self.parent: str or None = None
+
+    if parent is not None:
+      if type(parent) is SemanticTag:
+        self.parent = parent.get_id()
+      else:
+        self.parent = parent
+
     if span:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
     else:
@@ -375,6 +383,9 @@ class SemanticTag:
     self.span_map = span_map
     self.confidence = 1.0
     self.display_value = value
+
+  def get_id(self):
+    return f'{self.kind}__{self.span[0]}_{self.span[1]}'
 
   def as_slice(self):
     return slice(self.span[0], self.span[1])

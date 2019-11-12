@@ -1,7 +1,7 @@
 import re
 from typing import Iterator
 
-from contract_agents import find_org_names, ORG_LEVELS_re
+from contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_in_tag
 from contract_parser import find_value_sign_currency_attention
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
@@ -133,14 +133,9 @@ class ProtocolParser(ParsingContext):
         ret += x
     return ret
 
-  def _find_agents_in_section(self, protocol: LegalDocument, parent, tag_kind_prefix: str) -> List[SemanticTag]:
-    span = parent.span
-    x: List[SemanticTag] = find_org_names(protocol[span[0]:span[1]], max_names=10, tag_kind_prefix=tag_kind_prefix)
-
-    for org in x:
-      org.offset(span[0])
-      org.parent = parent.kind
-
+  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag, tag_kind_prefix: str) -> List[
+    SemanticTag]:
+    x: List[SemanticTag] = find_org_names_in_tag(protocol, parent, max_names=10, tag_kind_prefix=tag_kind_prefix)
     return x
 
   def find_values(self, doc) -> [ContractValue]:

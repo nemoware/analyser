@@ -105,7 +105,13 @@ def _find_org_names(text: str) -> List[Dict]:
   return list(org_names.values())
 
 
-def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[SemanticTag]:
+def find_org_names_in_tag(doc: LegalDocument, parent: SemanticTag, max_names=2, tag_kind_prefix='') -> List[
+  SemanticTag]:
+  span = parent.span
+  return find_org_names(doc[span[0]:span[1]], max_names=max_names, tag_kind_prefix=tag_kind_prefix, parent=parent)
+
+
+def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=None) -> List[SemanticTag]:
   tags = []
   org_i = 0
 
@@ -132,8 +138,10 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[
               val = known_org_name['_id']
               confidence *= best_similarity
 
-          tag = SemanticTag(tagname, val, span)
+          tag = SemanticTag(tagname, val, span, parent=parent)
           tag.confidence = confidence
+          tag.offset = doc.start
+
           if confidence > 0.2:
             tags.append(tag)
           else:
