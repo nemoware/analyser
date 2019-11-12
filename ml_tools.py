@@ -393,9 +393,7 @@ class SemanticTag:
       key = self.__parent_tag.get_key() + '.' + key
     return key
 
-  def get_id(self):
-    return f'{self.kind}__{self.span[0]}_{self.span[1]}'
-
+  
   def as_slice(self):
     return slice(self.span[0], self.span[1])
 
