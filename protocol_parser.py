@@ -154,6 +154,7 @@ class ProtocolParser(ParsingContext):
         confidence = 1.0 / len(subdoc_values)
         k = 0
         for v in subdoc_values:
+          k += 1
           v *= confidence  # decrease confidence
           v.parent.kind = f'{v.parent.kind}-{k}'
 

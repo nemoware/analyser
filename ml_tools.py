@@ -388,7 +388,7 @@ class SemanticTag:
   parent = property(get_parent)
 
   def get_key(self):
-    key = self.kind.replace('.', '-')
+    key = self.kind.replace('.', '-').replace('_', '-')
     if self._parent_tag is not None:
       key = self._parent_tag.get_key() + '_' + key
     return key
