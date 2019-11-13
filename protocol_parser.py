@@ -14,14 +14,16 @@ from text_normalize import r_group, ru_cap, r_quoted
 from text_tools import is_long_enough, span_len
 from tf_support.embedder_elmo import ElmoEmbedder
 
+VALUE_ATTENTION_VECTOR_NAME = 'relu_value_attention_vector'
+
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r_group(ru_cap('итоги голосования') + '|' + ru_cap('результаты голосования')) + r"[:\n]?")
 
-za = r_group(r_quoted('за'))
-pr = r_group(r_quoted('против') + something)
-vo = r_group(r_quoted('воздержался') + something)
+r_votes_za = r_group(r_quoted('за'))
+r_votes_pr = r_group(r_quoted('против') + something)
+r_votes_vo = r_group(r_quoted('воздержался') + something)
 
-protocol_votes_ = r_group(itog1 + something) + r_group(za + something + pr + something + vo)
+protocol_votes_ = r_group(itog1 + something) + r_group(r_votes_za + something + r_votes_pr + something + r_votes_vo)
 protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 
@@ -140,8 +142,8 @@ class ProtocolParser(ParsingContext):
     return x
 
   def find_values(self, doc) -> [ContractValue]:
-    values: [ContractValue] = find_value_sign_currency_attention(doc, doc.distances_per_pattern_dict[
-      'relu_value_attention_vector'])
+    value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
+    values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
     # set parents for values
     for tag in doc.agenda_questions:
@@ -220,18 +222,18 @@ class ProtocolParser(ParsingContext):
 
     ## value attention
 
-    wa['relu_value_attention_vector'] = self._get_value_attention_vector(doc)
+    wa[VALUE_ATTENTION_VECTOR_NAME] = self._get_value_attention_vector(doc)
     wa['relu_deal_approval'] = relu(v_deal_approval_words_attention, 0.5)
 
     _value_attention_vector = sum_probabilities(
-      [wa['relu_value_attention_vector'],
+      [wa[VALUE_ATTENTION_VECTOR_NAME],
        wa['relu_deal_approval'],
        wa['bin_votes_attention'] / 3.0])
 
-    wa['relu_value_attention_vector'] = relu(_value_attention_vector, 0.5)
+    wa[VALUE_ATTENTION_VECTOR_NAME] = relu(_value_attention_vector, 0.5)
     # // words_spans_having_votes = doc.sentence_map.remap_slices(spans_having_votes, doc.tokens_map)
 
-    values: List[ContractValue] = find_value_sign_currency_attention(doc, wa['relu_value_attention_vector'])
+    values: List[ContractValue] = find_value_sign_currency_attention(doc, wa[VALUE_ATTENTION_VECTOR_NAME])
 
     numbers_attention = np.zeros(len(doc.tokens_map))
     numbers_confidence = np.zeros(len(doc.tokens_map))

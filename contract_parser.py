@@ -265,7 +265,7 @@ class ContractAnlysingContext(ParsingContext):
         else:
           # decrease confidence:
           for g in values_list:
-             g *= confidence_k
+            g *= confidence_k
 
           # ------
           # reduce number of found values
@@ -276,8 +276,8 @@ class ContractAnlysingContext(ParsingContext):
           if max_confident_cv == max_valued_cv:
             return [max_confident_cv]
           else:
-            #TODO:
-            max_valued_cv *=0.5
+            # TODO:
+            max_valued_cv *= 0.5
             return [max_valued_cv]
 
 
@@ -312,10 +312,11 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
 
       # Estimating confidence by looking at attention vector
       if attention_vector_tuned is not None:
+        value_sign_currency += value_section_subdoc.start  # offsetting spans
+
         for t in value_sign_currency.as_list():
           t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
             attention_vector_tuned[t.slice]))
-          t.offset(value_section_subdoc.start)
 
       values_list.append(value_sign_currency)
 
@@ -324,6 +325,7 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
 
 def max_confident(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.integral_sorting_confidence())
+
 
 def max_confident_tag(vals: List[SemanticTag]) -> SemanticTag:
   return max(vals, key=lambda a: a.confidence)

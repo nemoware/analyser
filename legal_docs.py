@@ -696,6 +696,11 @@ class ContractValue:
   def as_list(self) -> [SemanticTag]:
     return [self.value, self.sign, self.currency, self.parent]
 
+  def __add__(self, addon):
+    for t in self.as_list():
+      t.offset(addon)
+    return self
+
   def span(self):
     left = min([tag.span[0] for tag in self.as_list()])
     right = max([tag.span[0] for tag in self.as_list()])
