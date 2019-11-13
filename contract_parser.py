@@ -301,7 +301,8 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
   return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned)
 
 
-def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None) -> List[
+def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None,
+                                       parent_tag=None) -> List[
   ContractValue]:
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = []
@@ -312,12 +313,14 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
 
       # Estimating confidence by looking at attention vector
       if attention_vector_tuned is not None:
-        value_sign_currency += value_section_subdoc.start  # offsetting spans
+        # offsetting spans
+        value_sign_currency += value_section_subdoc.start
 
         for t in value_sign_currency.as_list():
           t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
             attention_vector_tuned[t.slice]))
 
+        value_sign_currency.parent.set_parent_tag(parent_tag)
       values_list.append(value_sign_currency)
 
   return values_list

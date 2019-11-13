@@ -146,9 +146,10 @@ class ProtocolParser(ParsingContext):
     # values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
     values = []
-    for tag in doc.agenda_questions:
-      subdoc = doc[tag.as_slice()]
-      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector)
+    for agenda_question_tag in doc.agenda_questions:
+      subdoc = doc[agenda_question_tag.as_slice()]
+      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector,
+                                                                          parent_tag=agenda_question_tag)
       values += subdoc_values
       if len(subdoc_values) > 1:
         confidence = 1.0 / len(subdoc_values)
