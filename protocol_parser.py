@@ -143,15 +143,27 @@ class ProtocolParser(ParsingContext):
 
   def find_values(self, doc) -> [ContractValue]:
     value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
-    values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
+    # values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
-    # set parents for values
+    values = []
     for tag in doc.agenda_questions:
+      subdoc = doc[tag.as_slice()]
+      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector)
+      values += subdoc_values
+      if len(subdoc_values) > 1:
+        confidence = 1.0 / len(subdoc_values)
+        k = 0
+        for v in subdoc_values:
+          v *= confidence  # decrease confidence
+          v.parent.kind = f'{v.parent.kind}-{k}'
 
-      for v in values:
-        if tag.is_nested(v.span()):
-          v.parent.set_parent_tag(tag)
-          # v.parent.parent = tag.kind
+    # # set parents for values
+    # for tag in doc.agenda_questions:
+    #   # subdoc = doc[tag.as_slice()]
+    #   for v in values:
+    #     if tag.is_nested(v.span()):
+    #       v.parent.set_parent_tag(tag)
+    #       # v.parent.parent = tag.kind
 
     return values
 
