@@ -701,6 +701,11 @@ class ContractValue:
     right = max([tag.span[0] for tag in self.as_list()])
     return left, right
 
+  def __mul__(self, confidence_k):
+    for _r in self.as_list():
+      _r.confidence *= confidence_k
+    return self
+
   def integral_sorting_confidence(self) -> float:
     return conditional_p_sum(
       [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])

@@ -265,9 +265,7 @@ class ContractAnlysingContext(ParsingContext):
         else:
           # decrease confidence:
           for g in values_list:
-            for _r in g.as_list():
-              _r.confidence *= confidence_k
-
+             g *= confidence_k
 
           # ------
           # reduce number of found values
@@ -278,7 +276,9 @@ class ContractAnlysingContext(ParsingContext):
           if max_confident_cv == max_valued_cv:
             return [max_confident_cv]
           else:
-            return [max_valued_cv, max_confident_cv]
+            #TODO:
+            max_valued_cv *=0.5
+            return [max_valued_cv]
 
 
       else:
