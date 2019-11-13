@@ -326,7 +326,7 @@ def max_confident(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.integral_sorting_confidence())
 
 def max_confident_tag(vals: List[SemanticTag]) -> SemanticTag:
-  return max(vals, key=lambda a: a.confidence())
+  return max(vals, key=lambda a: a.confidence)
 
 
 def max_value(vals: List[ContractValue]) -> ContractValue:
