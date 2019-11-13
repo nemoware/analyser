@@ -1,8 +1,9 @@
 import re
 from typing import Iterator
 
-from contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_in_tag
-from contract_parser import find_value_sign_currency_attention
+from contract_agents import find_org_names, ORG_LEVELS_re
+from contract_agents import find_org_names_in_tag
+from contract_parser import find_value_sign_currency_attention, max_confident_tag
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from ml_tools import *
@@ -118,8 +119,8 @@ class ProtocolParser(ParsingContext):
     self._analyse_embedded(doc)
 
   def _analyse_embedded(self, doc: ProtocolDocument):
-    doc.org_level = list(find_org_structural_level(doc))
-    doc.agents_tags = list(find_protocol_org(doc))
+    doc.org_level = [max_confident_tag(list(find_org_structural_level(doc)))]
+    doc.agents_tags = [max_confident_tag(list(find_protocol_org(doc)))]
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
