@@ -331,6 +331,7 @@ def max_confident(vals: List[ContractValue]) -> ContractValue:
 
 
 def max_confident_tag(vals: List[SemanticTag]) -> SemanticTag:
+  warnings.warn("use max_confident_tags", DeprecationWarning)
   return max(vals, key=lambda a: a.confidence)
 
 

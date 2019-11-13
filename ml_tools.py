@@ -393,7 +393,6 @@ class SemanticTag:
       key = self._parent_tag.get_key() + '_' + key
     return key
 
-
   def as_slice(self):
     return slice(self.span[0], self.span[1])
 
@@ -422,6 +421,13 @@ class SemanticTag:
     return tm.text_range(self.span)
 
   slice = property(as_slice)
+
+
+def max_confident_tags(vals: List[SemanticTag]) -> [SemanticTag]:
+  if vals:
+    return [max(vals, key=lambda a: a.confidence)]
+  else:
+    return []
 
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
