@@ -2,7 +2,7 @@ import re
 from typing import Iterator
 
 from contract_agents import find_org_names, ORG_LEVELS_re
-from contract_agents import find_org_names_in_tag 
+from contract_agents import find_org_names_in_tag
 from contract_parser import find_value_sign_currency_attention, max_confident_tag
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
@@ -148,7 +148,8 @@ class ProtocolParser(ParsingContext):
 
       for v in values:
         if tag.is_nested(v.span()):
-          v.parent.parent = tag.kind
+          v.parent.set_parent_tag(tag)
+          # v.parent.parent = tag.kind
 
     return values
 
