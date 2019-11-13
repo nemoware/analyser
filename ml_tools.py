@@ -369,7 +369,7 @@ class SemanticTag:
     self.value = value
     '''name of the parent (or group) tag '''
 
-    self.__parent_tag: 'SemanticTag' = parent
+    self._parent_tag: 'SemanticTag' = parent
 
     if span:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
@@ -380,8 +380,8 @@ class SemanticTag:
     self.display_value = value
 
   def get_parent(self) -> str or None:
-    if self.__parent_tag is not None:
-      return self.__parent_tag.get_key()
+    if self._parent_tag is not None:
+      return self._parent_tag.get_key()
     else:
       return None
 
@@ -389,11 +389,11 @@ class SemanticTag:
 
   def get_key(self):
     key = self.kind.replace('.', '_')
-    if self.__parent_tag is not None:
-      key = self.__parent_tag.get_key() + '.' + key
+    if self._parent_tag is not None:
+      key = self._parent_tag.get_key() + '.' + key
     return key
 
-  
+
   def as_slice(self):
     return slice(self.span[0], self.span[1])
 
@@ -410,7 +410,7 @@ class SemanticTag:
     self.span = self.span[0] + span_add, self.span[1] + span_add
 
   def set_parent_tag(self, pt):
-    self.__parent_tag = pt
+    self._parent_tag = pt
 
   def is_nested(self, other: [int]) -> bool:
     return self.span[0] <= other[0] and self.span[1] >= other[1]

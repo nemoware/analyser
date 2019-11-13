@@ -410,27 +410,34 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-      val = t.__dict__.copy()
-      attributes.append(val)
-      del val['kind']
+
+      key, attr = self.__tag_to_attribute(t)
+      attributes.append(attr)
+
     return attributes
+
+  def __tag_to_attribute(self, t: SemanticTag):
+
+    key = t.get_key()
+    attribute = t.__dict__.copy()
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if t.parent is not None:
+        attribute['parent'] = t.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
 
   def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
 
     attributes = {}
     for t in _tags:
-      key = t.get_key()
+      key, attr = self.__tag_to_attribute(t)
+
       if key in attributes:
-        raise RuntimeError(key+' duplicated key')
+        raise RuntimeError(key + ' duplicated key')
 
-      attributes[key] = t.__dict__.copy()
-      del attributes[key]['kind']
-      if '_SemanticTag__parent_tag' in  attributes[key]:
-        attributes[key]['parent'] = t.parent
-        del attributes[key]['_SemanticTag__parent_tag']
-
-      # if t.parent is None:
-      #   del attributes[key]['parent']
+      attributes[key] = attr
 
     return attributes
 
