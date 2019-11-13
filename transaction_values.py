@@ -169,7 +169,9 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
       including_vat  = True
 
     # TODO: include fration span to the return value
-    ret = number_span, number, currency_span, currencly_name
+
+    ret = number_span, number, currency_span, currencly_name #, including_vat
+
 
     return ret
 
