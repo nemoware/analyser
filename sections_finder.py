@@ -19,7 +19,7 @@ class HeadlineMeta:
     self.confidence: float = confidence
     self.type: str = _type
 
-    self.subdoc: LegalDocument = subdoc
+    self.subdoc: LegalDocument = subdoc #headline
     self.body: LegalDocument = body
 
     self.attention: List[float] = None  # optional
@@ -37,7 +37,7 @@ class SectionsFinder:
     pass
 
   def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None) -> dict:
+                    headline_patterns_prefix: str = 'headline.') -> dict:
     raise NotImplementedError()
 
 
@@ -45,9 +45,8 @@ class FocusingSectionsFinder(SectionsFinder):
   def __init__(self, ctx: ParsingSimpleContext):
     SectionsFinder.__init__(self, ctx)
 
-  def find_sections(self, contract: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
-                    headline_patterns_prefix: str = 'headline.', additional_attention: List[float] = None,
-                    confidence_threshold=HyperParameters.header_topic_min_confidence) -> dict:
+  def find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],
+                    headline_patterns_prefix: str = 'headline.', confidence_threshold=HyperParameters.header_topic_min_confidence) -> dict:
 
     sections_filtered = {}
     for section_type in headlines:
@@ -55,7 +54,7 @@ class FocusingSectionsFinder(SectionsFinder):
 
       pattern_prefix = f'headline.{section_type}'
 
-      headers = [contract.subdoc_slice(p.header.as_slice()) for p in contract.paragraphs]
+      headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 
       _max_confidence = 0
       _max_header_i = 0
@@ -77,14 +76,14 @@ class FocusingSectionsFinder(SectionsFinder):
     for header_i in sections_filtered:
       confidence, section_type = sections_filtered[header_i]
 
-      para = contract.paragraphs[header_i]
-      body = contract.subdoc_slice(para.body.as_slice(), name=section_type + '.body')
-      head = contract.subdoc_slice(para.header.as_slice(), name=section_type + ".head")
+      para = doc.paragraphs[header_i]
+      body = doc.subdoc_slice(para.body.as_slice(), name=section_type + '.body')
+      head = doc.subdoc_slice(para.header.as_slice(), name=section_type + ".head")
       hl_info = HeadlineMeta(header_i, section_type, confidence, head, body)
 
       sections[section_type] = hl_info
 
-    contract.sections = sections
+    doc.sections = sections
     return sections
 
   def ___find_sections(self, doc: LegalDocument, factory: AbstractPatternFactory, headlines: List[str],

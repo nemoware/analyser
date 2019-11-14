@@ -3,7 +3,7 @@ from typing import List
 
 import numpy as np
 
-from legal_docs import CharterDocument, ProtocolDocument
+from legal_docs import CharterDocument, LegalDocument
 from ml_tools import ProbableValue
 from parsing import known_subjects, head_types_dict
 from patterns import AV_PREFIX, AV_SOFT, PatternSearchResult, ConstraintsSearchResult, PatternSearchResults
@@ -459,26 +459,6 @@ def as_c_quote(txt):
   return f'<div style="margin-top:0.2em; margin-left:2em; font-size:14px">"...{txt} ..."</div>'
 
 
-class BasicProtocolRenderer(HtmlRenderer):
-
-  def protocol_values_to_html(self, _doc: ProtocolDocument) -> str:
-
-    values = sorted(_doc.values, key=lambda item: -item.value.value - item.confidence)
-
-    if values is None or len(values) == 0:
-      return as_warning('сумма не найдена')
-      return
-
-    cc = 0
-    html = ''
-    for vl in values:
-
-      h = as_headline_3(self.probable_value_to_html(vl))
-      h += as_offset(self.to_color_text(vl.value.context.tokens, vl.value.context.attention, colormap='jet'))
-      if cc > 0:
-        h = as_offset(as_smaller(h))
-
-      html += h
-
-      cc += 1
-    return html
+def print_headers(contract: LegalDocument):
+  for p in contract.paragraphs:
+    print('\t --> 📂', contract.substr(p.header))

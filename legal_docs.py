@@ -15,7 +15,7 @@ from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better
 from patterns import *
-from structures import ORG_2_ORG, ContractTags
+from structures import ContractTags
 from tests.test_text_tools import split_sentences_into_map
 from text_normalize import *
 from text_tools import *
@@ -253,44 +253,7 @@ class LegalDocument:
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
-  def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
 
-    """
-    :param factory:
-    :param pattern_prefix:
-    :return:
-    """
-    warnings.warn("use find_sentences_by_attention_vector", DeprecationWarning)
-    attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
-
-    results: PatternSearchResults = []
-
-    for i in np.nonzero(attention)[0]:
-      _b = self.tokens_map.sentence_at_index(i)
-      _slice = slice(_b[0], _b[1])
-
-      if _slice.stop != _slice.start:
-
-        sum_ = sum(attention[_slice])
-        #       confidence = np.mean( np.nonzero(x[sl]) )
-        nonzeros_count = len(np.nonzero(attention[_slice])[0])
-        confidence = 0
-
-        if nonzeros_count > 0:
-          confidence = sum_ / nonzeros_count
-
-        if confidence > 0.8:
-          r = PatternSearchResult(ORG_2_ORG[org_level], _slice)
-          r.attention_vector_name = attention_vector_name
-          r.pattern_prefix = pattern_prefix
-          r.confidence = confidence
-          r.parent = self
-
-          results.append(r)
-
-    results = remove_sr_duplicates_conditionally(results)
-
-    return results
 
   def reset_embeddings(self):
     print('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
