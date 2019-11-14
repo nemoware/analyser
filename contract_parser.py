@@ -313,6 +313,7 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
 
       # Estimating confidence by looking at attention vector
       if attention_vector_tuned is not None:
+
         # offsetting spans
         value_sign_currency += value_section_subdoc.start
 
