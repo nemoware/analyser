@@ -9,7 +9,7 @@ from ml_tools import FixedVector, ProbableValue
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults, PatternMatch
-from sections_finder import SectionsFinder, FocusingSectionsFinder, HeadlineMeta
+from sections_finder import FocusingSectionsFinder, HeadlineMeta
 from structures import *
 from text_tools import untokenize, Tokens
 from transaction_values import extract_sum, number_re, ValueConstraint, VALUE_SIGN_MIN_TOKENS, detect_sign, \
@@ -17,6 +17,7 @@ from transaction_values import extract_sum, number_re, ValueConstraint, VALUE_SI
 from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
+
 
 class CharterDocument4(LegalDocument):
 
@@ -29,10 +30,9 @@ class CharterDocument4(LegalDocument):
     # self.sentences_embeddings = None
     #
     # self.distances_per_sentence_pattern_dict = {}
-    self.tags=[]
+    self.tags = []
 
   def get_tags(self) -> [SemanticTag]:
-
     return self.tags
 
 
@@ -148,7 +148,7 @@ class CharterDocumentParser(CharterConstraintsParser):
   def __init__(self, pattern_factory):
     CharterConstraintsParser.__init__(self, pattern_factory)
 
-    self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
+    self.sections_finder: FocusingSectionsFinder = FocusingSectionsFinder(self)
 
     self.doc: CharterDocument = None
 
@@ -172,10 +172,10 @@ class CharterDocumentParser(CharterConstraintsParser):
 
     """ 2. ✂️ 📃 -> 📄📄📄  finding headlines (& sections) ==== ️"""
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
-                                       headline_patterns_prefix='headline.' )
+                                       headline_patterns_prefix='headline.')
 
     """ 2. NERS 🏦 🏨 🏛==== ️"""
-    #TODO:
+    # TODO:
     _org_, self.charter.org_type_tag, self.charter.org_name_tag = self.ners()
     self.charter.org = _org_  # TODO: remove it, this is just for compatibility
 
@@ -265,7 +265,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     # TODO: try 'margin_value' prefix also
     # searching for everything having a numeric value
     all_margin_values: PatternSearchResults = find_sentences_by_pattern_prefix(section, org_level, self.pattern_factory,
-                                                                                       'sum__')
+                                                                               'sum__')
 
     # s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
     #                                                                             f'x_{ContractSubject.Lawsuit}')
@@ -273,7 +273,7 @@ class CharterDocumentParser(CharterConstraintsParser):
     # s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
 
     charity_constraints = find_sentences_by_pattern_prefix(section, org_level, self.pattern_factory,
-                                                                   f'x_{ContractSubject.Charity}')
+                                                           f'x_{ContractSubject.Charity}')
 
     self.map_to_subject(all_margin_values)
     self.map_to_subject(charity_constraints)
@@ -577,7 +577,6 @@ def extract_sum_from_tokens(sentence_tokens: Tokens):
 
 
 def find_sentences_by_pattern_prefix(doc, org_level, factory, pattern_prefix) -> PatternSearchResults:
-
   """
   :param factory:
   :param pattern_prefix:
