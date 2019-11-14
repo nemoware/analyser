@@ -5,7 +5,6 @@ from charter_patterns import make_constraints_attention_vectors
 from legal_docs import LegalDocument, CharterDocument, \
   _expand_slice, remove_sr_duplicates_conditionally
 from ml_tools import *
-from ml_tools import FixedVector, ProbableValue
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults, PatternMatch

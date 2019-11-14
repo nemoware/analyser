@@ -3,7 +3,7 @@ from typing import List
 
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument
-from ml_tools import put_if_better, max_exclusive_pattern
+from ml_tools import put_if_better, max_exclusive_pattern, SemanticTag
 from parsing import ParsingSimpleContext
 from patterns import AbstractPatternFactory
 
@@ -23,6 +23,11 @@ class HeadlineMeta:
 
   def get_header(self):
     return self.subdoc.text
+
+  def as_tag(self):
+    st = SemanticTag(self.type, None, (self.subdoc.start, self.body.end))
+    st.confidence = self.confidence
+    return st
 
   header = property(get_header)
 
