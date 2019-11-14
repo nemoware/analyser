@@ -58,16 +58,17 @@ class FocusingSectionsFinder(SectionsFinder):
       headers = [contract.subdoc_slice(p.header.as_slice()) for p in contract.paragraphs]
 
       _max_confidence = 0
-      _max_header_i = -1
+      _max_header_i = 0
       for header_index in range(len(headers)):
         header = headers[header_index]
-        vvs = header.calculate_distances_per_pattern(factory, pattern_prefix=pattern_prefix, merge=False)
-        vv = max_exclusive_pattern(list(vvs.values()))
-        _confidence = max(vv)
+        if header.text and header.text.strip():
+          vvs = header.calculate_distances_per_pattern(factory, pattern_prefix=pattern_prefix, merge=False)
+          vv = max_exclusive_pattern(list(vvs.values()))
+          _confidence = max(vv)
 
-        if _confidence > _max_confidence:
-          _max_confidence = _confidence
-          _max_header_i = header_index
+          if _confidence > _max_confidence:
+            _max_confidence = _confidence
+            _max_header_i = header_index
 
       if _max_confidence > confidence_threshold:
         put_if_better(sections_filtered, _max_header_i, (_max_confidence, section_type), lambda a, b: a[1] < b[1])
