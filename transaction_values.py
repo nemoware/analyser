@@ -75,6 +75,7 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     if frac == 0:
       number += to_float(r_cents) / 100.
 
+  original_sum = number
   vat_span = r.span('vat')
   r_vat = _sentence[vat_span[0]:vat_span[1]]
   including_vat = False
@@ -83,16 +84,16 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     vat_percent_span = r.span('percent')
     r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
     if r_vat_percent:
-      vat_percent = to_float(r_vat_percent)/100
+      vat_percent = to_float(r_vat_percent) / 100
       # print(f'vat_percent::{vat_percent}')
 
     number = number / (1. + vat_percent)
+    number = int(number * 100.) / 100.  # dumned truncate!
     including_vat = True
-
 
   curr = r[7][0:3]
 
-  return number, currencly_map[curr.lower()], including_vat
+  return number, currencly_map[curr.lower()], including_vat, original_sum
 
 
 _re_greather_then_1 = re.compile(r'(не менее|не ниже)', re.MULTILINE)
@@ -154,6 +155,8 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
     curr = currency[0:3]
     currencly_name = currencly_map[curr.lower()]
 
+    original_sum = number
+
     vat_span = match.span('vat')
     r_vat = _sentence[vat_span[0]:vat_span[1]]
     including_vat = False
@@ -165,13 +168,13 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
         vat_percent = to_float(r_vat_percent) / 100
         # print(f'vat_percent::{vat_percent}')
 
-      number = number / (1.+vat_percent)
-      including_vat  = True
+      number = number / (1. + vat_percent)
+      number = int(number * 100.) / 100.  # dumned truncate!
+      including_vat = True
 
     # TODO: include fration span to the return value
 
-    ret = number_span, number, currency_span, currencly_name #, including_vat
-
+    ret = number_span, number, currency_span, currencly_name, including_vat, original_sum
 
     return ret
 
@@ -188,7 +191,6 @@ if __name__ == '__main__':
 
   print(extract_sum('взаимосвязанных сделок в совокупности составляет от '
                     '1000000 ( одного ) миллиона рублей до 50000000 '))
-
 
 if __name__ == '__main__X':
   print(extract_sum('\n2.1.  Общая сумма договора составляет 41752 руб. (Сорок одна т'
