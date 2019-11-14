@@ -156,6 +156,8 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
     curr = currency[0:3]
     currencly_name = currencly_map[curr.lower()]
 
+    original_sum = number
+
     vat_span = match.span('vat')
     r_vat = _sentence[vat_span[0]:vat_span[1]]
     including_vat = False
@@ -172,7 +174,8 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
       including_vat  = True
 
     # TODO: include fration span to the return value
-    ret = number_span, number, currency_span, currencly_name, including_vat
+    # ret = number_span, number, currency_span, currencly_name, including_vat
+    ret = number_span, number, currency_span, currencly_name, including_vat, original_sum
 
     return ret
 
