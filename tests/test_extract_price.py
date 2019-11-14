@@ -191,7 +191,7 @@ class PriceExtractTestCase(unittest.TestCase):
       f = None
       try:
         f = extract_sum(normal_text)
-        self.assertEqual(price, f[0])
+        self.assertEqual(price, f[3])
         print(f"\033[1;32m{f}\u2713")
       except:
         print("\033[1;35;40m FAILED:", price, currency, normal_text, 'f=', f)

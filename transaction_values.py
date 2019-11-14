@@ -75,6 +75,7 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     if frac == 0:
       number += to_float(r_cents) / 100.
 
+  original_sum = number
   vat_span = r.span('vat')
   r_vat = _sentence[vat_span[0]:vat_span[1]]
   including_vat = False
@@ -92,7 +93,7 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
 
   curr = r[7][0:3]
 
-  return number, currencly_map[curr.lower()], including_vat
+  return number, currencly_map[curr.lower()], including_vat, original_sum
 
 
 _re_greather_then_1 = re.compile(r'(не менее|не ниже)', re.MULTILINE)
