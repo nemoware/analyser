@@ -68,8 +68,8 @@ def join_paragraphs(response, doc_id):
 
   for p in response['paragraphs']:
 
-    header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
-    header_text = header_text.replace('\n', ' ')
+    header_text = p['paragraphHeader']['text']
+    header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
     header.parse()
