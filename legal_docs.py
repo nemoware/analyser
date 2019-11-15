@@ -299,62 +299,20 @@ class LegalDocument:
     gc.collect()
 
   @deprecated
-  def embedd(self, pattern_factory):
+  def embedd(self, pattern_factory, max_tokens=8000):
     warnings.warn("use embedd_tokens, provide embedder", DeprecationWarning)
-    self.embedd_tokens(pattern_factory.embedder)
+    self.embedd_tokens(pattern_factory.embedder, max_tokens=max_tokens)
 
-  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2):
+  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
+
     if self.tokens:
-      max_tokens = 7000
+      max_tokens = max_tokens
       if len(self.tokens_map_norm) > max_tokens:
-        self._embedd_large(embedder, max_tokens, verbosity)
+        self.embeddings = _embedd_large(self.tokens_map_norm, embedder, max_tokens, verbosity)
       else:
-        self.embeddings = self._emb(self.tokens, embedder)
+        self.embeddings = _emb(self.tokens, embedder)
     else:
       raise ValueError(f'cannot embed doc {self.filename}, no tokens')
-
-  # @profile
-  def _emb(self, tokens, embedder):
-    embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
-    embeddings = embeddings[0]
-    return embeddings
-
-  def _embedd_large(self, embedder, max_tokens=8000, verbosity=2):
-
-    overlap = 100  # max_tokens // 5
-
-    number_of_windows = 1 + len(self.tokens_map_norm) // max_tokens
-    window = max_tokens
-
-    if verbosity > 1:
-      print(
-        "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
-          len(self.tokens_map_norm), number_of_windows, overlap))
-
-    start = 0
-    embeddings = None
-    # tokens = []
-    while start < len(self.tokens_map_norm):
-
-      subtokens = self.tokens_map_norm[start:start + window + overlap]
-      if verbosity > 2:
-        print("Embedding region:", start, len(subtokens))
-
-      sub_embeddings = self._emb(subtokens, embedder)[0:window]
-
-      # sub_embeddings = sub_embeddings[0:window]
-      # subtokens = subtokens[0:window]
-
-      if embeddings is None:
-        embeddings = sub_embeddings
-      else:
-        embeddings = np.concatenate([embeddings, sub_embeddings])
-      # tokens += subtokens
-
-      start += window
-
-    self.embeddings = embeddings
-    # self.tokens = tokens
 
   def get_tag_text(self, tag: SemanticTag):
     return self.tokens_map.text_range(tag.span)
@@ -699,7 +657,7 @@ class ContractValue:
       [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
 
 
-def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) ->  ContractValue or None:
+def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> ContractValue or None:
   subdoc: LegalDocument = doc[region[0] - VALUE_SIGN_MIN_TOKENS: region[1]]
 
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
@@ -826,3 +784,46 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 
 
 PARAGRAPH_DELIMITER = '\n'
+
+
+def _embedd_large(text_map, embedder, max_tokens=8000, verbosity=2):
+  overlap = 100  # max_tokens // 5
+
+  number_of_windows = 1 + len(text_map) // max_tokens
+  window = max_tokens
+
+  if verbosity > 1:
+    print(
+      "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
+        len(text_map), number_of_windows, overlap))
+
+  start = 0
+  embeddings = None
+  # tokens = []
+  while start < len(text_map):
+
+    subtokens = text_map[start:start + window + overlap]
+    if verbosity > 2:
+      print("Embedding region:", start, len(subtokens))
+
+    sub_embeddings = _emb(subtokens, embedder)[0:window]
+
+    # sub_embeddings = sub_embeddings[0:window]
+    # subtokens = subtokens[0:window]
+
+    if embeddings is None:
+      embeddings = sub_embeddings
+    else:
+      embeddings = np.concatenate([embeddings, sub_embeddings])
+    # tokens += subtokens
+
+    start += window
+
+  return embeddings
+  # self.tokens = tokens
+
+
+def _emb(tokens, embedder):
+  embeddings = embedder.embedd_tokenized_text([tokens], [len(tokens)])
+  embeddings = embeddings[0]
+  return embeddings
