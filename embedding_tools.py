@@ -36,7 +36,7 @@ class AbstractEmbedder:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokens(self, words: [Tokens], lens: [int]) -> np.ndarray:
+  def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
     raise NotImplementedError()
 
   @abstractmethod

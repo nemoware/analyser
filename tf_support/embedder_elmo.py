@@ -63,10 +63,9 @@ class ElmoEmbedder(AbstractEmbedder):
     embedding_graph.finalize()
     return embedding_graph
 
-  def embedd_tokens(self, tokens: Tokens, text_lens: List[int] = None):
+  def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
     if self.layer_name == 'elmo':
-      assert text_lens is not None, 'text_lens is required'
-      return self.embedd_tokenized_text([tokens], text_lens)
+      return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
     else:
       return self.embedd_strings(tokens)
 
@@ -81,7 +80,7 @@ class ElmoEmbedder(AbstractEmbedder):
 
     return out
 
-  def embedd_strings(self, strings: Tokens)->np.ndarray:
+  def embedd_strings(self, strings: Tokens) -> np.ndarray:
     feed_dict = {
       self.text_input: strings,  # text_input
     }
