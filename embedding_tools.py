@@ -1,7 +1,9 @@
 from abc import abstractmethod
 
+import numpy as np
+
 from documents import TextMap
-from text_tools import *
+from text_tools import Tokens
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
@@ -34,11 +36,11 @@ class AbstractEmbedder:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokens(self, words: [Tokens], lens: List[int]) -> np.ndarray:
+  def embedd_tokens(self, words: [Tokens], lens: [int]) -> np.ndarray:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokenized_text(self, words: [Tokens], lens: List[int]) -> np.ndarray:
+  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
     raise NotImplementedError()
 
   def embedd_contextualized_patterns(self, patterns, trim_padding=True):
@@ -53,8 +55,8 @@ class AbstractEmbedder:
       # sentence = ' '.join((ctx_prefix, pattern, ctx_postfix))
 
       prefix_tokens = TextMap(ctx_prefix).tokens  # tokenize_text(ctx_prefix)
-      pattern_tokens = tokenize_text(pattern)
-      suffix_tokens = tokenize_text(ctx_postfix)
+      pattern_tokens = TextMap(pattern).tokens
+      suffix_tokens = TextMap(ctx_postfix).tokens
 
       start = len(prefix_tokens)
       end = start + len(pattern_tokens)
