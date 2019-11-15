@@ -2,7 +2,8 @@ import re
 from typing import Iterator
 
 from contract_agents import find_org_names, ORG_LEVELS_re
-from contract_parser import find_value_sign_currency_attention, max_confident_tag
+from contract_agents import find_org_names_in_tag
+from contract_parser import find_value_sign_currency_attention
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from ml_tools import *
@@ -120,8 +121,10 @@ class ProtocolParser(ParsingContext):
     self._analyse_embedded(doc)
 
   def _analyse_embedded(self, doc: ProtocolDocument):
-    doc.org_level = [max_confident_tag(list(find_org_structural_level(doc)))]
-    doc.agents_tags = [max_confident_tag(list(find_protocol_org(doc)))]
+
+    doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
+    doc.agents_tags = max_confident_tags(list(find_protocol_org(doc)))
+
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
@@ -135,26 +138,38 @@ class ProtocolParser(ParsingContext):
         ret += x
     return ret
 
-  def _find_agents_in_section(self, protocol: LegalDocument, parent, tag_kind_prefix: str) -> List[SemanticTag]:
-    span = parent.span
-    x: List[SemanticTag] = find_org_names(protocol[span[0]:span[1]], max_names=10, tag_kind_prefix=tag_kind_prefix)
-
-    for org in x:
-      org.offset(span[0])
-      org.parent = parent.kind
-
+  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag, tag_kind_prefix: str) -> List[
+    SemanticTag]:
+    x: List[SemanticTag] = find_org_names_in_tag(protocol, parent, max_names=10, tag_kind_prefix=tag_kind_prefix)
     return x
 
   def find_values(self, doc) -> [ContractValue]:
     value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
-    values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
-    # set parents for values
-    for tag in doc.agenda_questions:
+    # values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
-      for v in values:
-        if tag.is_nested(v.span()):
-          v.parent.parent = tag.kind
+    values = []
+    for agenda_question_tag in doc.agenda_questions:
+      subdoc = doc[agenda_question_tag.as_slice()]
+      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector,
+                                                                          parent_tag=agenda_question_tag)
+      values += subdoc_values
+      if len(subdoc_values) > 1:
+        confidence = 1.0 / len(subdoc_values)
+        k = 0
+        for v in subdoc_values:
+          k += 1
+          v *= confidence  # decrease confidence
+          v.parent.kind = f'{v.parent.kind}-{k}'
+
+    # # set parents for values
+    # for tag in doc.agenda_questions:
+    #   # subdoc = doc[tag.as_slice()]
+    #   for v in values:
+    #     if tag.is_nested(v.span()):
+    #       v.parent.set_parent_tag(tag)
+    #       # v.parent.parent = tag.kind
+
 
     return values
 

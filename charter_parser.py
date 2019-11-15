@@ -17,6 +17,23 @@ from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
 
+class CharterDocument4(LegalDocument):
+
+  def __init__(self, doc: LegalDocument):
+    super().__init__('')
+    if doc is not None:
+      self.__dict__ = doc.__dict__
+
+    # self.sentence_map: TextMap = None
+    # self.sentences_embeddings = None
+    #
+    # self.distances_per_sentence_pattern_dict = {}
+    self.tags=[]
+
+  def get_tags(self) -> [SemanticTag]:
+
+    return self.tags
+
 
 class CharterDocument4(LegalDocument):
 

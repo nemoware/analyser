@@ -319,22 +319,34 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-      val = t.__dict__.copy()
-      attributes.append(val)
-      del val['kind']
+
+      key, attr = self.__tag_to_attribute(t)
+      attributes.append(attr)
+
     return attributes
 
-  def __tags_to_attributes_dict(self, _tags):
+  def __tag_to_attribute(self, t: SemanticTag):
 
-    cnt = 0
+    key = t.get_key()
+    attribute = t.__dict__.copy()
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if t.parent is not None:
+        attribute['parent'] = t.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
+
+  def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
+
     attributes = {}
     for t in _tags:
-      cnt += 1
-      key = t.kind.replace('.', '_')
+      key, attr = self.__tag_to_attribute(t)
+
       if key in attributes:
-        key = f'{key}_{cnt}'
-      attributes[key] = t.__dict__.copy()
-      del attributes[key]['kind']
+        raise RuntimeError(key + ' duplicated key')
+
+      attributes[key] = attr
 
     return attributes
 
@@ -603,6 +615,11 @@ class ContractValue:
     right = max([tag.span[0] for tag in self.as_list()])
     return left, right
 
+  def __mul__(self, confidence_k):
+    for _r in self.as_list():
+      _r.confidence *= confidence_k
+    return self
+
   def integral_sorting_confidence(self) -> float:
     return conditional_p_sum(
       [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
@@ -622,19 +639,15 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
-    parent = f'sign_value_currency_{region[0]}_{region[1]}'
-    group = SemanticTag(parent, None, region)
+    group = SemanticTag('sign_value_currency', None, region)
 
-    sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
-    sign.parent = parent
+    sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
     sign.offset(subdoc.start)
 
-    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span)
-    value_tag.parent = parent
+    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
     value_tag.offset(subdoc.start)
 
-    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span)
-    currency.parent = parent
+    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span, parent=group)
     currency.offset(subdoc.start)
 
     return ContractValue(sign, value_tag, currency, group)
