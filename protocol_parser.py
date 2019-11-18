@@ -277,44 +277,11 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     AbstractPatternFactory.__init__(self, embedder)
 
     self._build_subject_pattern()
-    self._build_sum_margin_extraction_patterns()
+
+    create_value_negation_patterns(self)
+    create_value_patterns(self)
+
     self.embedd()
-
-  def _build_sum_margin_extraction_patterns(self):
-    suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
-    prefix = ''
-
-    sum_comp_pat = CoumpoundFuzzyPattern()
-
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_1', (prefix + 'стоимость', 'не более 0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_2', (prefix + 'цена', 'не больше 0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_3', (prefix + 'стоимость <', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_4', (prefix + 'цена менее', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_5', (prefix + 'стоимость не может превышать', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_6', (prefix + 'общая сумма может составить', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_7', (prefix + 'лимит соглашения', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_8', (prefix + 'верхний лимит стоимости', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_9', (prefix + 'максимальная сумма', '0', suffix)))
-
-    # self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца'))
-    # self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек') )
-    # self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи'))
-    # self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания '))
-    # self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.'))
-
-    f = self
-    f.create_pattern('not_sum_0', ('', 'пункт 0.', ''))
-    f.create_pattern('not_sum_1', ('', '0 дней', ''))
-    f.create_pattern('not_sum_1.1', ('', 'в течение 0 ( ноля ) дней', ''))
-    f.create_pattern('not_sum_1.2', ('', '0 января', ''))
-    f.create_pattern('not_sum_2', ('', '0 минут', ''))
-    f.create_pattern('not_sum_3', ('', '0 часов', ''))
-    f.create_pattern('not_sum_4', ('', '0 процентов', ''))
-    f.create_pattern('not_sum_5', ('', '0 %', ''))
-    f.create_pattern('not_sum_5.1', ('', '0 % голосов', ''))
-    f.create_pattern('not_sum_6', ('', '2000 год', ''))
-    f.create_pattern('not_sum_7', ('', '0 человек', ''))
-    f.create_pattern('not_sum_8', ('', '0 метров', ''))
 
   def _build_subject_pattern(self):
     ep = ExclusivePattern()

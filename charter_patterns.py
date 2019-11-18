@@ -6,7 +6,8 @@ from legal_docs import make_soft_attention_vector, CharterDocument, deprecated, 
 from ml_tools import cut_above, relu, momentum
 from ml_tools import filter_values_by_key_prefix
 from parsing import known_subjects
-from patterns import AbstractPatternFactoryLowCase, PatternSearchResult
+from patterns import AbstractPatternFactoryLowCase, PatternSearchResult, create_value_negation_patterns, \
+  create_value_patterns
 from structures import ContractSubject, org_types
 
 
@@ -35,6 +36,9 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     for subj in known_subjects:
       if subj is not ContractSubject.Other:
         pb = filter_values_by_key_prefix(self.patterns_dict, f'x_{subj}')
+
+    create_value_negation_patterns(self)
+    create_value_patterns(self)
 
     self.embedd()
 
