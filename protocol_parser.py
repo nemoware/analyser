@@ -1,29 +1,28 @@
 import re
-from collections.__init__ import Counter
-from typing import Generator
-
-from numpy import ma as ma
+from typing import Iterator
 
 from contract_agents import find_org_names, ORG_LEVELS_re
-from contract_parser import extract_all_contraints_from_sr_2, find_value_sign_currency_attention
+from contract_parser import find_value_sign_currency_attention, max_confident_tag
 from hyperparams import HyperParameters
-from legal_docs import BasicContractDocument, deprecated, LegalDocument, tokenize_doc_into_sentences_map, ContractValue
+from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from ml_tools import *
 from parsing import ParsingContext
 from patterns import *
 from structures import ORG_LEVELS_names
 from text_normalize import r_group, ru_cap, r_quoted
-from text_tools import *
+from text_tools import is_long_enough, span_len
 from tf_support.embedder_elmo import ElmoEmbedder
+
+VALUE_ATTENTION_VECTOR_NAME = 'relu_value_attention_vector'
 
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r_group(ru_cap('итоги голосования') + '|' + ru_cap('результаты голосования')) + r"[:\n]?")
 
-za = r_group(r_quoted('за'))
-pr = r_group(r_quoted('против') + something)
-vo = r_group(r_quoted('воздержался') + something)
+r_votes_za = r_group(r_quoted('за'))
+r_votes_pr = r_group(r_quoted('против') + something)
+r_votes_vo = r_group(r_quoted('воздержался') + something)
 
-protocol_votes_ = r_group(itog1 + something) + r_group(za + something + pr + something + vo)
+protocol_votes_ = r_group(itog1 + something) + r_group(r_votes_za + something + r_votes_pr + something + r_votes_vo)
 protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 
@@ -42,19 +41,20 @@ class ProtocolDocument4(LegalDocument):
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
     self.agenda_questions: [SemanticTag] = []
-    self.margin_values: [SemanticTag] = []
+    self.margin_values: [ContractValue] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
     tags += self.agents_tags
     tags += self.org_level
     tags += self.agenda_questions
-    tags += self.margin_values
+    for mv in self.margin_values:
+      tags += mv.as_list()
 
     return tags
 
 
-ProtocolDocument = ProtocolDocument4
+ProtocolDocument = ProtocolDocument4  # aliasing
 
 
 class ProtocolParser(ParsingContext):
@@ -108,7 +108,7 @@ class ProtocolParser(ParsingContext):
     doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
 
     ### ⚙️🔮 WORDS Ebmedding
-    doc.embedd(self.protocols_factory)
+    doc.embedd_tokens(self.embedder)
 
     doc.calculate_distances_per_pattern(self.protocols_factory)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
@@ -120,9 +120,43 @@ class ProtocolParser(ParsingContext):
     self._analyse_embedded(doc)
 
   def _analyse_embedded(self, doc: ProtocolDocument):
-    doc.org_level = list(find_org_structural_level(doc))
-    doc.agents_tags = list(find_protocol_org(doc))
+    doc.org_level = [max_confident_tag(list(find_org_structural_level(doc)))]
+    doc.agents_tags = [max_confident_tag(list(find_protocol_org(doc)))]
     doc.agenda_questions = self.find_question_decision_sections(doc)
+    doc.margin_values = self.find_values(doc)
+
+    doc.agents_tags += list(self.find_agents_in_all_sections(doc, doc.agenda_questions))
+
+  def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
+    ret = []
+    for parent in agenda_questions:
+      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_')
+      if x:
+        ret += x
+    return ret
+
+  def _find_agents_in_section(self, protocol: LegalDocument, parent, tag_kind_prefix: str) -> List[SemanticTag]:
+    span = parent.span
+    x: List[SemanticTag] = find_org_names(protocol[span[0]:span[1]], max_names=10, tag_kind_prefix=tag_kind_prefix)
+
+    for org in x:
+      org.offset(span[0])
+      org.parent = parent.kind
+
+    return x
+
+  def find_values(self, doc) -> [ContractValue]:
+    value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
+    values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
+
+    # set parents for values
+    for tag in doc.agenda_questions:
+
+      for v in values:
+        if tag.is_nested(v.span()):
+          v.parent.parent = tag.kind
+
+    return values
 
   def collect_spans_having_votes(self, segments, textmap):
     """
@@ -133,17 +167,11 @@ class ProtocolParser(ParsingContext):
     :return:  segments with votes
     """
     for span in segments:
-      # print('=' * 50)
+
       subdoc = textmap.slice(span)
       protocol_votes = list(subdoc.finditer(protocol_votes_re))
       if protocol_votes:
-        # print('-' * 50)
-        # print(subdoc.text)
-        # for c in protocol_votes:
-        #   print('found:', subdoc.text_range(c))
         yield span
-      # else:
-      #   print('not found')
 
   def find_protocol_sections_edges(self, distances_per_pattern_dict):
 
@@ -161,9 +189,17 @@ class ProtocolParser(ParsingContext):
 
   def _get_value_attention_vector(self, doc: LegalDocument):
     s_value_attention_vector = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_p_')
-    s_value_attention_vector_neg = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
-    s_value_attention_vector -= s_value_attention_vector_neg / 3
-    s_value_attention_vector = relu(s_value_attention_vector, 0.25)
+
+    doc.distances_per_pattern_dict['__max_value_av'] = s_value_attention_vector  # just for debugging
+    not_value_av = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'not_sum_')
+
+    not_value_av = smooth_safe(not_value_av, window_len=5)
+
+    not_value_av = relu(not_value_av, 0.5)
+    doc.distances_per_pattern_dict['__not_value_av'] = not_value_av  # just for debugging
+
+    s_value_attention_vector -= not_value_av * 0.8
+    s_value_attention_vector = relu(s_value_attention_vector, 0.3)
     return s_value_attention_vector
 
   def find_question_decision_sections(self, doc: ProtocolDocument):
@@ -189,18 +225,18 @@ class ProtocolParser(ParsingContext):
 
     ## value attention
 
-    wa['relu_value_attention_vector'] = self._get_value_attention_vector(doc)
+    wa[VALUE_ATTENTION_VECTOR_NAME] = self._get_value_attention_vector(doc)
     wa['relu_deal_approval'] = relu(v_deal_approval_words_attention, 0.5)
 
     _value_attention_vector = sum_probabilities(
-      [wa['relu_value_attention_vector'],
+      [wa[VALUE_ATTENTION_VECTOR_NAME],
        wa['relu_deal_approval'],
        wa['bin_votes_attention'] / 3.0])
 
-    wa['relu_value_attention_vector'] = relu(_value_attention_vector, 0.5)
+    wa[VALUE_ATTENTION_VECTOR_NAME] = relu(_value_attention_vector, 0.5)
     # // words_spans_having_votes = doc.sentence_map.remap_slices(spans_having_votes, doc.tokens_map)
 
-    values: List[ContractValue] = find_value_sign_currency_attention(doc, wa['relu_value_attention_vector'])
+    values: List[ContractValue] = find_value_sign_currency_attention(doc, wa[VALUE_ATTENTION_VECTOR_NAME])
 
     numbers_attention = np.zeros(len(doc.tokens_map))
     numbers_confidence = np.zeros(len(doc.tokens_map))
@@ -212,7 +248,7 @@ class ProtocolParser(ParsingContext):
 
     block_confidence = sum_probabilities([numbers_attention, wa['relu_deal_approval'], wa['bin_votes_attention'] / 5])
 
-    return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item'))
+    return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item', 0.6))
 
 
 class ProtocolPatternFactory(AbstractPatternFactory):
@@ -245,17 +281,25 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_8', (prefix + 'верхний лимит стоимости', '0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_9', (prefix + 'максимальная сумма', '0', suffix)))
 
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца')), -0.8)
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек')),
-                             -0.8)
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи')), -0.8)
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания ')), -0.8)
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.')), -0.8)
+    # self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца'))
+    # self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек') )
+    # self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи'))
+    # self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания '))
+    # self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.'))
 
-    self.sum_pattern = sum_comp_pat
+    f = self
+    f.create_pattern('not_sum_0', ('', 'пункт 0.', ''))
+    f.create_pattern('not_sum_1', ('', '0 дней', ''))
+    f.create_pattern('not_sum_1.1', ('', 'в течение 0 ( ноля ) дней', ''))
+    f.create_pattern('not_sum_1.2', ('', '0 января', ''))
+    f.create_pattern('not_sum_2', ('', '0 минут', ''))
+    f.create_pattern('not_sum_3', ('', '0 часов', ''))
+    f.create_pattern('not_sum_4', ('', '0 процентов', ''))
+    f.create_pattern('not_sum_5', ('', '0 %', ''))
+    f.create_pattern('not_sum_5.1', ('', '0 % голосов', ''))
+    f.create_pattern('not_sum_6', ('', '2000 год', ''))
+    f.create_pattern('not_sum_7', ('', '0 человек', ''))
+    f.create_pattern('not_sum_8', ('', '0 метров', ''))
 
   def _build_subject_pattern(self):
     ep = ExclusivePattern()
@@ -300,167 +344,6 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     self.subject_pattern = ep
 
 
-class ProtocolDocument0(BasicContractDocument):
-  # TODO: use anothwer parent
-
-  def __init__(self, original_text):
-    LegalDocument.__init__(self, original_text)
-
-    self.values: List[ProbableValue] = []
-    self.section_indices: [int] = None
-
-  def subject_weight_per_section(self, subj_pattern, paragraph_split_pattern):
-    assert self.section_indices is not None
-
-    distances_per_subj_pattern_, ranges_, winning_patterns = subj_pattern.calc_exclusive_distances(self.embeddings)
-
-    ranges_global = [
-      np.nanmin(distances_per_subj_pattern_),
-      np.nanmax(distances_per_subj_pattern_)]
-
-    section_names = [[paragraph_split_pattern.patterns[s[0]].name, s[1]] for s in self.section_indices]
-    voting: List[str] = []
-    for i in range(1, len(section_names)):
-      p1 = section_names[i - 1]
-      p2 = section_names[i]
-
-      distances_per_pattern_t = distances_per_subj_pattern_[:, p1[1]:p2[1]]
-
-      dist_per_pat = []
-      for row in distances_per_pattern_t:
-        dist_per_pat.append(np.nanmin(row))
-
-      patindex = np.nanargmin(dist_per_pat)
-      pat_prefix = subj_pattern.patterns[patindex].name[:5]
-      #         print(patindex, pat_prefix)
-
-      voting.append(pat_prefix)
-
-      # TODO: HACK more attention to particular sections
-      if p1[0] == 'p_agenda' or p1[0] == 'p_solution' or p1[0] == 'p_question':
-        voting.append(pat_prefix)
-
-    return Counter(voting), ranges_global, winning_patterns
-
-  def get_found_sum(self) -> ProbableValue:
-
-    print(f'deprecated: {self.get_found_sum}, use  .values')
-    best_value: ProbableValue = max(self.values, key=lambda item: item.value.value)
-
-    most_confident_value = max(self.values, key=lambda item: item.confidence)
-    best_value = select_most_confident_if_almost_equal(best_value, most_confident_value)
-
-    return best_value
-
-  found_sum: ProbableValue = property(get_found_sum)
-
-  def find_sections_indices(self, distances_per_section_pattern: FixedVector, min_section_size=20) -> [int]:
-    x: FixedVector = distances_per_section_pattern
-    pattern_to_best_index = np.array([[idx, np.argmin(ma.masked_invalid(row))] for idx, row in enumerate(x)])
-
-    # replace best indices with sentence starts
-    pattern_to_best_index[:, 1] = self.find_sentence_beginnings(pattern_to_best_index[:, 1])
-
-    # sort by sentence start
-    pattern_to_best_index = np.sort(pattern_to_best_index.view('i8,i8'), order=['f1'], axis=0).view(np.int)
-
-    # remove "duplicated" indexes
-    return self.remove_similar_indexes(pattern_to_best_index, 1, min_section_size)
-
-  @deprecated
-  def remove_similar_indexes(self, indices: [int], column: int, min_section_size: int = 20) -> [int]:
-    warnings.warn("deprecated", DeprecationWarning)
-    indices_zipped = [indices[0]]
-
-    for i in range(1, len(indices)):
-      if indices[i][column] - indices[i - 1][column] > min_section_size:
-        pattern_to_token = indices[i]
-        indices_zipped.append(pattern_to_token)
-
-    return np.squeeze(indices_zipped)
-
-  def split_text_into_sections(self, paragraph_split_pattern: ExclusivePattern, min_section_size=10):
-
-    distances_per_section_pattern, _, __ = paragraph_split_pattern.calc_exclusive_distances(self.embeddings)
-
-    # finding pattern positions
-
-    self.section_indices = self.find_sections_indices(distances_per_section_pattern, min_section_size)
-
-    return self.section_indices
-
-
-class ProtocolAnlysingContext(ParsingContext):
-
-  def __init__(self, embedder):
-    ParsingContext.__init__(self, embedder)
-
-    self.protocols_factory: ProtocolPatternFactory = None
-
-    self.protocol: ProtocolDocument = None
-
-  def process(self, text:str) -> ProtocolDocument:
-    self._reset_context()
-
-    if self.protocols_factory is None:
-      self.protocols_factory = ProtocolPatternFactory(self.embedder)
-      self._logstep("Pattern factory created, patterns embedded into ELMO space")
-
-    # # ----
-    # pnames = [p.name[0:5] for p in self.protocols_factory.subject_pattern.patterns]
-    # c = Counter(pnames)
-    # # ----
-
-    self.protocol = ProtocolDocument(text)
-    self.protocol.parse()
-    self.protocol.embedd_tokens(self.protocols_factory.embedder)
-
-    self.process_embedded_doc(self.protocol)
-    return self.protocol
-
-  def process_embedded_doc(self, doc: ProtocolDocument):
-
-    section_indices = doc.split_text_into_sections(
-      self.protocols_factory.paragraph_split_pattern)
-
-    counter, ranges, winning_patterns = doc.subject_weight_per_section(self.protocols_factory.subject_pattern,
-                                                                       self.protocols_factory.paragraph_split_pattern)
-
-    section_names = [self.protocols_factory.paragraph_split_pattern.patterns[s[0]].name for s in doc.section_indices]
-    sidx = section_names.index('p_solution')
-    if sidx < 0:
-      sidx = section_names.index('p_agenda')
-    if sidx < 0:
-      sidx = section_names.index('p_question')
-
-    if sidx < 0:
-      sidx = 0
-
-    #   html += winning_patterns_to_html(
-    #       doc.tokens, ranges,
-    #       winning_patterns,
-    #       range(section_indices[sidx][1], section_indices[sidx+1][1]),
-    #       colormaps=subject_colormaps )
-
-    doc.values = self.find_values_2(doc)
-    doc.per_subject_distances = counter  # Hack
-
-    # self.renderer.print_results(doc)
-    # self.renderer.render_subject(counter)
-
-  def find_values_2(self, value_section: LegalDocument) -> List[ProbableValue]:
-
-    value_attention_vector = 1.0 - self.protocols_factory.sum_pattern._find_patterns(value_section.embeddings)
-    value_section.distances_per_pattern_dict['value_attention_vector_tuned'] = value_attention_vector
-    values: List[ProbableValue] = extract_all_contraints_from_sr_2(value_section, value_attention_vector)
-    return values
-
-  def get_value(self):
-    return self.protocol.values
-
-  values = property(get_value)
-
-
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   ret = []
   x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
@@ -494,7 +377,7 @@ def closest_name(pattern: str, knowns: [str]) -> (str, int):
   return found, min_distance
 
 
-def find_org_structural_level(doc: LegalDocument) -> Generator:
+def find_org_structural_level(doc: LegalDocument) -> Iterator[SemanticTag]:
   compiled_re = re.compile(ORG_LEVELS_re, re.MULTILINE | re.IGNORECASE | re.UNICODE)
 
   entity_type = 'org_structural_level'
@@ -516,15 +399,15 @@ def find_org_structural_level(doc: LegalDocument) -> Generator:
         yield tag
 
 
-def find_confident_spans(slices, block_confidence, tag_name):
+def find_confident_spans(slices: [int], block_confidence: FixedVector, tag_name: str, threshold: float) -> Iterator[
+  SemanticTag]:
   k = 0
   for _slice in slices:
     k += 1
     pv = block_confidence[_slice[0]:_slice[1]]
     confidence = estimate_confidence_by_mean_top_non_zeros(pv, 5)
-    print('-' * 100)
-    print(_slice, confidence)
-    if confidence > 0.6:
+
+    if confidence > threshold:
       st = SemanticTag(f"{tag_name}_{k}", None, _slice)
       st.confidence = confidence
       yield (st)

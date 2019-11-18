@@ -367,7 +367,7 @@ class SemanticTag:
     self.kind = kind
     self.value = value
     '''name of the parent (or group) tag '''
-    self.parent: str = None
+    self.parent: str or None = None
     if span:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
     else:
@@ -390,6 +390,9 @@ class SemanticTag:
 
   def offset(self, span_add: int):
     self.span = self.span[0] + span_add, self.span[1] + span_add
+
+  def is_nested(self, other: [int]) -> bool:
+    return self.span[0] <= other[0] and self.span[1] >= other[1]
 
   def __str__(self):
     return f'SemanticTag: {self.kind} {self.span} {self.value} {self.display_value}  {self.confidence}'

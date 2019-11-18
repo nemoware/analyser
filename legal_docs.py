@@ -5,7 +5,6 @@
 
 # legal_docs.py
 import datetime
-import gc
 import json
 from functools import wraps
 
@@ -292,69 +291,16 @@ class LegalDocument:
 
     return results
 
-  def reset_embeddings(self):
-    print('-----ARE YOU SURE YOU NEED TO DROP EMBEDDINGS NOW??---------')
-    del self.embeddings
-    self.embeddings = None
-    gc.collect()
-
-  @deprecated
-  def embedd(self, pattern_factory):
-    warnings.warn("use embedd_tokens, provide embedder", DeprecationWarning)
-    self.embedd_tokens(pattern_factory.embedder)
-
-  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2):
+  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
+    warnings.warn("use embedd_words", DeprecationWarning)
     if self.tokens:
-      max_tokens = 7000
+      max_tokens = max_tokens
       if len(self.tokens_map_norm) > max_tokens:
-        self._embedd_large(embedder, max_tokens, verbosity)
+        self.embeddings = _embedd_large(self.tokens_map_norm, embedder, max_tokens, verbosity)
       else:
-        self.embeddings = self._emb(self.tokens, embedder)
+        self.embeddings = embedder.embedd_tokens(self.tokens)
     else:
       raise ValueError(f'cannot embed doc {self.filename}, no tokens')
-
-  # @profile
-  def _emb(self, tokens, embedder):
-    embeddings, _g = embedder.embedd_tokenized_text([tokens], [len(tokens)])
-    embeddings = embeddings[0]
-    return embeddings
-
-  def _embedd_large(self, embedder, max_tokens=8000, verbosity=2):
-
-    overlap = 100  # max_tokens // 5
-
-    number_of_windows = 1 + len(self.tokens_map_norm) // max_tokens
-    window = max_tokens
-
-    if verbosity > 1:
-      print(
-        "WARNING: Document is too large for embedding: {} tokens. Splitting into {} windows overlapping with {} tokens ".format(
-          len(self.tokens_map_norm), number_of_windows, overlap))
-
-    start = 0
-    embeddings = None
-    # tokens = []
-    while start < len(self.tokens_map_norm):
-
-      subtokens = self.tokens_map_norm[start:start + window + overlap]
-      if verbosity > 2:
-        print("Embedding region:", start, len(subtokens))
-
-      sub_embeddings = self._emb(subtokens, embedder)[0:window]
-
-      # sub_embeddings = sub_embeddings[0:window]
-      # subtokens = subtokens[0:window]
-
-      if embeddings is None:
-        embeddings = sub_embeddings
-      else:
-        embeddings = np.concatenate([embeddings, sub_embeddings])
-      # tokens += subtokens
-
-      start += window
-
-    self.embeddings = embeddings
-    # self.tokens = tokens
 
   def get_tag_text(self, tag: SemanticTag):
     return self.tokens_map.text_range(tag.span)
@@ -681,8 +627,18 @@ class ContractValue:
     self.currency = currency
     self.parent = parent
 
-  def as_list(self):
+  def as_list(self) -> [SemanticTag]:
     return [self.value, self.sign, self.currency, self.parent]
+
+  def __add__(self, addon):
+    for t in self.as_list():
+      t.offset(addon)
+    return self
+
+  def span(self):
+    left = min([tag.span[0] for tag in self.as_list()])
+    right = max([tag.span[0] for tag in self.as_list()])
+    return left, right
 
   def integral_sorting_confidence(self) -> float:
     return conditional_p_sum(
@@ -699,11 +655,11 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
   # ======================================
 
   if results:
-    value_char_span, value, currency_char_span, currency = results
+    value_char_span, value, currency_char_span, currency, including_vat, original_value = results
     value_span = subdoc.tokens_map.token_indices_by_char_range_2(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range_2(currency_char_span)
 
-    parent = f'sign-value-currency-{region[0]}:{region[1]}'
+    parent = f'sign_value_currency_{region[0]}_{region[1]}'
     group = SemanticTag(parent, None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
@@ -721,78 +677,6 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     return ContractValue(sign, value_tag, currency, group)
   else:
     return None
-
-
-#
-#
-# if __name__ == '__main__':
-#
-#   ex="""
-#   с учетом положений пункта 8.4.4 устава , одобрение заключения , изменения , продления , возобновления или расторжения обществом ( i ) любых договоров страхования , если стоимость соответствующего договора или нескольких взаимосвязанных договоров превышает 100 000 ( сто тысяч ) долларов сша ( или эквивалент этой суммы в рублях или иной валюте ) , либо ( ii ) договоров страхования , относящихся к операторскому договору 6к или связанных с операторским договором 6к до закрытия сделки 6к независимо от суммы ;
-#   """
-#   #
-#   # self.pattern_prefix: str = None
-#   # self.attention_vector_name: str = None
-#   # self.parent: LegalDocument = None
-#   # self.confidence: float = 0
-#   # self.region: slice = None
-#
-#   def extract_sum_and_sign_3(tokens:Tokens, region: slice) -> ValueConstraint:
-#     _slice = slice(region.start - VALUE_SIGN_MIN_TOKENS, region.stop)
-#     subtokens = tokens[_slice]
-#     _prefix_tokens = subtokens[0:VALUE_SIGN_MIN_TOKENS + 1]
-#     _prefix = untokenize(_prefix_tokens)
-#     _sign = detect_sign(_prefix)
-#     # ======================================
-#     _sum = extract_sum_from_tokens_2(subtokens)
-#     # ======================================
-#
-#     currency = "UNDEF"
-#     value = np.nan
-#     if _sum is not None:
-#       currency = _sum[1]
-#       if _sum[1] in currencly_map:
-#         currency = currencly_map[_sum[1]]
-#       value = _sum[0]
-#
-#     vc = ValueConstraint(value, currency, _sign, TokensWithAttention([], []))
-#
-#     return vc
-#
-#
-#   def extract_all_contraints_from_sr( sentence ) :
-#
-#     tokens = sentence.split(' ')
-#     def tokens_before_index(string, index):
-#       return len(string[:index].split(' '))
-#
-#
-#     all = [slice(m.start(0), m.end(0)) for m in re.finditer(complete_re, sentence)]
-#     constraints: List[ProbableValue] = []
-#
-#     for a in all:
-#       print(tokens_before_index(sentence, a.start), 'from', sentence[a])
-#       token_index_s = tokens_before_index(sentence, a.start) - 1
-#       token_index_e = tokens_before_index(sentence, a.stop)
-#
-#       region = slice(token_index_s, token_index_e)
-#       print('region=', region)
-#
-#
-#       vc = extract_sum_and_sign_3(tokens, region)
-#       print(vc.sign)
-#       # _e = _expand_slice(region, 10)
-#       # vc.context = TokensWithAttention(search_result.tokens[_e], attention_vector[_e])
-#       # confidence = attention_vector[region.start]
-#       # pv = ProbableValue(vc, confidence)
-#       #
-#       # constraints.append(pv)
-#
-#     # return constraints
-#
-#
-#
-#   extract_all_contraints_from_sr(ex)
 
 
 def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
@@ -816,3 +700,45 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 
 
 PARAGRAPH_DELIMITER = '\n'
+
+
+def _embedd_large(text_map, embedder, max_tokens=8000, verbosity=2):
+  overlap = max_tokens // 20
+
+  number_of_windows = 1 + len(text_map) // max_tokens
+  window = max_tokens
+
+  if verbosity > 1:
+    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
+    warnings.warn(msg)
+
+  start = 0
+  embeddings = None
+  # tokens = []
+  while start < len(text_map):
+
+    subtokens: Tokens = text_map[start:start + window + overlap]
+    if verbosity > 2:
+      print("Embedding region:", start, len(subtokens))
+
+    sub_embeddings = embedder.embedd_tokens(subtokens)[0:window]
+
+    if embeddings is None:
+      embeddings = sub_embeddings
+    else:
+      embeddings = np.concatenate([embeddings, sub_embeddings])
+
+    start += window
+
+  return embeddings
+  # self.tokens = tokens
+
+
+def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
+  warnings.warn("use embedd_words", DeprecationWarning)
+
+  max_tokens = max_tokens
+  if len(text_map) > max_tokens:
+    return _embedd_large(text_map, embedder, max_tokens, verbosity)
+  else:
+    return embedder.embedd_tokens(text_map.tokens)

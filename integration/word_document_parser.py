@@ -15,7 +15,7 @@ class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.9'
+    self.version = '1.1.10'
 
     x = os.system("java -version")
     assert x == 0
@@ -57,7 +57,8 @@ def join_paragraphs(response, doc_id):
   elif response['documentType'] == 'PROTOCOL':
     doc: LegalDocument = ProtocolDocument(None)
   else:
-    warnings.warn("Unsupported document type:", response['documentType'])
+    msg = f"Unsupported document type: {response['documentType']}"
+    warnings.warn(msg)
     doc: LegalDocument = LegalDocument('')
 
   doc.parse()
@@ -71,8 +72,8 @@ def join_paragraphs(response, doc_id):
 
   for p in response['paragraphs']:
 
-    header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
-    header_text = header_text.replace('\n', ' ')
+    header_text = p['paragraphHeader']['text']
+    header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
     header.parse()
