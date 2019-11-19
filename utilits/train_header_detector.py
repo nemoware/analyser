@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from headers_detector import line_features
 from hyperparams import models_path
-from integration.db import get_mongodb_connection
+from integration.db import _get_local_mongodb_connection
 from integration.word_document_parser import WordDocParser, join_paragraphs
 from legal_docs import PARAGRAPH_DELIMITER
 
@@ -36,10 +36,14 @@ def doc_line_features(contract) -> []:
   for p in contract.paragraphs:
 
     header_tokens = tmap[p.header.slice]
-    header_features = line_features(tmap, p.header.span, ln, _prev_features)
-
-    header_features['actual'] = 1.0
     print('☢️', header_tokens)
+
+    header_features = line_features(tmap, p.header.span, ln, _prev_features)
+    if len(header_tokens) == 1 and header_tokens[0] == '\n':
+      header_features['actual'] = 0.0
+    else:
+      header_features['actual'] = 1.0
+
     features.append(header_features)
     _prev_features = header_features.copy()
     ln += 1
@@ -60,7 +64,7 @@ def doc_line_features(contract) -> []:
 
 
 def read_all_contracts():
-  db = get_mongodb_connection()
+  db = _get_local_mongodb_connection()
   collection = db['legaldocs']
 
   wp = WordDocParser()
@@ -109,27 +113,22 @@ def read_all_contracts():
       # print(cnt, res["documentDate"], res["documentType"], res["documentNumber"])
 
 
-"""
-  ACHTUNG! ["] not found with text.find, next text is: ``
-55о 05`00``
-в.д.
-Точка №11
-
-  """
 
 if __name__ == '__main__':
 
   features_dicts = []
   count = 0
 
-  for c in read_all_contracts():
-    # doctype = c['documentType']
-    contract = join_paragraphs(c, c['_id'])
+  for resp in read_all_contracts():
+    for d in resp['documents']:
+      doctype = d['documentType']
+      if doctype == 'CONTRACT' or doctype== 'PROTOCOL'  or doctype== 'CHARTER':
+        contract = join_paragraphs(d, resp['_id'])
+        _doc_features = doc_line_features(contract)
+        features_dicts += _doc_features
 
-    _doc_features = doc_line_features(contract)
-    features_dicts += _doc_features
+        count += 1
 
-    count += 1
     if count > MAX_DOCS: break
 
   featuresX_data = pd.DataFrame.from_records(features_dicts)

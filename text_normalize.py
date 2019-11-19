@@ -55,7 +55,9 @@ def r_quoted(x):
 
 r_quoted_name = r_group(r_quoted(r_name), 'r_quoted_name')
 
+_bell='\x07'
 spaces_regex = [
+  (re.compile(_bell), '\n'),
   (re.compile(r'\t'), ' '),
   (re.compile(r'[ ]{2}'), ' '),
   (re.compile(r' '), ' ')  # this is not just space char! this is weird invisible symbol
