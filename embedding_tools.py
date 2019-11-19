@@ -1,6 +1,9 @@
 from abc import abstractmethod
 
-from text_tools import *
+import numpy as np
+
+from documents import TextMap
+from text_tools import Tokens
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
@@ -21,20 +24,24 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   _strings = np.array(_strings)
 
   # ======== call TENSORFLOW -----==================
-  sentences_emb, wrds = embedder.embedd_tokenized_text(_strings, lens)
+  sentences_emb = embedder.embedd_tokenized_text(_strings, lens)
   # ================================================
-  return sentences_emb, wrds, lens
+  return sentences_emb, None, lens
 
 
 class AbstractEmbedder:
 
   @abstractmethod
   def get_embedding_tensor(self, tokenized_sentences_list):
-    pass
+    raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokenized_text(self, words: [Tokens], lens: List[int]) -> tuple:
-    return None, None
+  def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
+    raise NotImplementedError()
+
+  @abstractmethod
+  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
+    raise NotImplementedError()
 
   def embedd_contextualized_patterns(self, patterns, trim_padding=True):
 
@@ -47,9 +54,9 @@ class AbstractEmbedder:
     for (ctx_prefix, pattern, ctx_postfix) in patterns:
       # sentence = ' '.join((ctx_prefix, pattern, ctx_postfix))
 
-      prefix_tokens = tokenize_text(ctx_prefix)
-      pattern_tokens = tokenize_text(pattern)
-      suffix_tokens = tokenize_text(ctx_postfix)
+      prefix_tokens = TextMap(ctx_prefix).tokens  # tokenize_text(ctx_prefix)
+      pattern_tokens = TextMap(pattern).tokens
+      suffix_tokens = TextMap(ctx_postfix).tokens
 
       start = len(prefix_tokens)
       end = start + len(pattern_tokens)
@@ -76,7 +83,7 @@ class AbstractEmbedder:
     _strings = np.array(_strings)
 
     # ======== call TENSORFLOW -----==================
-    sentences_emb, wrds = self.embedd_tokenized_text(_strings, lens)
+    sentences_emb = self.embedd_tokenized_text(_strings, lens)
     # ================================================
 
     # print(sentences_emb.shape)

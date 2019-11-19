@@ -2,7 +2,7 @@ import re
 from typing import Iterator
 
 from contract_agents import find_org_names, ORG_LEVELS_re
-from contract_parser import find_value_sign_currency_attention
+from contract_parser import find_value_sign_currency_attention, max_confident_tag
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from ml_tools import *
@@ -13,14 +13,16 @@ from text_normalize import r_group, ru_cap, r_quoted
 from text_tools import is_long_enough, span_len
 from tf_support.embedder_elmo import ElmoEmbedder
 
+VALUE_ATTENTION_VECTOR_NAME = 'relu_value_attention_vector'
+
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r_group(ru_cap('итоги голосования') + '|' + ru_cap('результаты голосования')) + r"[:\n]?")
 
-za = r_group(r_quoted('за'))
-pr = r_group(r_quoted('против') + something)
-vo = r_group(r_quoted('воздержался') + something)
+r_votes_za = r_group(r_quoted('за'))
+r_votes_pr = r_group(r_quoted('против') + something)
+r_votes_vo = r_group(r_quoted('воздержался') + something)
 
-protocol_votes_ = r_group(itog1 + something) + r_group(za + something + pr + something + vo)
+protocol_votes_ = r_group(itog1 + something) + r_group(r_votes_za + something + r_votes_pr + something + r_votes_vo)
 protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 
@@ -118,8 +120,8 @@ class ProtocolParser(ParsingContext):
     self._analyse_embedded(doc)
 
   def _analyse_embedded(self, doc: ProtocolDocument):
-    doc.org_level = list(find_org_structural_level(doc))
-    doc.agents_tags = list(find_protocol_org(doc))
+    doc.org_level = [max_confident_tag(list(find_org_structural_level(doc)))]
+    doc.agents_tags = [max_confident_tag(list(find_protocol_org(doc)))]
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
@@ -144,8 +146,8 @@ class ProtocolParser(ParsingContext):
     return x
 
   def find_values(self, doc) -> [ContractValue]:
-    values: [ContractValue] = find_value_sign_currency_attention(doc, doc.distances_per_pattern_dict[
-      'relu_value_attention_vector'])
+    value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
+    values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
     # set parents for values
     for tag in doc.agenda_questions:
@@ -187,10 +189,17 @@ class ProtocolParser(ParsingContext):
 
   def _get_value_attention_vector(self, doc: LegalDocument):
     s_value_attention_vector = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_p_')
-    s_value_attention_vector_neg = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'sum_max_neg')
-    s_value_attention_vector_neg = relu(s_value_attention_vector_neg, 0.5)
-    s_value_attention_vector -= s_value_attention_vector_neg * 0.8
-    s_value_attention_vector = relu(s_value_attention_vector, 0.25)
+
+    doc.distances_per_pattern_dict['__max_value_av'] = s_value_attention_vector  # just for debugging
+    not_value_av = max_exclusive_pattern_by_prefix(doc.distances_per_pattern_dict, 'not_sum_')
+
+    not_value_av = smooth_safe(not_value_av, window_len=5)
+
+    not_value_av = relu(not_value_av, 0.5)
+    doc.distances_per_pattern_dict['__not_value_av'] = not_value_av  # just for debugging
+
+    s_value_attention_vector -= not_value_av * 0.8
+    s_value_attention_vector = relu(s_value_attention_vector, 0.3)
     return s_value_attention_vector
 
   def find_question_decision_sections(self, doc: ProtocolDocument):
@@ -216,18 +225,18 @@ class ProtocolParser(ParsingContext):
 
     ## value attention
 
-    wa['relu_value_attention_vector'] = self._get_value_attention_vector(doc)
+    wa[VALUE_ATTENTION_VECTOR_NAME] = self._get_value_attention_vector(doc)
     wa['relu_deal_approval'] = relu(v_deal_approval_words_attention, 0.5)
 
     _value_attention_vector = sum_probabilities(
-      [wa['relu_value_attention_vector'],
+      [wa[VALUE_ATTENTION_VECTOR_NAME],
        wa['relu_deal_approval'],
        wa['bin_votes_attention'] / 3.0])
 
-    wa['relu_value_attention_vector'] = relu(_value_attention_vector, 0.5)
+    wa[VALUE_ATTENTION_VECTOR_NAME] = relu(_value_attention_vector, 0.5)
     # // words_spans_having_votes = doc.sentence_map.remap_slices(spans_having_votes, doc.tokens_map)
 
-    values: List[ContractValue] = find_value_sign_currency_attention(doc, wa['relu_value_attention_vector'])
+    values: List[ContractValue] = find_value_sign_currency_attention(doc, wa[VALUE_ATTENTION_VECTOR_NAME])
 
     numbers_attention = np.zeros(len(doc.tokens_map))
     numbers_confidence = np.zeros(len(doc.tokens_map))
@@ -272,17 +281,25 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_8', (prefix + 'верхний лимит стоимости', '0', suffix)))
     sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_9', (prefix + 'максимальная сумма', '0', suffix)))
 
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца')), -0.8)
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек')),
-                             -0.8)
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи')), -0.8)
-    sum_comp_pat.add_pattern(
-      self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания ')), -0.8)
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.')), -0.8)
+    # self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца'))
+    # self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек') )
+    # self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи'))
+    # self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания '))
+    # self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.'))
 
-    self.sum_pattern = sum_comp_pat
+    f = self
+    f.create_pattern('not_sum_0', ('', 'пункт 0.', ''))
+    f.create_pattern('not_sum_1', ('', '0 дней', ''))
+    f.create_pattern('not_sum_1.1', ('', 'в течение 0 ( ноля ) дней', ''))
+    f.create_pattern('not_sum_1.2', ('', '0 января', ''))
+    f.create_pattern('not_sum_2', ('', '0 минут', ''))
+    f.create_pattern('not_sum_3', ('', '0 часов', ''))
+    f.create_pattern('not_sum_4', ('', '0 процентов', ''))
+    f.create_pattern('not_sum_5', ('', '0 %', ''))
+    f.create_pattern('not_sum_5.1', ('', '0 % голосов', ''))
+    f.create_pattern('not_sum_6', ('', '2000 год', ''))
+    f.create_pattern('not_sum_7', ('', '0 человек', ''))
+    f.create_pattern('not_sum_8', ('', '0 метров', ''))
 
   def _build_subject_pattern(self):
     ep = ExclusivePattern()

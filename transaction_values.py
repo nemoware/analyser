@@ -84,13 +84,12 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     vat_percent_span = r.span('percent')
     r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
     if r_vat_percent:
-      vat_percent = to_float(r_vat_percent)/100
+      vat_percent = to_float(r_vat_percent) / 100
       # print(f'vat_percent::{vat_percent}')
 
     number = number / (1. + vat_percent)
-    number = int(number*100.)/100. #dumned truncate!
+    number = int(number * 100.) / 100.  # dumned truncate!
     including_vat = True
-
 
   curr = r[7][0:3]
 
@@ -169,9 +168,9 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
         vat_percent = to_float(r_vat_percent) / 100
         # print(f'vat_percent::{vat_percent}')
 
-      number = number / (1.+vat_percent)
+      number = number / (1. + vat_percent)
       number = int(number * 100.) / 100.  # dumned truncate!
-      including_vat  = True
+      including_vat = True
 
     # TODO: include fration span to the return value
     ret = number_span, number, currency_span, currencly_name, including_vat, original_sum
@@ -191,7 +190,6 @@ if __name__ == '__main__':
 
   print(extract_sum('взаимосвязанных сделок в совокупности составляет от '
                     '1000000 ( одного ) миллиона рублей до 50000000 '))
-
 
 if __name__ == '__main__X':
   print(extract_sum('\n2.1.  Общая сумма договора составляет 41752 руб. (Сорок одна т'
