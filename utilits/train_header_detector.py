@@ -36,10 +36,14 @@ def doc_line_features(contract) -> []:
   for p in contract.paragraphs:
 
     header_tokens = tmap[p.header.slice]
-    header_features = line_features(tmap, p.header.span, ln, _prev_features)
-
-    header_features['actual'] = 1.0
     print('☢️', header_tokens)
+
+    header_features = line_features(tmap, p.header.span, ln, _prev_features)
+    if len(header_tokens) == 1 and header_tokens[0] == '\n':
+      header_features['actual'] = 0.0
+    else:
+      header_features['actual'] = 1.0
+
     features.append(header_features)
     _prev_features = header_features.copy()
     ln += 1
