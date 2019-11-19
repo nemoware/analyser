@@ -400,8 +400,8 @@ class SemanticTag:
     return self.span is not None and self.span[0] != self.span[1]
 
   @staticmethod
-  def find_by_kind(list: List['SemanticTag'], kind: str) -> 'SemanticTag':
-    for s in list:
+  def find_by_kind(lst: List['SemanticTag'], kind: str) -> 'SemanticTag':
+    for s in lst:
       if s.kind == kind:
         return s
 
@@ -415,7 +415,7 @@ class SemanticTag:
     return self.span[0] <= other[0] and self.span[1] >= other[1]
 
   def __str__(self):
-    return f'SemanticTag: {self.kind} {self.span} {self.value} {self.display_value}  {self.confidence}'
+    return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.display_value}  {self.confidence}'
 
   def quote(self, tm: TextMap):
     return tm.text_range(self.span)

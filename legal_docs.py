@@ -252,8 +252,6 @@ class LegalDocument:
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
-
-
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
     warnings.warn("use embedd_words", DeprecationWarning)
     if self.tokens:
@@ -319,7 +317,6 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-
       key, attr = self.__tag_to_attribute(t)
       attributes.append(attr)
 
@@ -377,37 +374,6 @@ def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th
   _sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
   _sum /= c
   return _sum
-
-
-class BasicContractDocument(LegalDocument):
-
-  def __init__(self, original_text=None):
-    LegalDocument.__init__(self, original_text)
-
-  def get_subject_ranges(self, indexes_zipped, section_indexes: List):
-
-    subj_range = None
-    head_range = None
-    for i in range(len(indexes_zipped) - 1):
-      if indexes_zipped[i][0] == 1:
-        subj_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-      if indexes_zipped[i][0] == 0:
-        head_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-    if head_range is None:
-      print("WARNING: Contract type might be not known!!")
-      head_range = range(0, 0)
-    if subj_range is None:
-      print("WARNING: Contract subject might be not known!!")
-      if len(self.tokens) < 80:
-        _end = len(self.tokens)
-      else:
-        _end = 80
-      subj_range = range(0, _end)
-    return head_range, subj_range
-
-
-# SUMS -----------------------------
-ProtocolDocument = LegalDocument
 
 
 # Charter Docs
