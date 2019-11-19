@@ -121,13 +121,13 @@ if __name__ == '__main__':
 
   for resp in read_all_contracts():
     for d in resp['documents']:
-    # doctype = c['documentType']
-      contract = join_paragraphs(d, resp['_id'])
+      doctype = d['documentType']
+      if doctype == 'CONTRACT' or doctype== 'PROTOCOL'  or doctype== 'CHARTER':
+        contract = join_paragraphs(d, resp['_id'])
+        _doc_features = doc_line_features(contract)
+        features_dicts += _doc_features
 
-      _doc_features = doc_line_features(contract)
-      features_dicts += _doc_features
-
-      count += 1
+        count += 1
 
     if count > MAX_DOCS: break
 

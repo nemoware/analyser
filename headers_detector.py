@@ -101,7 +101,7 @@ def line_features(tokens_map, line_span, line_number, prev_features):
 
   features = {
     'line_number': line_number,
-    'popular': _onehot(header_id in popular_headers),
+    # 'popular': _onehot(header_id in popular_headers),
     # 'cr_count': txt.count('\r'),
 
     'has_contract': _onehot(txt.lower().find('договор')),
