@@ -140,7 +140,9 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=N
 
           tag = SemanticTag(tagname, val, span, parent=parent)
           tag.confidence = confidence
-          tag.offset = doc.start
+          tag.offset (doc.start)
+
+
 
           if confidence > 0.2:
             tags.append(tag)
