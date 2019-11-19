@@ -131,6 +131,8 @@ dates_regex = [
 numbers_regex = [
   (re.compile(r'(?<=\d)+[. ](?=\d{3}\s*[(].{3,40}\sтысяч?)'), ''),  # 3.000 (Три тысячи)
   (re.compile(r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})'), ''),  # 3.000 (Три тысячи)
+
+  (re.compile(r'(?<=\d\.)([а-яa-z]{2,30})',re.IGNORECASE|re.UNICODE), r' \1'), ##space after dot
 ]
 
 fixtures_regex = [
