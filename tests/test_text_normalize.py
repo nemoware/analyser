@@ -183,6 +183,37 @@ class TestTextNormalization(unittest.TestCase):
       '«Базовый курс » - 3.000 (Три тысячи) рублей 00 коп., - 2.000 (Две тысячи)',
       '«Базовый курс» - 3000 (Три тысячи) рублей 00 копеек, - 2000 (Две тысячи)')
 
+
+  def test_normalize_numbered(self):
+    self._testNorm(
+      '1.этилен мама, этилен!',
+      '1. этилен мама, этилен!')
+
+  def test_normalize_numbered_1(self):
+    self._testNorm(
+      '2.1.этилен мама, этилен!',
+      '2.1. этилен мама, этилен!')
+
+  def test_normalize_numbered_2(self):
+    self._testNorm(
+      '2.01.этилен мама, этилен!',
+      '2.01. этилен мама, этилен!')
+
+  def test_normalize_numbered_3(self):
+    self._testNorm(
+      '112.01.этилен мама, этилен!',
+      '112.01. этилен мама, этилен!')
+
+  def test_normalize_numbered_4(self):
+    self._testNorm(
+      '112.01.8.Втилен мама!',
+      '112.01.8. Втилен мама!')
+
+  def test_normalize_numbered_5(self):
+    self._testNorm(
+      '2.01.Urengoy',
+      '2.01. Urengoy')
+
   def testSpace1(self):
     self._testNorm('с ограниченной ответственностью « Ч» в лице',
                    'с ограниченной ответственностью «Ч» в лице')
