@@ -16,7 +16,7 @@ def print_predictions(contract, predictions, body_lines_ranges):
   for i in range(len(predictions)):
     if predictions[i] > 0.1:
       headlines_cnt += 1
-      # print(f'{predictions[i]} \t {i}\t🎖{contract.tokens_map.text_range(body_lines_ranges[i])}❗')
+      # //print(f'{predictions[i]} \t {i}\t🎖{contract.tokens_map.text_range(body_lines_ranges[i])}❗')
   return headlines_cnt
 
 
@@ -56,7 +56,7 @@ class TestHeaderDetector(unittest.TestCase):
 
     headlines_cnt = print_predictions(contract, predictions, body_lines_ranges)
 
-    self.assertLess(headlines_cnt, 25)
+    self.assertLess(headlines_cnt, 28)
     self.assertGreater( headlines_cnt, 12)
 
 
