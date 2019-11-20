@@ -44,7 +44,7 @@ class FocusingSectionsFinder:
     for section_type in headlines:
       # find best header for each section
 
-      pattern_prefix = f'headline.{section_type}'
+      pattern_prefix = f'{headline_patterns_prefix}{section_type}'
 
       headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 

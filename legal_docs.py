@@ -10,9 +10,11 @@ from functools import wraps
 
 from bson import json_util
 
+from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
-from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better
+from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
+  calc_distances_per_pattern_dict
 from patterns import *
 from structures import ContractTags
 from tests.test_text_tools import split_sentences_into_map
@@ -693,3 +695,42 @@ def make_headline_attention_vector(doc):
     parser_headline_attention_vector[p.header.slice] = 1
 
   return parser_headline_attention_vector
+
+
+def headers_as_sentences(doc: LegalDocument):
+  numbered = [doc.tokens_map.slice(p.header.as_slice()) for p in doc.paragraphs]
+
+  stripped = []
+
+  for s in numbered:
+    n, span, _, _ = get_tokenized_line_number(s.tokens, 0)
+    line = s.text_range([span[1], None]).strip()
+
+    stripped.append(line)
+
+  return stripped
+
+
+def map_headlines_to_patterns(charter, patterns_dict, patterns_embeddings, elmo_embedder_default, pattern_prefix: str,
+                              pattern_suffixes: [str]):
+  headers = headers_as_sentences(charter)
+  headers_embedding = elmo_embedder_default.embedd_strings(headers)
+
+
+  header_to_pattern_distances = calc_distances_per_pattern_dict(headers_embedding,
+                                                                patterns_dict,
+                                                                patterns_embeddings)
+
+  patterns_by_headers = [()] * len(headers)
+  for e in range(len(headers)):
+    # for each header
+    max_confidence = 0
+    for pattern_suffix in pattern_suffixes:
+      pattern_name = pattern_prefix + pattern_suffix
+      # find best pattern
+      confidence = header_to_pattern_distances[pattern_name][e]
+      if confidence > max_confidence and confidence > 0.66:
+        patterns_by_headers[e] = (pattern_name, pattern_suffix, confidence, headers[e], charter.paragraphs[e])
+        max_confidence = confidence
+
+  return patterns_by_headers, header_to_pattern_distances

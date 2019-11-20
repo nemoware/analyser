@@ -3,7 +3,7 @@ import re
 
 from charter_patterns import make_constraints_attention_vectors
 from legal_docs import LegalDocument, CharterDocument, \
-  _expand_slice, remove_sr_duplicates_conditionally
+  _expand_slice, remove_sr_duplicates_conditionally, map_headlines_to_patterns
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
@@ -16,6 +16,7 @@ from transaction_values import extract_sum, number_re, ValueConstraint, VALUE_SI
 from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
+competence_headline_pattern_prefix = 'headline.head.comp'
 
 class CharterDocument4(LegalDocument):
 
@@ -28,10 +29,9 @@ class CharterDocument4(LegalDocument):
     # self.sentences_embeddings = None
     #
     # self.distances_per_sentence_pattern_dict = {}
-    self.tags=[]
+    self.tags = []
 
   def get_tags(self) -> [SemanticTag]:
-
     return self.tags
 
 
@@ -629,3 +629,14 @@ def find_sentences_by_pattern_prefix(doc, org_level, factory, pattern_prefix) ->
   results = remove_sr_duplicates_conditionally(results)
 
   return results
+
+
+
+
+
+def map_charter_headlines_to_patterns(charter, charter_parser):
+  map, distances = map_headlines_to_patterns(charter, charter_parser.patterns_dict, charter_parser.patterns_embeddings,
+                                             charter_parser.elmo_embedder_default, competence_headline_pattern_prefix,
+                                             [ol.name for ol in OrgStructuralLevel])
+
+  return map
