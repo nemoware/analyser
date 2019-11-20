@@ -162,6 +162,14 @@ class TokenisationTestCase(unittest.TestCase):
     cr = tm.char_range([None, 1])
     self.assertEqual('этилен', text[cr[0]:cr[1]])
 
+
+  def test_tokenize_numbered(self):
+    text = '1. этилен мама, этилен!'
+    tm = TextMap(text)
+    self.assertEqual(tm.tokens[0], '1.')
+    self.assertEqual(tm.tokens[1], 'этилен')
+
+
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)

@@ -121,7 +121,7 @@ class ProtocolParser(ParsingContext):
 
   def _analyse_embedded(self, doc: ProtocolDocument):
     doc.org_level = [max_confident_tag(list(find_org_structural_level(doc)))]
-    doc.agents_tags = [max_confident_tag(list(find_protocol_org(doc)))]
+    doc.agents_tags =  list(find_protocol_org(doc))
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
