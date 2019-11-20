@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from hyperparams import models_path
-from legal_docs import PARAGRAPH_DELIMITER
+from legal_docs import PARAGRAPH_DELIMITER, make_headline_attention_vector
 from ml_tools import sum_probabilities, FixedVector
 from text_tools import Tokens
 
@@ -25,17 +25,14 @@ def load_model() -> RandomForestRegressor:
   return globals()['rf_model']
 
 
-def make_headline_attention_vector(doc, return_components=False) -> FixedVector or (
+def make_predicted_headline_attention_vector(doc, return_components=False) -> FixedVector or (
         FixedVector, FixedVector, FixedVector):
   """
   moved to headers_detector
   """
 
-  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+  parser_headline_attention_vector = make_headline_attention_vector(doc)
   predicted_headline_attention_vector = np.zeros_like(parser_headline_attention_vector)
-
-  for p in doc.paragraphs:
-    parser_headline_attention_vector[p.header.slice] = 1
 
   features, body_lines_ranges = doc_features(doc.tokens_map)
   model = load_model()

@@ -684,3 +684,12 @@ def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2,
     return _embedd_large(text_map, embedder, max_tokens, verbosity)
   else:
     return embedder.embedd_tokens(text_map.tokens)
+
+
+def make_headline_attention_vector(doc):
+  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+
+  for p in doc.paragraphs:
+    parser_headline_attention_vector[p.header.slice] = 1
+
+  return parser_headline_attention_vector
