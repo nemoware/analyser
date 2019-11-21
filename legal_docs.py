@@ -740,3 +740,14 @@ def map_headlines_to_patterns(charter, patterns_dict, patterns_embeddings, elmo_
         max_confidence = confidence
 
   return patterns_by_headers, header_to_pattern_distances
+
+
+def remap_attention_vector(v, source_map, target_map):
+  av = np.zeros(len(target_map))
+
+  for i in range(len(source_map)):
+    span = i, i + 1
+
+    t_span = source_map.remap_span(span, target_map)
+    av[t_span[0]:t_span[1]] = v[i]
+  return av
