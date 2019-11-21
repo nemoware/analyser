@@ -148,8 +148,6 @@ class TokenisationTestCase(unittest.TestCase):
 
     # //text_range(doc.tokens_map, [0, 10])
 
-
-
   def test_char_range(self):
     text = 'этилен мама ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -162,13 +160,11 @@ class TokenisationTestCase(unittest.TestCase):
     cr = tm.char_range([None, 1])
     self.assertEqual('этилен', text[cr[0]:cr[1]])
 
-
   def test_tokenize_numbered(self):
     text = '1. этилен мама, этилен!'
     tm = TextMap(text)
     self.assertEqual(tm.tokens[0], '1.')
     self.assertEqual(tm.tokens[1], 'этилен')
-
 
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
@@ -330,11 +326,28 @@ class TokenisationTestCase(unittest.TestCase):
     print(expected)
 
     tm = TextMap(text)  # tokenization
-    ti = tm.token_indices_by_char_range_2(span)
+    ti = tm.token_indices_by_char_range(span)
     self.assertEqual(0, ti[0])
     self.assertEqual(1, ti[1])
 
     self.assertEqual(expected, tm.text_range(ti))
+
+  def test_token_indices_by_char_range_sliced(self):
+    text = 'm йe qwert'
+
+    __tm = TextMap(text)  # tokenization
+    tm = __tm.slice(slice(1, 2))
+
+    self.assertEqual('йe', tm.tokens[0])
+    self.assertEqual('йe', tm.text)
+
+    char_range = tm.char_range([0, 1])
+    ti = tm.token_indices_by_char_range(char_range)
+    self.assertEqual(0, ti[0])
+    self.assertEqual(1, ti[1])
+
+    ti = tm.token_indices_by_char_range([1, 2])
+    self.assertEqual(0, ti[0])
 
   def test_map_tokens_in_range(self):
     text = '1.2. мама   ಶ್ರೀರಾಮ'

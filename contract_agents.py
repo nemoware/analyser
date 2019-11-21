@@ -120,7 +120,7 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[
         # span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
         # val = doc.tokens_map_norm.text_range(span)
 
-        span = doc.tokens_map.token_indices_by_char_range_2(char_span)
+        span = doc.tokens_map.token_indices_by_char_range(char_span)
         val = doc.tokens_map.text_range(span)
         confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
         if span_len(char_span) > 1 and _is_valid(val):
