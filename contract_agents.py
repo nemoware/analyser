@@ -105,7 +105,16 @@ def _find_org_names(text: str) -> List[Dict]:
   return list(org_names.values())
 
 
-def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[SemanticTag]:
+def find_org_names_in_tag(doc: LegalDocument, parent: SemanticTag, max_names=2, tag_kind_prefix='',
+                          decay_confidence=True) -> List[
+  SemanticTag]:
+  span = parent.span
+  return find_org_names(doc[span[0]:span[1]], max_names=max_names, tag_kind_prefix=tag_kind_prefix, parent=parent,
+                        decay_confidence=decay_confidence)
+
+
+def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=None, decay_confidence=True) -> List[
+  SemanticTag]:
   tags = []
   org_i = 0
 
@@ -122,7 +131,9 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[
 
         span = doc.tokens_map.token_indices_by_char_range_2(char_span)
         val = doc.tokens_map.text_range(span)
-        confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
+        confidence = 1
+        if decay_confidence:
+          confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
         if span_len(char_span) > 1 and _is_valid(val):
           if 'name' == entity_type:
             legal_entity_type, val = normalize_company_name(val)
@@ -132,8 +143,10 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='') -> List[
               val = known_org_name['_id']
               confidence *= best_similarity
 
-          tag = SemanticTag(tagname, val, span)
+          tag = SemanticTag(tagname, val, span, parent=parent)
           tag.confidence = confidence
+          tag.offset(doc.start)
+
           if confidence > 0.2:
             tags.append(tag)
           else:

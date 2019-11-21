@@ -363,11 +363,14 @@ class TokensWithAttention:
 
 
 class SemanticTag:
-  def __init__(self, kind, value, span: (int, int), span_map='words'):
+
+  def __init__(self, kind, value, span: (int, int), span_map='words', parent: 'SemanticTag' = None):
     self.kind = kind
     self.value = value
     '''name of the parent (or group) tag '''
-    self.parent: str or None = None
+
+    self._parent_tag: 'SemanticTag' = parent
+
     if span:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
     else:
@@ -376,6 +379,20 @@ class SemanticTag:
     self.confidence = 1.0
     self.display_value = value
 
+  def get_parent(self) -> str or None:
+    if self._parent_tag is not None:
+      return self._parent_tag.get_key()
+    else:
+      return None
+
+  parent = property(get_parent)
+
+  def get_key(self):
+    key = self.kind.replace('.', '-').replace('_', '-')
+    if self._parent_tag is not None:
+      key = self._parent_tag.get_key() + '_' + key
+    return key
+
   def as_slice(self):
     return slice(self.span[0], self.span[1])
 
@@ -383,24 +400,34 @@ class SemanticTag:
     return self.span is not None and self.span[0] != self.span[1]
 
   @staticmethod
-  def find_by_kind(list: List['SemanticTag'], kind: str) -> 'SemanticTag':
-    for s in list:
+  def find_by_kind(lst: List['SemanticTag'], kind: str) -> 'SemanticTag':
+    for s in lst:
       if s.kind == kind:
         return s
 
   def offset(self, span_add: int):
     self.span = self.span[0] + span_add, self.span[1] + span_add
 
+  def set_parent_tag(self, pt):
+    self._parent_tag = pt
+
   def is_nested(self, other: [int]) -> bool:
     return self.span[0] <= other[0] and self.span[1] >= other[1]
 
   def __str__(self):
-    return f'SemanticTag: {self.kind} {self.span} {self.value} {self.display_value}  {self.confidence}'
+    return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.display_value}  {self.confidence}'
 
   def quote(self, tm: TextMap):
     return tm.text_range(self.span)
 
   slice = property(as_slice)
+
+
+def max_confident_tags(vals: List[SemanticTag]) -> [SemanticTag]:
+  if vals:
+    return [max(vals, key=lambda a: a.confidence)]
+  else:
+    return []
 
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):

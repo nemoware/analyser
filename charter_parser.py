@@ -3,13 +3,12 @@ import re
 
 from charter_patterns import make_constraints_attention_vectors
 from legal_docs import LegalDocument, CharterDocument, \
-  _expand_slice
+  _expand_slice, remove_sr_duplicates_conditionally, map_headlines_to_patterns
 from ml_tools import *
-from ml_tools import FixedVector, ProbableValue
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
   ConstraintsSearchResult, PatternSearchResults, PatternMatch
-from sections_finder import SectionsFinder, FocusingSectionsFinder, HeadlineMeta
+from sections_finder import FocusingSectionsFinder, HeadlineMeta
 from structures import *
 from text_tools import untokenize, Tokens
 from transaction_values import extract_sum, number_re, ValueConstraint, VALUE_SIGN_MIN_TOKENS, detect_sign, \
@@ -17,6 +16,41 @@ from transaction_values import extract_sum, number_re, ValueConstraint, VALUE_SI
 from violations import ViolationsFinder
 
 WARN = '\033[1;31m'
+competence_headline_pattern_prefix = 'headline.head.comp'
+
+
+class CharterDocument4(LegalDocument):
+
+  def __init__(self, doc: LegalDocument):
+    super().__init__('')
+    if doc is not None:
+      self.__dict__ = doc.__dict__
+
+    # self.sentence_map: TextMap = None
+    # self.sentences_embeddings = None
+    #
+    # self.distances_per_sentence_pattern_dict = {}
+    self.tags = []
+
+  def get_tags(self) -> [SemanticTag]:
+    return self.tags
+
+
+class CharterDocument4(LegalDocument):
+
+  def __init__(self, doc: LegalDocument):
+    super().__init__('')
+    if doc is not None:
+      self.__dict__ = doc.__dict__
+
+    # self.sentence_map: TextMap = None
+    # self.sentences_embeddings = None
+    #
+    # self.distances_per_sentence_pattern_dict = {}
+    self.tags = []
+
+  def get_tags(self) -> [SemanticTag]:
+    return self.tags
 
 
 class CharterConstraintsParser(ParsingSimpleContext):
@@ -131,7 +165,7 @@ class CharterDocumentParser(CharterConstraintsParser):
   def __init__(self, pattern_factory):
     CharterConstraintsParser.__init__(self, pattern_factory)
 
-    self.sections_finder: SectionsFinder = FocusingSectionsFinder(self)
+    self.sections_finder: FocusingSectionsFinder = FocusingSectionsFinder(self)
 
     self.doc: CharterDocument = None
 
@@ -154,17 +188,16 @@ class CharterDocumentParser(CharterConstraintsParser):
     self.doc: CharterDocument = _charter_doc
 
     """ 2. ✂️ 📃 -> 📄📄📄  finding headlines (& sections) ==== ️"""
-
-    competence_v = self._make_competence_attention_v()
     self.sections_finder.find_sections(self.doc, self.pattern_factory, self.pattern_factory.headlines,
-                                       headline_patterns_prefix='headline.', additional_attention=competence_v)
+                                       headline_patterns_prefix='headline.')
 
     """ 2. NERS 🏦 🏨 🏛==== ️"""
+    # TODO:
     _org_, self.charter.org_type_tag, self.charter.org_name_tag = self.ners()
     self.charter.org = _org_  # TODO: remove it, this is just for compatibility
 
     """ 3. CONSTRAINTS 💰 💵 ==== ️"""
-    self.find_contraints_2()
+    self.find_contraints()
 
     ##----end, logging, closing
     self.verbosity_level = 1
@@ -223,7 +256,7 @@ class CharterDocumentParser(CharterConstraintsParser):
   🚷🔥
   """
 
-  def find_contraints_2(self) -> None:
+  def find_contraints(self) -> None:
 
     # 5. extract constraint values
     sections_filtered = self._get_head_sections()
@@ -241,22 +274,23 @@ class CharterDocumentParser(CharterConstraintsParser):
       self.charter._constraints += all_margin_values
 
   def _find_constraints_in_section(self, org_level: str, section):
+
     for subj in known_subjects:
       pattern_prefix = f'x_{subj}'
       attention, attention_vector_name = section.make_attention_vector(self.pattern_factory, pattern_prefix)
 
     # TODO: try 'margin_value' prefix also
     # searching for everything having a numeric value
-    all_margin_values: PatternSearchResults = section.find_sentences_by_pattern_prefix(org_level, self.pattern_factory,
-                                                                                       'sum__')
+    all_margin_values: PatternSearchResults = find_sentences_by_pattern_prefix(section, org_level, self.pattern_factory,
+                                                                               'sum__')
 
     # s_lawsuits: PatternSearchResults = section.find_sentences_by_pattern_prefix(self.pattern_factory,
     #                                                                             f'x_{ContractSubject.Lawsuit}')
 
     # s_values: PatternSearchResults = substract_search_results(s_values, s_lawsuits)
 
-    charity_constraints = section.find_sentences_by_pattern_prefix(org_level, self.pattern_factory,
-                                                                   f'x_{ContractSubject.Charity}')
+    charity_constraints = find_sentences_by_pattern_prefix(section, org_level, self.pattern_factory,
+                                                           f'x_{ContractSubject.Charity}')
 
     self.map_to_subject(all_margin_values)
     self.map_to_subject(charity_constraints)
@@ -557,3 +591,56 @@ def extract_sum_from_tokens(sentence_tokens: Tokens):
   _sentence = untokenize(sentence_tokens).lower().strip()
   f = extract_sum(_sentence)
   return f, _sentence
+
+
+def find_sentences_by_pattern_prefix(doc, org_level, factory, pattern_prefix) -> PatternSearchResults:
+  """
+  :param factory:
+  :param pattern_prefix:
+  :return:
+  """
+  warnings.warn("use find_sentences_by_attention_vector", DeprecationWarning)
+  attention, attention_vector_name = doc.make_attention_vector(factory, pattern_prefix)
+
+  results: PatternSearchResults = []
+
+  for i in np.nonzero(attention)[0]:
+    _b = doc.tokens_map.sentence_at_index(i)
+    _slice = slice(_b[0], _b[1])
+
+    if _slice.stop != _slice.start:
+
+      sum_ = sum(attention[_slice])
+      #       confidence = np.mean( np.nonzero(x[sl]) )
+      nonzeros_count = len(np.nonzero(attention[_slice])[0])
+      confidence = 0
+
+      if nonzeros_count > 0:
+        confidence = sum_ / nonzeros_count
+
+      if confidence > 0.8:
+        r = PatternSearchResult(ORG_2_ORG[org_level], _slice)
+        r.attention_vector_name = attention_vector_name
+        r.pattern_prefix = pattern_prefix
+        r.confidence = confidence
+        r.parent = doc
+
+        results.append(r)
+
+  results = remove_sr_duplicates_conditionally(results)
+
+  return results
+
+
+def map_charter_headlines_to_patterns(charter, charter_parser):
+  p_suffices = [ol.name for ol in OrgStructuralLevel]
+  p_suffices += ['comp/' + ol.name for ol in OrgStructuralLevel]
+  # TODO: add -p suffices as well
+  map, distances = map_headlines_to_patterns(charter,
+                                             charter_parser.patterns_dict,
+                                             charter_parser.patterns_embeddings,
+                                             charter_parser.elmo_embedder_default,
+                                             competence_headline_pattern_prefix + '/',
+                                             p_suffices)
+
+  return map

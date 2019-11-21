@@ -4,6 +4,7 @@ import os
 import subprocess
 import warnings
 
+from charter_parser import CharterDocument4
 from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
 from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
@@ -42,20 +43,19 @@ class WordDocParser(DirDocProvider):
 
     if result.returncode != 0:
       raise RuntimeError('cannot execute ' + result.args)
-    # print(f'result=[{result.stdout}]')
 
-    res = json.loads(result.stdout)
-
-    return res
+    return json.loads(result.stdout)
 
 
 def join_paragraphs(response, doc_id):
   # TODO: check type of res
-  doc = None
+
   if response['documentType'] == 'CONTRACT':
     doc: LegalDocument = ContractDocument('')
   elif response['documentType'] == 'PROTOCOL':
     doc: LegalDocument = ProtocolDocument(None)
+  elif response['documentType'] == 'CHARTER':
+    doc: LegalDocument = CharterDocument4(None)
   else:
     msg = f"Unsupported document type: {response['documentType']}"
     warnings.warn(msg)
@@ -70,9 +70,9 @@ def join_paragraphs(response, doc_id):
 
   last = 0
 
-  for p in response['paragraphs']:
+  for _p in response['paragraphs']:
 
-    header_text = p['paragraphHeader']['text']
+    header_text = _p['paragraphHeader']['text']
     header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
@@ -83,8 +83,8 @@ def join_paragraphs(response, doc_id):
 
     last = len(doc.tokens_map)
 
-    if p['paragraphBody']:
-      body_text = p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
+    if _p['paragraphBody']:
+      body_text = _p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
       body = LegalDocument(body_text)
       body.parse()
       doc += body

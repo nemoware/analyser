@@ -415,3 +415,33 @@ class ConstraintsSearchResult:
 
 
 PatternSearchResults = List[PatternSearchResult]
+
+
+def create_value_negation_patterns(f: AbstractPatternFactory, name='not_sum_'):
+  f.create_pattern(f'{name}1', ('', 'пункт 0.', ''))
+  f.create_pattern(f'{name}2', ('', '0 дней', ''))
+  f.create_pattern(f'{name}3', ('', 'в течение 0 ( ноля ) дней', ''))
+  f.create_pattern(f'{name}4', ('', '0 января', ''))
+  f.create_pattern(f'{name}5', ('', '0 минут', ''))
+  f.create_pattern(f'{name}6', ('', '0 часов', ''))
+  f.create_pattern(f'{name}7', ('', '0 процентов', ''))
+  f.create_pattern(f'{name}8', ('', '0 %', ''))
+  f.create_pattern(f'{name}9', ('', '0 % голосов', ''))
+  f.create_pattern(f'{name}10', ('', '2000 год', ''))
+  f.create_pattern(f'{name}11', ('', '0 человек', ''))
+  f.create_pattern(f'{name}12', ('', '0 метров', ''))
+
+
+def create_value_patterns(f: AbstractPatternFactory, name='sum_max_p_'):
+  suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
+  _prefix = ''
+
+  f.create_pattern(f'{name}1', (_prefix + 'стоимость', 'не более 0', suffix))
+  f.create_pattern(f'{name}2', (_prefix + 'цена', 'не больше 0', suffix))
+  f.create_pattern(f'{name}3', (_prefix + 'стоимость <', '0', suffix))
+  f.create_pattern(f'{name}4', (_prefix + 'цена менее', '0', suffix))
+  f.create_pattern(f'{name}5', (_prefix + 'стоимость не может превышать', '0', suffix))
+  f.create_pattern(f'{name}6', (_prefix + 'общая сумма может составить', '0', suffix))
+  f.create_pattern(f'{name}7', (_prefix + 'лимит соглашения', '0', suffix))
+  f.create_pattern(f'{name}8', (_prefix + 'верхний лимит стоимости', '0', suffix))
+  f.create_pattern(f'{name}9', (_prefix + 'максимальная сумма', '0', suffix))
