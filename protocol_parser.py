@@ -367,7 +367,7 @@ def find_org_structural_level(doc: LegalDocument) -> Iterator[SemanticTag]:
   for m in re.finditer(compiled_re, doc.text):
 
     char_span = m.span(entity_type)
-    span = doc.tokens_map.token_indices_by_char_range_2(char_span)
+    span = doc.tokens_map.token_indices_by_char_range(char_span)
     val = doc.tokens_map.text_range(span)
 
     val, conf = closest_name(val, ORG_LEVELS_names)

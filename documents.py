@@ -43,7 +43,7 @@ class TextMap:
 
   def finditer(self, regexp):
     for m in regexp.finditer(self.text):
-      yield self.token_indices_by_char_range_2(m.span(0))
+      yield self.token_indices_by_char_range(m.span(0))
 
   def token_index_by_char(self, _char_index: int) -> int:
     """
@@ -63,14 +63,12 @@ class TextMap:
       return len(self.map)
     return -1
 
-  def token_indices_by_char_range_2(self, span: [int]) -> (int, int):
-    a = self.token_index_by_char(span[0])
-    b = self.token_index_by_char(span[1])
+  def token_indices_by_char_range(self, char_span: [int]) -> (int, int):
+    a = self.token_index_by_char(char_span[0])
+    b = self.token_index_by_char(char_span[1])
     if a == b and b >= 0:
       b = a + 1
     return a, b
-
-  token_indices_by_char_range = token_indices_by_char_range_2
 
   def slice(self, span: slice) -> 'TextMap':
     sliced = TextMap(self._full_text, self.map[span])
@@ -132,7 +130,7 @@ class TextMap:
     _last = min(len(self.map), b)
     stop = self.map[_last - 1][1]
 
-    return start, stop
+    return start - self._offset_chars, stop - self._offset_chars
 
   def remap_spans(self, spans, target_map: 'TextMap'):
     assert self._full_text == target_map._full_text
@@ -163,7 +161,7 @@ class TextMap:
   def text_range(self, span) -> str:
     try:
       start, stop = self.char_range(span)
-      return self._full_text[start: stop]
+      return self._full_text[start + self._offset_chars: stop + self._offset_chars]
     except:
       err = f'cannot deal with {span}'
       traceback.print_exc(file=sys.stdout)
