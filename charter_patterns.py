@@ -43,6 +43,7 @@ class CharterPatternFactory(AbstractPatternFactoryLowCase):
     self.embedd()
 
   def _build_head_patterns(self):
+    warnings.warn("use sentence patterns", DeprecationWarning)
     def cp(name, tuples):
       return self.create_pattern(name, tuples)
 

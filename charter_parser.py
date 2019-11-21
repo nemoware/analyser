@@ -18,6 +18,7 @@ from violations import ViolationsFinder
 WARN = '\033[1;31m'
 competence_headline_pattern_prefix = 'headline.head.comp'
 
+
 class CharterDocument4(LegalDocument):
 
   def __init__(self, doc: LegalDocument):
@@ -631,12 +632,15 @@ def find_sentences_by_pattern_prefix(doc, org_level, factory, pattern_prefix) ->
   return results
 
 
-
-
-
 def map_charter_headlines_to_patterns(charter, charter_parser):
-  map, distances = map_headlines_to_patterns(charter, charter_parser.patterns_dict, charter_parser.patterns_embeddings,
-                                             charter_parser.elmo_embedder_default, competence_headline_pattern_prefix,
-                                             [ol.name for ol in OrgStructuralLevel])
+  p_suffices = [ol.name for ol in OrgStructuralLevel]
+  p_suffices += ['comp/' + ol.name for ol in OrgStructuralLevel]
+  # TODO: add -p suffices as well
+  map, distances = map_headlines_to_patterns(charter,
+                                             charter_parser.patterns_dict,
+                                             charter_parser.patterns_embeddings,
+                                             charter_parser.elmo_embedder_default,
+                                             competence_headline_pattern_prefix + '/',
+                                             p_suffices)
 
   return map

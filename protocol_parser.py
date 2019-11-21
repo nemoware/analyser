@@ -132,14 +132,17 @@ class ProtocolParser(ParsingContext):
   def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
     ret = []
     for parent in agenda_questions:
-      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_')
+      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_',
+                                                          decay_confidence=False)
       if x:
         ret += x
     return ret
 
-  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag, tag_kind_prefix: str) -> List[
+  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag, tag_kind_prefix: str,
+                              decay_confidence=False) -> List[
     SemanticTag]:
-    x: List[SemanticTag] = find_org_names_in_tag(protocol, parent, max_names=10, tag_kind_prefix=tag_kind_prefix)
+    x: List[SemanticTag] = find_org_names_in_tag(protocol, parent, max_names=10, tag_kind_prefix=tag_kind_prefix,
+                                                 decay_confidence=decay_confidence)
     return x
 
   def find_values(self, doc) -> [ContractValue]:

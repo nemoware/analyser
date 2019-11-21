@@ -13,6 +13,7 @@ from bson import json_util
 from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
+from hyperparams import HyperParameters
 from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
   calc_distances_per_pattern_dict
 from patterns import *
@@ -697,15 +698,21 @@ def make_headline_attention_vector(doc):
   return parser_headline_attention_vector
 
 
-def headers_as_sentences(doc: LegalDocument):
-  numbered = [doc.tokens_map.slice(p.header.as_slice()) for p in doc.paragraphs]
+def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True):
+  _map = doc.tokens_map
+  if normal_case:
+    _map = doc.tokens_map_norm
 
+  numbered = [_map.slice(p.header.as_slice()) for p in doc.paragraphs]
   stripped = []
 
   for s in numbered:
-    n, span, _, _ = get_tokenized_line_number(s.tokens, 0)
-    line = s.text_range([span[1], None]).strip()
-
+    if strip_number:
+      a = get_tokenized_line_number(s.tokens, 0)
+      _, span, _, _ = a
+      line = s.text_range([span[1], None]).strip()
+    else:
+      line = s.text
     stripped.append(line)
 
   return stripped
@@ -715,7 +722,6 @@ def map_headlines_to_patterns(charter, patterns_dict, patterns_embeddings, elmo_
                               pattern_suffixes: [str]):
   headers = headers_as_sentences(charter)
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
-
 
   header_to_pattern_distances = calc_distances_per_pattern_dict(headers_embedding,
                                                                 patterns_dict,
@@ -729,7 +735,7 @@ def map_headlines_to_patterns(charter, patterns_dict, patterns_embeddings, elmo_
       pattern_name = pattern_prefix + pattern_suffix
       # find best pattern
       confidence = header_to_pattern_distances[pattern_name][e]
-      if confidence > max_confidence and confidence > 0.66:
+      if confidence > max_confidence and confidence > HyperParameters.header_topic_min_confidence:
         patterns_by_headers[e] = (pattern_name, pattern_suffix, confidence, headers[e], charter.paragraphs[e])
         max_confidence = confidence
 
