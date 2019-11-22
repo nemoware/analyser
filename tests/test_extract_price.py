@@ -9,13 +9,13 @@ from typing import List
 import nltk
 import numpy as np
 
+from charter_parser import split_by_number_2
 from contract_parser import ContractDocument, find_value_sign_currency
 from documents import TextMap
 from legal_docs import find_value_sign
 from ml_tools import conditional_p_sum
 from text_normalize import *
 from transaction_values import extract_sum
-from charter_parser import split_by_number_2
 
 data = [
   # (0, 41752.62, 'RUB',
@@ -43,7 +43,8 @@ data = [
   (0, 80000.0, 'RUB', 'Счет № 115 на приобретение спортивного оборудования, '
                       'Стоимость оборудования 80 000,00 (восемьдесят тысяч рублей руб. 00 коп.) руб., НДС не облагается '),
 
-   (0, 381600.0, 'RUB', 'Общая стоимость Услуг по настоящему Договору составляет 381 600 (Триста восемьдесят одна тысяча  шестьсот ) рублей 00 коп., кроме того НДС (20%) в размере 76 320  (Семьдесят шесть тысяч триста двадцать) рублей 00 коп.'),
+  (0, 381600.0, 'RUB',
+   'Общая стоимость Услуг по настоящему Договору составляет 381 600 (Триста восемьдесят одна тысяча  шестьсот ) рублей 00 коп., кроме того НДС (20%) в размере 76 320  (Семьдесят шесть тысяч триста двадцать) рублей 00 коп.'),
 
   (0, 1000000.0, 'EURO', 'стоимость покупки: 1 000 000 евро '),
 
@@ -61,6 +62,9 @@ data = [
 
   (0, 50950000.0, 'RUB', 'сумму  50 950 000(пятьдесят миллионов девятьсот пятьдесят тысяч) руб. 00 коп. '
                          'без НДС, НДС не облагается на основании п.2 статьи 346.11.'),
+
+  (-1, 25000000.0, 'RUB',
+   'взаимосвязанных сделок в совокупности составляет не более суммы , эквивалентной 25000000 ( двадцати пяти миллионам ) рублей по курсу Банка России на дату'),
 
   (-1, 1661293757.0, 'RUB',
    'составит - не более 1661 293,757 тыс . рублей ( с учетом ндс ) ( 0,93 % балансовой стоимости активов'),
@@ -138,7 +142,20 @@ class PriceExtractTestCase(unittest.TestCase):
         quote = tm.text_range(span)
       print(f'{sign},\t {span},\t {quote}')
 
+  def test_sign_span(self):
+    dta =  'взаимосвязанных сделок в совокупности составляет не более суммы , эквивалентной 25000000 ( двадцати пяти миллионам ) рублей по курсу Банка России на дату'
+    doc = ContractDocument(dta).parse()
+
+    # =========================================
+    rz = find_value_sign_currency(doc)
+    r = rz[0]
+    # =========================================
+
+    self.assertEqual('рублей', doc.substr(r.currency))
+    self.assertEqual('не более', doc.substr(r.sign))
+
   def test_find_all_value_sign_currency(self):
+
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов США, но менее"""
     doc = ContractDocument(text)
     doc.parse()
