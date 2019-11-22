@@ -539,7 +539,7 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
-def detect_sign_2(txt: TextMap) -> (int, (int, int)):
+def find_value_sign(txt: TextMap) -> (int, (int, int)):
   """
   todo: rename to 'find_value_sign'
   :param txt:
@@ -554,14 +554,11 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
   if a:
     return -1, a
   else:
-    a = next(txt.finditer(_re_greather_then), None)
+    a = next(txt.finditer(_re_greather_then), None)  # более
     if a:
       return +1, a
 
   return 0, None
-
-
-find_value_sign = detect_sign_2
 
 
 class ContractValue:
@@ -611,6 +608,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     group = SemanticTag('sign_value_currency', None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
+    sign.display_value = subdoc.substr(sign)
     sign.offset(subdoc.start)
 
     value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
