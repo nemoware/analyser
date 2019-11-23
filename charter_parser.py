@@ -9,10 +9,11 @@ from legal_docs import LegalDocument, CharterDocument, \
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
-  ConstraintsSearchResult, PatternSearchResults, PatternMatch
+  ConstraintsSearchResult, PatternSearchResults, PatternMatch, build_sentence_patterns
 from sections_finder import FocusingSectionsFinder, HeadlineMeta
 from structures import *
 from text_tools import untokenize, Tokens
+from tf_support.embedder_elmo import ElmoEmbedder
 from transaction_values import extract_sum, number_re, ValueConstraint, VALUE_SIGN_MIN_TOKENS, detect_sign, \
   currencly_map, complete_re
 from violations import ViolationsFinder
@@ -648,7 +649,24 @@ def map_charter_headlines_to_patterns(charter, charter_parser):
   return map
 
 
-def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocument, charity_subject_attention: FixedVector):
+def embedd_charter_subject_patterns(patterns_dict, embedder: ElmoEmbedder):
+  emb_subj_patterns = {}
+  for subj in patterns_dict.keys():
+    # print(subj)
+    strings = patterns_dict[subj]
+    patterns = build_sentence_patterns(strings, f'subject/{subj.name}', subj)
+    patterns_emb = embedder.embedd_strings(strings)
+
+    emb_subj_patterns[subj] = {
+      'patterns': patterns,
+      'embedding': patterns_emb
+    }
+
+  return emb_subj_patterns
+
+
+def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocument,
+                            charity_subject_attention: FixedVector):
   paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
                                                                                          charity_subject_attention,
                                                                                          min_len=20,
