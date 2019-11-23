@@ -21,7 +21,6 @@ from structures import ContractTags
 from tests.test_text_tools import split_sentences_into_map
 from text_normalize import *
 from text_tools import *
-from tf_support.embedder_elmo import ElmoEmbedder
 from transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
 
@@ -145,7 +144,7 @@ class LegalDocument:
   def get_tags(self) -> [SemanticTag]:
     return []
 
-  def headers_as_sentences(self)->[str]:
+  def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
   def get_tags_attention(self):
@@ -748,11 +747,13 @@ def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True
 def map_headlines_to_patterns(doc: LegalDocument,
                               patterns_dict,
                               patterns_embeddings,
-                              elmo_embedder_default: ElmoEmbedder,
+                              elmo_embedder_default: AbstractEmbedder,
                               pattern_prefix: str,
                               pattern_suffixes: [str]):
-
   headers: [str] = doc.headers_as_sentences()
+
+  if not headers:
+    return [],[]
 
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
 
