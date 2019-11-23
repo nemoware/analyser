@@ -18,3 +18,5 @@ class HyperParameters:
   org_level_min_confidence = 0.8
 
   subject_paragraph_attention_blur = 10
+
+  charter_charity_attention_confidence = 0.6

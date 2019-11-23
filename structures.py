@@ -74,6 +74,17 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   RealEstate = 4, 'Недвижимость'
 
 
+@unique
+class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
+  Deal = 0, 'Сделка'
+  Charity = 1, 'Благотворительность'
+  Other = 2, 'Другое'
+  Lawsuit = 3, 'Судебные издержки'
+  RealEstate = 4, 'Недвижимость'
+  Insurance = 5, 'Страхование'
+  Consulting = 6, 'Консультационные услуги'
+
+
 class Citation:
   def __init__(self, cite: TokensWithAttention = None) -> None:
     self.citation = cite

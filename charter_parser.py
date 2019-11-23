@@ -2,6 +2,8 @@
 import re
 
 from charter_patterns import make_constraints_attention_vectors
+from contract_parser import _find_most_relevant_paragraph
+from hyperparams import HyperParameters
 from legal_docs import LegalDocument, CharterDocument, \
   _expand_slice, remove_sr_duplicates_conditionally, map_headlines_to_patterns
 from ml_tools import *
@@ -644,3 +646,17 @@ def map_charter_headlines_to_patterns(charter, charter_parser):
                                              p_suffices)
 
   return map
+
+
+def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocument, charity_subject_attention: FixedVector):
+  paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
+                                                                                         charity_subject_attention,
+                                                                                         min_len=20,
+                                                                                         return_delimiters=False)
+
+  if confidence > HyperParameters.charter_charity_attention_confidence:
+    subject_tag = SemanticTag(f' {CharterSubject.Charity.name}', CharterSubject.Charity.name, paragraph_span,
+                              parent=parent_org_level_tag)
+    subject_tag.offset(subdoc.start)
+    subject_tag.confidence = confidence
+    return subject_tag
