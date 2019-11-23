@@ -9,7 +9,7 @@ from legal_docs import LegalDocument, CharterDocument, \
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
-  ConstraintsSearchResult, PatternSearchResults, PatternMatch, build_sentence_patterns
+  ConstraintsSearchResult, PatternSearchResults, PatternMatch, build_sentence_patterns, PATTERN_DELIMITER
 from sections_finder import FocusingSectionsFinder, HeadlineMeta
 from structures import *
 from text_tools import untokenize, Tokens
@@ -635,15 +635,17 @@ def find_sentences_by_pattern_prefix(doc, org_level, factory, pattern_prefix) ->
   return results
 
 
-def map_charter_headlines_to_patterns(charter, charter_parser):
+def map_charter_headlines_to_patterns(charter:LegalDocument, charter_parser):
   p_suffices = [ol.name for ol in OrgStructuralLevel]
-  p_suffices += ['comp/' + ol.name for ol in OrgStructuralLevel]
+  p_suffices += [PATTERN_DELIMITER.join(['comp', ol.name]) for ol in OrgStructuralLevel]
+  p_suffices += [PATTERN_DELIMITER.join(['comp' 'q', ol.name]) for ol in OrgStructuralLevel]
+
   # TODO: add -p suffices as well
   map, distances = map_headlines_to_patterns(charter,
                                              charter_parser.patterns_dict,
                                              charter_parser.patterns_embeddings,
                                              charter_parser.elmo_embedder_default,
-                                             competence_headline_pattern_prefix + '/',
+                                             competence_headline_pattern_prefix,
                                              p_suffices)
 
   return map
