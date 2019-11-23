@@ -371,7 +371,7 @@ class SemanticTag:
 
     self._parent_tag: 'SemanticTag' = parent
 
-    if span:
+    if span is not None:
       self.span = (int(span[0]), int(span[1]))  # kind of type checking
     else:
       self.span = (0, 0)  # TODO: might be keep None?
