@@ -12,6 +12,11 @@ class FakeEmbedder(AbstractEmbedder):
   def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
     return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
 
+  def embedd_strings(self, strings: Tokens) -> np.ndarray:
+
+    ret = self.embedd_tokens(strings)
+    return ret
+
   def embedd_tokenized_text(self, tokenized_sentences_list, lens):
     # def get_embedding_tensor(self, tokenized_sentences_list):
     tensor = []
