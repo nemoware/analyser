@@ -4,7 +4,7 @@ import os
 import subprocess
 import warnings
 
-from charter_parser import CharterDocument4
+from charter_parser import CharterDocument
 from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
 from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
@@ -55,7 +55,7 @@ def join_paragraphs(response, doc_id):
   elif response['documentType'] == 'PROTOCOL':
     doc: LegalDocument = ProtocolDocument(None)
   elif response['documentType'] == 'CHARTER':
-    doc: LegalDocument = CharterDocument4(None)
+    doc: LegalDocument = CharterDocument(None)
   else:
     msg = f"Unsupported document type: {response['documentType']}"
     warnings.warn(msg)
