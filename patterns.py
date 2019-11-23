@@ -445,3 +445,14 @@ def create_value_patterns(f: AbstractPatternFactory, name='sum_max_p_'):
   f.create_pattern(f'{name}7', (_prefix + 'лимит соглашения', '0', suffix))
   f.create_pattern(f'{name}8', (_prefix + 'верхний лимит стоимости', '0', suffix))
   f.create_pattern(f'{name}9', (_prefix + 'максимальная сумма', '0', suffix))
+
+
+PATTERN_DELIMITER = '/'
+
+
+def build_sentence_patterns(strings: Tokens, prefix: str, prefix_obj=None):
+  ret = []
+  for txt in strings:
+    ret.append([f'{prefix}{PATTERN_DELIMITER}{len(ret)}', txt, prefix_obj])
+
+  return ret
