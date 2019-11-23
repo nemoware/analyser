@@ -43,6 +43,10 @@ class AbstractEmbedder:
   def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
     raise NotImplementedError()
 
+  @abstractmethod
+  def embedd_strings(self, strings: Tokens) -> np.ndarray:
+    raise NotImplementedError()
+
   def embedd_contextualized_patterns(self, patterns, trim_padding=True):
 
     tokenized_sentences_list: [Tokens] = []
