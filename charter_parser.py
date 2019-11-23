@@ -5,7 +5,7 @@ from charter_patterns import make_constraints_attention_vectors
 from contract_parser import _find_most_relevant_paragraph
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, CharterDocument, \
-  _expand_slice, remove_sr_duplicates_conditionally, map_headlines_to_patterns
+  _expand_slice, remove_sr_duplicates_conditionally, LegalDocumentExt, remap_attention_vector
 from ml_tools import *
 from parsing import ParsingSimpleContext, head_types_dict, known_subjects
 from patterns import find_ner_end, improve_attention_vector, AV_PREFIX, PatternSearchResult, \
@@ -635,36 +635,39 @@ def find_sentences_by_pattern_prefix(doc, org_level, factory, pattern_prefix) ->
   return results
 
 
-def map_charter_headlines_to_patterns(charter:LegalDocument, charter_parser):
-  p_suffices = [ol.name for ol in OrgStructuralLevel]
-  p_suffices += [PATTERN_DELIMITER.join(['comp', ol.name]) for ol in OrgStructuralLevel]
-  p_suffices += [PATTERN_DELIMITER.join(['comp' 'q', ol.name]) for ol in OrgStructuralLevel]
-
-  # TODO: add -p suffices as well
-  map, distances = map_headlines_to_patterns(charter,
-                                             charter_parser.patterns_dict,
-                                             charter_parser.patterns_embeddings,
-                                             charter_parser.elmo_embedder_default,
-                                             competence_headline_pattern_prefix,
-                                             p_suffices)
-
-  return map
-
-
 def embedd_charter_subject_patterns(patterns_dict, embedder: ElmoEmbedder):
   emb_subj_patterns = {}
   for subj in patterns_dict.keys():
     # print(subj)
     strings = patterns_dict[subj]
-    patterns = build_sentence_patterns(strings, f'subject/{subj.name}', subj)
-    patterns_emb = embedder.embedd_strings(strings)
+    prefix = PATTERN_DELIMITER.join(['subject', subj.name])
 
     emb_subj_patterns[subj] = {
-      'patterns': patterns,
-      'embedding': patterns_emb
+      'patterns': build_sentence_patterns(strings, prefix, subj),
+      'embedding': embedder.embedd_strings(strings)
     }
 
   return emb_subj_patterns
+
+
+def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
+  _distances_per_subj = {}
+
+  for subj in emb_subj_patterns.keys():
+    patterns_distances = calc_distances_per_pattern_dict(subdoc.sentences_embeddings,
+                                                         emb_subj_patterns[subj]['patterns'],
+                                                         emb_subj_patterns[subj]['embedding'])
+
+    prefix = PATTERN_DELIMITER.join(['subject', subj.name])
+
+    subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6)
+    subj_av_words = remap_attention_vector(subj_av, subdoc.sentence_map, subdoc.tokens_map)
+
+    _distances_per_subj[subj] = {
+      'words': subj_av_words,
+      'sentences': subj_av,
+    }
+  return _distances_per_subj
 
 
 def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocument,
