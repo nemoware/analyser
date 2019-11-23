@@ -280,6 +280,31 @@ class LegalDocument:
       return None
 
 
+class LegalDocumentExt(LegalDocument):
+
+  def __init__(self, doc: LegalDocument):
+    super().__init__('')
+    if doc is not None:
+      self.__dict__ = doc.__dict__
+
+    self.sentence_map: TextMap or None = None
+    self.sentences_embeddings = None
+    self.distances_per_sentence_pattern_dict = {}
+
+  def subdoc_slice(self, __s: slice, name='undef'):
+    sub = super().subdoc_slice(__s, name)
+    span = [max((0, __s.start)), max((0, __s.stop))]
+
+    sentences_span = self.tokens_map.remap_span(span, self.sentence_map)
+    _slice = slice(sentences_span[0], sentences_span[1])
+    sub.sentence_map = self.sentence_map.slice(_slice)
+
+    if self.sentences_embeddings is not None:
+      sub.sentences_embeddings = self.sentences_embeddings[_slice]
+
+    return sub
+
+
 class DocumentJson:
 
   @staticmethod
