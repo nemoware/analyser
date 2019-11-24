@@ -137,6 +137,8 @@ class CharterParser(ParsingContext):
                                                                               self.patterns_embeddings)
 
   def analyse(self, charter: CharterDocument):
+
+    # patterns_by_headers : (pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
     patterns_by_headers = self.map_charter_headlines_to_patterns(charter)
 
     charter.margin_values = []
@@ -144,7 +146,6 @@ class CharterParser(ParsingContext):
     charter.charity_tags = []
     # --------------
     filtered = [p_mapping for p_mapping in patterns_by_headers if p_mapping]
-     
     for p_mapping in filtered:
       paragraph = p_mapping[4]
       org_level_name = p_mapping[1].split('/')[-1]
@@ -309,12 +310,12 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
 
     prefix = PATTERN_DELIMITER.join(['subject', subj.name])
 
-    subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6)
+    subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6) #TODO: use hyper parameter
     subj_av_words = remap_attention_vector(subj_av, subdoc.sentence_map, subdoc.tokens_map)
 
     _distances_per_subj[subj] = {
       'words': subj_av_words,
-      'sentences': subj_av,
+      'sentences': subj_av, ## TODO: this is not in use
     }
   return _distances_per_subj
 

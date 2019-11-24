@@ -291,7 +291,7 @@ class LegalDocumentExt(LegalDocument):
       self.__dict__ = doc.__dict__
 
     self.sentence_map: TextMap or None = None
-    self.sentences_embeddings = None
+    self.sentences_embeddings:[] = None
     self.distances_per_sentence_pattern_dict = {}
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -762,7 +762,7 @@ def map_headlines_to_patterns(doc: LegalDocument,
                                                                 patterns_embeddings)
 
   patterns_by_headers = [()] * len(headers)
-  for e in range(len(headers)):
+  for header_number in range(len(headers)):
 
     # for each header
     max_confidence = 0
@@ -771,9 +771,9 @@ def map_headlines_to_patterns(doc: LegalDocument,
       pattern_name = PATTERN_DELIMITER.join([pattern_prefix, pattern_suffix])
 
       # find best pattern
-      confidence = header_to_pattern_distances[pattern_name][e]
+      confidence = header_to_pattern_distances[pattern_name][header_number]
       if confidence > max_confidence and confidence > HyperParameters.header_topic_min_confidence:
-        patterns_by_headers[e] = (pattern_name, pattern_suffix, confidence, headers[e], doc.paragraphs[e])
+        patterns_by_headers[header_number] = (pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
         max_confidence = confidence
 
   return patterns_by_headers, header_to_pattern_distances

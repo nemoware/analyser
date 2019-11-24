@@ -174,15 +174,12 @@ class TestTextNormalization(unittest.TestCase):
 
     self._testNorm('\x07составит', '\nсоставит')
 
-
-
     self._testNorm('настоящим договором в сумме 5 000 (Пять тысяч) рублей',
                    'настоящим договором в сумме 5000 (Пять тысяч) рублей')
 
     self._testNorm(
       '«Базовый курс » - 3.000 (Три тысячи) рублей 00 коп., - 2.000 (Две тысячи)',
       '«Базовый курс» - 3000 (Три тысячи) рублей 00 копеек, - 2000 (Две тысячи)')
-
 
   def test_normalize_numbered(self):
     self._testNorm(
@@ -198,6 +195,11 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm(
       '2.01.этилен мама, этилен!',
       '2.01. этилен мама, этилен!')
+
+  def test_normalize_caption(self):
+    self._testNorm(
+      'У С Т А В Акционерного общества «ГПН-ГПН »',
+      'УСТАВ Акционерного общества «ГПН-ГПН»')
 
   def test_normalize_numbered_3(self):
     self._testNorm(

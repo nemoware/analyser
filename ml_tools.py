@@ -560,15 +560,18 @@ def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_fun
   return _distances
 
 
-def calc_distances_per_pattern_dict(sentences_embeddings_, patterns_dict, patterns_embeddings):
+def calc_distances_per_pattern_dict(sentences_embeddings_:[], patterns_dict:[], patterns_embeddings:[[float]]):
   # TODO: see https://keras.io/layers/merge/#dot
+  # TODO: use pandas dataframes
 
   distances_per_pattern_dict = {}
   for i in range(len(patterns_dict)):
-    pattern = patterns_dict[i]
+
     _distances = calc_distances_to_pattern(sentences_embeddings_, patterns_embeddings[i])
 
+    pattern = patterns_dict[i]
     distances_per_pattern_dict[pattern[0]] = _distances
+
   return distances_per_pattern_dict
 
 
