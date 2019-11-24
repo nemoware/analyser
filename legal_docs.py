@@ -147,7 +147,7 @@ class LegalDocument:
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
-  def get_tags_attention(self):
+  def get_tags_attention(self)->FixedVector:
     _attention = np.zeros(self.__len__())
 
     for t in self.get_tags():

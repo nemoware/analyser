@@ -31,6 +31,7 @@ class CharterDocument(LegalDocumentExt):
     self.charity_tags = []
     self.org_levels = []
     self.constraint_tags = []
+    self.org_level_tags = []
 
     self.margin_values: [ContractValue] = []
 
@@ -38,6 +39,7 @@ class CharterDocument(LegalDocumentExt):
     tags = []
     tags += self.charity_tags
     tags += self.org_levels
+    tags += self.org_level_tags
     tags += self.constraint_tags
 
     for mv in self.margin_values:
@@ -138,21 +140,36 @@ class CharterParser(ParsingContext):
     patterns_by_headers = self.map_charter_headlines_to_patterns(charter)
 
     charter.margin_values = []
+    charter.constraint_tags = []
+    charter.charity_tags = []
     # --------------
     filtered = [p_mapping for p_mapping in patterns_by_headers if p_mapping]
     for p_mapping in filtered:
       paragraph = p_mapping[4]
       org_level_name = p_mapping[1].split('/')[-1]
       org_level = OrgStructuralLevel[org_level_name]
-
       subdoc = charter.subdoc_slice(paragraph.body.as_slice())
+
       parent_org_level_tag = SemanticTag(org_level.name, org_level, paragraph.body.span)
+      charter.org_levels.append(parent_org_level_tag)
 
       constraint_tags, values = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
                                                                 parent_org_level_tag)
 
+      for value in values:
+        value += subdoc.start
+
+      for constraint_tag in constraint_tags:
+        constraint_tag.offset(subdoc.start)
+
       charter.margin_values += values
       charter.constraint_tags += constraint_tags
+
+      # charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
+      # charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, (charity_subj_av_words + consent_words) / 2)
+      # # print(charity_tag)
+      # if charity_tag is not None:
+      #   charter.charity_tags.append(charity_tag)
 
   def attribute_charter_subjects(self, subdoc: LegalDocumentExt, emb_subj_patterns, parent_org_level_tag: SemanticTag):
     """
@@ -201,10 +218,12 @@ class CharterParser(ParsingContext):
 
       #
       constraint_tag = SemanticTag(f'{best_subject.name}', best_subject, span, parent=parent_org_level_tag)
+      # constraint_tag.offset(subdoc.start)
       constraint_tags.append(constraint_tag)
 
       # nest values
       for value in values:
+        # value+=subdoc.start
         if constraint_tag.is_nested(value.parent.span):
           value.parent.set_parent_tag(constraint_tag)
 
@@ -264,7 +283,6 @@ def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
 def embedd_charter_subject_patterns(patterns_dict, embedder: AbstractEmbedder):
   emb_subj_patterns = {}
   for subj in patterns_dict.keys():
-    # print(subj)
     strings = patterns_dict[subj]
     prefix = PATTERN_DELIMITER.join(['subject', subj.name])
 

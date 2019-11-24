@@ -362,6 +362,9 @@ class TokensWithAttention:
     self.attention = attention
 
 
+TAG_KEY_DELIMITER = '/'
+
+
 class SemanticTag:
 
   def __init__(self, kind, value, span: (int, int), span_map='words', parent: 'SemanticTag' = None):
@@ -388,9 +391,9 @@ class SemanticTag:
   parent = property(get_parent)
 
   def get_key(self):
-    key = self.kind.replace('.', '-').replace('_', '-')
+    key = self.kind.replace('.', '-').replace(TAG_KEY_DELIMITER, '-')
     if self._parent_tag is not None:
-      key = self._parent_tag.get_key() + '_' + key
+      key = TAG_KEY_DELIMITER.join([self._parent_tag.get_key(), key])
     return key
 
   def as_slice(self):
