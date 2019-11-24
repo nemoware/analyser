@@ -147,7 +147,7 @@ class LegalDocument:
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
-  def get_tags_attention(self)->FixedVector:
+  def get_tags_attention(self) -> FixedVector:
     _attention = np.zeros(self.__len__())
 
     for t in self.get_tags():
@@ -291,7 +291,7 @@ class LegalDocumentExt(LegalDocument):
       self.__dict__ = doc.__dict__
 
     self.sentence_map: TextMap or None = None
-    self.sentences_embeddings:[] = None
+    self.sentences_embeddings: [] = None
     self.distances_per_sentence_pattern_dict = {}
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -753,7 +753,7 @@ def map_headlines_to_patterns(doc: LegalDocument,
   headers: [str] = doc.headers_as_sentences()
 
   if not headers:
-    return [],[]
+    return [], []
 
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
 
@@ -772,8 +772,12 @@ def map_headlines_to_patterns(doc: LegalDocument,
 
       # find best pattern
       confidence = header_to_pattern_distances[pattern_name][header_number]
+      header_text: str = headers[header_number]
+      if header_text is None or '' == header_text.strip():
+        confidence = 0
       if confidence > max_confidence and confidence > HyperParameters.header_topic_min_confidence:
-        patterns_by_headers[header_number] = (pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
+        patterns_by_headers[header_number] = (
+          pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
         max_confidence = confidence
 
   return patterns_by_headers, header_to_pattern_distances
