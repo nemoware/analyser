@@ -144,6 +144,7 @@ class CharterParser(ParsingContext):
     charter.charity_tags = []
     # --------------
     filtered = [p_mapping for p_mapping in patterns_by_headers if p_mapping]
+     
     for p_mapping in filtered:
       paragraph = p_mapping[4]
       org_level_name = p_mapping[1].split('/')[-1]
@@ -151,7 +152,6 @@ class CharterParser(ParsingContext):
       subdoc = charter.subdoc_slice(paragraph.body.as_slice())
 
       parent_org_level_tag = SemanticTag(org_level.name, org_level, paragraph.body.span)
-      charter.org_levels.append(parent_org_level_tag)
 
       constraint_tags, values = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
                                                                 parent_org_level_tag)
@@ -164,6 +164,9 @@ class CharterParser(ParsingContext):
 
       charter.margin_values += values
       charter.constraint_tags += constraint_tags
+
+      if charter.margin_values:
+        charter.org_levels.append(parent_org_level_tag)
 
       # charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
       # charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, (charity_subj_av_words + consent_words) / 2)
@@ -191,7 +194,10 @@ class CharterParser(ParsingContext):
 
     # collect sentences having constraint values
     sentence_spans = []
+    k = 0
     for value in values:
+      k += 1
+      value.parent.kind = f"constraint{TAG_KEY_DELIMITER}{k}"
       sentence_span = subdoc.tokens_map.sentence_at_index(value.parent.span[0], return_delimiters=True)
       if sentence_span not in sentence_spans:
         sentence_spans.append(sentence_span)
@@ -201,8 +207,9 @@ class CharterParser(ParsingContext):
     # attribute sentences to subject
     constraint_tags = []
 
+    i = 0
     for span in sentence_spans:
-
+      i += 1
       max_confidence = 0
       best_subject = CharterSubject.Other
 
@@ -217,13 +224,11 @@ class CharterParser(ParsingContext):
           best_subject = subj
 
       #
-      constraint_tag = SemanticTag(f'{best_subject.name}', best_subject, span, parent=parent_org_level_tag)
-      # constraint_tag.offset(subdoc.start)
+      constraint_tag = SemanticTag(f'{best_subject.name}-{i}', best_subject, span, parent=parent_org_level_tag)
       constraint_tags.append(constraint_tag)
 
       # nest values
       for value in values:
-        # value+=subdoc.start
         if constraint_tag.is_nested(value.parent.span):
           value.parent.set_parent_tag(constraint_tag)
 
