@@ -16,7 +16,7 @@ class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.10'
+    self.version = '1.1.11'
 
     x = os.system("java -version")
     assert x == 0
@@ -70,7 +70,14 @@ def join_paragraphs(response, doc_id):
 
   last = 0
 
+  #remove empty headers
+  paragraphs = []
   for _p in response['paragraphs']:
+    header_text = _p['paragraphHeader']['text']
+    if header_text.strip() != '':
+      paragraphs.append(_p)
+
+  for _p in paragraphs:
 
     header_text = _p['paragraphHeader']['text']
     header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
