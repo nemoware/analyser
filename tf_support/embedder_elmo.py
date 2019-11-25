@@ -81,8 +81,15 @@ class ElmoEmbedder(AbstractEmbedder):
     return out
 
   def embedd_strings(self, strings: Tokens) -> np.ndarray:
+    _strings = []
+    for s in strings:
+      if s == '':
+        _strings.append(' ')
+      else:
+        _strings.append(s)
+
     feed_dict = {
-      self.text_input: strings,  # text_input
+      self.text_input: _strings,  # text_input
     }
 
     out = self.session.run(self.embedded_out, feed_dict=feed_dict)
