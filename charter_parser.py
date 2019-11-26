@@ -115,7 +115,11 @@ class CharterParser(ParsingContext):
     _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.BoardOfDirectors.name])
     comp_str_pat += [[_key, 'Компетенция Совета директоров Общества'.lower()]]
 
+    _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.CEO.name])
+    comp_str_pat += [[_key, 'Единоличный исполнительный орган Общества'.lower()]]
+
     self.patterns_dict = comp_str_pat
+
 
   def __init__(self, embedder: AbstractEmbedder, elmo_embedder_default: AbstractEmbedder):
     ParsingContext.__init__(self, embedder)
@@ -143,10 +147,7 @@ class CharterParser(ParsingContext):
 
   def analyse(self, charter: CharterDocument):
 
-
     patterns_by_headers = self.map_charter_headlines_to_patterns(charter)
-
-
 
     charter.margin_values = []
     charter.constraint_tags = []
