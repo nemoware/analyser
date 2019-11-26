@@ -4,6 +4,7 @@ from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
 import scipy.spatial.distance as distance
+from pandas import DataFrame
 
 from documents import TextMap
 from text_tools import Tokens
@@ -548,7 +549,7 @@ def merge_colliding_spans(spans, eps=0):
 #   return a_distances
 
 
-def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_func=distance.cosine):
+def calc_distances_to_pattern(sentences_embeddings_:FixedVectors, pattern_embedding:FixedVector, dist_func=distance.cosine) -> FixedVector:
   assert len(pattern_embedding.shape) == 1
   assert len(sentences_embeddings_.shape) == 2
   assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
@@ -560,16 +561,30 @@ def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_fun
   return _distances
 
 
-def calc_distances_per_pattern_dict(sentences_embeddings_:[], patterns_dict:[], patterns_embeddings:[[float]]):
+import  pandas as pd
+def calc_distances_per_pattern(sentences_embeddings_: [],  patterns_named_embeddings: DataFrame) -> DataFrame:
+  # TODO: see https://keras.io/layers/merge/#dot
+
+  distances_per_pattern_dict =  pd.DataFrame()
+  # print(distances_per_pattern_dict)
+  for i, col in patterns_named_embeddings.iteritems():
+    # print(col.name, col.values)
+    _distances = calc_distances_to_pattern(sentences_embeddings_, col.values)
+    distances_per_pattern_dict[col.name] = _distances
+
+  return distances_per_pattern_dict
+
+
+def calc_distances_per_pattern_dict(sentences_embeddings_: [], patterns_names: [], patterns_embeddings: [[float]]):
   # TODO: see https://keras.io/layers/merge/#dot
   # TODO: use pandas dataframes
-
+  warnings.warn("use calc_distances_per_pattern", DeprecationWarning)
+  assert len(patterns_names) == len(patterns_embeddings)
   distances_per_pattern_dict = {}
-  for i in range(len(patterns_dict)):
-
+  for i in range(len(patterns_names)):
     _distances = calc_distances_to_pattern(sentences_embeddings_, patterns_embeddings[i])
 
-    pattern = patterns_dict[i]
+    pattern = patterns_names[i]
     distances_per_pattern_dict[pattern[0]] = _distances
 
   return distances_per_pattern_dict
@@ -611,3 +626,22 @@ def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: 
     w_spans_attention[words_range[0]:words_range[1]] += a
 
   return w_spans, w_spans_attention
+
+
+def attribute_patternmatch_to_index(header_to_pattern_distances, threshold=0.6):
+  pairs = []
+  used_keys = []
+  for i in range(len(header_to_pattern_distances)):
+    max_pair = ('', 0), 0
+    for k in header_to_pattern_distances:
+      if k not in used_keys:
+        dists = header_to_pattern_distances[k]
+        amax = np.argmax(dists)
+        di = dists[amax]
+        if di > max_pair[1] and di > threshold:
+          max_pair = (k, amax), di
+
+    pairs.append(max_pair)
+    used_keys.append(max_pair[0][0])
+
+  return pairs
