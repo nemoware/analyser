@@ -637,12 +637,12 @@ def _find_max_xy_in_matrix(vals):
   max_y = 0
   maxval = 0
   for x in range(vals.shape[0]):
-    found = False
+
     for y in range(vals.shape[1]):
-      val = vals[max_x][max_y]
-      if vals[x][y] > val:
-        max_y = y
+      val = vals[x][y]
+      if val > maxval:
         max_x = x
+        max_y = y
         maxval = val
 
   return max_x, max_y, maxval
@@ -651,20 +651,22 @@ def _find_max_xy_in_matrix(vals):
 def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
                                     threshold=HyperParameters.header_topic_min_confidence):
   vals = header_to_pattern_distances_.values
+  # print(header_to_pattern_distances_)
   headers_n = vals.shape[0]
-  print('headers_n', headers_n)
+  # print('headers_n', headers_n)
 
   pairs = []
   for __header_index in range(headers_n):
 
     header_index, pattern_index, maxval = _find_max_xy_in_matrix(vals)
+    # print(header_index, pattern_index,maxval )
     pattern_name = header_to_pattern_distances_.columns[pattern_index]
     max_pair = ((pattern_name, header_index), maxval)
 
     if maxval > threshold:
       pairs.append(max_pair)
 
-    vals[:][pattern_index] = -1
-    vals[header_index][:] = -1
+    vals[:,pattern_index] = -1
+    vals[header_index,:] = -1
 
   return pairs
