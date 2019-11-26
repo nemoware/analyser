@@ -15,7 +15,7 @@ from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from hyperparams import HyperParameters
 from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
-  calc_distances_per_pattern_dict, FixedVector
+  FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from patterns import *
 from structures import ContractTags
 from tests.test_text_tools import split_sentences_into_map
@@ -745,11 +745,8 @@ def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True
 
 
 def map_headlines_to_patterns(doc: LegalDocument,
-                              patterns_dict,
-                              patterns_embeddings,
-                              elmo_embedder_default: AbstractEmbedder,
-                              pattern_prefix: str,
-                              pattern_suffixes: [str]):
+                              patterns_named_embeddings,
+                              elmo_embedder_default: AbstractEmbedder):
   headers: [str] = doc.headers_as_sentences()
 
   if not headers:
@@ -757,30 +754,9 @@ def map_headlines_to_patterns(doc: LegalDocument,
 
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
 
-  header_to_pattern_distances = calc_distances_per_pattern_dict(headers_embedding,
-                                                                patterns_dict,
-                                                                patterns_embeddings)
-
-  patterns_by_headers = [()] * len(headers)
-  for header_number in range(len(headers)):
-
-    # for each header
-    max_confidence = 0
-
-    for pattern_suffix in pattern_suffixes:
-      pattern_name = PATTERN_DELIMITER.join([pattern_prefix, pattern_suffix])
-
-      # find best pattern
-      confidence = header_to_pattern_distances[pattern_name][header_number]
-      header_text: str = headers[header_number]
-      if header_text is None or '' == header_text.strip():
-        confidence = 0
-      if confidence > max_confidence and confidence > HyperParameters.header_topic_min_confidence:
-        patterns_by_headers[header_number] = (
-          pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
-        max_confidence = confidence
-
-  return patterns_by_headers, header_to_pattern_distances
+  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
+  return attribute_patternmatch_to_index(header_to_pattern_distances,
+                                         threshold=HyperParameters.header_topic_min_confidence)
 
 
 def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:

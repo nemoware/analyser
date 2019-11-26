@@ -2,7 +2,6 @@
 
 from contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
 from embedding_tools import AbstractEmbedder
-from hyperparams import HyperParameters
 from legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
   tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns
 from ml_tools import *
@@ -74,7 +73,8 @@ class CharterParser(ParsingContext):
 
     CharterSubject.RealEstate: [
       'стоимость отчуждаемого имущества',
-      'сделки с имуществом Общества'
+      'сделки с имуществом Общества',
+      'сделок ( в том числе нескольких взаимосвязанных сделок ) с имуществом Общества'
     ],
 
     CharterSubject.Insurance: [
@@ -100,15 +100,20 @@ class CharterParser(ParsingContext):
   }
 
   def _make_patterns(self):
-
+    p = competence_headline_pattern_prefix  # just shortcut
     comp_str_pat = []
-    comp_str_pat += [[PATTERN_DELIMITER.join([competence_headline_pattern_prefix, ol.name]), ol.display_string] for ol
-                     in OrgStructuralLevel]
-    comp_str_pat += [[PATTERN_DELIMITER.join([competence_headline_pattern_prefix, 'comp', 'q', ol.name]),
-                      "к компетенции " + ol.display_string + ' относятся следующие вопросы'] for ol in
+    comp_str_pat += [[PATTERN_DELIMITER.join([p, ol.name]), ol.display_string.lower()] for ol in OrgStructuralLevel]
+    comp_str_pat += [[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name]),
+                      f'к компетенции {ol.display_string} относятся следующие вопросы'.lower()] for ol in
                      OrgStructuralLevel]
-    comp_str_pat += [[PATTERN_DELIMITER.join([competence_headline_pattern_prefix, 'comp', ol.name]),
-                      "компетенции " + ol.display_string] for ol in OrgStructuralLevel]
+    comp_str_pat += [[PATTERN_DELIMITER.join([p, 'comp', ol.name]), f"компетенции {ol.display_string}".lower()] for ol
+                     in OrgStructuralLevel]
+
+    _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.ShareholdersGeneralMeeting.name])
+    comp_str_pat += [[_key, 'Компетенция Общего собрания акционеров Общества'.lower()]]
+
+    _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.BoardOfDirectors.name])
+    comp_str_pat += [[_key, 'Компетенция Совета директоров Общества'.lower()]]
 
     self.patterns_dict = comp_str_pat
 
@@ -120,9 +125,9 @@ class CharterParser(ParsingContext):
     self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
 
     self._make_patterns()
-    patterns_te = [p[1] for p in self.patterns_dict]
+    patterns_texts = [p[1] for p in self.patterns_dict]
 
-    self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
+    self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_texts)
     self.subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
                                                                     elmo_embedder_default)
 
@@ -138,21 +143,36 @@ class CharterParser(ParsingContext):
 
   def analyse(self, charter: CharterDocument):
 
-    # patterns_by_headers : (pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
+
     patterns_by_headers = self.map_charter_headlines_to_patterns(charter)
+
+
 
     charter.margin_values = []
     charter.constraint_tags = []
     charter.charity_tags = []
     # --------------
+    # (('headline/comp/qr/ShareholdersGeneralMeeting', 16), 0.8978644013404846),
     filtered = [p_mapping for p_mapping in patterns_by_headers if p_mapping]
+
+    found_org_levels = []
+    kkk = 0
     for p_mapping in filtered:
-      paragraph = p_mapping[4]
-      org_level_name = p_mapping[1].split('/')[-1]
-      org_level = OrgStructuralLevel[org_level_name]
+      kkk += 1
+      print('filtered', p_mapping)
+
+      _paragraph_id = p_mapping[0][1]
+      print('_paragraph_id', _paragraph_id)
+      _pattern_name = p_mapping[0][0]
+      print('_pattern_name', _pattern_name)
+      paragraph = charter.paragraphs[_paragraph_id]
+      confidence = p_mapping[1]
+      _org_level_name = _pattern_name.split('/')[-1]
+      org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
       subdoc = charter.subdoc_slice(paragraph.body.as_slice())
 
-      parent_org_level_tag = SemanticTag(org_level.name, org_level, paragraph.body.span)
+      parent_org_level_tag = SemanticTag(f"{org_level.name}-{kkk}", org_level.name, paragraph.body.span)
+      parent_org_level_tag.confidence = confidence
 
       constraint_tags, values = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
                                                                 parent_org_level_tag)
@@ -166,14 +186,40 @@ class CharterParser(ParsingContext):
       charter.margin_values += values
       charter.constraint_tags += constraint_tags
 
+      _parent_org_level_tag_keys = []
       if charter.margin_values:
+        _key = parent_org_level_tag.get_key()
+        if _key in _parent_org_level_tag_keys:
+          parent_org_level_tag.kind = _key + f"-{len(_parent_org_level_tag_keys)}"
         charter.org_levels.append(parent_org_level_tag)
+        _parent_org_level_tag_keys.append(_key)
 
       # charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
       # charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, (charity_subj_av_words + consent_words) / 2)
       # # print(charity_tag)
       # if charity_tag is not None:
       #   charter.charity_tags.append(charity_tag)
+
+  def _rename_margin_values_tags(self, values):
+
+    for value in values:
+      if value.sign.value < 0:
+        sfx = '-max'
+      elif value.sign.value > 0:
+        sfx = '-min'
+      else:
+        sfx = ''
+
+      value.parent.kind = f"constraint{sfx}"
+
+    known_keys = []
+    k = 0  # constraints numbering
+    for value in values:
+      k += 1
+      if value.parent.get_key() in known_keys:
+        value.parent.kind = f"{value.parent.kind}{TAG_KEY_DELIMITER}{k}"
+
+      known_keys.append(value.parent.get_key())
 
   def attribute_charter_subjects(self, subdoc: LegalDocumentExt, emb_subj_patterns, parent_org_level_tag: SemanticTag):
     """
@@ -195,10 +241,7 @@ class CharterParser(ParsingContext):
 
     # collect sentences having constraint values
     sentence_spans = []
-    k = 0
     for value in values:
-      k += 1
-      value.parent.kind = f"constraint{TAG_KEY_DELIMITER}{k}"
       sentence_span = subdoc.tokens_map.sentence_at_index(value.parent.span[0], return_delimiters=True)
       if sentence_span not in sentence_spans:
         sentence_spans.append(sentence_span)
@@ -212,7 +255,7 @@ class CharterParser(ParsingContext):
     for span in sentence_spans:
       i += 1
       max_confidence = 0
-      best_subject = CharterSubject.Other
+      best_subject: CharterSubject = CharterSubject.Other
 
       for subj in subject_attentions_map.keys():
         av = subject_attentions_map[subj]['words']
@@ -225,7 +268,7 @@ class CharterParser(ParsingContext):
           best_subject = subj
 
       #
-      constraint_tag = SemanticTag(f'{best_subject.name}-{i}', best_subject, span, parent=parent_org_level_tag)
+      constraint_tag = SemanticTag(f'{best_subject.name}-{i}', best_subject.name, span, parent=parent_org_level_tag)
       constraint_tags.append(constraint_tag)
 
       # nest values
@@ -233,21 +276,22 @@ class CharterParser(ParsingContext):
         if constraint_tag.is_nested(value.parent.span):
           value.parent.set_parent_tag(constraint_tag)
 
+      self._rename_margin_values_tags(values)
+
     return constraint_tags, values
 
   def map_charter_headlines_to_patterns(self, charter: LegalDocument):
-    charter_parser = self
 
-    p_suffices = [ol.name for ol in OrgStructuralLevel]
-    p_suffices += [PATTERN_DELIMITER.join(['comp', ol.name]) for ol in OrgStructuralLevel]
-    p_suffices += [PATTERN_DELIMITER.join(['comp', 'q', ol.name]) for ol in OrgStructuralLevel]
+    # p_suffices = [PATTERN_DELIMITER.join(c[0].split(PATTERN_DELIMITER)[1:]) for c in self.patterns_dict]
 
-    map_, distances = map_headlines_to_patterns(charter,
-                                                charter_parser.patterns_dict,
-                                                charter_parser.patterns_embeddings,
-                                                charter_parser.elmo_embedder_default,
-                                                competence_headline_pattern_prefix,
-                                                p_suffices)
+    # map = (pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
+    patterns_names = [c[0] for c in self.patterns_dict]
+    print('patterns_names', patterns_names)
+    print(self.patterns_embeddings.shape)
+    patterns_named_embeddings = pd.DataFrame(self.patterns_embeddings.T, columns=patterns_names)
+    map_ = map_headlines_to_patterns(charter,
+                                     patterns_named_embeddings,
+                                     self.elmo_embedder_default)
 
     return map_
 
@@ -310,12 +354,12 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
 
     prefix = PATTERN_DELIMITER.join(['subject', subj.name])
 
-    subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6) #TODO: use hyper parameter
+    subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6)  # TODO: use hyper parameter
     subj_av_words = remap_attention_vector(subj_av, subdoc.sentence_map, subdoc.tokens_map)
 
     _distances_per_subj[subj] = {
       'words': subj_av_words,
-      'sentences': subj_av, ## TODO: this is not in use
+      'sentences': subj_av,  ## TODO: this is not in use
     }
   return _distances_per_subj
 

@@ -7,6 +7,7 @@ import scipy.spatial.distance as distance
 from pandas import DataFrame
 
 from documents import TextMap
+from hyperparams import HyperParameters
 from text_tools import Tokens
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
@@ -549,7 +550,8 @@ def merge_colliding_spans(spans, eps=0):
 #   return a_distances
 
 
-def calc_distances_to_pattern(sentences_embeddings_:FixedVectors, pattern_embedding:FixedVector, dist_func=distance.cosine) -> FixedVector:
+def calc_distances_to_pattern(sentences_embeddings_: FixedVectors, pattern_embedding: FixedVector,
+                              dist_func=distance.cosine) -> FixedVector:
   assert len(pattern_embedding.shape) == 1
   assert len(sentences_embeddings_.shape) == 2
   assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
@@ -561,11 +563,13 @@ def calc_distances_to_pattern(sentences_embeddings_:FixedVectors, pattern_embedd
   return _distances
 
 
-import  pandas as pd
-def calc_distances_per_pattern(sentences_embeddings_: [],  patterns_named_embeddings: DataFrame) -> DataFrame:
+import pandas as pd
+
+
+def calc_distances_per_pattern(sentences_embeddings_: [], patterns_named_embeddings: DataFrame) -> DataFrame:
   # TODO: see https://keras.io/layers/merge/#dot
 
-  distances_per_pattern_dict =  pd.DataFrame()
+  distances_per_pattern_dict = pd.DataFrame()
   # print(distances_per_pattern_dict)
   for i, col in patterns_named_embeddings.iteritems():
     # print(col.name, col.values)
@@ -628,20 +632,39 @@ def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: 
   return w_spans, w_spans_attention
 
 
-def attribute_patternmatch_to_index(header_to_pattern_distances, threshold=0.6):
-  pairs = []
-  used_keys = []
-  for i in range(len(header_to_pattern_distances)):
-    max_pair = ('', 0), 0
-    for k in header_to_pattern_distances:
-      if k not in used_keys:
-        dists = header_to_pattern_distances[k]
-        amax = np.argmax(dists)
-        di = dists[amax]
-        if di > max_pair[1] and di > threshold:
-          max_pair = (k, amax), di
+def _find_max_xy_in_matrix(vals):
+  max_x = 0
+  max_y = 0
+  maxval = 0
+  for x in range(vals.shape[0]):
+    found = False
+    for y in range(vals.shape[1]):
+      val = vals[max_x][max_y]
+      if vals[x][y] > val:
+        max_y = y
+        max_x = x
+        maxval = val
 
-    pairs.append(max_pair)
-    used_keys.append(max_pair[0][0])
+  return max_x, max_y, maxval
+
+
+def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
+                                    threshold=HyperParameters.header_topic_min_confidence):
+  vals = header_to_pattern_distances_.values
+  headers_n = vals.shape[0]
+  print('headers_n', headers_n)
+
+  pairs = []
+  for __header_index in range(headers_n):
+
+    header_index, pattern_index, maxval = _find_max_xy_in_matrix(vals)
+    pattern_name = header_to_pattern_distances_.columns[pattern_index]
+    max_pair = ((pattern_name, header_index), maxval)
+
+    if maxval > threshold:
+      pairs.append(max_pair)
+
+    vals[:][pattern_index] = -1
+    vals[header_index][:] = -1
 
   return pairs

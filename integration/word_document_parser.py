@@ -16,7 +16,7 @@ class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.11'
+    self.version = '1.1.12'
 
     x = os.system("java -version")
     assert x == 0
