@@ -10,7 +10,7 @@ from documents import TextMap
 from hyperparams import models_path
 from legal_docs import PARAGRAPH_DELIMITER, make_headline_attention_vector
 from ml_tools import sum_probabilities, FixedVector
-from text_tools import Tokens
+from text_tools import Tokens, _count_capitals, _count_digits
 
 popular_headers = pd.read_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
 popular_headers = list(popular_headers['text'])
@@ -30,7 +30,6 @@ def make_predicted_headline_attention_vector(doc, return_components=False) -> Fi
   """
   moved to headers_detector
   """
-
   parser_headline_attention_vector = make_headline_attention_vector(doc)
   predicted_headline_attention_vector = np.zeros_like(parser_headline_attention_vector)
 
@@ -139,22 +138,6 @@ def line_features(tokens_map, line_span, line_number, prev_features):
   #   features['prev-len_chars'] = prev_features['len_chars']
 
   return features
-
-
-def _count_capitals(txt):
-  s = 0
-  for c in txt:
-    if c.isupper():
-      s += 1
-  return s
-
-
-def _count_digits(txt):
-  s = 0
-  for c in txt:
-    if c.isdigit():
-      s += 1
-  return s
 
 
 def _count_strange_symbols(txt, strange_symbols) -> int:

@@ -400,6 +400,22 @@ def span_len(span: [int]) -> int:
   return abs(span[1] - span[0])
 
 
+def _count_capitals(txt):
+  s = 0
+  for c in txt:
+    if c.isupper():
+      s += 1
+  return s
+
+
+def _count_digits(txt):
+  s = 0
+  for c in txt:
+    if c.isdigit():
+      s += 1
+  return s
+
+
 if __name__ == '__main__':
   x = '12345 aaaa.1234 ttt. dfdfd. 0123456789'
   be = find_best_sentence_end(x)
