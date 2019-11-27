@@ -11,11 +11,11 @@ import unittest
 
 from bson import json_util
 
-from contract_parser import ContractAnlysingContext, ContractDocument
-from contract_patterns import ContractPatternFactory
-from documents import TextMap
-from legal_docs import DocumentJson
-from ml_tools import SemanticTag
+from analyser.contract_parser import ContractAnlysingContext, ContractDocument
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.documents import TextMap
+from analyser.legal_docs import DocumentJson
+from analyser.ml_tools import SemanticTag
 
 
 class TestJsonExport(unittest.TestCase):

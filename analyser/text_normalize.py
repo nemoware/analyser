@@ -5,7 +5,7 @@
 
 import re
 
-from text_tools import unquote
+from analyser.text_tools import unquote
 
 
 def r_group(x, name=None):

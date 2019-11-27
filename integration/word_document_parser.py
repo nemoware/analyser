@@ -4,12 +4,12 @@ import os
 import subprocess
 import warnings
 
-from charter_parser import CharterDocument
-from contract_parser import ContractDocument
+from analyser.charter_parser import CharterDocument
+from analyser.contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
-from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
-from ml_tools import SemanticTag
-from protocol_parser import ProtocolDocument
+from analyser.legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
+from analyser.ml_tools import SemanticTag
+from analyser.protocol_parser import ProtocolDocument
 
 
 class WordDocParser(DirDocProvider):

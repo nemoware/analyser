@@ -5,8 +5,8 @@
 
 import unittest
 
-from contract_parser import ContractDocument
-from ml_tools import *
+from analyser.contract_parser import ContractDocument
+from analyser.ml_tools import *
 
 
 # from patterns import *

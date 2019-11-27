@@ -1,7 +1,7 @@
 import re
 
-from ml_tools import *
-from text_tools import *
+from analyser.ml_tools import *
+from analyser.text_tools import *
 
 
 def _count_start_whitespace(tokens: Tokens) -> int:

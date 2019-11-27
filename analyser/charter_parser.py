@@ -1,14 +1,14 @@
 # origin: charter_parser.py
 
-from contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
-from embedding_tools import AbstractEmbedder
-from legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
+from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
   tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns
-from ml_tools import *
-from parsing import ParsingContext
-from patterns import build_sentence_patterns, PATTERN_DELIMITER
-from structures import *
-from transaction_values import number_re
+from analyser.ml_tools import *
+from analyser.parsing import ParsingContext
+from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
+from analyser.structures import *
+from analyser.transaction_values import number_re
 
 WARN = '\033[1;31m'
 

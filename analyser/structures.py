@@ -4,7 +4,7 @@
 from enum import Enum, unique, EnumMeta
 from typing import List
 
-from ml_tools import TokensWithAttention
+from analyser.ml_tools import TokensWithAttention
 
 org_types = {
   'org_unknown': 'undefined',

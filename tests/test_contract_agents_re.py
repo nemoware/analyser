@@ -5,8 +5,8 @@
 
 import unittest
 
-from contract_agents import *
-from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
+from analyser.contract_agents import *
+from analyser.text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
 
 _suffix = " слово" * 1000
 

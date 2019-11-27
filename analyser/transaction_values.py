@@ -10,8 +10,8 @@ import re
 import warnings
 from typing import List
 
-from ml_tools import TokensWithAttention
-from text_tools import to_float
+from analyser.ml_tools import TokensWithAttention
+from analyser.text_tools import to_float
 
 currencly_map = {
   'руб': 'RUB',

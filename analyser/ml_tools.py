@@ -6,9 +6,9 @@ import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
 
-from documents import TextMap
-from hyperparams import HyperParameters
-from text_tools import Tokens
+from analyser.documents import TextMap
+from analyser.hyperparams import HyperParameters
+from analyser.text_tools import Tokens
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
 Vector = TypeVar('Vector', FixedVector, Iterable[float])

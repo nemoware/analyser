@@ -5,17 +5,17 @@ import pandas as pd
 from joblib import load
 from sklearn.ensemble import RandomForestRegressor
 
-from doc_structure import get_tokenized_line_number
-from documents import TextMap
-from hyperparams import models_path
-from legal_docs import PARAGRAPH_DELIMITER, make_headline_attention_vector
-from ml_tools import sum_probabilities, FixedVector
-from text_tools import Tokens, _count_capitals, _count_digits
+from analyser.doc_structure import get_tokenized_line_number
+from analyser.documents import TextMap
+from analyser.hyperparams import models_path
+from analyser.legal_docs import PARAGRAPH_DELIMITER, make_headline_attention_vector
+from analyser.ml_tools import sum_probabilities, FixedVector
+from analyser.text_tools import Tokens, _count_capitals, _count_digits
 
 popular_headers = pd.read_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
 popular_headers = list(popular_headers['text'])
 
-from hyperparams import HyperParameters
+from analyser.hyperparams import HyperParameters
 
 
 def load_model() -> RandomForestRegressor:

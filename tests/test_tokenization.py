@@ -10,8 +10,8 @@ import unittest
 import numpy as np
 from nltk import TreebankWordTokenizer
 
-from documents import TextMap, span_tokenize
-from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
+from analyser.documents import TextMap, span_tokenize
+from analyser.legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
@@ -249,7 +249,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(1, tm.token_index_by_char(4))
 
   def test_finditer(self):
-    from transaction_values import _re_greather_then
+    from analyser.transaction_values import _re_greather_then
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     tm = TextMap(text)
     iter = tm.finditer(_re_greather_then)
@@ -262,7 +262,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(5, results[1])
 
   def test_finditer__a(self):
-    from transaction_values import _re_greather_then
+    from analyser.transaction_values import _re_greather_then
 
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     __doc = LegalDocument(text)

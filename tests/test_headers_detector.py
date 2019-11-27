@@ -8,7 +8,7 @@ import pickle
 import unittest
 
 from analyser.headers_detector import doc_features, load_model
-from legal_docs import LegalDocument
+from analyser.legal_docs import LegalDocument
 
 
 def print_predictions(contract, predictions, body_lines_ranges):

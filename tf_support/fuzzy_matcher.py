@@ -1,11 +1,11 @@
 from typing import Dict
 
-from ml_tools import *
-from ml_tools import FixedVector, FixedVectors, Tokens
-from ml_tools import sum_probabilities, subtract_probability, relu, momentum_p
+from analyser.ml_tools import *
+from analyser.ml_tools import FixedVector, FixedVectors, Tokens
+from analyser.ml_tools import sum_probabilities, relu
 # ==============================================================================
-from patterns import FuzzyPattern
-from text_tools import tokenize_text
+from analyser.patterns import FuzzyPattern
+from analyser.text_tools import tokenize_text
 
 
 def select_best_attention_and_relu_it(original, improved, relu_th=0.8):
@@ -149,71 +149,9 @@ class FuzzyMatcher:
 
     return v
 
-  def extract_name(self, attention: FixedVector, tokens: Tokens, cut_threshold=2) -> [slice]:
-    best_indices = []
-    #     best_indices = sorted(np.argsort(attention)[::-1][:20])
 
-    for i in np.argsort(attention)[::-1][:20]:
-      if attention[i] > 0.001:
-        best_indices.append(i)
-    best_indices = sorted(best_indices)
 
-    if len(best_indices) == 0:
-      return []
 
-    slices = group_indices(best_indices, cut_threshold)
-
-    _dict = {}
-    for s in slices:
-      key = '__'.join(tokens[s])
-      _sum = np.max(attention[s])
-      _dict[key] = (_sum, s)
-
-    _arr = [x[1] for x in sorted(_dict.values(), key=lambda item: -item[0])]
-
-    return _arr
-
-  def compile(self, p_threshold=0.33, bias=-0.33) -> np.ndarray:
-
-    # regions
-    _momented = []
-    _momented.append(np.zeros(self.av.size))
-    for name, max_tokens, multiplyer, to_left in self.constraints:
-      v = self._get(name, p_threshold) + bias
-
-      v = relu(v, p_threshold)  # TODO: remove? do not ReLu here?
-
-      momented = momentum_p(v, half_decay=max_tokens, left=to_left)
-      momented -= v
-      momented *= multiplyer
-      _momented.append(momented)
-
-    m_result = sum_probabilities(_momented)
-
-    # incusions
-    _included = []
-    _included.append(np.zeros(self.av.size))
-    for name, include in self.incusions:
-      v = self._get(name, p_threshold) + bias
-      if include:
-        _included.append(relu(v, p_threshold))
-    i_result = sum_probabilities(_included)
-
-    # exclusions
-    _excluded = []
-    _excluded.append(np.zeros(self.av.size))
-    for name, include in self.incusions:
-      v = self._get(name, p_threshold) + bias
-      if not include:
-        _excluded.append(relu(v, p_threshold))
-    e_result = sum_probabilities(_excluded)
-
-    m_result = sum_probabilities([m_result, i_result])
-
-    m_result = subtract_probability(m_result, e_result)
-
-    #     result = relu(result, 0.001)
-    return m_result
 
 
 def prepare_patters_for_embedding_2(patterns):

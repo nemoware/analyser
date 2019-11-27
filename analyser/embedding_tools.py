@@ -2,8 +2,8 @@ from abc import abstractmethod
 
 import numpy as np
 
-from documents import TextMap
-from text_tools import Tokens
+from analyser.documents import TextMap
+from analyser.text_tools import Tokens
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):

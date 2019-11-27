@@ -5,10 +5,10 @@
 
 import unittest
 
-from charter_parser import CharterParser
-from contract_parser import ContractAnlysingContext
-from legal_docs import *
-from legal_docs import _embedd_large
+from analyser.charter_parser import CharterParser
+from analyser.contract_parser import ContractAnlysingContext
+from analyser.legal_docs import *
+from analyser.legal_docs import _embedd_large
 from tests.test_utilits import FakeEmbedder
 
 
