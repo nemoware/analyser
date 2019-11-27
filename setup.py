@@ -4,6 +4,7 @@
 from pip._internal.req import parse_requirements
 from setuptools import setup, find_packages, find_namespace_packages
 
+import analyser
 
 
 
@@ -19,7 +20,7 @@ reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
   name="nemoware-analyzer",
-  version="0.0.1",
+  version=analyser.__version__,
 
   description="GPN Audit: NLP analyser",
   long_description=long_description,
