@@ -15,7 +15,7 @@ from documents import TextMap
 from embedding_tools import AbstractEmbedder
 from hyperparams import HyperParameters
 from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
-  calc_distances_per_pattern_dict, FixedVector
+  FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from patterns import *
 from structures import ContractTags
 from tests.test_text_tools import split_sentences_into_map
@@ -147,7 +147,7 @@ class LegalDocument:
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
-  def get_tags_attention(self):
+  def get_tags_attention(self) -> FixedVector:
     _attention = np.zeros(self.__len__())
 
     for t in self.get_tags():
@@ -291,7 +291,7 @@ class LegalDocumentExt(LegalDocument):
       self.__dict__ = doc.__dict__
 
     self.sentence_map: TextMap or None = None
-    self.sentences_embeddings = None
+    self.sentences_embeddings: [] = None
     self.distances_per_sentence_pattern_dict = {}
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -745,38 +745,18 @@ def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True
 
 
 def map_headlines_to_patterns(doc: LegalDocument,
-                              patterns_dict,
-                              patterns_embeddings,
-                              elmo_embedder_default: AbstractEmbedder,
-                              pattern_prefix: str,
-                              pattern_suffixes: [str]):
+                              patterns_named_embeddings,
+                              elmo_embedder_default: AbstractEmbedder):
   headers: [str] = doc.headers_as_sentences()
 
   if not headers:
-    return [],[]
+    return [], []
 
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
 
-  header_to_pattern_distances = calc_distances_per_pattern_dict(headers_embedding,
-                                                                patterns_dict,
-                                                                patterns_embeddings)
-
-  patterns_by_headers = [()] * len(headers)
-  for e in range(len(headers)):
-
-    # for each header
-    max_confidence = 0
-
-    for pattern_suffix in pattern_suffixes:
-      pattern_name = PATTERN_DELIMITER.join([pattern_prefix, pattern_suffix])
-
-      # find best pattern
-      confidence = header_to_pattern_distances[pattern_name][e]
-      if confidence > max_confidence and confidence > HyperParameters.header_topic_min_confidence:
-        patterns_by_headers[e] = (pattern_name, pattern_suffix, confidence, headers[e], doc.paragraphs[e])
-        max_confidence = confidence
-
-  return patterns_by_headers, header_to_pattern_distances
+  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
+  return attribute_patternmatch_to_index(header_to_pattern_distances,
+                                         threshold=HyperParameters.header_topic_min_confidence)
 
 
 def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:

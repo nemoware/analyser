@@ -140,6 +140,7 @@ numbers_regex = [
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
+  (re.compile(r'(У С Т А В)'), 'УСТАВ')
 
 ]
 

@@ -4,8 +4,10 @@ from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
 import scipy.spatial.distance as distance
+from pandas import DataFrame
 
 from documents import TextMap
+from hyperparams import HyperParameters
 from text_tools import Tokens
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
@@ -362,6 +364,9 @@ class TokensWithAttention:
     self.attention = attention
 
 
+TAG_KEY_DELIMITER = '/'
+
+
 class SemanticTag:
 
   def __init__(self, kind, value, span: (int, int), span_map='words', parent: 'SemanticTag' = None):
@@ -388,9 +393,9 @@ class SemanticTag:
   parent = property(get_parent)
 
   def get_key(self):
-    key = self.kind.replace('.', '-').replace('_', '-')
+    key = self.kind.replace('.', '-').replace(TAG_KEY_DELIMITER, '-')
     if self._parent_tag is not None:
-      key = self._parent_tag.get_key() + '_' + key
+      key = TAG_KEY_DELIMITER.join([self._parent_tag.get_key(), key])
     return key
 
   def as_slice(self):
@@ -545,7 +550,8 @@ def merge_colliding_spans(spans, eps=0):
 #   return a_distances
 
 
-def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_func=distance.cosine):
+def calc_distances_to_pattern(sentences_embeddings_: FixedVectors, pattern_embedding: FixedVector,
+                              dist_func=distance.cosine) -> FixedVector:
   assert len(pattern_embedding.shape) == 1
   assert len(sentences_embeddings_.shape) == 2
   assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
@@ -557,15 +563,34 @@ def calc_distances_to_pattern(sentences_embeddings_, pattern_embedding, dist_fun
   return _distances
 
 
-def calc_distances_per_pattern_dict(sentences_embeddings_, patterns_dict, patterns_embeddings):
+import pandas as pd
+
+
+def calc_distances_per_pattern(sentences_embeddings_: [], patterns_named_embeddings: DataFrame) -> DataFrame:
   # TODO: see https://keras.io/layers/merge/#dot
 
+  distances_per_pattern_dict = pd.DataFrame()
+  # print(distances_per_pattern_dict)
+  for i, col in patterns_named_embeddings.iteritems():
+    # print(col.name, col.values)
+    _distances = calc_distances_to_pattern(sentences_embeddings_, col.values)
+    distances_per_pattern_dict[col.name] = _distances
+
+  return distances_per_pattern_dict
+
+
+def calc_distances_per_pattern_dict(sentences_embeddings_: [], patterns_names: [], patterns_embeddings: [[float]]):
+  # TODO: see https://keras.io/layers/merge/#dot
+  # TODO: use pandas dataframes
+  warnings.warn("use calc_distances_per_pattern", DeprecationWarning)
+  assert len(patterns_names) == len(patterns_embeddings)
   distances_per_pattern_dict = {}
-  for i in range(len(patterns_dict)):
-    pattern = patterns_dict[i]
+  for i in range(len(patterns_names)):
     _distances = calc_distances_to_pattern(sentences_embeddings_, patterns_embeddings[i])
 
+    pattern = patterns_names[i]
     distances_per_pattern_dict[pattern[0]] = _distances
+
   return distances_per_pattern_dict
 
 
@@ -605,3 +630,43 @@ def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: 
     w_spans_attention[words_range[0]:words_range[1]] += a
 
   return w_spans, w_spans_attention
+
+
+def _find_max_xy_in_matrix(vals):
+  max_x = 0
+  max_y = 0
+  maxval = 0
+  for x in range(vals.shape[0]):
+
+    for y in range(vals.shape[1]):
+      val = vals[x][y]
+      if val > maxval:
+        max_x = x
+        max_y = y
+        maxval = val
+
+  return max_x, max_y, maxval
+
+
+def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
+                                    threshold=HyperParameters.header_topic_min_confidence):
+  vals = header_to_pattern_distances_.values
+  # print(header_to_pattern_distances_)
+  headers_n = vals.shape[0]
+  # print('headers_n', headers_n)
+
+  pairs = []
+  for __header_index in range(headers_n):
+
+    header_index, pattern_index, maxval = _find_max_xy_in_matrix(vals)
+    # print(header_index, pattern_index,maxval )
+    pattern_name = header_to_pattern_distances_.columns[pattern_index]
+    max_pair = ((pattern_name, header_index), maxval)
+
+    if maxval > threshold:
+      pairs.append(max_pair)
+
+    vals[:,pattern_index] = -1
+    vals[header_index,:] = -1
+
+  return pairs
