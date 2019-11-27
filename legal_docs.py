@@ -749,7 +749,7 @@ def map_headlines_to_patterns(doc: LegalDocument,
   headers: [str] = doc.headers_as_sentences()
 
   if not headers:
-    return [], []
+    return []
 
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
 
