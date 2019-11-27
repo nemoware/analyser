@@ -27,14 +27,15 @@ class ContractDocument3(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-    self.subjects = None
+    self.subjects = []
     self.contract_values: List[ContractValue] = []
 
-    self.agents_tags = None
+    self.agents_tags = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
-    tags += self.agents_tags
+    if self.agents_tags:
+      tags += self.agents_tags
 
     if self.subjects:
       tags.append(self.subjects)
