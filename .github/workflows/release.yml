@@ -29,7 +29,7 @@ jobs:
           python setup.py sdist bdist_wheel
       - name: Zip build # This would actually build your project, using zip for an example artifact
         run: |
-          zip -r release.zip dist
+          zip -r -j release.zip dist
       - name: Branch name
         id: branch_name
         run: |
@@ -46,17 +46,18 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
 
-          body: |
-            Changes in this Release:
-            TODO
-            Actor: ${{ github.actor }}
-            Tag: ${{ steps.branch_name.outputs.SOURCE_TAG }}
-            Branch: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
-            Name: ${{ steps.branch_name.outputs.SOURCE_NAME }}
+#          body: |
+#            Changes in this Release:
+#            TODO
+#            Actor: ${{ github.actor }}
+#            Tag: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+#            Branch: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
+#            Name: ${{ steps.branch_name.outputs.SOURCE_NAME }}
+
           draft: false
           prerelease: false
 
-      - name: Upload sources
+      - name: Upload package
         id: upload-release-asset1
         uses: actions/upload-release-asset@v1.0.1
         env:
