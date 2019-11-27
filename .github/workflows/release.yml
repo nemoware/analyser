@@ -55,6 +55,7 @@ jobs:
             Name: ${{ steps.branch_name.outputs.SOURCE_NAME }}
           draft: false
           prerelease: false
+          
       - name: Upload sources
         id: upload-release-asset1
         uses: actions/upload-release-asset@v1.0.1
