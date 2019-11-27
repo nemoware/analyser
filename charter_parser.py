@@ -124,57 +124,52 @@ class CharterParser(ParsingContext):
     ParsingContext.__init__(self, embedder)
     self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
 
-    self.org_level_patterns_dict: DataFrame = _make_org_level_patterns()
+    self.patterns_dict: DataFrame = _make_org_level_patterns()
     self.subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
                                                                     elmo_embedder_default)
 
-    __patterns_embeddings = elmo_embedder_default.embedd_strings(self.org_level_patterns_dict.values[0])
-    self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.org_level_patterns_dict.columns)
+    __patterns_embeddings = elmo_embedder_default.embedd_strings(self.patterns_dict.values[0])
+    self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
   def ebmedd(self, doc: CharterDocument):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 200)
 
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
-
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
                                                                          self.patterns_named_embeddings)
 
   def analyse(self, charter: CharterDocument):
 
+    charter.margin_values = []
+    charter.constraint_tags = []
+    charter.charity_tags = []
+    charter.org_levels = []
+    charter.org_level_tags = []
+    # --------------
+    # (('Pattern name', 16), 0.8978644013404846),
     patterns_by_headers = map_headlines_to_patterns(charter,
                                                     self.patterns_named_embeddings,
                                                     self.elmo_embedder_default)
 
-    charter.margin_values = []
-    charter.constraint_tags = []
-    charter.charity_tags = []
-    # --------------
-    # (('headline/comp/qr/ShareholdersGeneralMeeting', 16), 0.8978644013404846),
-    filtered = [p_mapping for p_mapping in patterns_by_headers if p_mapping]
-
-    found_org_levels = []
-    kkk = 0
-    for p_mapping in filtered:
-      kkk += 1
-      # print('filtered', p_mapping)
+    _parent_org_level_tag_keys = []
+    for p_mapping in patterns_by_headers:
+      # kkk += 1
 
       _paragraph_id = p_mapping[0][1]
       _pattern_name = p_mapping[0][0]
-      # print('_paragraph_id', _paragraph_id)
-      # print('_pattern_name', _pattern_name)
+
       paragraph = charter.paragraphs[_paragraph_id]
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
       subdoc = charter.subdoc_slice(paragraph.body.as_slice())
 
-      parent_org_level_tag = SemanticTag(f"{org_level.name}-{kkk}", org_level.name, paragraph.body.span)
+      parent_org_level_tag = SemanticTag(f"{org_level.name}", org_level.name, paragraph.body.span)
       parent_org_level_tag.confidence = confidence
 
       constraint_tags, values = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
                                                                 parent_org_level_tag)
-
       for value in values:
         value += subdoc.start
 
@@ -184,10 +179,9 @@ class CharterParser(ParsingContext):
       charter.margin_values += values
       charter.constraint_tags += constraint_tags
 
-      _parent_org_level_tag_keys = []
-      if charter.margin_values:
+      if values:
         _key = parent_org_level_tag.get_key()
-        if _key in _parent_org_level_tag_keys:
+        if _key in _parent_org_level_tag_keys:  # avoid duplicates
           parent_org_level_tag.kind = _key + f"-{len(_parent_org_level_tag_keys)}"
         charter.org_levels.append(parent_org_level_tag)
         _parent_org_level_tag_keys.append(_key)
@@ -240,7 +234,7 @@ class CharterParser(ParsingContext):
     # collect sentences having constraint values
     sentence_spans = []
     for value in values:
-      sentence_span = subdoc.tokens_map.sentence_at_index(value.parent.span[0], return_delimiters=True)
+      sentence_span = subdoc.tokens_map.sentence_at_index(value.parent.span[0], return_delimiters=False)
       if sentence_span not in sentence_spans:
         sentence_spans.append(sentence_span)
     sentence_spans = merge_colliding_spans(sentence_spans, eps=1)
