@@ -5,6 +5,8 @@ from pip._internal.req import parse_requirements
 from setuptools import setup, find_packages, find_namespace_packages
 
 
+
+
 with open("README.md", "r") as fh:
   long_description = fh.read()
 
@@ -33,4 +35,9 @@ setup(
     "Operating System :: OS Independent",
   ],
   python_requires='>=3.6',
+
+
+
+  entry_points={"console_scripts": ["analyser-run = bin.analyser_run:main"]},
+  scripts=["bin/analyser-run.cmd"],
 )
