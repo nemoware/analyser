@@ -2,7 +2,8 @@ import re
 from typing import Iterator
 
 from contract_agents import find_org_names, ORG_LEVELS_re
-from contract_parser import find_value_sign_currency_attention, max_confident_tag
+from contract_agents import find_org_names_in_tag
+from contract_parser import find_value_sign_currency_attention
 from hyperparams import HyperParameters
 from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from ml_tools import *
@@ -28,7 +29,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument4(LegalDocument):
 
-  def __init__(self, doc: LegalDocument):
+  def __init__(self, doc: LegalDocument or None):
     super().__init__('')
     if doc is not None:
       self.__dict__ = doc.__dict__
@@ -120,8 +121,9 @@ class ProtocolParser(ParsingContext):
     self._analyse_embedded(doc)
 
   def _analyse_embedded(self, doc: ProtocolDocument):
-    doc.org_level = [max_confident_tag(list(find_org_structural_level(doc)))]
-    doc.agents_tags =  list(find_protocol_org(doc))
+    doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
+    doc.agents_tags = list(find_protocol_org(doc))
+
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
@@ -130,31 +132,45 @@ class ProtocolParser(ParsingContext):
   def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
     ret = []
     for parent in agenda_questions:
-      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_')
+      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_',
+                                                          decay_confidence=False)
       if x:
         ret += x
     return ret
 
-  def _find_agents_in_section(self, protocol: LegalDocument, parent, tag_kind_prefix: str) -> List[SemanticTag]:
-    span = parent.span
-    x: List[SemanticTag] = find_org_names(protocol[span[0]:span[1]], max_names=10, tag_kind_prefix=tag_kind_prefix)
-
-    for org in x:
-      org.offset(span[0])
-      org.parent = parent.kind
-
+  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag, tag_kind_prefix: str,
+                              decay_confidence=False) -> List[
+    SemanticTag]:
+    x: List[SemanticTag] = find_org_names_in_tag(protocol, parent, max_names=10, tag_kind_prefix=tag_kind_prefix,
+                                                 decay_confidence=decay_confidence)
     return x
 
   def find_values(self, doc) -> [ContractValue]:
     value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
-    values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
-    # set parents for values
-    for tag in doc.agenda_questions:
+    # values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
 
-      for v in values:
-        if tag.is_nested(v.span()):
-          v.parent.parent = tag.kind
+    values = []
+    for agenda_question_tag in doc.agenda_questions:
+      subdoc = doc[agenda_question_tag.as_slice()]
+      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector,
+                                                                          parent_tag=agenda_question_tag)
+      values += subdoc_values
+      if len(subdoc_values) > 1:
+        confidence = 1.0 / len(subdoc_values)
+        k = 0
+        for v in subdoc_values:
+          k += 1
+          v *= confidence  # decrease confidence
+          v.parent.kind = f'{v.parent.kind}-{k}'
+
+    # # set parents for values
+    # for tag in doc.agenda_questions:
+    #   # subdoc = doc[tag.as_slice()]
+    #   for v in values:
+    #     if tag.is_nested(v.span()):
+    #       v.parent.set_parent_tag(tag)
+    #       # v.parent.parent = tag.kind
 
     return values
 
@@ -262,44 +278,11 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     AbstractPatternFactory.__init__(self, embedder)
 
     self._build_subject_pattern()
-    self._build_sum_margin_extraction_patterns()
+
+    create_value_negation_patterns(self)
+    create_value_patterns(self)
+
     self.embedd()
-
-  def _build_sum_margin_extraction_patterns(self):
-    suffix = 'млн. тыс. миллионов тысяч рублей долларов копеек евро'
-    prefix = ''
-
-    sum_comp_pat = CoumpoundFuzzyPattern()
-
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_1', (prefix + 'стоимость', 'не более 0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_2', (prefix + 'цена', 'не больше 0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_3', (prefix + 'стоимость <', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_4', (prefix + 'цена менее', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_5', (prefix + 'стоимость не может превышать', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_6', (prefix + 'общая сумма может составить', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_7', (prefix + 'лимит соглашения', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_8', (prefix + 'верхний лимит стоимости', '0', suffix)))
-    sum_comp_pat.add_pattern(self.create_pattern('sum_max_p_9', (prefix + 'максимальная сумма', '0', suffix)))
-
-    # self.create_pattern('sum_max_neg1', ('ежемесячно не позднее', '0', 'числа каждого месяца'))
-    # self.create_pattern('sum_max_neg2', ('приняли участие в голосовании', '0', 'человек') )
-    # self.create_pattern('sum_max_neg3', ('срок действия не должен превышать', '0', 'месяцев с даты выдачи'))
-    # self.create_pattern('sum_max_neg4', ('позднее чем за', '0', 'календарных дней до даты его окончания '))
-    # self.create_pattern('sum_max_neg5', ('общая площадь', '0', 'кв . м.'))
-
-    f = self
-    f.create_pattern('not_sum_0', ('', 'пункт 0.', ''))
-    f.create_pattern('not_sum_1', ('', '0 дней', ''))
-    f.create_pattern('not_sum_1.1', ('', 'в течение 0 ( ноля ) дней', ''))
-    f.create_pattern('not_sum_1.2', ('', '0 января', ''))
-    f.create_pattern('not_sum_2', ('', '0 минут', ''))
-    f.create_pattern('not_sum_3', ('', '0 часов', ''))
-    f.create_pattern('not_sum_4', ('', '0 процентов', ''))
-    f.create_pattern('not_sum_5', ('', '0 %', ''))
-    f.create_pattern('not_sum_5.1', ('', '0 % голосов', ''))
-    f.create_pattern('not_sum_6', ('', '2000 год', ''))
-    f.create_pattern('not_sum_7', ('', '0 человек', ''))
-    f.create_pattern('not_sum_8', ('', '0 метров', ''))
 
   def _build_subject_pattern(self):
     ep = ExclusivePattern()

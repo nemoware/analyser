@@ -10,11 +10,13 @@ from functools import wraps
 
 from bson import json_util
 
+from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
-from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better
+from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
+  FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from patterns import *
-from structures import ORG_2_ORG, ContractTags
+from structures import ContractTags
 from tests.test_text_tools import split_sentences_into_map
 from text_normalize import *
 from text_tools import *
@@ -141,7 +143,10 @@ class LegalDocument:
   def get_tags(self) -> [SemanticTag]:
     return []
 
-  def get_tags_attention(self):
+  def headers_as_sentences(self) -> [str]:
+    return headers_as_sentences(self)
+
+  def get_tags_attention(self) -> FixedVector:
     _attention = np.zeros(self.__len__())
 
     for t in self.get_tags():
@@ -252,45 +257,6 @@ class LegalDocument:
     self.distances_per_pattern_dict[attention_vector_name] = x
     return x, attention_vector_name
 
-  def find_sentences_by_pattern_prefix(self, org_level, factory, pattern_prefix) -> PatternSearchResults:
-
-    """
-    :param factory:
-    :param pattern_prefix:
-    :return:
-    """
-    warnings.warn("use find_sentences_by_attention_vector", DeprecationWarning)
-    attention, attention_vector_name = self.make_attention_vector(factory, pattern_prefix)
-
-    results: PatternSearchResults = []
-
-    for i in np.nonzero(attention)[0]:
-      _b = self.tokens_map.sentence_at_index(i)
-      _slice = slice(_b[0], _b[1])
-
-      if _slice.stop != _slice.start:
-
-        sum_ = sum(attention[_slice])
-        #       confidence = np.mean( np.nonzero(x[sl]) )
-        nonzeros_count = len(np.nonzero(attention[_slice])[0])
-        confidence = 0
-
-        if nonzeros_count > 0:
-          confidence = sum_ / nonzeros_count
-
-        if confidence > 0.8:
-          r = PatternSearchResult(ORG_2_ORG[org_level], _slice)
-          r.attention_vector_name = attention_vector_name
-          r.pattern_prefix = pattern_prefix
-          r.confidence = confidence
-          r.parent = self
-
-          results.append(r)
-
-    results = remove_sr_duplicates_conditionally(results)
-
-    return results
-
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
     warnings.warn("use embedd_words", DeprecationWarning)
     if self.tokens:
@@ -314,6 +280,31 @@ class LegalDocument:
       return t.value
     else:
       return None
+
+
+class LegalDocumentExt(LegalDocument):
+
+  def __init__(self, doc: LegalDocument):
+    super().__init__('')
+    if doc is not None:
+      self.__dict__ = doc.__dict__
+
+    self.sentence_map: TextMap or None = None
+    self.sentences_embeddings: [] = None
+    self.distances_per_sentence_pattern_dict = {}
+
+  def subdoc_slice(self, __s: slice, name='undef'):
+    sub = super().subdoc_slice(__s, name)
+    span = [max((0, __s.start)), max((0, __s.stop))]
+
+    sentences_span = self.tokens_map.remap_span(span, self.sentence_map)
+    _slice = slice(sentences_span[0], sentences_span[1])
+    sub.sentence_map = self.sentence_map.slice(_slice)
+
+    if self.sentences_embeddings is not None:
+      sub.sentences_embeddings = self.sentences_embeddings[_slice]
+
+    return sub
 
 
 class DocumentJson:
@@ -356,22 +347,33 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-      val = t.__dict__.copy()
-      attributes.append(val)
-      del val['kind']
+      key, attr = self.__tag_to_attribute(t)
+      attributes.append(attr)
+
     return attributes
 
-  def __tags_to_attributes_dict(self, _tags):
+  def __tag_to_attribute(self, t: SemanticTag):
 
-    cnt = 0
+    key = t.get_key()
+    attribute = t.__dict__.copy()
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if t.parent is not None:
+        attribute['parent'] = t.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
+
+  def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
+
     attributes = {}
     for t in _tags:
-      cnt += 1
-      key = t.kind.replace('.', '_')
+      key, attr = self.__tag_to_attribute(t)
+
       if key in attributes:
-        key = f'{key}_{cnt}'
-      attributes[key] = t.__dict__.copy()
-      del attributes[key]['kind']
+        raise RuntimeError(key + ' duplicated key')
+
+      attributes[key] = attr
 
     return attributes
 
@@ -402,37 +404,6 @@ def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th
   _sum, c = rectifyed_sum_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th)
   _sum /= c
   return _sum
-
-
-class BasicContractDocument(LegalDocument):
-
-  def __init__(self, original_text=None):
-    LegalDocument.__init__(self, original_text)
-
-  def get_subject_ranges(self, indexes_zipped, section_indexes: List):
-
-    subj_range = None
-    head_range = None
-    for i in range(len(indexes_zipped) - 1):
-      if indexes_zipped[i][0] == 1:
-        subj_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-      if indexes_zipped[i][0] == 0:
-        head_range = range(indexes_zipped[i][1], indexes_zipped[i + 1][1])
-    if head_range is None:
-      print("WARNING: Contract type might be not known!!")
-      head_range = range(0, 0)
-    if subj_range is None:
-      print("WARNING: Contract subject might be not known!!")
-      if len(self.tokens) < 80:
-        _end = len(self.tokens)
-      else:
-        _end = 80
-      subj_range = range(0, _end)
-    return head_range, subj_range
-
-
-# SUMS -----------------------------
-ProtocolDocument = LegalDocument
 
 
 # Charter Docs
@@ -595,7 +566,7 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
   return distances_per_pattern_dict
 
 
-def detect_sign_2(txt: TextMap) -> (int, (int, int)):
+def find_value_sign(txt: TextMap) -> (int, (int, int)):
   """
   todo: rename to 'find_value_sign'
   :param txt:
@@ -610,14 +581,11 @@ def detect_sign_2(txt: TextMap) -> (int, (int, int)):
   if a:
     return -1, a
   else:
-    a = next(txt.finditer(_re_greather_then), None)
+    a = next(txt.finditer(_re_greather_then), None)  # более
     if a:
       return +1, a
 
   return 0, None
-
-
-find_value_sign = detect_sign_2
 
 
 class ContractValue:
@@ -640,6 +608,11 @@ class ContractValue:
     right = max([tag.span[0] for tag in self.as_list()])
     return left, right
 
+  def __mul__(self, confidence_k):
+    for _r in self.as_list():
+      _r.confidence *= confidence_k
+    return self
+
   def integral_sorting_confidence(self) -> float:
     return conditional_p_sum(
       [self.parent.confidence, self.value.confidence, self.currency.confidence, self.sign.confidence])
@@ -659,19 +632,16 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     value_span = subdoc.tokens_map.token_indices_by_char_range(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range(currency_char_span)
 
-    parent = f'sign_value_currency_{region[0]}_{region[1]}'
-    group = SemanticTag(parent, None, region)
+    group = SemanticTag('sign_value_currency', None, region)
 
-    sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span)
-    sign.parent = parent
+    sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
+    sign.display_value = subdoc.substr(sign)
     sign.offset(subdoc.start)
 
-    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span)
-    value_tag.parent = parent
+    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
     value_tag.offset(subdoc.start)
 
-    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span)
-    currency.parent = parent
+    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span, parent=group)
     currency.offset(subdoc.start)
 
     return ContractValue(sign, value_tag, currency, group)
@@ -742,3 +712,57 @@ def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2,
     return _embedd_large(text_map, embedder, max_tokens, verbosity)
   else:
     return embedder.embedd_tokens(text_map.tokens)
+
+
+def make_headline_attention_vector(doc):
+  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+
+  for p in doc.paragraphs:
+    parser_headline_attention_vector[p.header.slice] = 1
+
+  return parser_headline_attention_vector
+
+
+def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True) -> [str]:
+  _map = doc.tokens_map
+  if normal_case:
+    _map = doc.tokens_map_norm
+
+  numbered = [_map.slice(p.header.as_slice()) for p in doc.paragraphs]
+  stripped: [str] = []
+
+  for s in numbered:
+    if strip_number:
+      a = get_tokenized_line_number(s.tokens, 0)
+      _, span, _, _ = a
+      line = s.text_range([span[1], None]).strip()
+    else:
+      line = s.text
+    stripped.append(line)
+
+  return stripped
+
+
+def map_headlines_to_patterns(doc: LegalDocument,
+                              patterns_named_embeddings,
+                              elmo_embedder_default: AbstractEmbedder):
+  headers: [str] = doc.headers_as_sentences()
+
+  if not headers:
+    return []
+
+  headers_embedding = elmo_embedder_default.embedd_strings(headers)
+
+  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
+  return attribute_patternmatch_to_index(header_to_pattern_distances)
+
+
+def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:
+  av = np.zeros(len(target_map))
+
+  for i in range(len(source_map)):
+    span = i, i + 1
+
+    t_span = source_map.remap_span(span, target_map)
+    av[t_span[0]:t_span[1]] = v[i]
+  return av
