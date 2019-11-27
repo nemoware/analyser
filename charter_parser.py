@@ -50,6 +50,27 @@ class CharterDocument(LegalDocumentExt):
 """ ❤️ == GOOD CharterDocumentParser  ====================================== """
 
 
+def _make_org_level_patterns() -> pd.DataFrame:
+  p = competence_headline_pattern_prefix  # just shortcut
+  comp_str_pat = pd.DataFrame()
+  for ol in OrgStructuralLevel:
+    comp_str_pat[PATTERN_DELIMITER.join([p, ol.name])] = [ol.display_string.lower()]
+    comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name])] = [
+      f'к компетенции {ol.display_string} относятся следующие вопросы'.lower()]
+    comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', ol.name])] = f"компетенции {ol.display_string}".lower()
+
+  _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.ShareholdersGeneralMeeting.name])
+  comp_str_pat[_key] = ['Компетенция Общего собрания акционеров Общества'.lower()]
+
+  _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.BoardOfDirectors.name])
+  comp_str_pat[_key] = ['Компетенция Совета директоров Общества'.lower()]
+
+  _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.CEO.name])
+  comp_str_pat[_key] = ['Единоличный исполнительный орган Общества'.lower()]
+
+  return comp_str_pat.astype('str')
+
+
 class CharterParser(ParsingContext):
   strs_subjects_patterns = {
 
@@ -99,41 +120,16 @@ class CharterParser(ParsingContext):
 
   }
 
-  def _make_patterns(self):
-    p = competence_headline_pattern_prefix  # just shortcut
-    comp_str_pat = []
-    comp_str_pat += [[PATTERN_DELIMITER.join([p, ol.name]), ol.display_string.lower()] for ol in OrgStructuralLevel]
-    comp_str_pat += [[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name]),
-                      f'к компетенции {ol.display_string} относятся следующие вопросы'.lower()] for ol in
-                     OrgStructuralLevel]
-    comp_str_pat += [[PATTERN_DELIMITER.join([p, 'comp', ol.name]), f"компетенции {ol.display_string}".lower()] for ol
-                     in OrgStructuralLevel]
-
-    _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.ShareholdersGeneralMeeting.name])
-    comp_str_pat += [[_key, 'Компетенция Общего собрания акционеров Общества'.lower()]]
-
-    _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.BoardOfDirectors.name])
-    comp_str_pat += [[_key, 'Компетенция Совета директоров Общества'.lower()]]
-
-    _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.CEO.name])
-    comp_str_pat += [[_key, 'Единоличный исполнительный орган Общества'.lower()]]
-
-    self.patterns_dict = comp_str_pat
-
-
   def __init__(self, embedder: AbstractEmbedder, elmo_embedder_default: AbstractEmbedder):
     ParsingContext.__init__(self, embedder)
-
-    self.patterns_dict = []
-
     self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
 
-    self._make_patterns()
-    patterns_texts = [p[1] for p in self.patterns_dict]
-
-    self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_texts)
+    self.org_level_patterns_dict: DataFrame = _make_org_level_patterns()
     self.subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
                                                                     elmo_embedder_default)
+
+    __patterns_embeddings = elmo_embedder_default.embedd_strings(self.org_level_patterns_dict.values[0])
+    self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.org_level_patterns_dict.columns)
 
   def ebmedd(self, doc: CharterDocument):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 200)
@@ -141,13 +137,14 @@ class CharterParser(ParsingContext):
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
 
-    doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
-                                                                              self.patterns_dict,
-                                                                              self.patterns_embeddings)
+    doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
+                                                                         self.patterns_named_embeddings)
 
   def analyse(self, charter: CharterDocument):
 
-    patterns_by_headers = self.map_charter_headlines_to_patterns(charter)
+    patterns_by_headers = map_headlines_to_patterns(charter,
+                                                    self.patterns_named_embeddings,
+                                                    self.elmo_embedder_default)
 
     charter.margin_values = []
     charter.constraint_tags = []
@@ -160,12 +157,12 @@ class CharterParser(ParsingContext):
     kkk = 0
     for p_mapping in filtered:
       kkk += 1
-      print('filtered', p_mapping)
+      # print('filtered', p_mapping)
 
       _paragraph_id = p_mapping[0][1]
-      print('_paragraph_id', _paragraph_id)
       _pattern_name = p_mapping[0][0]
-      print('_pattern_name', _pattern_name)
+      # print('_paragraph_id', _paragraph_id)
+      # print('_pattern_name', _pattern_name)
       paragraph = charter.paragraphs[_paragraph_id]
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
@@ -280,21 +277,6 @@ class CharterParser(ParsingContext):
       self._rename_margin_values_tags(values)
 
     return constraint_tags, values
-
-  def map_charter_headlines_to_patterns(self, charter: LegalDocument):
-
-    # p_suffices = [PATTERN_DELIMITER.join(c[0].split(PATTERN_DELIMITER)[1:]) for c in self.patterns_dict]
-
-    # map = (pattern_name, pattern_suffix, confidence, headers[header_number], doc.paragraphs[header_number])
-    patterns_names = [c[0] for c in self.patterns_dict]
-    print('patterns_names', patterns_names)
-    print(self.patterns_embeddings.shape)
-    patterns_named_embeddings = pd.DataFrame(self.patterns_embeddings.T, columns=patterns_names)
-    map_ = map_headlines_to_patterns(charter,
-                                     patterns_named_embeddings,
-                                     self.elmo_embedder_default)
-
-    return map_
 
 
 def put_if_better(destination: dict, key, x, is_better: staticmethod):

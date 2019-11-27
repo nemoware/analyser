@@ -13,7 +13,6 @@ from bson import json_util
 from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from embedding_tools import AbstractEmbedder
-from hyperparams import HyperParameters
 from ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from patterns import *
@@ -755,8 +754,7 @@ def map_headlines_to_patterns(doc: LegalDocument,
   headers_embedding = elmo_embedder_default.embedd_strings(headers)
 
   header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
-  return attribute_patternmatch_to_index(header_to_pattern_distances,
-                                         threshold=HyperParameters.header_topic_min_confidence)
+  return attribute_patternmatch_to_index(header_to_pattern_distances)
 
 
 def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:

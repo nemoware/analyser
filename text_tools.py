@@ -9,8 +9,9 @@ from typing import List
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
+from numpy.core.multiarray import ndarray
 
-Tokens = List[str]
+Tokens = List[str] or ndarray
 
 
 def find_ner_end(tokens, start, max_len=20):
