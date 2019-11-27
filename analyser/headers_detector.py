@@ -8,9 +8,9 @@ from sklearn.ensemble import RandomForestRegressor
 from doc_structure import get_tokenized_line_number
 from documents import TextMap
 from hyperparams import models_path
-from legal_docs import PARAGRAPH_DELIMITER
+from legal_docs import PARAGRAPH_DELIMITER, make_headline_attention_vector
 from ml_tools import sum_probabilities, FixedVector
-from text_tools import Tokens
+from text_tools import Tokens, _count_capitals, _count_digits
 
 popular_headers = pd.read_csv(os.path.join(models_path, 'headers_by_popularity.csv'))[2:50]
 popular_headers = list(popular_headers['text'])
@@ -18,17 +18,20 @@ popular_headers = list(popular_headers['text'])
 from hyperparams import HyperParameters
 
 
-def make_headline_attention_vector(doc, return_components=False) -> FixedVector or (
+def load_model() -> RandomForestRegressor:
+  if 'rf_model' not in globals():
+    loaded_model = load(os.path.join(models_path, 'rf_headers_detector_model.joblib'))
+    globals()['rf_model'] = loaded_model
+  return globals()['rf_model']
+
+
+def make_predicted_headline_attention_vector(doc, return_components=False) -> FixedVector or (
         FixedVector, FixedVector, FixedVector):
   """
   moved to headers_detector
   """
-
-  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+  parser_headline_attention_vector = make_headline_attention_vector(doc)
   predicted_headline_attention_vector = np.zeros_like(parser_headline_attention_vector)
-
-  for p in doc.paragraphs:
-    parser_headline_attention_vector[p.header.slice] = 1
 
   features, body_lines_ranges = doc_features(doc.tokens_map)
   model = load_model()
@@ -66,11 +69,6 @@ def doc_features(tokens_map: TextMap):
   return doc_features_data, _line_spans
 
 
-def load_model() -> RandomForestRegressor:
-  loaded_model = load(os.path.join(models_path, 'rf_headers_detector_model.joblib'))
-  return loaded_model
-
-
 def _onehot(x: bool or int) -> float:
   if x:
     return 1.0
@@ -99,7 +97,7 @@ def line_features(tokens_map, line_span, line_number, prev_features):
 
   features = {
     'line_number': line_number,
-    'popular': _onehot(header_id in popular_headers),
+    # 'popular': _onehot(header_id in popular_headers),
     # 'cr_count': txt.count('\r'),
 
     'has_contract': _onehot(txt.lower().find('договор')),
@@ -140,22 +138,6 @@ def line_features(tokens_map, line_span, line_number, prev_features):
   #   features['prev-len_chars'] = prev_features['len_chars']
 
   return features
-
-
-def _count_capitals(txt):
-  s = 0
-  for c in txt:
-    if c.isupper():
-      s += 1
-  return s
-
-
-def _count_digits(txt):
-  s = 0
-  for c in txt:
-    if c.isdigit():
-      s += 1
-  return s
 
 
 def _count_strange_symbols(txt, strange_symbols) -> int:

@@ -4,6 +4,7 @@ import os
 import subprocess
 import warnings
 
+from charter_parser import CharterDocument
 from contract_parser import ContractDocument
 from integration.doc_providers import DirDocProvider
 from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
@@ -15,7 +16,7 @@ class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.10'
+    self.version = '1.1.12'
 
     x = os.system("java -version")
     assert x == 0
@@ -40,18 +41,21 @@ class WordDocParser(DirDocProvider):
     s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", fn]
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
 
-    res = json.loads(result.stdout)
+    if result.returncode != 0:
+      raise RuntimeError('cannot execute ' + result.args)
 
-    return res
+    return json.loads(result.stdout)
 
 
 def join_paragraphs(response, doc_id):
   # TODO: check type of res
-  doc = None
+
   if response['documentType'] == 'CONTRACT':
     doc: LegalDocument = ContractDocument('')
   elif response['documentType'] == 'PROTOCOL':
     doc: LegalDocument = ProtocolDocument(None)
+  elif response['documentType'] == 'CHARTER':
+    doc: LegalDocument = CharterDocument(None)
   else:
     msg = f"Unsupported document type: {response['documentType']}"
     warnings.warn(msg)
@@ -66,9 +70,16 @@ def join_paragraphs(response, doc_id):
 
   last = 0
 
-  for p in response['paragraphs']:
+  #remove empty headers
+  paragraphs = []
+  for _p in response['paragraphs']:
+    header_text = _p['paragraphHeader']['text']
+    if header_text.strip() != '':
+      paragraphs.append(_p)
 
-    header_text = p['paragraphHeader']['text']
+  for _p in paragraphs:
+
+    header_text = _p['paragraphHeader']['text']
     header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
@@ -79,8 +90,8 @@ def join_paragraphs(response, doc_id):
 
     last = len(doc.tokens_map)
 
-    if p['paragraphBody']:
-      body_text = p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
+    if _p['paragraphBody']:
+      body_text = _p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
       body = LegalDocument(body_text)
       body.parse()
       doc += body

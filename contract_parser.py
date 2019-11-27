@@ -27,14 +27,15 @@ class ContractDocument3(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-    self.subjects = None
+    self.subjects = []
     self.contract_values: List[ContractValue] = []
 
-    self.agents_tags = None
+    self.agents_tags = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
-    tags += self.agents_tags
+    if self.agents_tags:
+      tags += self.agents_tags
 
     if self.subjects:
       tags.append(self.subjects)
@@ -265,8 +266,7 @@ class ContractAnlysingContext(ParsingContext):
         else:
           # decrease confidence:
           for g in values_list:
-            for _r in g.as_list():
-              _r.confidence *= confidence_k
+            g *= confidence_k
 
           # ------
           # reduce number of found values
@@ -277,7 +277,9 @@ class ContractAnlysingContext(ParsingContext):
           if max_confident_cv == max_valued_cv:
             return [max_confident_cv]
           else:
-            return [max_valued_cv, max_confident_cv]
+            # TODO:
+            max_valued_cv *= 0.5
+            return [max_valued_cv]
 
 
       else:
@@ -300,7 +302,8 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
   return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned)
 
 
-def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None) -> List[
+def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None,
+                                       parent_tag=None) -> List[
   ContractValue]:
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = []
@@ -311,11 +314,14 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
 
       # Estimating confidence by looking at attention vector
       if attention_vector_tuned is not None:
-        value_sign_currency += value_section_subdoc.start #offsetting spans
+        # offsetting spans
+        value_sign_currency += value_section_subdoc.start
 
         for t in value_sign_currency.as_list():
           t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
             attention_vector_tuned[t.slice]))
+
+        value_sign_currency.parent.set_parent_tag(parent_tag)
 
       values_list.append(value_sign_currency)
 
@@ -327,6 +333,7 @@ def max_confident(vals: List[ContractValue]) -> ContractValue:
 
 
 def max_confident_tag(vals: List[SemanticTag]) -> SemanticTag:
+  warnings.warn("use max_confident_tags", DeprecationWarning)
   return max(vals, key=lambda a: a.confidence)
 
 
@@ -352,8 +359,6 @@ def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vect
 
   # confidence = paragraph_attention_vector[top_index]
   confidence_region = subject_attention_vector[span[0]:span[1]]
-
-  # print(confidence_region)
   confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
   return span, confidence, paragraph_attention_vector
 

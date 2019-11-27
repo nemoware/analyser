@@ -34,7 +34,7 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
   # TODO: define per org_types
 
   AllMembers = 4, 'Общее собрание Участников'
-  ShareholdersGeneralMeeting = 3, 'Генеральное собрание акционеров'
+  ShareholdersGeneralMeeting = 3, 'Общее собрание акционеров'
   BoardOfDirectors = 2, 'Совет директоров'
   CEO = 1, 'Генеральный директор'
   BoardOfCompany = 0, 'Правление общества'
@@ -72,6 +72,17 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   Other = 2, 'Другое'
   Lawsuit = 3, 'Судебные издержки'
   RealEstate = 4, 'Недвижимость'
+
+
+@unique
+class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
+  Deal = 0, 'Сделка'
+  Charity = 1, 'Благотворительность'
+  Other = 2, 'Другое'
+  Lawsuit = 3, 'Судебные издержки'
+  RealEstate = 4, 'Недвижимость'
+  Insurance = 5, 'Страхование'
+  Consulting = 6, 'Консультационные услуги'
 
 
 class Citation:

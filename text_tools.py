@@ -9,8 +9,9 @@ from typing import List
 import nltk
 import numpy as np
 import scipy.spatial.distance as distance
+from numpy.core.multiarray import ndarray
 
-Tokens = List[str]
+Tokens = List[str] or ndarray
 
 
 def find_ner_end(tokens, start, max_len=20):
@@ -397,6 +398,22 @@ def is_long_enough(val: str, minlen=2) -> bool:
 
 def span_len(span: [int]) -> int:
   return abs(span[1] - span[0])
+
+
+def _count_capitals(txt):
+  s = 0
+  for c in txt:
+    if c.isupper():
+      s += 1
+  return s
+
+
+def _count_digits(txt):
+  s = 0
+  for c in txt:
+    if c.isdigit():
+      s += 1
+  return s
 
 
 if __name__ == '__main__':

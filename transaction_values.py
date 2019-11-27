@@ -120,7 +120,7 @@ def detect_sign(prefix: str):
 
 number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 
-VALUE_SIGN_MIN_TOKENS = 4
+VALUE_SIGN_MIN_TOKENS = 5
 
 
 def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, List[int], str):
@@ -173,6 +173,7 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
       including_vat = True
 
     # TODO: include fration span to the return value
+
     ret = number_span, number, currency_span, currencly_name, including_vat, original_sum
 
     return ret
