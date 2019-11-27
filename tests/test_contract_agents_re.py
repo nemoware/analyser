@@ -27,10 +27,10 @@ class TestContractAgentsSearch(unittest.TestCase):
 
   def test_ru_cap(self):
     x = ru_cap(n('Государственной автономной учрежденией'))
-    self.assertEqual('[Гг]осударственн[а-я]{0,3}\s+[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
+    self.assertEqual(r'[Гг]осударственн[а-я]{0,3}\s+[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
 
     x = ru_cap('автономной учрежденией')
-    self.assertEqual('[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
+    self.assertEqual(r'[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
 
   def test_r_name(self):
 
@@ -437,7 +437,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     self.assertEqual(None, x)
 
   def test_r_human_abbr_name(self):
-    r = re.compile('\W' + r_human_abbr_name, re.MULTILINE)
+    r = re.compile(r'\W' + r_human_abbr_name, re.MULTILINE)
 
     x = r.search('что-то Мироздания С.К., который был')
     self.assertEqual('Мироздания С.К.', x[1])
@@ -455,7 +455,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     self.assertEqual(None, x)
 
   def test_r_human_name(self):
-    r = re.compile('\W' + r_human_name, re.MULTILINE)
+    r = re.compile(r'\W' + r_human_name, re.MULTILINE)
 
     x = r.search('что-то Мироздания С.К., который был')
     self.assertEqual('Мироздания С.К.', x['human_name'])
