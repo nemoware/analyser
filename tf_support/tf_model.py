@@ -8,10 +8,10 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from contract_patterns import ContractPatternFactory
-from fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding_2
-from patterns import FuzzyPattern
-from text_tools import Tokens, hot_punkt
+from analyser.contract_patterns import ContractPatternFactory
+from tf_support.fuzzy_matcher import AttentionVectors, prepare_patters_for_embedding_2
+from analyser.patterns import FuzzyPattern
+from analyser.text_tools import Tokens, hot_punkt
 
 
 def make_punkt_mask(tokens: Tokens) -> np.ndarray:
@@ -461,15 +461,15 @@ class PatternSearchModelDiff:
 
 
 if __name__ == '__main__':
-  from text_tools import tokenize_text
+  from analyser.text_tools import tokenize_text
   import re
-  from text_normalize import normalize_text, replacements_regex
+  from analyser.text_normalize import normalize_text, replacements_regex
 
   search_for = "Изящество стиля"
 
-  from text_tools import tokenize_text
+  from analyser.text_tools import tokenize_text
   import re
-  from text_normalize import normalize_text, replacements_regex
+  from analyser.text_normalize import normalize_text, replacements_regex
 
   _sample_text = """
   Берлинская дада-ярмарка и Международная выставка сюрреализма в париж­ской галерее «Изящные искусства» в 1938 году стали высшими точками развития двух движений и подвели им итог. На «Сюрреалис­тической улице», за манекенами, выстроившимися в проходе в главный зал, располагались плакаты, приглашения, объявления и фотографии, отсылающие к ранним этапам сюрреализма. В главном зале, за оформление которого отвечал Марсель Дюшан 

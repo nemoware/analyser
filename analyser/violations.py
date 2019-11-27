@@ -1,11 +1,11 @@
 from typing import List
 
 from colab_support.renderer import as_warning, as_offset, as_error_html, as_msg, as_quote, as_currency
-from ml_tools import ProbableValue, np, TokensWithAttention
-from parsing import head_types_dict
-from patterns import ConstraintsSearchResult
-from text_tools import untokenize
-from transaction_values import ValueConstraint
+from analyser.ml_tools import ProbableValue, np, TokensWithAttention
+from analyser.parsing import head_types_dict
+from analyser.patterns import ConstraintsSearchResult
+from analyser.text_tools import untokenize
+from analyser.transaction_values import ValueConstraint
 
 
 class ViolationsFinder:

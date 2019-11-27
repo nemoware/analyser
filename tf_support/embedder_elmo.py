@@ -4,8 +4,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from embedding_tools import AbstractEmbedder
-from text_tools import Tokens
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.text_tools import Tokens
 
 
 class ElmoEmbedder(AbstractEmbedder):

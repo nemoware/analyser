@@ -1,6 +1,6 @@
 import unittest
 
-from legal_docs import *
+from analyser.legal_docs import *
 from tests.test_utilits import FakeEmbedder
 
 

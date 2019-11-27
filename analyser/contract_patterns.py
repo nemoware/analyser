@@ -1,7 +1,7 @@
-from legal_docs import rectifyed_sum_by_pattern_prefix
-from ml_tools import max_exclusive_pattern_by_prefix, momentum, cut_above, relu
-from patterns import AbstractPatternFactoryLowCase
-from structures import ContractSubject
+from analyser.legal_docs import rectifyed_sum_by_pattern_prefix
+from analyser.ml_tools import max_exclusive_pattern_by_prefix, momentum, cut_above, relu
+from analyser.patterns import AbstractPatternFactoryLowCase
+from analyser.structures import ContractSubject
 from tf_support.embedder_elmo import ElmoEmbedder
 
 

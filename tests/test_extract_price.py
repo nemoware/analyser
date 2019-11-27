@@ -9,13 +9,13 @@ from typing import List
 import nltk
 import numpy as np
 
-from charter_parser import split_by_number_2
-from contract_parser import ContractDocument, find_value_sign_currency
-from documents import TextMap
-from legal_docs import find_value_sign
-from ml_tools import conditional_p_sum
-from text_normalize import *
-from transaction_values import extract_sum
+from analyser.charter_parser import split_by_number_2
+from analyser.contract_parser import ContractDocument, find_value_sign_currency
+from analyser.documents import TextMap
+from analyser.legal_docs import find_value_sign
+from analyser.ml_tools import conditional_p_sum
+from analyser.text_normalize import *
+from analyser.transaction_values import extract_sum
 
 data = [
   # (0, 41752.62, 'RUB',
@@ -221,7 +221,7 @@ class PriceExtractTestCase(unittest.TestCase):
       # print('expected:', price, 'found:', f)
 
   def test_number_re(self):
-    from transaction_values import number_re
+    from analyser.transaction_values import number_re
     numbers_str = """
         3.44
         41752,62 рублей

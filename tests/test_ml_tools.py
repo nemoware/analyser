@@ -9,7 +9,7 @@ import unittest
 import numpy as  np
 import pandas as pd
 
-from ml_tools import calc_distances_per_pattern, attribute_patternmatch_to_index
+from analyser.ml_tools import calc_distances_per_pattern, attribute_patternmatch_to_index
 
 
 class TestMlTools(unittest.TestCase):

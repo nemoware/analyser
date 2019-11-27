@@ -1,7 +1,7 @@
 import time
 from functools import wraps
 
-from structures import ContractSubject
+from analyser.structures import ContractSubject
 
 PROF_DATA = {}
 

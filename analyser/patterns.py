@@ -3,11 +3,11 @@
 # coding=utf-8
 import random
 
-from documents import CaseNormalizer
-from ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
-from structures import ContractSubject, OrgStructuralLevel
-from text_tools import *
-from transaction_values import ValueConstraint
+from analyser.documents import CaseNormalizer
+from analyser.ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
+from analyser.structures import ContractSubject, OrgStructuralLevel
+from analyser.text_tools import *
+from analyser.transaction_values import ValueConstraint
 
 load_punkt = False
 # DIST_FUNC = dist_frechet_cosine_undirected

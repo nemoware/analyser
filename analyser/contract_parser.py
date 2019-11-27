@@ -1,20 +1,20 @@
-from contract_agents import find_org_names
-from contract_patterns import ContractPatternFactory
-from legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
-from ml_tools import *
+from analyser.contract_agents import find_org_names
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
+from analyser.ml_tools import *
 
-from parsing import ParsingConfig, ParsingContext
-from patterns import AV_SOFT, AV_PREFIX
+from analyser.parsing import ParsingConfig, ParsingContext
+from analyser.patterns import AV_SOFT, AV_PREFIX
 
-from sections_finder import FocusingSectionsFinder
-from structures import ContractSubject
+from analyser.sections_finder import FocusingSectionsFinder
+from analyser.structures import ContractSubject
 
 default_contract_parsing_config: ParsingConfig = ParsingConfig()
 contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
 
-from transaction_values import complete_re as transaction_values_re
+from analyser.transaction_values import complete_re as transaction_values_re
 
-from hyperparams import HyperParameters
+from analyser.hyperparams import HyperParameters
 
 
 class ContractDocument3(LegalDocument):

@@ -1,17 +1,16 @@
 import re
 from typing import Iterator
 
-from contract_agents import find_org_names, ORG_LEVELS_re
-from contract_agents import find_org_names_in_tag
-from contract_parser import find_value_sign_currency_attention
-from hyperparams import HyperParameters
-from legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
-from ml_tools import *
-from parsing import ParsingContext
-from patterns import *
-from structures import ORG_LEVELS_names
-from text_normalize import r_group, ru_cap, r_quoted
-from text_tools import is_long_enough, span_len
+from analyser.contract_agents import find_org_names, ORG_LEVELS_re
+from analyser.contract_agents import find_org_names_in_tag
+from analyser.contract_parser import find_value_sign_currency_attention
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
+from analyser.ml_tools import *
+from analyser.parsing import ParsingContext
+from analyser.patterns import *
+from analyser.structures import ORG_LEVELS_names
+from analyser.text_normalize import r_group, ru_cap, r_quoted
+from analyser.text_tools import is_long_enough, span_len
 from tf_support.embedder_elmo import ElmoEmbedder
 
 VALUE_ATTENTION_VECTOR_NAME = 'relu_value_attention_vector'

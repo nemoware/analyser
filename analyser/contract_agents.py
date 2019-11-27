@@ -10,13 +10,13 @@ from typing import AnyStr, Match, Dict, List
 from pyjarowinkler import distance
 
 from gpn.gpn import subsidiaries
-from hyperparams import HyperParameters
-from legal_docs import LegalDocument
-from ml_tools import SemanticTag
-from structures import ORG_LEVELS_names
-from text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument
+from analyser.ml_tools import SemanticTag
+from analyser.structures import ORG_LEVELS_names
+from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name, normalize_company_name
-from text_tools import is_long_enough, span_len
+from analyser.text_tools import is_long_enough, span_len
 
 _is_valid = is_long_enough
 

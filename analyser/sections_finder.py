@@ -1,11 +1,11 @@
 import warnings
 from typing import List
 
-from hyperparams import HyperParameters
-from legal_docs import LegalDocument
-from ml_tools import put_if_better, max_exclusive_pattern, SemanticTag
-from parsing import ParsingSimpleContext
-from patterns import AbstractPatternFactory
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument
+from analyser.ml_tools import put_if_better, max_exclusive_pattern, SemanticTag
+from analyser.parsing import ParsingSimpleContext
+from analyser.patterns import AbstractPatternFactory
 
 
 class HeadlineMeta:

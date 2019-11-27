@@ -6,8 +6,8 @@ import warnings
 
 import nltk
 
-from hyperparams import models_path
-from text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
+from analyser.hyperparams import models_path
+from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
 nltk.download('punkt')
