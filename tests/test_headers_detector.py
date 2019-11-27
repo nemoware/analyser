@@ -45,19 +45,7 @@ class TestHeaderDetector(unittest.TestCase):
     self.assertLess(headlines_cnt, 12)
     self.assertGreater(headlines_cnt, 6)
 
-  def test_doc_features_predict_protocol(self):
-    with open(os.path.join(os.path.dirname(__file__), 'Протокол_СД_ 3.docx.pickle'), 'rb') as handle:
-      contract: LegalDocument = pickle.load(handle)
 
-    features, body_lines_ranges = doc_features(contract.tokens_map)
-
-    model = load_model()
-    predictions = model.predict(features)
-
-    headlines_cnt = print_predictions(contract, predictions, body_lines_ranges)
-
-    self.assertLess(headlines_cnt, 28)
-    self.assertGreater( headlines_cnt, 10)
 
 
   def test_doc_features_predict_2(self):
