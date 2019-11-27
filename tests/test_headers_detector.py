@@ -7,7 +7,7 @@ import os
 import pickle
 import unittest
 
-from headers_detector import doc_features, load_model
+from analyser.headers_detector import doc_features, load_model
 from legal_docs import LegalDocument
 
 
