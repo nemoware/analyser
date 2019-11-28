@@ -15,6 +15,16 @@ pip wheel -r requirements.txt --wheel-dir=tmp/wheelhouse
 pip install --no-index --find-links=tmp/wheelhouse SomePackage 
 ```
 
+## Assign release tag:
+1. Create a tag:
+    ```                     
+    > git tag -a vX.X.X -m "<release comment>"
+    ```
+1. Push tag:
+    ```                     
+    > git push origin --tags
+    ```
+
 ## Usage(Windows):
 1. Install Python >=3.6 and pip
 1. Install ```virtualenv```( [https://virtualenv.pypa.io/en/latest/installation/]() ):
