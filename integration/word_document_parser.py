@@ -47,7 +47,7 @@ class WordDocParser(DirDocProvider):
     return json.loads(result.stdout)
 
 
-def join_paragraphs(response, doc_id):
+def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or  ProtocolDocument:
   # TODO: check type of res
 
   if response['documentType'] == 'CONTRACT':
@@ -80,7 +80,7 @@ def join_paragraphs(response, doc_id):
   for _p in paragraphs:
 
     header_text = _p['paragraphHeader']['text']
-    header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
+    header_text = header_text.replace('\n', ' ').strip() + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
     header.parse()
