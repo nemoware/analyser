@@ -10,6 +10,7 @@ from functools import wraps
 
 from bson import json_util
 
+import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap
 from analyser.embedding_tools import AbstractEmbedder
@@ -152,6 +153,10 @@ class LegalDocument:
     for t in self.get_tags():
       _attention[t.as_slice()] += t.confidence
     return _attention
+
+  def to_json_obj(self)  :
+    j = DocumentJson(self)
+    return j.__dict__
 
   def to_json(self) -> str:
     j = DocumentJson(self)
@@ -319,6 +324,7 @@ class DocumentJson:
     return c
 
   def __init__(self, doc: LegalDocument):
+    self.version = analyser.__version__
 
     self._id: str = None
     self.original_text = None

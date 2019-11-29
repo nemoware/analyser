@@ -47,7 +47,7 @@ class WordDocParser(DirDocProvider):
     return json.loads(result.stdout)
 
 
-def join_paragraphs(response, doc_id):
+def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or  ProtocolDocument:
   # TODO: check type of res
 
   if response['documentType'] == 'CONTRACT':
