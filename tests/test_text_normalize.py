@@ -201,6 +201,10 @@ class TestTextNormalization(unittest.TestCase):
       'У С Т А В Акционерного общества «ГПН-ГПН »',
       'УСТАВ Акционерного общества «ГПН-ГПН»')
 
+    self._testNorm(
+      'У С Т А В',
+      'УСТАВ')
+
   def test_normalize_numbered_3(self):
     self._testNorm(
       '112.01.этилен мама, этилен!',

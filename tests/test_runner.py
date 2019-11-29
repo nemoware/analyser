@@ -8,20 +8,24 @@ import warnings
 
 from analyser.runner import *
 
+SKIP_TF=True
 
 class TestRunner(unittest.TestCase):
 
+  @unittest.skipIf( get_mongodb_connection() is None, "requires mongo")
   def test_get_audits(self):
     aa = get_audits()
     for a in aa:
       print(a['_id'])
 
+  @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_get_docs_by_audit_id(self):
     audit_id = next(get_audits())['_id']
     docs = get_docs_by_audit_id(audit_id, kind='PROTOCOL')
     for a in docs:
       print(a['_id'], a['filename'])
 
+  @unittest.skipIf(SKIP_TF, "requires TF")
   def test_process_single_protocol(self):
 
     runner = Runner.get_instance()
@@ -32,6 +36,7 @@ class TestRunner(unittest.TestCase):
 
     runner.process_protocol(doc)
 
+  @unittest.skipIf(SKIP_TF, "requires TF")
   def test_process_single_contract (self):
 
     runner = Runner.get_instance()
@@ -44,6 +49,7 @@ class TestRunner(unittest.TestCase):
 
     runner.process_contract( doc)
 
+  # @unittest.skipIf(SKIP_TF, "requires TF")
   def test_process_single_charter (self):
 
     runner = Runner.get_instance()
