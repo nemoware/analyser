@@ -49,7 +49,7 @@ class TestRunner(unittest.TestCase):
 
     runner.process_contract( doc)
 
-  # @unittest.skipIf(SKIP_TF, "requires TF")
+  @unittest.skipIf(SKIP_TF, "requires TF")
   def test_process_single_charter (self):
 
     runner = Runner.get_instance()
