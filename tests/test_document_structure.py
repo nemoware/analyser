@@ -5,7 +5,7 @@
 
 import unittest
 
-from doc_structure import remove_similar_indexes_considering_weights, get_tokenized_line_number
+from analyser.doc_structure import remove_similar_indexes_considering_weights, get_tokenized_line_number
 
 
 class DocumentStructureTestCase(unittest.TestCase):

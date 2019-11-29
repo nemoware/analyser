@@ -5,10 +5,10 @@
 
 import unittest
 
-from contract_agents import find_org_names, compare_masked_strings, find_closest_org_name
-from contract_parser import ContractDocument3
+from analyser.contract_agents import find_org_names, compare_masked_strings, find_closest_org_name
+from analyser.contract_parser import ContractDocument3
 from gpn.gpn import subsidiaries
-from hyperparams import HyperParameters
+from analyser.hyperparams import HyperParameters
 
 
 class ContractAgentsTestCase(unittest.TestCase):

@@ -1,7 +1,7 @@
 import numpy as np
 
-from embedding_tools import AbstractEmbedder
-from text_tools import Tokens
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.text_tools import Tokens
 
 
 class FakeEmbedder(AbstractEmbedder):

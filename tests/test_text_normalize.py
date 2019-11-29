@@ -5,9 +5,9 @@
 
 import unittest
 
-from documents import CaseNormalizer, TextMap
-from legal_docs import CharterDocument
-from text_normalize import *
+from analyser.documents import CaseNormalizer, TextMap
+from analyser.legal_docs import CharterDocument
+from analyser.text_normalize import *
 
 
 class CaseNormalizerTestCase(unittest.TestCase):

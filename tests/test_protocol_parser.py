@@ -8,11 +8,11 @@ import pickle
 import re
 import unittest
 
-from contract_agents import ORG_LEVELS_re
-from contract_parser import ContractDocument
-from contract_patterns import ContractPatternFactory
-from legal_docs import LegalDocument
-from protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re
+from analyser.contract_agents import ORG_LEVELS_re
+from analyser.contract_parser import ContractDocument
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.legal_docs import LegalDocument
+from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re
 
 
 class TestProtocolParser(unittest.TestCase):

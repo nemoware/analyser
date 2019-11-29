@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import json
-import pprint
-import unittest
 
 from pymongo import MongoClient
 
-from text_normalize import normalize_company_name
+from analyser.text_normalize import normalize_company_name
 import os
 def convert_initialData( ):
   jfile = "/Users/artem/work/nemo/goil/gpn-ui/projects/server/initialData.json"

@@ -8,13 +8,13 @@ import pickle
 import unittest
 import warnings
 
-from contract_parser import ContractAnlysingContext, ContractDocument
-from contract_patterns import ContractPatternFactory
-from documents import TextMap
-from legal_docs import LegalDocument
-from ml_tools import SemanticTag
-from protocol_parser import ProtocolDocument
-from structures import ContractTags
+from analyser.contract_parser import ContractAnlysingContext, ContractDocument
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.documents import TextMap
+from analyser.legal_docs import LegalDocument
+from analyser.ml_tools import SemanticTag
+from analyser.protocol_parser import ProtocolDocument
+from analyser.structures import ContractTags
 
 
 class TestContractParser(unittest.TestCase):

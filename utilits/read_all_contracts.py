@@ -9,10 +9,10 @@ import traceback
 import pymongo
 from pandas import DataFrame
 
-from contract_agents import find_org_names
-from documents import TOKENIZER_DEFAULT
+from analyser.contract_agents import find_org_names
+from analyser.documents import TOKENIZER_DEFAULT
 from integration.word_document_parser import WordDocParser, join_paragraphs
-from legal_docs import DocumentJson
+from analyser.legal_docs import DocumentJson
 
 files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
 
@@ -157,7 +157,7 @@ def dump_contracts_from_db_to_jsons(output_path):
 
 
 from integration.db import get_mongodb_connection
-from doc_structure import get_tokenized_line_number
+from analyser.doc_structure import get_tokenized_line_number
 
 
 def analyse_headers():
