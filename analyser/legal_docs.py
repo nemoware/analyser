@@ -154,6 +154,10 @@ class LegalDocument:
       _attention[t.as_slice()] += t.confidence
     return _attention
 
+  def to_json_obj(self)  :
+    j = DocumentJson(self)
+    return j.__dict__
+
   def to_json(self) -> str:
     j = DocumentJson(self)
     return json.dumps(j.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
