@@ -1,5 +1,5 @@
 # origin: charter_parser.py
-
+from analyser.contract_agents import find_org_names
 from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
@@ -27,7 +27,9 @@ class CharterDocument(LegalDocumentExt):
 
     self.distances_per_sentence_pattern_dict = {}
 
+    self.org_tags = []
     self.charity_tags = []
+
     self.org_levels = []
     self.constraint_tags = []
     self.org_level_tags = []
@@ -36,6 +38,7 @@ class CharterDocument(LegalDocumentExt):
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
+    tags += self.org_tags
     tags += self.charity_tags
     tags += self.org_levels
     tags += self.org_level_tags
@@ -139,8 +142,13 @@ class CharterParser(ParsingContext):
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
                                                                          self.patterns_named_embeddings)
 
+
+
   def analyse(self, charter: CharterDocument):
 
+    charter.org_tags = find_charter_org(charter)
+
+    # reset for preventing doubling tags
     charter.margin_values = []
     charter.constraint_tags = []
     charter.charity_tags = []
@@ -354,3 +362,23 @@ def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocu
     subject_tag.offset(subdoc.start)
     subject_tag.confidence = confidence
     return subject_tag
+
+
+
+def find_charter_org(charter: CharterDocument) -> [SemanticTag]:
+  """
+  TODO: see also find_protocol_org
+  :param charter:
+  :return:
+  """
+  ret = []
+  x: List[SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words])
+  nm = SemanticTag.find_by_kind(x, 'org.1.name')
+  if nm is not None:
+    ret.append(nm)
+
+  tp = SemanticTag.find_by_kind(x, 'org.1.type')
+  if tp is not None:
+    ret.append(tp)
+
+  return ret

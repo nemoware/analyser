@@ -80,7 +80,7 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
   for _p in paragraphs:
 
     header_text = _p['paragraphHeader']['text']
-    header_text = header_text.replace('\n', ' ') + PARAGRAPH_DELIMITER
+    header_text = header_text.replace('\n', ' ').strip() + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
     header.parse()
