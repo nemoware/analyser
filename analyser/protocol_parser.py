@@ -28,7 +28,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument4(LegalDocument):
 
-  def __init__(self, doc: LegalDocument or None):
+  def __init__(self, doc: LegalDocument or None=None):
     super().__init__('')
     if doc is not None:
       self.__dict__ = doc.__dict__

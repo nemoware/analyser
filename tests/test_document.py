@@ -5,7 +5,7 @@
 
 import unittest
 
-from analyser.charter_parser import CharterParser
+from analyser.charter_parser import CharterParser, CharterDocument
 from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import *
 from analyser.legal_docs import _embedd_large
@@ -45,9 +45,11 @@ class LegalDocumentTestCase(unittest.TestCase):
     # from renderer import SilentRenderer
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
-    charter=CharterDocument("1. ЮРИДИЧЕСКИЙ содержание 4.").parse()
+    legal_doc = LegalDocument("1. ЮРИДИЧЕСКИЙ содержание 4.").parse()
+    charter = CharterDocument().parse()
+    charter += legal_doc
     charter_parser = CharterParser(emb, emb)
-    charter_parser.ebmedd(charter)
+
     charter_parser.analyse(charter)
     # ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
     # ctx._logstep("analyze_charter")

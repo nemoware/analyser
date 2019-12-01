@@ -6,7 +6,7 @@
 import unittest
 
 from analyser.documents import CaseNormalizer, TextMap
-from analyser.legal_docs import CharterDocument
+from analyser.legal_docs import LegalDocument
 from analyser.text_normalize import *
 
 
@@ -25,7 +25,7 @@ class CaseNormalizerTestCase(unittest.TestCase):
         в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
         именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
         """
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
     self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
 
@@ -117,7 +117,7 @@ class TestTextNormalization(unittest.TestCase):
 
   def test_normalize_doc_1(self):
     doc_text = "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)"
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
     self.assertEqual(doc.text, "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)")
 
@@ -137,7 +137,7 @@ class TestTextNormalization(unittest.TestCase):
     # self.assertEqual(' " ', doc.text)
 
     tt = "''Газпром''"
-    doc = CharterDocument(tt)
+    doc = LegalDocument(tt)
     doc.parse()
     self.assertEqual('"Газпром"', doc.text)
 

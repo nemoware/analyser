@@ -11,7 +11,7 @@ import numpy as np
 from nltk import TreebankWordTokenizer
 
 from analyser.documents import TextMap, span_tokenize
-from analyser.legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
+from analyser.legal_docs import   LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
@@ -40,7 +40,7 @@ class TokenisationTestCase(unittest.TestCase):
             в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
             именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
             """
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
 
     maxlen = 50
@@ -57,7 +57,7 @@ class TokenisationTestCase(unittest.TestCase):
     doc_text = """\n\n\nАкционерное 3`4`` общество «Газпром - 'Вибраниум' и Криптонит» (АО «ГВК»), "именуемое" в собранием `` акционеров собранием `` акционеров \'\' \
         дальнейшем «Благотворитель», 
         """
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
     print(doc_o.tokens_map.tokens)
 
@@ -69,7 +69,7 @@ class TokenisationTestCase(unittest.TestCase):
         в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
         именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
         """
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 300))
@@ -82,7 +82,7 @@ class TokenisationTestCase(unittest.TestCase):
   def test_subdoc_slice(self):
     doc_text = """аслово бслово цслово"""
 
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 2))

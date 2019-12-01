@@ -16,7 +16,7 @@ class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.12'
+    self.version = '1.1.13'
 
     x = os.system("java -version")
     assert x == 0
@@ -42,7 +42,7 @@ class WordDocParser(DirDocProvider):
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
 
     if result.returncode != 0:
-      raise RuntimeError('cannot execute ' + result.args)
+      raise RuntimeError(f'cannot execute {result.args}')
 
     return json.loads(result.stdout)
 
@@ -53,9 +53,9 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
   if response['documentType'] == 'CONTRACT':
     doc: LegalDocument = ContractDocument('')
   elif response['documentType'] == 'PROTOCOL':
-    doc: LegalDocument = ProtocolDocument(None)
+    doc: LegalDocument = ProtocolDocument()
   elif response['documentType'] == 'CHARTER':
-    doc: LegalDocument = CharterDocument(None)
+    doc: LegalDocument = CharterDocument()
   else:
     msg = f"Unsupported document type: {response['documentType']}"
     warnings.warn(msg)

@@ -17,16 +17,10 @@ competence_headline_pattern_prefix = 'headline'
 
 class CharterDocument(LegalDocumentExt):
 
-  def __init__(self, doc: LegalDocument):
+  def __init__(self, doc: LegalDocument=None):
     super().__init__(doc)
     if doc is not None:
-      self.__dict__ = doc.__dict__
-
-    self.sentence_map: TextMap = None
-    self.sentences_embeddings = None
-
-    self.distances_per_sentence_pattern_dict = {}
-
+      self.__dict__ = {**super().__dict__, **doc.__dict__}
     self.org_tags = []
     self.charity_tags = []
 
@@ -145,8 +139,7 @@ class CharterParser(ParsingContext):
     __patterns_embeddings = elmo_embedder_default.embedd_strings(self.patterns_dict.values[0])
     self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
-  def ebmedd(self, doc: CharterDocument):
-
+  def _ebmedd(self, doc: CharterDocument):
 
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
@@ -155,10 +148,11 @@ class CharterParser(ParsingContext):
 
   def analyse(self, charter: CharterDocument) -> CharterDocument:
     self.find_org_date_number(charter)
+    self._ebmedd(charter)
     self.find_attributes(charter)
     return charter
 
-  def find_org_date_number(self, charter: LegalDocument) -> LegalDocument:
+  def find_org_date_number(self, charter: LegalDocumentExt) -> LegalDocument:
     """
     phase 1, before embedding
     searching for attributes required for filtering
@@ -166,12 +160,14 @@ class CharterParser(ParsingContext):
     :return:
     """
 
-    #TODO move this call from here to CharterDoc
+    # TODO move this call from here to CharterDoc
     charter.sentence_map = tokenize_doc_into_sentences_map(charter, 200)
     charter.org_tags = find_charter_org(charter)
     return charter
 
   def find_attributes(self, charter: CharterDocument) -> CharterDocument:
+
+    assert charter.sentences_embeddings is not None
     # reset for preventing doubling tags
     charter.margin_values = []
     charter.constraint_tags = []
