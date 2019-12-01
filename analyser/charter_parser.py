@@ -123,11 +123,22 @@ class CharterParser(ParsingContext):
 
   }
 
-  def __init__(self, embedder: AbstractEmbedder, elmo_embedder_default: AbstractEmbedder):
+  def __init__(self, embedder: AbstractEmbedder = None, elmo_embedder_default: AbstractEmbedder = None):
     ParsingContext.__init__(self, embedder)
+
+    self.embedder = embedder
     self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
 
     self.patterns_dict: DataFrame = _make_org_level_patterns()
+    self.patterns_named_embeddings: DataFrame = None
+
+    if embedder is not None and elmo_embedder_default is not None:
+      self.init_embedders(embedder, elmo_embedder_default)
+
+  def init_embedders(self, embedder, elmo_embedder_default):
+    self.embedder = embedder
+    self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
+
     self.subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
                                                                     elmo_embedder_default)
 
@@ -135,19 +146,32 @@ class CharterParser(ParsingContext):
     self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
   def ebmedd(self, doc: CharterDocument):
-    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 200)
+
 
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
                                                                          self.patterns_named_embeddings)
 
+  def analyse(self, charter: CharterDocument) -> CharterDocument:
+    self.find_org_date_number(charter)
+    self.find_attributes(charter)
+    return charter
 
+  def find_org_date_number(self, charter: LegalDocument) -> LegalDocument:
+    """
+    phase 1, before embedding
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
 
-  def analyse(self, charter: CharterDocument):
-
+    #TODO move this call from here to CharterDoc
+    charter.sentence_map = tokenize_doc_into_sentences_map(charter, 200)
     charter.org_tags = find_charter_org(charter)
+    return charter
 
+  def find_attributes(self, charter: CharterDocument) -> CharterDocument:
     # reset for preventing doubling tags
     charter.margin_values = []
     charter.constraint_tags = []
@@ -199,6 +223,8 @@ class CharterParser(ParsingContext):
       # # print(charity_tag)
       # if charity_tag is not None:
       #   charter.charity_tags.append(charity_tag)
+
+    return charter
 
   def _rename_margin_values_tags(self, values):
 
@@ -364,8 +390,7 @@ def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocu
     return subject_tag
 
 
-
-def find_charter_org(charter: CharterDocument) -> [SemanticTag]:
+def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
   """
   TODO: see also find_protocol_org
   :param charter:
