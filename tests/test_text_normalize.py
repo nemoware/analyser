@@ -5,8 +5,10 @@
 
 import unittest
 
+from analyser.contract_agents import normalize_legal_entity_type
 from analyser.documents import CaseNormalizer, TextMap
 from analyser.legal_docs import LegalDocument
+from analyser.structures import legal_entity_types
 from analyser.text_normalize import *
 
 
@@ -250,6 +252,20 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm('Предложение  . Предложение. .25', 'Предложение. Предложение. 0.25')
 
     self._testNorm('пункт 2.12', 'пункт 2.12')
+
+  def test_normalize_legal_entity_type_long(self):
+    for t in legal_entity_types:
+      print(t, legal_entity_types[t])
+
+      long_, short_, confidence = normalize_legal_entity_type(t)
+      self.assertEqual(t, long_)
+
+  def test_normalize_legal_entity_type_short(self):
+    for t in legal_entity_types:
+      print(t, legal_entity_types[t])
+
+      long_, short_, confidence = normalize_legal_entity_type(t)
+      self.assertEqual(legal_entity_types[t], short_)
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
