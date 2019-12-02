@@ -93,30 +93,6 @@ class TestTextNormalization(unittest.TestCase):
     # test idempotence
     # self.assertEqual(_norm2, b)
 
-  # def test_de_acronym(self):
-  #     # self._testNorm(' стороны, именуемые в дальнейшем совместно «Стороны», а по отдельности - «Сторона», заключили ',
-  #     #                ' стороны, заключили ')
-  #
-  #     # self._testNorm('«ИВа», именуемая в дальнейшем «Исполнитель», ', '«ИВа», именуемое «Исполнитель», ')
-  #
-  #     self._testNorm('ООО ', 'Общество с ограниченной ответственностью ')
-  #     self._testNorm('xx ООО ', 'xx Общество с ограниченной ответственностью ')
-  #
-  #     self._testNorm('ПАОП', 'ПАОП')
-  #     self._testNorm('лиловое АО ', 'лиловое Акционерное Общество ')
-  #     self._testNorm('ЗАО ', 'Закрытое Акционерное Общество ')
-  #     self._testNorm('XЗАОX', 'XЗАОX')
-  #     self._testNorm('витальное ЗАО ', 'витальное Закрытое Акционерное Общество ')
-  #
-
-  # #     self._testNorm('смотри п.2.2.2 нау',  'смотри пункт 2.2.2 нау')
-  # #     self._testNorm('смотри\n\n п.2.2.2 нау',   'смотри\n пункт 2.2.2 нау')
-  #
-  # #     self._testNorm(' в п.п. 4.1. – 4.5. ',   ' в пунктах 4.1. – 4.5. ')
-  # def test_deacronym_failed(self):
-  #     self._testNorm('АО ', 'Акционерное Общество ')
-  #     # self._testNorm('АО\n', 'Акционерное Общество.\n')
-
   def test_normalize_doc_1(self):
     doc_text = "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)"
     doc = LegalDocument(doc_text)
