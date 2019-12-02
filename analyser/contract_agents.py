@@ -168,6 +168,12 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=N
               val = known_org_name['_id']
               confidence *= best_similarity
 
+          elif 'type' == entity_type:
+            long_, short_, confidence_ = normalize_legal_entity_type(val)
+            val = long_
+            confidence *= confidence_
+
+
           tag = SemanticTag(tagname, val, span, parent=parent)
           tag.confidence = confidence
           tag.offset(doc.start)
@@ -256,7 +262,7 @@ def normalize_legal_entity_type(txt):
   if len(knowns) > 0:
     if len(knowns) == 1:
       k = knowns[0]
-      return k[0], k[1], 1.0
+      return k[0], k[1], distance.get_jaro_distance(k[0], txt, winkler=True, scaling=0.1)
     else:
       finding = '', '', 0
       for k in knowns:
@@ -266,7 +272,7 @@ def normalize_legal_entity_type(txt):
           finding = k[0], k[1], d
       return finding
   else:
-    return txt, '', 0.01
+    return txt, '', 0.5
 
 
 if __name__ == '__main__':
