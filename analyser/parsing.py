@@ -1,6 +1,7 @@
 import time
 from functools import wraps
 
+from analyser.legal_docs import LegalDocument
 from analyser.structures import ContractSubject
 
 PROF_DATA = {}
@@ -48,11 +49,24 @@ class ParsingSimpleContext:
 
 
 class ParsingContext(ParsingSimpleContext):
-  def __init__(self, embedder):
+  def __init__(self, embedder=None):
     ParsingSimpleContext.__init__(self)
-    assert embedder is not None
-
     self.embedder = embedder
+
+  def init_embedders(self, embedder, elmo_embedder_default):
+    raise NotImplementedError()
+
+  def find_org_date_number(self, document: LegalDocument) -> LegalDocument:
+    """
+    phase 1, before embedding TF, GPU, and things
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
+    raise NotImplementedError()
+
+  def find_attributes(self, document: LegalDocument):
+    raise NotImplementedError()
 
 
 def profile(fn):

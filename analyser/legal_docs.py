@@ -14,15 +14,16 @@ import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
+from analyser.ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, \
+  put_if_better, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from analyser.patterns import *
 from analyser.structures import ContractTags
-from tests.test_text_tools import split_sentences_into_map
 from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
+from tests.test_text_tools import split_sentences_into_map
 
 REPORTED_DEPRECATED = {}
 
@@ -104,7 +105,6 @@ class LegalDocument:
 
     self._normal_text = self.preprocess_text(txt)
     self.tokens_map = TextMap(self._normal_text)
-
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
     # body = SemanticTag(kind=None, value=None, span=(0, len(self.tokens_map)));
     # header = SemanticTag(kind=None, value=None, span=(0, 0));
@@ -154,7 +154,7 @@ class LegalDocument:
       _attention[t.as_slice()] += t.confidence
     return _attention
 
-  def to_json_obj(self)  :
+  def to_json_obj(self):
     j = DocumentJson(self)
     return j.__dict__
 
@@ -298,6 +298,11 @@ class LegalDocumentExt(LegalDocument):
     self.sentences_embeddings: [] = None
     self.distances_per_sentence_pattern_dict = {}
 
+  def parse(self, txt=None):
+    super().parse(txt)
+    self.sentence_map = tokenize_doc_into_sentences_map(self, 200)
+    return self
+
   def subdoc_slice(self, __s: slice, name='undef'):
     sub = super().subdoc_slice(__s, name)
     span = [max((0, __s.start)), max((0, __s.stop))]
@@ -413,46 +418,6 @@ def rectifyed_mean_by_pattern_prefix(distances_per_pattern_dict, prefix, relu_th
 
 
 # Charter Docs
-
-
-class CharterDocument(LegalDocument):
-  def __init__(self, original_text, name="charter"):
-    LegalDocument.__init__(self, original_text, name)
-
-    self._constraints: List[PatternSearchResult] = []
-    self.value_constraints = {}
-
-    self._org = None
-
-    self.org_type_tag: SemanticTag = None
-    self.org_name_tag: SemanticTag = None
-
-    # TODO:remove it
-    self._charity_constraints_old = {}
-    self._value_constraints_old = {}
-
-  def get_tags(self) -> [SemanticTag]:
-    return [self.org_type_tag, self.org_name_tag]
-
-  def get_org(self):
-    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
-    return self._org
-
-  def set_org(self, org):
-    warnings.warn("use org_type_tag and org_name_tag", DeprecationWarning)
-    self._org = org
-
-  def get_constraints_old(self):
-    return self._value_constraints_old
-
-  constraints_old = property(get_constraints_old)
-  org = property(get_org, set_org)
-
-  def constraints_by_org_level(self, org_level: OrgStructuralLevel, constraint_subj: ContractSubject = None) -> List[
-    PatternSearchResult]:
-    for p in self._constraints:
-      if p.org_level is org_level and (constraint_subj is None or p.subject_mapping['subj'] == constraint_subj):
-        yield p
 
 
 def max_by_pattern_prefix(distances_per_pattern_dict, prefix, attention_vector=None):

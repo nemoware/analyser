@@ -12,9 +12,12 @@ from tf_support.embedder_elmo import ElmoEmbedder
 class Runner:
   default_instance: 'Runner' = None
 
-  def __init__(self):
-    self.elmo_embedder = ElmoEmbedder()
-    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+  def __init__(self, init_embedder=True):
+    self.elmo_embedder: ElmoEmbedder = None
+    self.elmo_embedder_default: ElmoEmbedder = None
+    if init_embedder:
+      self.elmo_embedder = ElmoEmbedder()
+      self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
 
     self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
     self.contract_parser = ContractAnlysingContext(self.elmo_embedder)

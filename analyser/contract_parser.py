@@ -62,7 +62,7 @@ def filter_nans(vcs: List[ProbableValue]) -> List[ProbableValue]:
 
 class ContractAnlysingContext(ParsingContext):
 
-  def __init__(self, embedder, renderer=None, pattern_factory=None):
+  def __init__(self, embedder=None, renderer=None, pattern_factory=None):
     ParsingContext.__init__(self, embedder)
 
     if not pattern_factory:
@@ -89,6 +89,16 @@ class ContractAnlysingContext(ParsingContext):
     self.contract.embedd_tokens(self.pattern_factory.embedder)
 
     return self.analyze_contract_doc(self.contract, reset_ctx=False)
+
+  def find_org_date_number(self, contract: ContractDocument)->ContractDocument:
+    """
+    phase 1, before embedding TF, GPU, and things
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
+    contract.agents_tags = find_org_names(contract)
+    return contract
 
   def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
     # assert contract.embeddings is not None

@@ -28,7 +28,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument4(LegalDocument):
 
-  def __init__(self, doc: LegalDocument or None):
+  def __init__(self, doc: LegalDocument or None=None):
     super().__init__('')
     if doc is not None:
       self.__dict__ = doc.__dict__
@@ -93,11 +93,21 @@ class ProtocolParser(ParsingContext):
 
   ]
 
-  def __init__(self, embedder, elmo_embedder_default: ElmoEmbedder):
+  def __init__(self, embedder=None, elmo_embedder_default: ElmoEmbedder = None):
     ParsingContext.__init__(self, embedder)
+    self.embedder = embedder
     self.elmo_embedder_default = elmo_embedder_default
-    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
+    self.protocols_factory: ProtocolPatternFactory = None
+    self.patterns_embeddings = None
 
+    if embedder is not None and elmo_embedder_default is not None:
+      self.init_embedders(embedder, elmo_embedder_default)
+
+  def init_embedders(self, embedder, elmo_embedder_default):
+    self.embedder = embedder
+    self.elmo_embedder_default = elmo_embedder_default
+
+    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
     patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
 
@@ -116,17 +126,31 @@ class ProtocolParser(ParsingContext):
                                                                               self.patterns_embeddings)
 
   def analyse(self, doc: ProtocolDocument):
-    self.ebmedd(doc)
-    self._analyse_embedded(doc)
+    doc = self.find_org_date_number(doc)
 
-  def _analyse_embedded(self, doc: ProtocolDocument):
+    self.ebmedd(doc)
+    self.find_attributes(doc)
+    return doc
+
+  def find_org_date_number(self, doc: ProtocolDocument) -> ProtocolDocument:
+    """
+    phase 1, before embedding TF, GPU, and things
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
     doc.agents_tags = list(find_protocol_org(doc))
+    return doc
+
+  def find_attributes(self, doc: ProtocolDocument) -> ProtocolDocument:
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
     doc.agents_tags += list(self.find_agents_in_all_sections(doc, doc.agenda_questions))
+
+    return doc
 
   def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
     ret = []

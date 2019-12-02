@@ -43,14 +43,14 @@ class TestProtocolParser(unittest.TestCase):
 
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)
-    self.assertEqual('Общества с ограниченной ответственностью', tags[1].value)
+    self.assertEqual('Общество с ограниченной ответственностью', tags[1].value)
 
   def test_find_protocol_org_2(self):
     doc = self.get_doc('Протокол_СД_ 3.docx.pickle')
     print(doc[0:200].text)
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)
-    self.assertEqual('Общества с ограниченной ответственностью', tags[1].value)
+    self.assertEqual('Общество с ограниченной ответственностью', tags[1].value)
 
   def test_ORG_LEVELS_re(self):
     suff = ' ' * 300

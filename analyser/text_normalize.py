@@ -20,7 +20,7 @@ r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
 
 
 def ru_cap(xx):
-  return '\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
+  return r'\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
 
 
 def r_bracketed(x, name=None):
@@ -140,7 +140,7 @@ numbers_regex = [
 fixtures_regex = [
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
-  (re.compile(r'(У С Т А В)'), 'УСТАВ')
+  (re.compile(r'(У\sС\sТ\sА\sВ)', re.IGNORECASE | re.MULTILINE), 'УСТАВ')
 
 ]
 
