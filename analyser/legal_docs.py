@@ -14,15 +14,16 @@ import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, put_if_better, \
+from analyser.ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, \
+  put_if_better, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from analyser.patterns import *
 from analyser.structures import ContractTags
-from tests.test_text_tools import split_sentences_into_map
 from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
+from tests.test_text_tools import split_sentences_into_map
 
 REPORTED_DEPRECATED = {}
 
@@ -154,7 +155,7 @@ class LegalDocument:
       _attention[t.as_slice()] += t.confidence
     return _attention
 
-  def to_json_obj(self)  :
+  def to_json_obj(self):
     j = DocumentJson(self)
     return j.__dict__
 
@@ -602,7 +603,10 @@ class ContractValue:
     self.parent = parent
 
   def as_list(self) -> [SemanticTag]:
-    return [self.value, self.sign, self.currency, self.parent]
+    if self.sign.value != 0:
+      return [self.value, self.sign, self.currency, self.parent]
+    else:
+      return [self.value, self.currency, self.parent]
 
   def __add__(self, addon):
     for t in self.as_list():

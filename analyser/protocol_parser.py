@@ -257,9 +257,8 @@ class ProtocolParser(ParsingContext):
     numbers_confidence = np.zeros(len(doc.tokens_map))
     for v in values:
       numbers_confidence[v.value.as_slice()] += v.value.confidence
-      numbers_attention[v.value.as_slice()] = 1
-      numbers_attention[v.currency.as_slice()] = 1
-      numbers_attention[v.sign.as_slice()] = 1
+      for t in v.as_list():
+        numbers_attention[t.as_slice()] = 1
 
     block_confidence = sum_probabilities([numbers_attention, wa['relu_deal_approval'], wa['bin_votes_attention'] / 5])
 
