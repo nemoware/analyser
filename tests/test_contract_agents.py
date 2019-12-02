@@ -130,6 +130,7 @@ class ContractAgentsTestCase(unittest.TestCase):
       known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
       self.assertIsNotNone(known_org_name,  f'{augmented} -> NOTHING {similarity}')
       self.assertEqual(s1['_id'], known_org_name['_id'])
+      print(known_org_name)
 
   def test_find_closest_org_prefix (self):
     _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity

@@ -20,7 +20,7 @@ r_quote_close = r_group(r'\s?[»">]|\s?[\'`]{2}')
 
 
 def ru_cap(xx):
-  return '\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
+  return r'\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
 
 
 def r_bracketed(x, name=None):
