@@ -9,14 +9,39 @@ from typing import AnyStr, Match, Dict, List
 
 from pyjarowinkler import distance
 
-from gpn.gpn import subsidiaries
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
-from analyser.structures import ORG_LEVELS_names
+from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name, normalize_company_name
 from analyser.text_tools import is_long_enough, span_len
+from gpn.gpn import subsidiaries
+
+
+def morphology_agnostic_re(x):
+  if len(x) > 2:
+    r = f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}'
+    r = f'({r})'
+    return r
+  else:
+    return f'({x})'
+
+
+def re_legal_entity_type(xx):
+  _all = r'\s+'.join(morphology_agnostic_re(x) for x in xx.split(' '))
+  return f'(?P<org_type>{_all})'
+
+
+legal_entity_types_re = {}
+for t in legal_entity_types:
+  _regex = re_legal_entity_type(t)
+  # print(_regex)
+  rr = re.compile(_regex, re.IGNORECASE | re.UNICODE)
+  print(rr.pattern)
+  legal_entity_types_re[rr] = t
+  found = rr.match(t)[0]
+  assert t == found
 
 _is_valid = is_long_enough
 
@@ -204,6 +229,44 @@ def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsi
     return finding, best_similarity
   else:
     return None, best_similarity
+
+
+def find_known_legal_entity_type(txt) -> [(str, str)]:
+  stripped = txt.strip()
+  if stripped in legal_entity_types:
+    return [(stripped, legal_entity_types[stripped])]
+
+  for t in legal_entity_types:
+    if stripped == legal_entity_types[t]:
+      print(stripped)
+      return [(t, stripped)]
+
+  found = []
+  for r in legal_entity_types_re:
+
+    match = r.match(stripped)
+    if (match):
+      normalized = legal_entity_types_re[r]
+      found.append((normalized, legal_entity_types[normalized]))
+  return found
+
+
+def normalize_legal_entity_type(txt):
+  knowns = find_known_legal_entity_type(txt)
+  if len(knowns) > 0:
+    if len(knowns) == 1:
+      k = knowns[0]
+      return k[0], k[1], 1.0
+    else:
+      finding = '', '', 0
+      for k in knowns:
+        d = distance.get_jaro_distance(k[0], txt, winkler=True, scaling=0.1)
+        # print( k, d )
+        if d > finding[2]:
+          finding = k[0], k[1], d
+      return finding
+  else:
+    return txt, '', 0.01
 
 
 if __name__ == '__main__':
