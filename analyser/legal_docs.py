@@ -641,7 +641,6 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     group = SemanticTag('sign_value_currency', None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
-    sign.display_value = subdoc.substr(sign)
     sign.offset(subdoc.start)
 
     value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
