@@ -184,9 +184,9 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=N
             msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
             warnings.warn(msg)
 
-        else:
-          msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
-          warnings.warn(msg)
+        # else:
+        #   msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
+        #   warnings.warn(msg)
 
   # fitering tags
   # ignore distant matches

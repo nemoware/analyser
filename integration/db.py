@@ -3,6 +3,7 @@ import warnings
 
 from pymongo import MongoClient
 
+_db_client = None
 
 def __check_var(vname):
   if vname not in os.environ:
@@ -16,15 +17,18 @@ def __check_var(vname):
 
 def get_mongodb_connection():
   if __check_var('GPN_DB_HOST') and __check_var('GPN_DB_PORT') and __check_var('GPN_DB_NAME'):
-    client = MongoClient(f'mongodb://{os.environ["GPN_DB_HOST"]}:{os.environ["GPN_DB_PORT"]}/')
-    return client[os.environ["GPN_DB_NAME"]]
+    global _db_client
+    if _db_client is None:
+      _db_client = MongoClient(f'mongodb://{os.environ["GPN_DB_HOST"]}:{os.environ["GPN_DB_PORT"]}/')
+    return _db_client[os.environ["GPN_DB_NAME"]]
   return None
 
 
 def _get_local_mongodb_connection():
-
-  client = MongoClient(f'mongodb://localhost:27017/')
-  return client['gpn']
+  global _db_client
+  if _db_client is None:
+    _db_client = MongoClient(f'mongodb://localhost:27017/')
+  return _db_client['gpn']
 
 
 
