@@ -244,7 +244,6 @@ def find_known_legal_entity_type(txt) -> [(str, str)]:
 
   for t in legal_entity_types:
     if stripped == legal_entity_types[t]:
-      print(stripped)
       return [(t, stripped)]
 
   found = []

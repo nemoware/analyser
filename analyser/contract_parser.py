@@ -68,7 +68,7 @@ class ContractAnlysingContext(ParsingContext):
       self.pattern_factory = ContractPatternFactory(embedder)
 
   def analyze_contract(self, contract_text):
-    warnings.warn("use analyze_contract_doc", DeprecationWarning)
+    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
 
     self._reset_context()
     # create DOC

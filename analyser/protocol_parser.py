@@ -28,7 +28,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument4(LegalDocument):
 
-  def __init__(self, doc: LegalDocument or None=None):
+  def __init__(self, doc: LegalDocument or None = None):
     super().__init__('')
     if doc is not None:
       self.__dict__ = doc.__dict__
@@ -112,7 +112,8 @@ class ProtocolParser(ParsingContext):
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
 
   def ebmedd(self, doc: ProtocolDocument):
-    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
+    assert self.embedder is not None, 'call init_embedders first'
+    assert self.elmo_embedder_default is not None, 'call init_embedders first'
 
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
@@ -126,6 +127,7 @@ class ProtocolParser(ParsingContext):
                                                                               self.patterns_embeddings)
 
   def analyse(self, doc: ProtocolDocument):
+    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
     doc = self.find_org_date_number(doc)
 
     self.ebmedd(doc)
@@ -139,11 +141,17 @@ class ProtocolParser(ParsingContext):
     :param charter:
     :return:
     """
+    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
+
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
     doc.agents_tags = list(find_protocol_org(doc))
     return doc
 
   def find_attributes(self, doc: ProtocolDocument) -> ProtocolDocument:
+
+    if doc.sentences_embeddings is None or doc.embeddings is None:
+      # lazy embedding
+      self.ebmedd(doc)
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)

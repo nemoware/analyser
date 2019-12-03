@@ -147,6 +147,7 @@ class CharterParser(ParsingContext):
                                                                          self.patterns_named_embeddings)
 
   def analyse(self, charter: CharterDocument) -> CharterDocument:
+    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
     self.find_org_date_number(charter)
     self._ebmedd(charter)
     self.find_attributes(charter)
