@@ -567,7 +567,10 @@ class ContractValue:
     self.parent = parent
 
   def as_list(self) -> [SemanticTag]:
-    return [self.value, self.sign, self.currency, self.parent]
+    if self.sign.value != 0:
+      return [self.value, self.sign, self.currency, self.parent]
+    else:
+      return [self.value, self.currency, self.parent]
 
   def __add__(self, addon):
     for t in self.as_list():
@@ -606,7 +609,6 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     group = SemanticTag('sign_value_currency', None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
-    sign.display_value = subdoc.substr(sign)
     sign.offset(subdoc.start)
 
     value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
