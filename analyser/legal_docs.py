@@ -14,7 +14,7 @@ import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.ml_tools import normalize, smooth_safe, max_exclusive_pattern, SemanticTag, conditional_p_sum, \
+from analyser.ml_tools import normalize, smooth_safe, SemanticTag, conditional_p_sum, \
   put_if_better, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from analyser.patterns import *
@@ -106,9 +106,7 @@ class LegalDocument:
     self._normal_text = self.preprocess_text(txt)
     self.tokens_map = TextMap(self._normal_text)
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
-    # body = SemanticTag(kind=None, value=None, span=(0, len(self.tokens_map)));
-    # header = SemanticTag(kind=None, value=None, span=(0, 0));
-    # self.paragraphs = [Paragraph(header, body)]
+
     return self
 
   def __len__(self):
@@ -237,31 +235,6 @@ class LegalDocument:
     _s = slice(max(0, start), end)
     return self.subdoc_slice(_s)
 
-  def make_attention_vector(self, factory, pattern_prefix, recalc_distances=True) -> (List[float], str):
-    # ---takes time
-    if recalc_distances:
-      calculate_distances_per_pattern(self, factory, merge=True, pattern_prefix=pattern_prefix)
-    # ---
-    vectors = filter_values_by_key_prefix(self.distances_per_pattern_dict, pattern_prefix)
-    vectors_i = []
-
-    attention_vector_name = AV_PREFIX + pattern_prefix
-    attention_vector_name_soft = AV_SOFT + attention_vector_name
-
-    for v in vectors:
-      if max(v) > 0.6:  # TODO: get rid of magic numbers
-        vector_i, _ = improve_attention_vector(self.embeddings, v, relu_th=0.6, mix=0.9)
-        vectors_i.append(vector_i)
-      else:
-        vectors_i.append(v)
-
-    x = max_exclusive_pattern(vectors_i)
-    self.distances_per_pattern_dict[attention_vector_name_soft] = x
-    x = relu(x, 0.8)
-
-    self.distances_per_pattern_dict[attention_vector_name] = x
-    return x, attention_vector_name
-
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
     warnings.warn("use embedd_words", DeprecationWarning)
     if self.tokens:
@@ -272,6 +245,14 @@ class LegalDocument:
         self.embeddings = embedder.embedd_tokens(self.tokens)
     else:
       raise ValueError(f'cannot embed doc {self.filename}, no tokens')
+
+  def is_same_org(self, org_name:str)->bool:
+    tags:[SemanticTag] = self.get_tags()
+    for t in tags:
+      if t.kind in['org-1-name','org-2-name','org-3-name']:
+        if t.value==org_name:
+          return True
+    return False
 
   def get_tag_text(self, tag: SemanticTag):
     return self.tokens_map.text_range(tag.span)
@@ -567,7 +548,10 @@ class ContractValue:
     self.parent = parent
 
   def as_list(self) -> [SemanticTag]:
-    return [self.value, self.sign, self.currency, self.parent]
+    if self.sign.value != 0:
+      return [self.value, self.sign, self.currency, self.parent]
+    else:
+      return [self.value, self.currency, self.parent]
 
   def __add__(self, addon):
     for t in self.as_list():
@@ -606,7 +590,6 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     group = SemanticTag('sign_value_currency', None, region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
-    sign.display_value = subdoc.substr(sign)
     sign.offset(subdoc.start)
 
     value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)

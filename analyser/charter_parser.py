@@ -17,7 +17,7 @@ competence_headline_pattern_prefix = 'headline'
 
 class CharterDocument(LegalDocumentExt):
 
-  def __init__(self, doc: LegalDocument=None):
+  def __init__(self, doc: LegalDocument = None):
     super().__init__(doc)
     if doc is not None:
       self.__dict__ = {**super().__dict__, **doc.__dict__}
@@ -140,13 +140,14 @@ class CharterParser(ParsingContext):
     self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
   def _ebmedd(self, doc: CharterDocument):
-
+    assert self.elmo_embedder_default is not None, 'call init_embedders first'
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
                                                                          self.patterns_named_embeddings)
 
   def analyse(self, charter: CharterDocument) -> CharterDocument:
+    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
     self.find_org_date_number(charter)
     self._ebmedd(charter)
     self.find_attributes(charter)
@@ -167,7 +168,10 @@ class CharterParser(ParsingContext):
 
   def find_attributes(self, charter: CharterDocument) -> CharterDocument:
 
-    assert charter.sentences_embeddings is not None
+    if charter.sentences_embeddings is None:
+      #lazy embedding
+      self._ebmedd(charter)
+
     # reset for preventing doubling tags
     charter.margin_values = []
     charter.constraint_tags = []
@@ -393,7 +397,7 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
   :return:
   """
   ret = []
-  x: List[SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words])
+  x: List[SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words], max_names=1)
   nm = SemanticTag.find_by_kind(x, 'org.1.name')
   if nm is not None:
     ret.append(nm)

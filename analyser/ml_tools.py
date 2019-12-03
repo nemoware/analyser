@@ -382,7 +382,6 @@ class SemanticTag:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
     self.confidence = 1.0
-    self.display_value = value
 
   def get_parent(self) -> str or None:
     if self._parent_tag is not None:
@@ -420,7 +419,7 @@ class SemanticTag:
     return self.span[0] <= other[0] and self.span[1] >= other[1]
 
   def __str__(self):
-    return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.display_value}  {self.confidence}'
+    return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'
 
   def quote(self, tm: TextMap):
     return tm.text_range(self.span)
