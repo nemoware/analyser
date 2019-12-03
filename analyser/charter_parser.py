@@ -17,7 +17,7 @@ competence_headline_pattern_prefix = 'headline'
 
 class CharterDocument(LegalDocumentExt):
 
-  def __init__(self, doc: LegalDocument=None):
+  def __init__(self, doc: LegalDocument = None):
     super().__init__(doc)
     if doc is not None:
       self.__dict__ = {**super().__dict__, **doc.__dict__}
@@ -140,7 +140,7 @@ class CharterParser(ParsingContext):
     self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
   def _ebmedd(self, doc: CharterDocument):
-
+    assert self.elmo_embedder_default is not None, 'call init_embedders first'
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
@@ -168,7 +168,10 @@ class CharterParser(ParsingContext):
 
   def find_attributes(self, charter: CharterDocument) -> CharterDocument:
 
-    assert charter.sentences_embeddings is not None
+    if charter.sentences_embeddings is None:
+      #lazy embedding
+      self._ebmedd(charter)
+
     # reset for preventing doubling tags
     charter.margin_values = []
     charter.constraint_tags = []
