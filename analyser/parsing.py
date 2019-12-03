@@ -7,11 +7,6 @@ from analyser.structures import ContractSubject
 PROF_DATA = {}
 
 
-class ParsingConfig:
-  def __init__(self):
-    self.headline_attention_threshold = 1.0
-
-
 class ParsingSimpleContext:
   def __init__(self):
 
@@ -21,7 +16,6 @@ class ParsingSimpleContext:
 
     self.warnings = []
 
-    self.config: ParsingConfig = None
 
   def _reset_context(self):
     self.warnings = []

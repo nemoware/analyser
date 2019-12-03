@@ -36,7 +36,7 @@ class TestJsonExport(unittest.TestCase):
   def _get_doc_factory_ctx(self):
     doc, factory = self._get_doc()
 
-    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
@@ -47,7 +47,7 @@ class TestJsonExport(unittest.TestCase):
 
   def test_to_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
-    ctx.analyze_contract_doc(doc)
+    ctx.find_attributes(doc)
     json_struct = DocumentJson(doc)
     _j = json_struct.dumps()
     print(_j)
@@ -55,7 +55,7 @@ class TestJsonExport(unittest.TestCase):
 
   def test_from_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
-    ctx.analyze_contract_doc(doc)
+    ctx.find_attributes(doc)
     json_struct = DocumentJson(doc)
     json_string = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=json_util.default)
 
