@@ -5,7 +5,6 @@ import warnings
 
 from analyser.charter_parser import CharterDocument
 from analyser.contract_parser import ContractDocument
-from analyser.dates import find_document_date
 from analyser.legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
 from analyser.ml_tools import SemanticTag
 from analyser.protocol_parser import ProtocolDocument
@@ -107,11 +106,6 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
     para = Paragraph(header_tag, body_tag)
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
-
-  # doc.parse()
-
-  # _make_date_number_tags(response, doc)
-  doc.date = find_document_date(doc)
 
   doc._id = doc_id
   return doc

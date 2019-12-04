@@ -4,6 +4,7 @@ from typing import Iterator
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re
 from analyser.contract_agents import find_org_names_in_tag
 from analyser.contract_parser import find_value_sign_currency_attention
+from analyser.dates import find_document_date
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext
@@ -151,6 +152,7 @@ class ProtocolParser(ParsingContext):
 
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
     doc.agents_tags = list(find_protocol_org(doc))
+    doc.date = find_document_date(doc)
     return doc
 
   def find_attributes(self, doc: ProtocolDocument) -> ProtocolDocument:
