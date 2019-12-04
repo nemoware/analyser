@@ -1,5 +1,6 @@
 from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory
+from analyser.dates import find_document_date, find_document_number
 from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
 from analyser.ml_tools import *
 
@@ -94,6 +95,8 @@ class ContractAnlysingContext(ParsingContext):
     :return:
     """
     contract.agents_tags = find_org_names(contract)
+    contract.date = find_document_date(contract)
+    contract.number = find_document_number(contract)
     return contract
 
   def find_attributes(self, contract: ContractDocument) -> ContractDocument:
