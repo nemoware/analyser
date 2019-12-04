@@ -74,16 +74,18 @@ class LegalDocument:
   def __init__(self, original_text=None, name="legal_doc"):
 
     self._id = None  # TODO
-    self.date = None
+    self.date: SemanticTag or None = None
+    self.number: SemanticTag or None = None
 
     self.filename = None
     self._original_text = original_text
     self._normal_text = None
+    self.warnings: [str] = []
 
     # todo: use pandas' DataFrame
     self.distances_per_pattern_dict = {}
 
-    self.tokens_map: TextMap = None
+    self.tokens_map: TextMap or None = None
     self.tokens_map_norm: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
@@ -246,11 +248,11 @@ class LegalDocument:
     else:
       raise ValueError(f'cannot embed doc {self.filename}, no tokens')
 
-  def is_same_org(self, org_name:str)->bool:
-    tags:[SemanticTag] = self.get_tags()
+  def is_same_org(self, org_name: str) -> bool:
+    tags: [SemanticTag] = self.get_tags()
     for t in tags:
-      if t.kind in['org-1-name','org-2-name','org-3-name']:
-        if t.value==org_name:
+      if t.kind in ['org-1-name', 'org-2-name', 'org-3-name']:
+        if t.value == org_name:
           return True
     return False
 
@@ -288,13 +290,15 @@ class LegalDocumentExt(LegalDocument):
     sub = super().subdoc_slice(__s, name)
     span = [max((0, __s.start)), max((0, __s.stop))]
 
-    sentences_span = self.tokens_map.remap_span(span, self.sentence_map)
-    _slice = slice(sentences_span[0], sentences_span[1])
-    sub.sentence_map = self.sentence_map.slice(_slice)
+    if self.sentence_map:
+      sentences_span = self.tokens_map.remap_span(span, self.sentence_map)
+      _slice = slice(sentences_span[0], sentences_span[1])
+      sub.sentence_map = self.sentence_map.slice(_slice)
 
-    if self.sentences_embeddings is not None:
-      sub.sentences_embeddings = self.sentences_embeddings[_slice]
-
+      if self.sentences_embeddings is not None:
+        sub.sentences_embeddings = self.sentences_embeddings[_slice]
+    else:
+      warnings.warn('split into sentences first')
     return sub
 
 
@@ -315,6 +319,7 @@ class DocumentJson:
     self._id: str = None
     self.original_text = None
     self.normal_text = None
+    self.warnings: [str] = []
 
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
@@ -322,6 +327,7 @@ class DocumentJson:
     if doc is None:
       return
 
+    self.warnings: [str] = list(doc.warnings)
     self.checksum = hash(doc.normal_text)
     self.tokenization_maps['words'] = doc.tokens_map.map
 

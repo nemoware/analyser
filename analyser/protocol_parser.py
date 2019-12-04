@@ -45,6 +45,12 @@ class ProtocolDocument4(LegalDocument):
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
+    if self.date is not None:
+      tags.append(self.date)
+
+    if self.number is not None:
+      tags.append(self.number)
+
     tags += self.agents_tags
     tags += self.org_level
     tags += self.agenda_questions

@@ -32,6 +32,13 @@ class CharterDocument(LegalDocumentExt):
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
+
+    if self.date is not None:
+      tags.append(self.date)
+
+    if self.number is not None:
+      tags.append(self.number)
+
     tags += self.org_tags
     tags += self.charity_tags
     tags += self.org_levels
@@ -169,7 +176,7 @@ class CharterParser(ParsingContext):
   def find_attributes(self, charter: CharterDocument) -> CharterDocument:
 
     if charter.sentences_embeddings is None:
-      #lazy embedding
+      # lazy embedding
       self._ebmedd(charter)
 
     # reset for preventing doubling tags

@@ -69,6 +69,8 @@ class TestContractParser(unittest.TestCase):
 
   def test_contract_analyze(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
+    doc.__dict__['number'] = None # hack for old pickles
+    doc.__dict__['date'] = None  # hack for old pickles
 
     ctx.find_attributes(doc)
     tags: [SemanticTag] = doc.get_tags()
