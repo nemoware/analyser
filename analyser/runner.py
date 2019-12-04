@@ -124,7 +124,7 @@ def change_audit_status(audit, status):
 def run():
   audits = get_audits()
   for audit in audits:
-    documents = get_docs_by_audit_id(audit["_id"])
+    documents = get_docs_by_audit_id(audit["_id"], 1)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
