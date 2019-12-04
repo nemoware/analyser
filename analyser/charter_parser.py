@@ -1,6 +1,7 @@
 # origin: charter_parser.py
 from analyser.contract_agents import find_org_names
 from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
+from analyser.dates import find_document_date
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
   tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns
@@ -171,6 +172,9 @@ class CharterParser(ParsingContext):
     # TODO move this call from here to CharterDoc
     charter.sentence_map = tokenize_doc_into_sentences_map(charter, 200)
     charter.org_tags = find_charter_org(charter)
+
+    charter.date = find_document_date(charter)
+
     return charter
 
   def find_attributes(self, charter: CharterDocument) -> CharterDocument:
