@@ -47,6 +47,11 @@ class TestJsonExport(unittest.TestCase):
 
   def test_to_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
+
+    doc.__dict__['number'] = None  # hack for old pickles
+    doc.__dict__['date'] = None  # hack for old pickles
+    doc.__dict__['warnings'] = []  # hack for old pickles
+
     ctx.find_attributes(doc)
     json_struct = DocumentJson(doc)
     _j = json_struct.dumps()
@@ -55,6 +60,11 @@ class TestJsonExport(unittest.TestCase):
 
   def test_from_json(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
+
+    doc.__dict__['number'] = None  # hack for old pickles
+    doc.__dict__['date'] = None  # hack for old pickles
+    doc.__dict__['warnings'] = []  # hack for old pickles
+
     ctx.find_attributes(doc)
     json_struct = DocumentJson(doc)
     json_string = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=json_util.default)
