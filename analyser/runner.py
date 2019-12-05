@@ -46,15 +46,16 @@ class BaseProcessor:
 
   def process(self, db_document, audit):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
+    #todo: remove find_org_date_number call
+    self.parser.find_org_date_number(legal_doc)
     if self.is_valid(legal_doc, audit):
-      self.parser.ebmedd(legal_doc)
       self.parser.find_attributes(legal_doc)
       save_analysis(db_document, legal_doc, 3)
       print(legal_doc._id)
     return legal_doc
 
   def is_valid(self, legal_doc, audit):
-    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and audit["auditStart"] <= legal_doc.date <= audit["auditEnd"]
+    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and audit["auditStart"] <= legal_doc.date.value <= audit["auditEnd"]
 
 
 class ProtocolProcessor(BaseProcessor):
