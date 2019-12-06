@@ -1,10 +1,10 @@
 import pymongo
-
 import analyser
-from analyser.charter_parser import CharterParser, CharterDocument
-from analyser.contract_parser import ContractDocument, ContractAnlysingContext
+
+from analyser.charter_parser import CharterParser
+from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import LegalDocument
-from analyser.protocol_parser import ProtocolParser, ProtocolDocument
+from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
@@ -23,10 +23,17 @@ class Runner:
     self.contract_parser = ContractAnlysingContext(self.elmo_embedder)
     self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
 
+  def init_embedders(self):
+    self.elmo_embedder = ElmoEmbedder()
+    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+    self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+
   @staticmethod
-  def get_instance() -> 'Runner':
+  def get_instance(init_embedder=False) -> 'Runner':
     if Runner.default_instance is None:
-      Runner.default_instance = Runner()
+      Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
   def make_legal_doc(self, db_document):
@@ -55,7 +62,9 @@ class BaseProcessor:
     return legal_doc
 
   def is_valid(self, legal_doc, audit):
-    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and audit["auditStart"] <= legal_doc.date.value <= audit["auditEnd"]
+    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and \
+           (legal_doc.date is None) or \
+           audit["auditStart"] <= legal_doc.date.value <= audit["auditEnd"]
 
 
 class ProtocolProcessor(BaseProcessor):
@@ -123,17 +132,36 @@ def change_audit_status(audit, status):
 
 
 def run():
+  #phase 1
+  print('=' * 80)
+  print('PHASE 1')
+  runner = Runner.get_instance(init_embedder=False)
   audits = get_audits()
   for audit in audits:
+    print('=' * 80)
+    print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], 1)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         processor.preprocess(db_document=document)
 
+  # phase 2
+  print('=' * 80)
+  print('PHASE 2')
+  runner.init_embedders()
+  audits = get_audits()
+  for audit in audits:
+    print('='*80)
+    print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], 2)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         processor.process(document, audit)
-    change_audit_status(audit, "Finalizing")
+
+    change_audit_status(audit, "Finalizing") #TODO: check ALL docs in proper state
+
+
+if __name__ == '__main__':
+  run()
