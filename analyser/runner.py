@@ -55,10 +55,10 @@ class BaseProcessor:
     self.parser.find_org_date_number(legal_doc, context)
     save_analysis(db_document, legal_doc, 2)
 
-  def process(self, db_document, audit):
+  def process(self, db_document, audit, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     # todo: remove find_org_date_number call
-    self.parser.find_org_date_number(legal_doc)
+    self.parser.find_org_date_number(legal_doc, context)
     if self.is_valid(legal_doc, audit):
       self.parser.find_attributes(legal_doc)
       save_analysis(db_document, legal_doc, 3)
@@ -162,13 +162,16 @@ def run(run_pahse_2=True):
     runner.init_embedders()
     audits = get_audits()
     for audit in audits:
+      ctx = AuditContext()
+      ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
+
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
       documents = get_docs_by_audit_id(audit["_id"], 2)
       for document in documents:
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
-          processor.process(document, audit)
+          processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
   else:
@@ -176,4 +179,4 @@ def run(run_pahse_2=True):
 
 
 if __name__ == '__main__':
-  run(False)
+  run()
