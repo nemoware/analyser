@@ -127,9 +127,9 @@ class TestContractAgentsSearch(unittest.TestCase):
       if tag is not None:
         return tag.value
 
-    self.assertEqual(expectation[1], tag_val(f'org.{org_n}.name'))
-    self.assertEqual(expectation[0], tag_val(f'org.{org_n}.type'))
-    self.assertEqual(expectation[2], tag_val(f'org.{org_n}.alias'))
+    self.assertEqual(expectation[1], tag_val(f'org-{org_n}-name'))
+    self.assertEqual(expectation[0], tag_val(f'org-{org_n}-type'))
+    self.assertEqual(expectation[2], tag_val(f'org-{org_n}-alias'))
 
   def test_org_dict_0_1(self):
 
