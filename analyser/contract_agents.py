@@ -97,7 +97,7 @@ complete_re = re.compile(complete_re_str, re.MULTILINE | re.IGNORECASE)
 
 # ----------------------------------
 
-entities_types = ['type', 'name', 'alt_name', 'alias', 'type_ext']
+org_pieces = ['type', 'name', 'alt_name', 'alias', 'type_ext']
 
 
 def clean_value(x: str) -> str or None:
@@ -112,7 +112,7 @@ def _find_org_names(text: str) -> List[Dict]:
   def _to_dict(m: Match[AnyStr]):
     warnings.warn("make semantic tags", DeprecationWarning)
     d = {}
-    for entity_type in entities_types:
+    for entity_type in org_pieces:
       d[entity_type] = (m[entity_type], m.span(entity_type))
 
     return d
@@ -140,15 +140,31 @@ def find_org_names_in_tag(doc: LegalDocument, parent: SemanticTag, max_names=2, 
 
 def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=None, decay_confidence=True) -> List[
   SemanticTag]:
+  all:[[SemanticTag]] = find_org_names_raw(doc, max_names, parent, decay_confidence)
+  return _rename_org_tags(all, tag_kind_prefix)
+
+def _rename_org_tags(all:[[SemanticTag]], prefix='' ):
   tags = []
+  for group in range(len(all)):
+    for tag in all[group]:
+      tagname = f'{prefix}org-{group+1}-{tag.kind}'
+      tag.kind = tagname
+      tags.append(tag)
+
+  return tags
+
+def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True) -> [[
+  SemanticTag]]:
+  all = []
   org_i = 0
 
   for m in re.finditer(complete_re, doc.text):
+    tags = []
     org_i += 1
 
     if org_i <= max_names:
-      for entity_type in entities_types:
-        tagname = f'{tag_kind_prefix}org-{org_i}-{entity_type}'
+      for entity_type in org_pieces:
+
         char_span = m.span(entity_type)
 
         # span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
@@ -173,24 +189,26 @@ def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=N
             val = long_
             confidence *= confidence_
 
-
-          tag = SemanticTag(tagname, val, span, parent=parent)
+          tag = SemanticTag(entity_type, val, span, parent=parent)
           tag.confidence = confidence
           tag.offset(doc.start)
 
           if confidence > 0.2:
             tags.append(tag)
           else:
-            msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
-            warnings.warn(msg)
+            if org_i < max_names:
+              msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
+              warnings.warn(msg)
 
         # else:
         #   msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
         #   warnings.warn(msg)
 
+    if tags:
+      all.append(tags)
   # fitering tags
   # ignore distant matches
-  return tags
+  return all
 
 
 r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')

@@ -6,7 +6,7 @@ from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
   tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext
+from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
 from analyser.structures import *
 from analyser.transaction_values import number_re
@@ -156,12 +156,12 @@ class CharterParser(ParsingContext):
 
   def analyse(self, charter: CharterDocument) -> CharterDocument:
     warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-    self.find_org_date_number(charter)
+    self.find_org_date_number(charter, AuditContext())
     self._ebmedd(charter)
     self.find_attributes(charter)
     return charter
 
-  def find_org_date_number(self, charter: LegalDocumentExt) -> LegalDocument:
+  def find_org_date_number(self, charter: LegalDocumentExt, ctx:AuditContext) -> LegalDocument:
     """
     phase 1, before embedding
     searching for attributes required for filtering
