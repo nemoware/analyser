@@ -1,10 +1,10 @@
 import pymongo
-
 import analyser
-from analyser.charter_parser import CharterParser, CharterDocument
-from analyser.contract_parser import ContractDocument, ContractAnlysingContext
+
+from analyser.charter_parser import CharterParser
+from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import LegalDocument
-from analyser.protocol_parser import ProtocolParser, ProtocolDocument
+from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
@@ -23,10 +23,17 @@ class Runner:
     self.contract_parser = ContractAnlysingContext(self.elmo_embedder)
     self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
 
+  def init_embedders(self):
+    self.elmo_embedder = ElmoEmbedder()
+    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+    self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+
   @staticmethod
-  def get_instance() -> 'Runner':
+  def get_instance(init_embedder=False) -> 'Runner':
     if Runner.default_instance is None:
-      Runner.default_instance = Runner()
+      Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
   def make_legal_doc(self, db_document):
