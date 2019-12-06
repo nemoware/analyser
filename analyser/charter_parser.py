@@ -409,11 +409,11 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
   """
   ret = []
   x: List[SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words], max_names=1)
-  nm = SemanticTag.find_by_kind(x, 'org.1.name')
+  nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
 
-  tp = SemanticTag.find_by_kind(x, 'org.1.type')
+  tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
 
