@@ -62,7 +62,9 @@ class BaseProcessor:
     return legal_doc
 
   def is_valid(self, legal_doc, audit):
-    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and audit["auditStart"] <= legal_doc.date.value <= audit["auditEnd"]
+    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and \
+           (legal_doc.date is None) or \
+           audit["auditStart"] <= legal_doc.date.value <= audit["auditEnd"]
 
 
 class ProtocolProcessor(BaseProcessor):
@@ -130,17 +132,36 @@ def change_audit_status(audit, status):
 
 
 def run():
+  #phase 1
+  print('=' * 80)
+  print('PHASE 1')
+  runner = Runner.get_instance(init_embedder=False)
   audits = get_audits()
   for audit in audits:
+    print('=' * 80)
+    print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], 1)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         processor.preprocess(db_document=document)
 
+  # phase 2
+  print('=' * 80)
+  print('PHASE 2')
+  runner.init_embedders()
+  audits = get_audits()
+  for audit in audits:
+    print('='*80)
+    print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], 2)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         processor.process(document, audit)
-    change_audit_status(audit, "Finalizing")
+
+    change_audit_status(audit, "Finalizing") #TODO: check ALL docs in proper state
+
+
+if __name__ == '__main__':
+  run()

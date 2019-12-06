@@ -21,7 +21,10 @@ def get_mongodb_connection():
     if _db_client is None:
       _db_client = MongoClient(f'mongodb://{os.environ["GPN_DB_HOST"]}:{os.environ["GPN_DB_PORT"]}/')
     return _db_client[os.environ["GPN_DB_NAME"]]
-  return None
+
+  warnings.warn('DEFAULTING TO LOCAL MONGO')
+  return _get_local_mongodb_connection()
+  
 
 
 def _get_local_mongodb_connection():
