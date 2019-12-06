@@ -1,13 +1,17 @@
-import pymongo
-import analyser
+import warnings
 
+import pymongo
+
+import analyser
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import LegalDocument
+from analyser.parsing import AuditContext
 from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
+
 
 class Runner:
   default_instance: 'Runner' = None
@@ -46,14 +50,14 @@ class Runner:
 class BaseProcessor:
   parser = None
 
-  def preprocess(self, db_document):
+  def preprocess(self, db_document, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
-    self.parser.find_org_date_number(legal_doc)
+    self.parser.find_org_date_number(legal_doc, context)
     save_analysis(db_document, legal_doc, 2)
 
   def process(self, db_document, audit):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
-    #todo: remove find_org_date_number call
+    # todo: remove find_org_date_number call
     self.parser.find_org_date_number(legal_doc)
     if self.is_valid(legal_doc, audit):
       self.parser.find_attributes(legal_doc)
@@ -98,12 +102,12 @@ def get_docs_by_audit_id(id: str, state=None, kind=None):
   documents_collection = db['documents']
 
   query = {
-  "$and": [
-    {'auditId': id},
-    {"parserResponseCode": 200},
-    {"$or": [{"analysis.version": None},
-           {"analysis.version": {"$ne": analyser.__version__}},
-           {"state": None}]}
+    "$and": [
+      {'auditId': id},
+      {"parserResponseCode": 200},
+      {"$or": [{"analysis.version": None},
+               {"analysis.version": {"$ne": analyser.__version__}},
+               {"state": None}]}
     ]
   }
 
@@ -131,37 +135,45 @@ def change_audit_status(audit, status):
   db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"status": status}})
 
 
-def run():
-  #phase 1
+def run(run_pahse_2=True):
+
+  # phase 1
   print('=' * 80)
   print('PHASE 1')
   runner = Runner.get_instance(init_embedder=False)
   audits = get_audits()
   for audit in audits:
+
+    ctx = AuditContext()
+    ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
+
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], 1)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
-        processor.preprocess(db_document=document)
+        processor.preprocess(db_document=document, context=ctx )
 
-  # phase 2
-  print('=' * 80)
-  print('PHASE 2')
-  runner.init_embedders()
-  audits = get_audits()
-  for audit in audits:
-    print('='*80)
-    print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], 2)
-    for document in documents:
-      processor = document_processors.get(document["parse"]["documentType"], None)
-      if processor is not None:
-        processor.process(document, audit)
+  if run_pahse_2:
+    # phase 2
+    print('=' * 80)
+    print('PHASE 2')
+    runner.init_embedders()
+    audits = get_audits()
+    for audit in audits:
+      print('=' * 80)
+      print(f'.....processing audit {audit["_id"]}')
+      documents = get_docs_by_audit_id(audit["_id"], 2)
+      for document in documents:
+        processor = document_processors.get(document["parse"]["documentType"], None)
+        if processor is not None:
+          processor.process(document, audit)
 
-    change_audit_status(audit, "Finalizing") #TODO: check ALL docs in proper state
+      change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
+  else:
+    warnings.warn("phase 2 is skipped")
 
 
 if __name__ == '__main__':
-  run()
+  run(False)

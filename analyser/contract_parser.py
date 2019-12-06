@@ -1,10 +1,10 @@
-from analyser.contract_agents import find_org_names
+from analyser.contract_agents import find_org_names, find_org_names_raw, _rename_org_tags
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.dates import find_document_date, find_document_number
 from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
 from analyser.ml_tools import *
 
-from analyser.parsing import ParsingContext
+from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import AV_SOFT, AV_PREFIX
 
 from analyser.sections_finder import FocusingSectionsFinder
@@ -87,17 +87,36 @@ class ContractAnlysingContext(ParsingContext):
 
     return self.find_attributes(contract)
 
-  def find_org_date_number(self, contract: ContractDocument) -> ContractDocument:
+  def find_org_date_number(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
     """
     phase 1, before embedding TF, GPU, and things
     searching for attributes required for filtering
     :param charter:
     :return:
     """
-    contract.agents_tags = find_org_names(contract)
+    contract.agents_tags = self.find_and_swap_contract_agents(contract, ctx)
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
     return contract
+
+  def find_and_swap_contract_agents(self, contract, ctx: AuditContext) -> [SemanticTag]:
+    all = find_org_names_raw(contract, max_names=2)
+    tags = []
+    # find audit subsidary_group_id
+    if all:
+      subsidary_group_id = 0
+
+      for group in range(len(all)):
+        for tag in all[group]:
+          if tag.kind == 'name' and tag.value == ctx.audit_subsidiary_name:
+            subsidary_group_id = group
+      # swap:
+      a = all[subsidary_group_id]
+      b = all[0]
+      all[0] = a
+      all[subsidary_group_id] = b
+
+    return _rename_org_tags(all, '')
 
   def find_attributes(self, contract: ContractDocument) -> ContractDocument:
     assert self.embedder is not None, 'call `init_embedders` first'

@@ -7,7 +7,7 @@ from analyser.contract_parser import find_value_sign_currency_attention
 from analyser.dates import find_document_date
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext
+from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import *
 from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, ru_cap, r_quoted
@@ -141,7 +141,7 @@ class ProtocolParser(ParsingContext):
     self.find_attributes(doc)
     return doc
 
-  def find_org_date_number(self, doc: ProtocolDocument) -> ProtocolDocument:
+  def find_org_date_number(self, doc: ProtocolDocument, ctx:AuditContext) -> ProtocolDocument:
     """
     phase 1, before embedding TF, GPU, and things
     searching for attributes required for filtering
