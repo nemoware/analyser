@@ -11,7 +11,7 @@ from pyjarowinkler import distance
 
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument
-from analyser.ml_tools import SemanticTag
+from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name, normalize_company_name
@@ -100,6 +100,28 @@ complete_re = re.compile(complete_re_str, re.MULTILINE | re.IGNORECASE)
 org_pieces = ['type', 'name', 'alt_name', 'alias', 'type_ext']
 
 
+class ContractAgent:
+  # org_pieces = ['type', 'name', 'alt_name', 'alias', 'type_ext']
+  def __init__(self):
+    self.name: SemanticTag or None = None
+    self.type: SemanticTag or None = None
+    self.alt_name: SemanticTag or None = None
+    self.alias: SemanticTag or None = None
+    self.type_ext: SemanticTag or None = None
+
+  def as_list(self):
+    return [self.__dict__[key] for key in org_pieces if self.__dict__[key] is not None]
+
+  def confidence(self):
+    confidence = 0
+    for key in org_pieces:
+      tag = self.__dict__[key]
+      if tag is not None:
+        confidence += tag.confidence
+
+    return confidence / len(org_pieces)
+
+
 def clean_value(x: str) -> str or None:
   if x is None:
     return x
@@ -140,75 +162,67 @@ def find_org_names_in_tag(doc: LegalDocument, parent: SemanticTag, max_names=2, 
 
 def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=None, decay_confidence=True) -> List[
   SemanticTag]:
-  all:[[SemanticTag]] = find_org_names_raw(doc, max_names, parent, decay_confidence)
+  all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence)
   return _rename_org_tags(all, tag_kind_prefix)
 
-def _rename_org_tags(all:[[SemanticTag]], prefix='' ):
+
+def _rename_org_tags(all: [ContractAgent], prefix=''):
   tags = []
   for group in range(len(all)):
-    for tag in all[group]:
-      tagname = f'{prefix}org-{group+1}-{tag.kind}'
+    for tag in all[group].as_list():
+      tagname = f'{prefix}org-{group + 1}-{tag.kind}'
       tag.kind = tagname
       tags.append(tag)
 
   return tags
 
-def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True) -> [[
-  SemanticTag]]:
-  all = []
-  org_i = 0
+
+def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True) -> [ContractAgent]:
+  all: [ContractAgent] = []
 
   for m in re.finditer(complete_re, doc.text):
-    tags = []
-    org_i += 1
+    ca = ContractAgent()
+    all.append(ca)
+    for kind in org_pieces:
+      char_span = m.span(kind)
+      span = doc.tokens_map.token_indices_by_char_range(char_span)
+      confidence = 1
+      if decay_confidence:
+        confidence = 1.0 - (span[0] / len(doc))
 
-    if org_i <= max_names:
-      for entity_type in org_pieces:
+      val = doc.tokens_map.text_range(span)
+      if span_len(char_span) > 1 and _is_valid(val):
+        tag = SemanticTag(kind, val, span, parent=parent)
+        tag.confidence = confidence
+        tag.offset(doc.start)
+        ca.__dict__[kind] = tag
 
-        char_span = m.span(entity_type)
+  # normalize org_name names by find_closest_org_name
+  for ca in all:
+    if ca.name is not None:
+      legal_entity_type, val = normalize_company_name(ca.name.value)
+      ca.name.value = val
+      known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
+                                                              HyperParameters.subsidiary_name_match_min_jaro_similarity)
+      if known_org_name is not None:
+        ca.name.value = known_org_name['_id']
+        ca.name.confidence *= best_similarity
 
-        # span = doc.tokens_map_norm.token_indices_by_char_range_2(char_span)
-        # val = doc.tokens_map_norm.text_range(span)
+    # normalize org_type names by find_closest_org_name
+    if ca.type is not None:
+      long_, short_, confidence_ = normalize_legal_entity_type(ca.type.value)
+      ca.type.value = long_
+      ca.type.confidence *= confidence_
 
-        span = doc.tokens_map.token_indices_by_char_range(char_span)
-        val = doc.tokens_map.text_range(span)
-        confidence = 1
-        if decay_confidence:
-          confidence = 1.0 - (span[0] / len(doc))  # relative distance from the beginning of the document
-        if span_len(char_span) > 1 and _is_valid(val):
-          if 'name' == entity_type:
-            legal_entity_type, val = normalize_company_name(val)
-            known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
-                                                                    HyperParameters.subsidiary_name_match_min_jaro_similarity)
-            if known_org_name is not None:
-              val = known_org_name['_id']
-              confidence *= best_similarity
+  # filter, keep unique names
+  _map = {}
+  for ca in all:
+    if ca.name is not None:
+      if ca.confidence() > 0.2:
+        put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
 
-          elif 'type' == entity_type:
-            long_, short_, confidence_ = normalize_legal_entity_type(val)
-            val = long_
-            confidence *= confidence_
-
-          tag = SemanticTag(entity_type, val, span, parent=parent)
-          tag.confidence = confidence
-          tag.offset(doc.start)
-
-          if confidence > 0.2:
-            tags.append(tag)
-          else:
-            if org_i < max_names:
-              msg = f"low confidence:{confidence} \t {entity_type} \t {span} \t{val} \t{doc.filename}"
-              warnings.warn(msg)
-
-        # else:
-        #   msg = f"invalid tag value: {entity_type} \t {span} \t{val} \t{doc.filename}"
-        #   warnings.warn(msg)
-
-    if tags:
-      all.append(tags)
-  # fitering tags
-  # ignore distant matches
-  return all
+  return list(_map.values())
+  #
 
 
 r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')

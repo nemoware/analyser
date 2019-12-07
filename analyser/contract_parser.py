@@ -107,7 +107,7 @@ class ContractAnlysingContext(ParsingContext):
       subsidary_group_id = 0
 
       for group in range(len(all)):
-        for tag in all[group]:
+        for tag in all[group].as_list():
           if tag.kind == 'name' and tag.value == ctx.audit_subsidiary_name:
             subsidary_group_id = group
       # swap:

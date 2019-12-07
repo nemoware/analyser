@@ -209,7 +209,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     нижеследующем:
     """)
 
-    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse(), decay_confidence=False)
     self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
     self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
