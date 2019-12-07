@@ -130,8 +130,7 @@ class ContractAnlysingContext(ParsingContext):
     if contract.embeddings is None:
       contract.embedd_tokens(self.embedder)
 
-    # ------ agents
-    contract.agents_tags = find_org_names(contract)
+
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
     # ------ structure

@@ -53,22 +53,28 @@ class BaseProcessor:
   def preprocess(self, db_document, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(db_document, legal_doc, 2)
+    save_analysis(db_document, legal_doc, state=2)
 
   def process(self, db_document, audit, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     # todo: remove find_org_date_number call
     self.parser.find_org_date_number(legal_doc, context)
+    save_analysis(db_document, legal_doc, state=2)
     if self.is_valid(legal_doc, audit):
       self.parser.find_attributes(legal_doc)
-      save_analysis(db_document, legal_doc, 3)
+      save_analysis(db_document, legal_doc, state=3)
       print(legal_doc._id)
     return legal_doc
 
   def is_valid(self, legal_doc, audit):
-    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and \
-           (legal_doc.date is None) or \
-           audit["auditStart"] <= legal_doc.date.value <= audit["auditEnd"]
+    if legal_doc.date is not None:
+      _date = legal_doc.date.value
+      date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
+    else:
+      date_is_ok = True
+
+    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and date_is_ok
+
 
 
 class ProtocolProcessor(BaseProcessor):
@@ -136,7 +142,6 @@ def change_audit_status(audit, status):
 
 
 def run(run_pahse_2=True):
-
   # phase 1
   print('=' * 80)
   print('PHASE 1')
@@ -153,7 +158,7 @@ def run(run_pahse_2=True):
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
-        processor.preprocess(db_document=document, context=ctx )
+        processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:
     # phase 2
