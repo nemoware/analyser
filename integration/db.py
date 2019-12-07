@@ -1,6 +1,7 @@
 import os
 import warnings
 
+import pymongo
 from pymongo import MongoClient
 
 _db_client = None
@@ -19,19 +20,29 @@ def get_mongodb_connection():
   if __check_var('GPN_DB_HOST') and __check_var('GPN_DB_PORT') and __check_var('GPN_DB_NAME'):
     global _db_client
     if _db_client is None:
-      _db_client = MongoClient(f'mongodb://{os.environ["GPN_DB_HOST"]}:{os.environ["GPN_DB_PORT"]}/')
-    return _db_client[os.environ["GPN_DB_NAME"]]
+      try:
+        _db_client = MongoClient(f'mongodb://{os.environ["GPN_DB_HOST"]}:{os.environ["GPN_DB_PORT"]}/')
+        _db_client.server_info()
+        return _db_client[os.environ["GPN_DB_NAME"]]
+      except Exception as err:
+        warnings.warn(err)
+        return _get_local_mongodb_connection()
 
-  warnings.warn('DEFAULTING TO LOCAL MONGO')
-  return _get_local_mongodb_connection()
-  
+
+
 
 
 def _get_local_mongodb_connection():
   global _db_client
   if _db_client is None:
-    _db_client = MongoClient(f'mongodb://localhost:27017/')
-  return _db_client['gpn']
+    try:
+      _db_client = MongoClient(f'mongodb://localhost:27017/')
+      _db_client.server_info()
+      return _db_client['gpn']
+    except Exception as err:
+      warnings.warn(err)
+  return None
+
 
 
 
