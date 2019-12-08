@@ -127,9 +127,9 @@ class TestContractAgentsSearch(unittest.TestCase):
       if tag is not None:
         return tag.value
 
-    self.assertEqual(expectation[1], tag_val(f'org.{org_n}.name'))
-    self.assertEqual(expectation[0], tag_val(f'org.{org_n}.type'))
-    self.assertEqual(expectation[2], tag_val(f'org.{org_n}.alias'))
+    self.assertEqual(expectation[1], tag_val(f'org-{org_n}-name'))
+    self.assertEqual(expectation[0], tag_val(f'org-{org_n}-type'))
+    self.assertEqual(expectation[2], tag_val(f'org-{org_n}-alias'))
 
   def test_org_dict_0_1(self):
 
@@ -189,7 +189,7 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
 
-    self._validate_org(tags, 1, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
+    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_2(self):
 
@@ -198,7 +198,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     """)
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
-    self._validate_org(tags, 1, ('ООО', 'Газпромнефть-Региональные продажи', 'БлаготворЮтель'))
+    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'БлаготворЮтель'))
 
   def test_org_dict_3(self):
 
@@ -209,9 +209,9 @@ class TestContractAgentsSearch(unittest.TestCase):
     нижеследующем:
     """)
 
-    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse(), decay_confidence=False)
     self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
-    self._validate_org(tags, 2, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_3_1(self):
 
@@ -287,7 +287,7 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
     self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
-    self._validate_org(tags, 2, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_r_types(self):
     r = re.compile(r_types, re.MULTILINE)

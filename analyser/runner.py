@@ -1,7 +1,13 @@
+import warnings
+
+import pymongo
+
+import analyser
 from analyser.charter_parser import CharterParser
-from analyser.contract_parser import ContractDocument, ContractAnlysingContext
+from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import LegalDocument
-from analyser.protocol_parser import ProtocolParser, ProtocolDocument
+from analyser.parsing import AuditContext
+from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
@@ -10,93 +16,172 @@ from tf_support.embedder_elmo import ElmoEmbedder
 class Runner:
   default_instance: 'Runner' = None
 
-  def __init__(self):
-    self.elmo_embedder = ElmoEmbedder()
-    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+  def __init__(self, init_embedder=True):
+    self.elmo_embedder: ElmoEmbedder = None
+    self.elmo_embedder_default: ElmoEmbedder = None
+    if init_embedder:
+      self.elmo_embedder = ElmoEmbedder()
+      self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
 
     self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
     self.contract_parser = ContractAnlysingContext(self.elmo_embedder)
     self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
 
+  def init_embedders(self):
+    self.elmo_embedder = ElmoEmbedder()
+    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+    self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+
   @staticmethod
-  def get_instance() -> 'Runner':
+  def get_instance(init_embedder=False) -> 'Runner':
     if Runner.default_instance is None:
-      Runner.default_instance = Runner()
+      Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
-  # def process_protocol(self, protocol: ProtocolDocument):
-  #   self.protocol_parser.analyse(protocol)
-  #   return protocol
-
-  def _make_legal_doc(self, db_document):
+  def make_legal_doc(self, db_document):
     parsed_p_json = db_document['parse']
     legal_doc = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
-    save_analysis(db_document, legal_doc)
+    # save_analysis(db_document, legal_doc)
     return legal_doc
 
-  def process_protocol(self, db_document) -> ProtocolDocument:
-    protocol = self._make_legal_doc(db_document)
-    self.protocol_parser.analyse(protocol)
-    save_analysis(db_document, protocol)
 
-    print(protocol._id)
-    return protocol
+class BaseProcessor:
+  parser = None
 
-  def process_contract(self, db_document) -> ContractDocument:
-    contract = self._make_legal_doc(db_document)
-    self.contract_parser.analyze_contract_doc(contract)
-    save_analysis(db_document, contract)
+  def preprocess(self, db_document, context: AuditContext):
+    legal_doc = Runner.get_instance().make_legal_doc(db_document)
+    self.parser.find_org_date_number(legal_doc, context)
+    save_analysis(db_document, legal_doc, state=2)
 
-    print(contract._id)
-    return contract
+  def process(self, db_document, audit, context: AuditContext):
+    legal_doc = Runner.get_instance().make_legal_doc(db_document)
+    # todo: remove find_org_date_number call
+    self.parser.find_org_date_number(legal_doc, context)
+    save_analysis(db_document, legal_doc, state=2)
+    if self.is_valid(legal_doc, audit):
+      self.parser.find_attributes(legal_doc)
+      save_analysis(db_document, legal_doc, state=3)
+      print(legal_doc._id)
+    return legal_doc
 
-  def process_charter(self, db_document) -> ContractDocument:
-    charter = self._make_legal_doc(db_document)
-    self.charter_parser.ebmedd(charter)
-    self.charter_parser.analyse(charter)
-    save_analysis(db_document, charter)
+  def is_valid(self, legal_doc, audit):
+    if legal_doc.date is not None:
+      _date = legal_doc.date.value
+      date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
+    else:
+      date_is_ok = True
 
-    print(charter._id)
-    return charter
+    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and date_is_ok
+
+
+
+class ProtocolProcessor(BaseProcessor):
+  def __init__(self):
+    self.parser = Runner.get_instance().protocol_parser
+
+
+class CharterProcessor(BaseProcessor):
+  def __init__(self):
+    self.parser = Runner.get_instance().charter_parser
+
+
+class ContractProcessor(BaseProcessor):
+  def __init__(self):
+    self.parser = Runner.get_instance().contract_parser
+
+
+document_processors = {"CONTRACT": ContractProcessor(), "CHARTER": CharterProcessor(), "PROTOCOL": ProtocolProcessor()}
 
 
 def get_audits():
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  res = audits_collection.find({'status': 'InWork'})
+  res = audits_collection.find({'status': 'InWork'}).sort([("createDate", pymongo.ASCENDING)])
   return res
 
 
-def get_docs_by_audit_id(id: str, kind=None):
+def get_docs_by_audit_id(id: str, state=None, kind=None):
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
-  q = {
-    'auditId': id,
-   # 'filename': 'АУДИТ ДО/РП2/Устав_Рег. продажи авг 2018.docx'
+  query = {
+    "$and": [
+      {'auditId': id},
+      {"parserResponseCode": 200},
+      {"$or": [{"analysis.version": None},
+               {"analysis.version": {"$ne": analyser.__version__}},
+               {"state": None}]}
+    ]
   }
 
-  if kind is not None:
-    q['parse.documentType'] = kind
+  if state is not None:
+    query["$and"][2]["$or"].append({"state": state})
 
-  res = documents_collection.find(q)
+  if kind is not None:
+    query["$and"].append({'parse.documentType': kind})
+
+  res = documents_collection.find(query)
   return res
 
 
-def save_analysis(db_document, doc: LegalDocument):
+def save_analysis(db_document, doc: LegalDocument, state: int):
   analyse_json_obj = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
   db_document['analysis'] = analyse_json_obj
+  db_document["state"] = state
   documents_collection.update({'_id': doc._id}, db_document, True)
 
 
-def process_document(db_document) -> ProtocolDocument or ContractDocument:
-  parsed_p_json = db_document['parse']
-  doc = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
+def change_audit_status(audit, status):
+  db = get_mongodb_connection()
+  db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"status": status}})
 
-  save_analysis(db_document, doc)
 
-  print(doc._id)
-  return doc, db_document
+def run(run_pahse_2=True):
+  # phase 1
+  print('=' * 80)
+  print('PHASE 1')
+  runner = Runner.get_instance(init_embedder=False)
+  audits = get_audits()
+  for audit in audits:
+
+    ctx = AuditContext()
+    ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
+
+    print('=' * 80)
+    print(f'.....processing audit {audit["_id"]}')
+    documents = get_docs_by_audit_id(audit["_id"], 1)
+    for document in documents:
+      processor = document_processors.get(document["parse"]["documentType"], None)
+      if processor is not None:
+        processor.preprocess(db_document=document, context=ctx)
+
+  if run_pahse_2:
+    # phase 2
+    print('=' * 80)
+    print('PHASE 2')
+    runner.init_embedders()
+    audits = get_audits()
+    for audit in audits:
+      ctx = AuditContext()
+      ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
+
+      print('=' * 80)
+      print(f'.....processing audit {audit["_id"]}')
+      documents = get_docs_by_audit_id(audit["_id"], 2)
+      for document in documents:
+        processor = document_processors.get(document["parse"]["documentType"], None)
+        if processor is not None:
+          processor.process(document, audit, ctx)
+
+      change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
+  else:
+    warnings.warn("phase 2 is skipped")
+
+
+if __name__ == '__main__':
+  run()
