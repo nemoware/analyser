@@ -46,7 +46,9 @@ _is_valid = is_long_enough
 ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + r'\s'
 
 ORG_TYPES_re = [
+  ru_cap('Публичное акционерное общество'), 'ПАО',
   ru_cap('Акционерное общество'), 'АО',
+
   ru_cap('Закрытое акционерное общество'), 'ЗАО',
   ru_cap('Открытое акционерное общество'), 'ОАО',
   ru_cap('Государственное автономное учреждение'),
