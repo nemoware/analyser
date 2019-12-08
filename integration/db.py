@@ -3,30 +3,50 @@ import warnings
 
 from pymongo import MongoClient
 
+_db_client = None
 
-def __check_var(vname):
+
+def _env_var(vname, default_val=None):
   if vname not in os.environ:
-    msg = f'MongoDB could not be connected, define {vname} environment variable'
+    msg = f'MongoDB : define {vname} environment variable! defaulting to {default_val}'
     warnings.warn(msg)
-    return False
+    return default_val
   else:
-    return True
+    return os.environ[vname]
+
 
 # mongod --config /usr/local/etc/mongod.conf
-
 def get_mongodb_connection():
-  if __check_var('GPN_DB_HOST') and __check_var('GPN_DB_PORT') and __check_var('GPN_DB_NAME'):
-    client = MongoClient(f'mongodb://{os.environ["GPN_DB_HOST"]}:{os.environ["GPN_DB_PORT"]}/')
-    return client[os.environ["GPN_DB_NAME"]]
-  return None
+  global _db_client
+  db_name = _env_var('GPN_DB_NAME', 'gpn')
+  if _db_client is None:
+    try:
+      host = _env_var('GPN_DB_HOST', 'localhost')
+      port = _env_var('GPN_DB_PORT', 27017)
+
+      _db_client = MongoClient(f'mongodb://{host}:{port}/')
+      _db_client.server_info()
+
+    except Exception as err:
+      _db_client = None
+      msg = f'cannot connect Mongo {err}'
+      warnings.warn(msg)
+      return None
+
+  return _db_client[db_name]
 
 
 def _get_local_mongodb_connection():
-
-  client = MongoClient(f'mongodb://localhost:27017/')
-  return client['gpn']
-
+  try:
+    _db_client = MongoClient(f'mongodb://localhost:27017/')
+    _db_client.server_info()
+    return _db_client['gpn']
+  except Exception as err:
+    msg = f'{err}'
+    warnings.warn(msg)
+  return None
 
 
 if __name__ == '__main__':
-  get_mongodb_connection()
+  x = get_mongodb_connection()
+  assert x is not None

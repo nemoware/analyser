@@ -4,9 +4,10 @@ from typing import Iterator
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re
 from analyser.contract_agents import find_org_names_in_tag
 from analyser.contract_parser import find_value_sign_currency_attention
+from analyser.dates import find_document_date
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext
+from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import *
 from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, ru_cap, r_quoted
@@ -28,7 +29,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument4(LegalDocument):
 
-  def __init__(self, doc: LegalDocument or None):
+  def __init__(self, doc: LegalDocument or None = None):
     super().__init__('')
     if doc is not None:
       self.__dict__ = doc.__dict__
@@ -45,6 +46,12 @@ class ProtocolDocument4(LegalDocument):
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
+    if self.date is not None:
+      tags.append(self.date)
+
+    if self.number is not None:
+      tags.append(self.number)
+
     tags += self.agents_tags
     tags += self.org_level
     tags += self.agenda_questions
@@ -93,16 +100,27 @@ class ProtocolParser(ParsingContext):
 
   ]
 
-  def __init__(self, embedder, elmo_embedder_default: ElmoEmbedder):
+  def __init__(self, embedder=None, elmo_embedder_default: ElmoEmbedder = None):
     ParsingContext.__init__(self, embedder)
+    self.embedder = embedder
     self.elmo_embedder_default = elmo_embedder_default
-    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
+    self.protocols_factory: ProtocolPatternFactory = None
+    self.patterns_embeddings = None
 
+    if embedder is not None and elmo_embedder_default is not None:
+      self.init_embedders(embedder, elmo_embedder_default)
+
+  def init_embedders(self, embedder, elmo_embedder_default):
+    self.embedder = embedder
+    self.elmo_embedder_default = elmo_embedder_default
+
+    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
     patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
 
   def ebmedd(self, doc: ProtocolDocument):
-    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
+    assert self.embedder is not None, 'call init_embedders first'
+    assert self.elmo_embedder_default is not None, 'call init_embedders first'
 
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
@@ -116,17 +134,39 @@ class ProtocolParser(ParsingContext):
                                                                               self.patterns_embeddings)
 
   def analyse(self, doc: ProtocolDocument):
-    self.ebmedd(doc)
-    self._analyse_embedded(doc)
+    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
+    doc = self.find_org_date_number(doc)
 
-  def _analyse_embedded(self, doc: ProtocolDocument):
+    self.ebmedd(doc)
+    self.find_attributes(doc)
+    return doc
+
+  def find_org_date_number(self, doc: ProtocolDocument, ctx:AuditContext) -> ProtocolDocument:
+    """
+    phase 1, before embedding TF, GPU, and things
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
+    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
+
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
     doc.agents_tags = list(find_protocol_org(doc))
+    doc.date = find_document_date(doc)
+    return doc
+
+  def find_attributes(self, doc: ProtocolDocument) -> ProtocolDocument:
+
+    if doc.sentences_embeddings is None or doc.embeddings is None:
+      # lazy embedding
+      self.ebmedd(doc)
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_values(doc)
 
     doc.agents_tags += list(self.find_agents_in_all_sections(doc, doc.agenda_questions))
+
+    return doc
 
   def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
     ret = []
@@ -257,9 +297,8 @@ class ProtocolParser(ParsingContext):
     numbers_confidence = np.zeros(len(doc.tokens_map))
     for v in values:
       numbers_confidence[v.value.as_slice()] += v.value.confidence
-      numbers_attention[v.value.as_slice()] = 1
-      numbers_attention[v.currency.as_slice()] = 1
-      numbers_attention[v.sign.as_slice()] = 1
+      for t in v.as_list():
+        numbers_attention[t.as_slice()] = 1
 
     block_confidence = sum_probabilities([numbers_attention, wa['relu_deal_approval'], wa['bin_votes_attention'] / 5])
 
@@ -329,11 +368,11 @@ class ProtocolPatternFactory(AbstractPatternFactory):
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   ret = []
   x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
-  nm = SemanticTag.find_by_kind(x, 'org.1.name')
+  nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
 
-  tp = SemanticTag.find_by_kind(x, 'org.1.type')
+  tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
 

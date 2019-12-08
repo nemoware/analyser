@@ -56,7 +56,7 @@ class TestContractParser(unittest.TestCase):
   def _get_doc_factory_ctx(self, fn='2. Договор по благ-ти Радуга.docx.pickle'):
     doc, factory = self.get_doc(fn)
 
-    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
@@ -69,8 +69,10 @@ class TestContractParser(unittest.TestCase):
 
   def test_contract_analyze(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
+    doc.__dict__['number'] = None # hack for old pickles
+    doc.__dict__['date'] = None  # hack for old pickles
 
-    ctx.analyze_contract_doc(doc)
+    ctx.find_attributes(doc)
     tags: [SemanticTag] = doc.get_tags()
 
     _tag = SemanticTag.find_by_kind(tags, ContractTags.Value.display_string)

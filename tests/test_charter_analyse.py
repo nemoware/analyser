@@ -5,40 +5,15 @@
 
 import unittest
 
-from analyser.charter_parser import find_charter_org
+from analyser.charter_parser import CharterDocument
 from analyser.runner import *
-from tests.test_utilits import FakeEmbedder
 
 
 class TestAnalyse(unittest.TestCase):
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
-  def test_get_org_name(self):
-    embedder = FakeEmbedder([1, 2, 3, 4])
-    parser = CharterParser(embedder, embedder)
-
-    audit_id = next(get_audits())['_id']
-    docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
-    db_document = next(docs)
-    db_document = next(docs)
-    db_document = next(docs)
-    print(db_document['filename'])
-
-    parsed_p_json = db_document['parse']
-    charter = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
-
-    parser.ebmedd(charter)
-    parser.analyse(charter)
-
-    tags = find_charter_org(charter)
-
-    for tag in tags:
-      print(tag)
-
-  @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_get_org_names(self):
-    embedder = FakeEmbedder([1, 2, 3, 4])
-    parser = CharterParser(embedder, embedder)
+    parser = CharterParser()
 
     audit_id = next(get_audits())['_id']
     docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
@@ -47,14 +22,11 @@ class TestAnalyse(unittest.TestCase):
       print(db_document['filename'])
 
       parsed_p_json = db_document['parse']
-      charter = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
+      charter: CharterDocument = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
 
-      parser.ebmedd(charter)
-      parser.analyse(charter)
+      parser.find_org_date_number(charter)
 
-      tags = find_charter_org(charter)
-
-      for tag in tags:
+      for tag in charter.get_tags():
         print(tag)
 
 
