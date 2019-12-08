@@ -29,7 +29,8 @@ def get_mongodb_connection():
 
     except Exception as err:
       _db_client = None
-      warnings.warn(err)
+      msg = f'cannot connect Mongo {err}'
+      warnings.warn(msg)
       return None
 
   return _db_client[db_name]
