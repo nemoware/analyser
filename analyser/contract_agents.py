@@ -36,9 +36,7 @@ def re_legal_entity_type(xx):
 legal_entity_types_re = {}
 for t in legal_entity_types:
   _regex = re_legal_entity_type(t)
-  # print(_regex)
   rr = re.compile(_regex, re.IGNORECASE | re.UNICODE)
-  print(rr.pattern)
   legal_entity_types_re[rr] = t
   found = rr.match(t)[0]
   assert t == found
@@ -114,12 +112,12 @@ class ContractAgent:
 
   def confidence(self):
     confidence = 0
-    for key in org_pieces:
+    for key in ['type', 'name']:
       tag = self.__dict__[key]
       if tag is not None:
         confidence += tag.confidence
 
-    return confidence / len(org_pieces)
+    return confidence / 2
 
 
 def clean_value(x: str) -> str or None:
