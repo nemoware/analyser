@@ -49,7 +49,8 @@ def _get_local_mongodb_connection():
       return _db_client[_db_name]
     except Exception as err:
       _db_client = None
-      warnings.warn(err)
+      msg=f'{err}'
+      warnings.warn(msg)
   else:
     return _db_client[_db_name]
   return None
