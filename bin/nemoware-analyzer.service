@@ -5,7 +5,7 @@ Description=Nemoware analyzer service
 WantedBy=multi-user.target
 
 [Service]
-User=ubuntu
+User=root
 PermissionsStartOnly=true
 WorkingDirectory=/srv/gpn_audit/analyser/
 ExecStart=/usr/bin/python3 /srv/gpn_audit/analyser/bin/analyser_run.py
