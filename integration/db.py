@@ -30,6 +30,8 @@ def get_mongodb_connection():
     except Exception as err:
       _db_client = None
       warnings.warn(err)
+      return None
+
   return _db_client[db_name]
 
 
