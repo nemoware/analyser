@@ -221,7 +221,9 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
       if ca.confidence() > 0.2:
         put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
 
-  return list(_map.values())
+  res = list(_map.values())
+  res = sorted(res, key=lambda a:-a.confidence())
+  return res[:max_names]
   #
 
 
