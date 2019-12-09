@@ -55,4 +55,16 @@ pip install --no-index --find-links=tmp/wheelhouse SomePackage
     ```
 
 
+## Run analyzer as service
+1. Register systemd service
+    ```
+    > cd bin 
+    > sudo ./install_service.sh 
+    ```
+1. Service commands
+    ```
+    sudo systemctl stop nemoware-analyzer.service          #To stop running service 
+    sudo systemctl start nemoware-analyzer.service         #To start running service 
+    sudo systemctl restart nemoware-analyzer.service       #To restart running service 
+    ```
 

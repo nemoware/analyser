@@ -4,11 +4,9 @@
 
 
 import unittest
-import warnings
 
 from analyser.runner import *
 
-SKIP_DB = get_mongodb_connection() is None
 SKIP_TF = True
 
 
@@ -18,17 +16,17 @@ def get_runner_instance_no_embedder() -> Runner:
   return TestRunner.default_no_tf_instance
 
 
-@unittest.skipIf(SKIP_DB, "requires mongo")
+@unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
 class TestRunner(unittest.TestCase):
   default_no_tf_instance: Runner = None
 
-  @unittest.skipIf(SKIP_DB, "requires mongo")
+  @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_get_audits(self):
     aa = get_audits()
     for a in aa:
       print(a['_id'])
 
-  @unittest.skipIf(SKIP_DB, "requires mongo")
+  @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_get_docs_by_audit_id(self):
     audit_id = next(get_audits())['_id']
     docs = get_docs_by_audit_id(audit_id, kind='PROTOCOL')
@@ -45,15 +43,15 @@ class TestRunner(unittest.TestCase):
   def _preprocess_single_doc(self, kind):
     for doc in self._get_doc_from_db(kind):
       processor = document_processors.get(kind, None)
-      processor.preprocess(doc)
+      processor.preprocess(doc, AuditContext())
 
   # @unittest.skipIf(SKIP_TF, "requires TF")
 
-  @unittest.skipIf(SKIP_DB, "requires mongo")
+  @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_preprocess_single_protocol(self):
     self._preprocess_single_doc('PROTOCOL')
 
-  @unittest.skipIf(SKIP_DB is None, "requires mongo")
+  @unittest.skipIf(get_mongodb_connection() is None is None, "requires mongo")
   def test_preprocess_single_contract(self):
     self._preprocess_single_doc('CONTRACT')
 
@@ -77,6 +75,7 @@ class TestRunner(unittest.TestCase):
       processor = document_processors.get('CHARTER', None)
       processor.preprocess(doc)
 
+  @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_protocols_phase_1(self):
     runner = get_runner_instance_no_embedder()
 
@@ -89,8 +88,7 @@ class TestRunner(unittest.TestCase):
         runner.protocol_parser.find_org_date_number(charter)
         save_analysis(doc, charter, -1)
 
-
-if get_mongodb_connection() is not None:
+  # if get_mongodb_connection() is not None:
   unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
-else:
-  warnings.warn('mongo connection is not available')
+# else:
+#   warnings.warn('mongo connection is not available')
