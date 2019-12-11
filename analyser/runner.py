@@ -3,6 +3,7 @@ import warnings
 import pymongo
 
 import analyser
+from analyser import finalizer
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import LegalDocument
@@ -179,6 +180,8 @@ def run(run_pahse_2=True):
           processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
+
+      finalizer.finalize(audit)
   else:
     warnings.warn("phase 2 is skipped")
 
