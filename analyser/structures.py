@@ -70,10 +70,10 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
   BoardOfCompany = 0, 'Правление общества'
 
   @staticmethod
-  def find_by_display_string(nm: str) -> 'OrgStructuralLevel' or None:
+  def find_by_display_string(nm: str) -> str or None:
     for x in OrgStructuralLevel:
       if x.display_string == nm:
-        return x
+        return x.name
     return None
 
 

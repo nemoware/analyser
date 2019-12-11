@@ -74,7 +74,7 @@ class TestProtocolParser(unittest.TestCase):
     doc.parse()
 
     tags = list(find_org_structural_level(doc))
-    self.assertEqual(OrgStructuralLevel.BoardOfDirectors, tags[0].value)
+    self.assertEqual(OrgStructuralLevel.BoardOfDirectors.name, tags[0].value)
 
   def test_find_org_structural_level_2(self):
     t = '''
@@ -85,7 +85,7 @@ class TestProtocolParser(unittest.TestCase):
     doc.parse()
 
     tags = list(find_org_structural_level(doc))
-    self.assertEqual(OrgStructuralLevel.BoardOfCompany, tags[0].value)
+    self.assertEqual(OrgStructuralLevel.BoardOfCompany.name, tags[0].value)
 
   def test_find_protocol_votes(self):
     doc = self.get_doc('Протокол_СД_ 3.docx.pickle')
