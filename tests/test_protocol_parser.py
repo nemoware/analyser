@@ -13,6 +13,7 @@ from analyser.contract_parser import ContractDocument
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.legal_docs import LegalDocument
 from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re
+from analyser.structures import OrgStructuralLevel
 
 
 class TestProtocolParser(unittest.TestCase):
@@ -73,7 +74,7 @@ class TestProtocolParser(unittest.TestCase):
     doc.parse()
 
     tags = list(find_org_structural_level(doc))
-    self.assertEqual('Совет директоров', tags[0].value)
+    self.assertEqual(OrgStructuralLevel.BoardOfDirectors, tags[0].value)
 
   def test_find_org_structural_level_2(self):
     t = '''
@@ -84,7 +85,7 @@ class TestProtocolParser(unittest.TestCase):
     doc.parse()
 
     tags = list(find_org_structural_level(doc))
-    self.assertEqual('Правление общества', tags[0].value)
+    self.assertEqual(OrgStructuralLevel.BoardOfCompany, tags[0].value)
 
   def test_find_protocol_votes(self):
     doc = self.get_doc('Протокол_СД_ 3.docx.pickle')

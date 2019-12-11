@@ -141,7 +141,7 @@ class ProtocolParser(ParsingContext):
     self.find_attributes(doc)
     return doc
 
-  def find_org_date_number(self, doc: ProtocolDocument, ctx:AuditContext) -> ProtocolDocument:
+  def find_org_date_number(self, doc: ProtocolDocument, ctx: AuditContext) -> ProtocolDocument:
     """
     phase 1, before embedding TF, GPU, and things
     searching for attributes required for filtering
@@ -414,7 +414,7 @@ def find_org_structural_level(doc: LegalDocument) -> Iterator[SemanticTag]:
     if span_len(char_span) > 1 and is_long_enough(val):
 
       if confidence > HyperParameters.org_level_min_confidence:
-        tag = SemanticTag(entity_type, val, span)
+        tag = SemanticTag(entity_type, OrgStructuralLevel.find_by_display_string(val), span)
         tag.confidence = confidence
 
         yield tag
