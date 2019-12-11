@@ -1,5 +1,3 @@
-from enum import Enum
-
 import pymongo
 import numpy as np
 import textdistance
@@ -31,7 +29,7 @@ def save_violations(audit, violations):
 
 
 def create_violation(document_id, founding_document_id, reference, violation_type):
-    return {"document_id": document_id, "founding_document_id": founding_document_id, "reference": reference, "vilation_type": violation_type}
+    return {"document": document_id, "founding_document": founding_document_id, "reference": reference, "vilation_type": violation_type}
 
 
 def convert_to_rub(value_currency):
@@ -127,7 +125,7 @@ def check_contract(contract, charters, protocols):
             break
 
     if eligible_charter is None:
-        violations.append(create_violation(contract["_id"], None, contract_attrs["date"], "charter_not_found"))
+        violations.append(create_violation({"id": contract["_id"], "attribute": "date"}, None, None, "charter_not_found"))
         return violations
     else:
         charter_subject_map, min_constraint = get_charter_diapasons(eligible_charter)
@@ -142,17 +140,22 @@ def check_contract(contract, charters, protocols):
                     eligible_protocol = find_protocol(contract, protocols, competence)
             if eligible_protocol is not None:
                 if eligible_protocol["analysis"]["attributes"]["date"]["value"] > contract_attrs["date"]["value"]:
-                    violations.append(create_violation(eligible_protocol["_id"], None, contract_attrs["date"], "contract_date_less_than_protocol"))
+                    violations.append(create_violation({"id": contract["_id"], "attribute": "date"},
+                                           {"id": eligible_charter["_id"]},
+                                           {"id": eligible_protocol["_id"], "attribute": "date"}, "contract_date_less_than_protocol_date"))
                 else:
                     eligible_protocol_attrs = eligible_protocol["analysis"]["attributes"]
                     for key, value in eligible_protocol_attrs.items():
                         if key.endswidth("/value"):
                             converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]})
                             if min_constraint <= converted_value["value"] < contract_value["value"]:
-                                violations.append(create_violation(contract["_id"], eligible_charter["_id"], eligible_protocol_attrs[eligible_protocol_attrs[key[:-6]]["parent"]], "contract_value_great_than_protocol"))
+                                violations.append(create_violation({"id": contract["_id"], "attribute": "sign_value_currency"},
+                                                                   {"id": eligible_charter["_id"]},
+                                                                   {"id": eligible_protocol["_id"], "attribute": eligible_protocol_attrs[key[:-6]]["parent"]}, "contract_value_great_than_protocol_value"))
             else:
                 if need_protocol_check:
-                    violations.append(create_violation(contract["_id"], eligible_charter["_id"], None, "protocol_not_found"))
+                    violations.append(create_violation({"id": contract["_id"], "attribute": "date"},
+                                           {"id": eligible_charter["_id"]}, None, "protocol_not_found"))
 
     return violations
 
@@ -169,10 +172,35 @@ def finalize(audit):
     save_violations(audit, violations)
 
 
+def create_fake_finalization(audit):
+    violations = []
+    contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
+    charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: k["analysis"]["attributes"]["date"]["value"])
+    protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
+
+    for contract in contracts:
+        contract_attrs = contract_attrs = contract["analysis"]["attributes"]
+        eligible_protocol = next(protocols)
+        eligible_protocol_attrs = eligible_protocol["analysis"]["attributes"]
+        eligible_charter = charters[0]
+        eligible_charter_attrs = eligible_charter["analysis"]["attributes"]
+        violations.append(create_violation({"id": contract["_id"], "attribute": "date"}, None, None, "charter_not_found"))
+        violations.append(create_violation({"id": contract["_id"], "attribute": "date"},
+                                           {"id": eligible_charter["_id"]},
+                                           {"id": eligible_protocol["_id"], "attribute": "date"}, "contract_date_less_than_protocol_date"))
+        violations.append(create_violation({"id": contract["_id"], "attribute": "sign_value_currency"},
+                                           {"id": eligible_charter["_id"]},
+                                           {"id": eligible_protocol["_id"], "attribute": "agenda_item_1"},
+                                           "contract_value_great_than_protocol_value"))
+        violations.append(create_violation({"id": contract["_id"], "attribute": "date"},
+                                           {"id": eligible_charter["_id"]}, None, "protocol_not_found"))
+    save_violations(audit, violations)
+
+
 if __name__ == '__main__':
-    print("agenda_item_1/sign_value_currency-1/value"[:-5])
-    # db = get_mongodb_connection()
-    # audits_collection = db['audits']
-    # audits = audits_collection.find({'status': 'Finalizing'}).sort([("createDate", pymongo.ASCENDING)])
-    # for audit in audits:
-    #     finalize(audit)
+    db = get_mongodb_connection()
+    audits_collection = db['audits']
+    audits = audits_collection.find({'status': 'Finalizing'}).sort([("createDate", pymongo.ASCENDING)])
+    for audit in audits:
+        finalize(audit)
+        # create_fake_finalization(audit)
