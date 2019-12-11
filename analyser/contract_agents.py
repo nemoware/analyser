@@ -14,7 +14,7 @@ from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
-  _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name, normalize_company_name
+  _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types
 from analyser.text_tools import is_long_enough, span_len
 from gpn.gpn import subsidiaries
 
@@ -45,47 +45,14 @@ _is_valid = is_long_enough
 
 ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + r'\s'
 
-ORG_TYPES_re = [
-  ru_cap('Акционерное общество'), 'АО',
-  ru_cap('Закрытое акционерное общество'), 'ЗАО',
-  ru_cap('Открытое акционерное общество'), 'ОАО',
-  ru_cap('Государственное автономное учреждение'),
-  ru_cap('Муниципальное бюджетное учреждение'),
-  ru_cap('Некоммерческое партнерство'),
-
-  # ru_cap('учреждение'),
-
-  ru_cap('Федеральное государственное унитарное предприятие'), 'ФГУП',
-  ru_cap('Федеральное государственное бюджетное образовательное учреждение высшего образования'), 'ФГБОУ',
-  ru_cap('образовательное учреждение высшего образования'),
-  ru_cap('Федеральное казенное учреждение'),
-  ru_cap('Частное учреждение дополнительного профессионального образования'), 'ЧУДПО',
-  ru_cap('Частное учреждение'),
-  ru_cap('Общественная организация'),
-  ru_cap('Общество с ограниченной ответственностью'), 'ООО',
-  ru_cap('Партнерство с ограниченной ответственностью'),
-  ru_cap('Некоммерческая организация'),
-  ru_cap('Автономная некоммерческая организация'), 'АНО',
-  ru_cap('Благотворительный фонд'),
-  ru_cap('Индивидуальный предприниматель'), 'ИП',
-
-  r'[Фф]онд[а-я]{0,2}' + r_few_words_s,
-
-]
-_r_types_ = '|'.join([x for x in ORG_TYPES_re])
-
 r_few_words = r'\s+[А-Я]{1}[а-я\-, ]{1,80}'
 
 r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
-r_alias_prefix = r_group(''
-                         + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                         + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
-r_types = r_group(f'{_r_types_}', 'type') + r'\s'
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
@@ -189,6 +156,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
         confidence = 1.0 - (span[0] / len(doc))
 
       val = doc.tokens_map.text_range(span)
+      val = val.strip()
       if span_len(char_span) > 1 and _is_valid(val):
         tag = SemanticTag(kind, val, span, parent=parent)
         tag.confidence = confidence
@@ -223,18 +191,6 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
   res = sorted(res, key=lambda a:-a.confidence())
   return res[:max_names]
   #
-
-
-r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')
-sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
-sub_org_name_quoter = (re.compile(r_quoted_name + r'\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
-
-sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
-alias_quote_regex = [
-  sub_alias_quote,
-  sub_ip_quoter,
-  sub_org_name_quoter
-]
 
 
 def compare_masked_strings(a, b, masked_substrings):
@@ -289,7 +245,7 @@ def find_known_legal_entity_type(txt) -> [(str, str)]:
 
 
 def normalize_legal_entity_type(txt):
-  knowns = find_known_legal_entity_type(txt)
+  knowns = find_known_legal_entity_type(txt.strip())
   if len(knowns) > 0:
     if len(knowns) == 1:
       k = knowns[0]
