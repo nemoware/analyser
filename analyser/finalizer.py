@@ -135,8 +135,10 @@ def check_contract(contract, charters, protocols):
         contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
         if competences is not None:
             eligible_protocol = None
+            need_protocol_check = False
             for competence, constraint in competences.items():
                 if constraint["min"] <= contract_value["value"] <= constraint["max"]:
+                    need_protocol_check = True
                     eligible_protocol = find_protocol(contract, protocols, competence)
             if eligible_protocol is not None:
                 if eligible_protocol["analysis"]["attributes"]["date"]["value"] > contract_attrs["date"]["value"]:
@@ -149,7 +151,8 @@ def check_contract(contract, charters, protocols):
                             if min_constraint <= converted_value["value"] < contract_value["value"]:
                                 violations.append(create_violation(contract["_id"], eligible_charter["_id"], eligible_protocol_attrs[eligible_protocol_attrs[key[:6]]["parent"]], "contract_value_great_than_protocol"))
             else:
-                violations.append(create_violation(contract["_id"], eligible_charter["_id"], None, "protocol_not_found"))
+                if need_protocol_check:
+                    violations.append(create_violation(contract["_id"], eligible_charter["_id"], None, "protocol_not_found"))
 
     return violations
 
