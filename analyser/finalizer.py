@@ -147,9 +147,9 @@ def check_contract(contract, charters, protocols):
                     eligible_protocol_attrs = eligible_protocol["analysis"]["attributes"]
                     for key, value in eligible_protocol_attrs.items():
                         if key.endswidth("/value"):
-                            converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:5] + "currency"]})
+                            converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]})
                             if min_constraint <= converted_value["value"] < contract_value["value"]:
-                                violations.append(create_violation(contract["_id"], eligible_charter["_id"], eligible_protocol_attrs[eligible_protocol_attrs[key[:6]]["parent"]], "contract_value_great_than_protocol"))
+                                violations.append(create_violation(contract["_id"], eligible_charter["_id"], eligible_protocol_attrs[eligible_protocol_attrs[key[:-6]]["parent"]], "contract_value_great_than_protocol"))
             else:
                 if need_protocol_check:
                     violations.append(create_violation(contract["_id"], eligible_charter["_id"], None, "protocol_not_found"))
@@ -159,9 +159,9 @@ def check_contract(contract, charters, protocols):
 
 def finalize(audit):
     violations = []
-    contracts = get_docs_by_audit_id(audit["_id"], 3, "CONTRACT")
-    charters = sorted(get_docs_by_audit_id(audit["_id"], 3, "CHARTER"), key=lambda k: k["analysis"]["attributes"]["date"]["value"])
-    protocols = get_docs_by_audit_id(audit["_id"], 3, "PROTOCOL")
+    contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
+    charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: k["analysis"]["attributes"]["date"]["value"])
+    protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
 
     for contract in contracts:
         violations.extend(check_contract(contract, charters, protocols))
@@ -170,8 +170,9 @@ def finalize(audit):
 
 
 if __name__ == '__main__':
-    db = get_mongodb_connection()
-    audits_collection = db['audits']
-    audits = audits_collection.find({'status': 'Finalizing'}).sort([("createDate", pymongo.ASCENDING)])
-    for audit in audits:
-        finalize(audit)
+    print("agenda_item_1/sign_value_currency-1/value"[:-5])
+    # db = get_mongodb_connection()
+    # audits_collection = db['audits']
+    # audits = audits_collection.find({'status': 'Finalizing'}).sort([("createDate", pymongo.ASCENDING)])
+    # for audit in audits:
+    #     finalize(audit)
