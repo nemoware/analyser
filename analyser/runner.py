@@ -57,7 +57,7 @@ class BaseProcessor:
     save_analysis(db_document, legal_doc, state=5)
 
   def process(self, db_document, audit, context: AuditContext):
-    if db_document["retry_number"] > 2:
+    if db_document.get("retry_number") is not None and db_document["retry_number"] > 2:
       print(f'document {db_document["_id"]} exceeds maximum retries for analysis and is skipped')
       return None
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
@@ -192,6 +192,7 @@ def run(run_pahse_2=True):
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
 
+      print(f'.....finalizing audit {audit["_id"]}')
       finalizer.finalize(audit)
   else:
     warnings.warn("phase 2 is skipped")
