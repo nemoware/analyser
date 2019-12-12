@@ -8,6 +8,13 @@ from integration.db import get_mongodb_connection
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
 
 
+def get_attrs(document):
+    attrs = document["analysis"]["attributes"]
+    if document.get("user") is not None:
+        attrs = document["user"]["attributes"]
+    return attrs
+
+
 def get_docs_by_audit_id(id: str, state, kind=None):
     db = get_mongodb_connection()
     documents_collection = db['documents']
@@ -29,7 +36,7 @@ def save_violations(audit, violations):
 
 
 def create_violation(document_id, founding_document_id, reference, violation_type):
-    return {"document": document_id, "founding_document": founding_document_id, "reference": reference, "vilation_type": violation_type}
+    return {"document": document_id, "founding_document": founding_document_id, "reference": reference, "violation_type": violation_type}
 
 
 def convert_to_rub(value_currency):
@@ -53,22 +60,23 @@ def get_constraints_rub(key, attributes):
                         result["currency"] = value3["value"]
             constraints.append(result)
     for constraint in constraints:
-        constraint = convert_to_rub(constraint)
+        convert_to_rub(constraint)
     return constraints
 
 
 def get_charter_diapasons(charter):
     #group by subjects
     subjects = {}
+    charter_attrs = get_attrs(charter)
     min_constraint = np.inf
-    for key, value in charter["analysis"]["attributes"].items():
+    for key, value in charter_attrs.items():
         if key.count("/") == 1:
             subject_type = value["value"]
             subject_map = subjects.get(subject_type)
             if subject_map is None:
                 subject_map = {}
                 subjects[subject_type] = subject_map
-            constraints = get_constraints_rub(key, charter["analysis"]["attributes"])
+            constraints = get_constraints_rub(key, charter_attrs)
             for constraint in constraints:
                 if subject_map.get(value["parent"]) is None:
                     subject_map[value["parent"]] = {"min": 0, "max": np.inf}
@@ -94,16 +102,16 @@ def clean_name(name):
     return name.replace(" ", "").replace("-", "").replace("_", "").lower()
 
 
-def find_protocol(contract, protocols, org_level):
-    contract_attrs = contract["analysis"]["attributes"]
+def find_protocol(contract, protocols, org_level, audit):
+    contract_attrs = get_attrs(contract)
     result = []
     for protocol in protocols:
-        protocol_attrs = protocol["analysis"]["attributes"]
+        protocol_attrs = get_attrs(protocol)
         if protocol_attrs["org_structural_level"] == org_level:
             for protocol_key, protocol_value in protocol_attrs.items():
                 if protocol_key.endswith("-name"):
                     for contract_key, contract_value in contract_attrs.items():
-                        if contract_key.endswith("-name") and contract_attrs.get("org-1-name") is not None and contract_value["value"] != contract_attrs["org-1-name"]["value"]:
+                        if contract_key.endswith("-name") and contract_value["value"] != audit["subsidiary"]["name"]:
                             clean_protocol_org = clean_name(protocol_value["value"])
                             clean_contract_org = clean_name(contract_value["value"])
                             distance = textdistance.levenshtein.normalized_distance(clean_contract_org, clean_protocol_org)
@@ -115,12 +123,13 @@ def find_protocol(contract, protocols, org_level):
         return result[0]
 
 
-def check_contract(contract, charters, protocols):
+def check_contract(contract, charters, protocols, audit):
     violations = []
-    contract_attrs = contract["analysis"]["attributes"]
+    contract_attrs = get_attrs(contract)
     eligible_charter = None
     for charter in charters:
-        if charter["analysis"]["attributes"]["date"]["value"] <= contract_attrs["date"]["value"]:
+        charter_attrs = get_attrs(charter)
+        if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
             eligible_charter = charter
             break
 
@@ -137,7 +146,7 @@ def check_contract(contract, charters, protocols):
             for competence, constraint in competences.items():
                 if constraint["min"] <= contract_value["value"] <= constraint["max"]:
                     need_protocol_check = True
-                    eligible_protocol = find_protocol(contract, protocols, competence)
+                    eligible_protocol = find_protocol(contract, protocols, competence, audit)
             if eligible_protocol is not None:
                 if eligible_protocol["analysis"]["attributes"]["date"]["value"] > contract_attrs["date"]["value"]:
                     violations.append(create_violation({"id": contract["_id"], "attribute": "date"},
@@ -167,7 +176,7 @@ def finalize(audit):
     protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
 
     for contract in contracts:
-        violations.extend(check_contract(contract, charters, protocols))
+        violations.extend(check_contract(contract, charters, protocols, audit))
 
     save_violations(audit, violations)
 
