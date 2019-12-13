@@ -194,6 +194,8 @@ def run(run_pahse_2=True):
 
       print(f'.....finalizing audit {audit["_id"]}')
       finalizer.finalize(audit)
+      change_audit_status(audit, "Done")
+      print(f'.....audit {audit["_id"]} is waiting for approval')
   else:
     warnings.warn("phase 2 is skipped")
 
