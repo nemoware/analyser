@@ -383,6 +383,10 @@ class SemanticTag:
     self.span_map = span_map
     self.confidence = 1.0
 
+  @staticmethod
+  def number_key( base, number)->str:
+    return f'{base}-{number}'
+
   def get_parent(self) -> str or None:
     if self._parent_tag is not None:
       return self._parent_tag.get_key()

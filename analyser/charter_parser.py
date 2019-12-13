@@ -24,6 +24,7 @@ class CharterDocument(LegalDocumentExt):
       self.__dict__ = {**super().__dict__, **doc.__dict__}
     self.org_tags = []
     self.charity_tags = []
+    # self.charity_tags = []
 
     self.org_levels = []
     self.constraint_tags = []
@@ -161,7 +162,7 @@ class CharterParser(ParsingContext):
     self.find_attributes(charter)
     return charter
 
-  def find_org_date_number(self, charter: LegalDocumentExt, ctx:AuditContext) -> LegalDocument:
+  def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding
     searching for attributes required for filtering
@@ -202,38 +203,38 @@ class CharterParser(ParsingContext):
       _paragraph_id = p_mapping[0][1]
       _pattern_name = p_mapping[0][0]
 
-      paragraph = charter.paragraphs[_paragraph_id]
+      paragraph_body = charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
-      subdoc = charter.subdoc_slice(paragraph.body.as_slice())
+      subdoc = charter.subdoc_slice(paragraph_body.as_slice())
 
-      parent_org_level_tag = SemanticTag(f"{org_level.name}", org_level.name, paragraph.body.span)
+      parent_org_level_tag = SemanticTag(f"{org_level.name}", org_level.name, paragraph_body.span)
       parent_org_level_tag.confidence = confidence
 
-      constraint_tags, values = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
+      constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
                                                                 parent_org_level_tag)
       for value in values:
-        value += subdoc.start
+        value += subdoc.start  # TODO: move into attribute_charter_subjects
 
       for constraint_tag in constraint_tags:
-        constraint_tag.offset(subdoc.start)
+        constraint_tag.offset(subdoc.start)  # TODO: move into attribute_charter_subjects
 
-      charter.margin_values += values
+      charter.margin_values += values  # TODO: collect all, then assign to charter
       charter.constraint_tags += constraint_tags
 
       if values:
         _key = parent_org_level_tag.get_key()
-        if _key in _parent_org_level_tag_keys:  # avoid duplicates
+        if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
           parent_org_level_tag.kind = _key + f"-{len(_parent_org_level_tag_keys)}"
-        charter.org_levels.append(parent_org_level_tag)
+        charter.org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
         _parent_org_level_tag_keys.append(_key)
 
-      # charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
-      # charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, (charity_subj_av_words + consent_words) / 2)
-      # # print(charity_tag)
-      # if charity_tag is not None:
-      #   charter.charity_tags.append(charity_tag)
+      charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
+      charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, charity_subj_av_words)
+      # print('-----charity_tag', charity_tag)
+      if charity_tag is not None:
+        charter.charity_tags.append(charity_tag)
 
     return charter
 
@@ -258,6 +259,9 @@ class CharterParser(ParsingContext):
 
       known_keys.append(value.parent.get_key())
 
+
+
+
   def attribute_charter_subjects(self, subdoc: LegalDocumentExt, emb_subj_patterns, parent_org_level_tag: SemanticTag):
     """
     :param subdoc:
@@ -273,31 +277,24 @@ class CharterParser(ParsingContext):
 
     # ---------------
     subject_attentions_map = get_charter_subj_attentions(subdoc, emb_subj_patterns)
-    values: List[ContractValue] = find_value_sign_currency_attention(subdoc, None)
+    contract_values: [ContractValue] = find_value_sign_currency_attention(subdoc, None)
     # -------------------
 
     # collect sentences having constraint values
-    sentence_spans = []
-    for value in values:
-      sentence_span = subdoc.tokens_map.sentence_at_index(value.parent.span[0], return_delimiters=False)
-      if sentence_span not in sentence_spans:
-        sentence_spans.append(sentence_span)
-    sentence_spans = merge_colliding_spans(sentence_spans, eps=1)
+    unique_sentence_spans = collect_sentences_having_constraint_values(subdoc, contract_values)
 
-    # ---
     # attribute sentences to subject
     constraint_tags = []
 
-    i = 0
-    for span in sentence_spans:
-      i += 1
+    for sentence_number, contract_value_sentence_span in enumerate(unique_sentence_spans, start=1):
+
       max_confidence = 0
       best_subject: CharterSubject = CharterSubject.Other
 
       for subj in subject_attentions_map.keys():
         av = subject_attentions_map[subj]['words']
 
-        confidence_region = av[span[0]:span[1]]
+        confidence_region = av[contract_value_sentence_span[0]:contract_value_sentence_span[1]]
         confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
 
         if confidence > max_confidence:
@@ -305,17 +302,34 @@ class CharterParser(ParsingContext):
           best_subject = subj
 
       #
-      constraint_tag = SemanticTag(f'{best_subject.name}-{i}', best_subject.name, span, parent=parent_org_level_tag)
+      constraint_tag = SemanticTag(SemanticTag.number_key(best_subject.name, sentence_number),
+                                   best_subject.name, contract_value_sentence_span,
+                                   parent=parent_org_level_tag)
+      constraint_tag.confidence = max_confidence
       constraint_tags.append(constraint_tag)
 
       # nest values
-      for value in values:
-        if constraint_tag.is_nested(value.parent.span):
-          value.parent.set_parent_tag(constraint_tag)
+      for contract_value in contract_values:
+        if constraint_tag.is_nested(contract_value.parent.span):
+          contract_value.parent.set_parent_tag(constraint_tag)
 
-      self._rename_margin_values_tags(values)
+      self._rename_margin_values_tags(contract_values)
 
-    return constraint_tags, values
+    return constraint_tags, contract_values, subject_attentions_map
+
+
+
+def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contract_values: [ContractValue]):
+  # collect sentences having constraint values
+  unique_sentence_spans = []
+  for contract_value in contract_values:
+    contract_value_sentence_span = subdoc.tokens_map.sentence_at_index(contract_value.parent.span[0],
+                                                                       return_delimiters=False)
+    if contract_value_sentence_span not in unique_sentence_spans:
+      unique_sentence_spans.append(contract_value_sentence_span)
+  # --
+  unique_sentence_spans = merge_colliding_spans(unique_sentence_spans, eps=1)
+  return unique_sentence_spans
 
 
 def put_if_better(destination: dict, key, x, is_better: staticmethod):
@@ -387,7 +401,7 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
 
 
 def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocument,
-                            charity_subject_attention: FixedVector):
+                            charity_subject_attention: FixedVector) -> SemanticTag:
   paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
                                                                                          charity_subject_attention,
                                                                                          min_len=20,
