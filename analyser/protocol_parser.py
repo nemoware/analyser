@@ -40,6 +40,7 @@ class ProtocolDocument4(LegalDocument):
 
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
+    self.org_tags: [SemanticTag] = []
     self.agenda_questions: [SemanticTag] = []
     self.margin_values: [ContractValue] = []
 
@@ -51,8 +52,9 @@ class ProtocolDocument4(LegalDocument):
     if self.number is not None:
       tags.append(self.number)
 
-    tags += self.agents_tags
+    tags += self.org_tags
     tags += self.org_level
+    tags += self.agents_tags
     tags += self.agenda_questions
     for mv in self.margin_values:
       tags += mv.as_list()
@@ -148,7 +150,7 @@ class ProtocolParser(ParsingContext):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
 
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
-    doc.agents_tags = list(find_protocol_org(doc))
+    doc.org_tags = list(find_protocol_org(doc))
     doc.date = find_document_date(doc)
     return doc
 
@@ -176,7 +178,6 @@ class ProtocolParser(ParsingContext):
 
   def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag,
                               audit_subsidiary_name) -> [SemanticTag]:
-
 
     span = parent.span
     doc = protocol[span[0]:span[1]]
@@ -381,8 +382,6 @@ def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
-
-  protocol.agents_tags = ret
   return ret
 
 

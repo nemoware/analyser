@@ -153,7 +153,7 @@ def change_audit_status(audit, status):
   db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"status": status}})
 
 
-def run(run_pahse_2=True):
+def run(run_pahse_2=True, kind=None):
   # phase 1
   print('=' * 80)
   print('PHASE 1')
@@ -166,11 +166,13 @@ def run(run_pahse_2=True):
 
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], [0,5])
+    documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
+        print(f'........pre-processing  {document["parse"]["documentType"]}')
         processor.preprocess(db_document=document, context=ctx)
+
 
   if run_pahse_2:
     # phase 2
@@ -184,10 +186,11 @@ def run(run_pahse_2=True):
 
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
-      documents = get_docs_by_audit_id(audit["_id"], [5, 11])
+      documents = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind)
       for document in documents:
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
+          print(f'........processing  {document["parse"]["documentType"]}')
           processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
@@ -201,4 +204,4 @@ def run(run_pahse_2=True):
 
 
 if __name__ == '__main__':
-  run(False)
+  run(True, kind="PROTOCOL")
