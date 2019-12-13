@@ -114,6 +114,8 @@ def get_charter_diapasons(charter):
                             subject_map[value["parent"]]["max"] = constraint["value"]
                             subject_map[value["parent"]]["original_max"] = constraint["original_value"]
                             subject_map[value["parent"]]["original_currency_max"] = constraint["original_currency"]
+    if min_constraint == np.inf:
+        min_constraint = 0
     return subjects, min_constraint
 
 
@@ -126,7 +128,7 @@ def find_protocol(contract, protocols, org_level, audit):
     result = []
     for protocol in protocols:
         protocol_attrs = get_attrs(protocol)
-        if protocol_attrs["org_structural_level"]["value"] == org_level:
+        if protocol_attrs.get("org_structural_level") is not None and protocol_attrs["org_structural_level"]["value"] == org_level:
             for protocol_key, protocol_value in protocol_attrs.items():
                 if protocol_key.endswith("-name"):
                     for contract_key, contract_value in contract_attrs.items():
@@ -167,9 +169,13 @@ def check_contract(contract, charters, protocols, audit):
     else:
         charter_subject_map, min_constraint = get_charter_diapasons(eligible_charter)
         eligible_charter_attrs = get_attrs(eligible_charter)
-        competences = charter_subject_map.get(contract_attrs["subject"]["value"])
-        contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
-        if competences is not None:
+        competences = None
+        if contract_attrs.get("subject") is not None:
+            competences = charter_subject_map.get(contract_attrs["subject"]["value"])
+        contract_value = None
+        if contract_attrs.get("sign_value_currency/value") is not None and contract_attrs.get("sign_value_currency/currency") is not None:
+            contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
+        if competences is not None and contract_value is not None:
             eligible_protocol = None
             need_protocol_check = False
             competence_constraint = None
@@ -194,8 +200,19 @@ def check_contract(contract, charters, protocols, audit):
                 if competence_constraint["max"] != np.inf:
                     max_value = {"value": competence_constraint["original_max"], "currency": competence_constraint["original_currency_max"]}
 
+            contract_org2_type = None
+            if contract_attrs.get("org-2-type") is not None:
+                contract_org2_type = contract_attrs["org-2-type"]["value"]
+            contract_org2_name = None
+            if contract_attrs.get("org-2-name") is not None:
+                contract_org2_name = contract_attrs["org-2-name"]["value"]
+
+
             if eligible_protocol is not None:
                 eligible_protocol_attrs = get_attrs(eligible_protocol)
+                protocol_structural_level = None
+                if eligible_protocol_attrs.get("org_structural_level") is not None:
+                    protocol_structural_level = eligible_protocol_attrs["org_structural_level"]["value"]
                 if eligible_protocol_attrs["date"]["value"] > contract_attrs["date"]["value"]:
                     violations.append(create_violation(
                         {"id": contract["_id"], "number": contract_attrs["number"]["value"],
@@ -205,9 +222,9 @@ def check_contract(contract, charters, protocols, audit):
                         "contract_date_less_than_protocol_date",
                         {"contract": {"number": contract_attrs["number"]["value"],
                                       "date": contract_attrs["date"]["value"],
-                                      "org_type": contract_attrs["org-2-type"]["value"],
-                                      "org_name": contract_attrs["org-2-name"]["value"]},
-                         "protocol": {"org_structural_level": eligible_protocol_attrs["org_structural_level"]["value"],
+                                      "org_type": contract_org2_type,
+                                      "org_name": contract_org2_name},
+                         "protocol": {"org_structural_level": protocol_structural_level,
                                       "date": eligible_protocol_attrs["date"]["value"]}}))
                 else:
                     for key, value in eligible_protocol_attrs.items():
@@ -222,13 +239,12 @@ def check_contract(contract, charters, protocols, audit):
                                     "contract_value_great_than_protocol_value",
                                     {"contract": {"number": contract_attrs["number"]["value"],
                                                   "date": contract_attrs["date"]["value"],
-                                                  "org_type": contract_attrs["org-2-type"]["value"],
-                                                  "org_name": contract_attrs["org-2-name"]["value"],
+                                                  "org_type": contract_org2_type,
+                                                  "org_name": contract_org2_name,
                                                   "value": contract_attrs["sign_value_currency/value"]["value"],
                                                   "currency": contract_attrs["sign_value_currency/currency"]["value"]},
                                      "protocol": {
-                                         "org_structural_level": eligible_protocol_attrs["org_structural_level"][
-                                             "value"], "date": eligible_protocol_attrs["date"]["value"]}}))
+                                         "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"]}}))
                                 break
             else:
                 if need_protocol_check:
@@ -244,8 +260,8 @@ def check_contract(contract, charters, protocols, audit):
                          },
                         {"contract": {"number": contract_attrs["number"]["value"],
                                       "date": contract_attrs["date"]["value"],
-                                      "org_type": contract_attrs["org-2-type"]["value"],
-                                      "org_name": contract_attrs["org-2-name"]["value"],
+                                      "org_type": contract_org2_type,
+                                      "org_name": contract_org2_name,
                                       "value": contract_attrs["sign_value_currency/value"]["value"],
                                       "currency": contract_attrs["sign_value_currency/currency"]["value"]}}))
     return violations
