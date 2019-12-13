@@ -1,4 +1,4 @@
-from analyser.contract_agents import find_org_names, find_org_names_raw, _rename_org_tags
+from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.dates import find_document_date, find_document_number
 from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
@@ -94,31 +94,12 @@ class ContractAnlysingContext(ParsingContext):
     :param charter:
     :return:
     """
-    contract.agents_tags = self.find_and_swap_contract_agents(contract, ctx)
+    contract.agents_tags = find_org_names(contract, max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
     return contract
 
-  def find_and_swap_contract_agents(self, contract, ctx: AuditContext) -> [SemanticTag]:
-    all = find_org_names_raw(contract, max_names=2)
-    tags = []
-    # find audit subsidary_group_id
-    if all:
-      subsidary_group_id = 0
-
-      for group in range(len(all)):
-        for tag in all[group].as_list():
-          if tag.kind == 'name' and tag.value == ctx.audit_subsidiary_name:
-            subsidary_group_id = group
-      # swap:
-      a = all[subsidary_group_id]
-      b = all[0]
-      all[0] = a
-      all[subsidary_group_id] = b
-
-    return _rename_org_tags(all, '')
-
-  def find_attributes(self, contract: ContractDocument) -> ContractDocument:
+  def find_attributes(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
     assert self.embedder is not None, 'call `init_embedders` first'
     """
     this analyser should care about embedding, because it decides wheater it needs (NN) embeddings or not  
@@ -129,7 +110,6 @@ class ContractAnlysingContext(ParsingContext):
     # ------ lazy embedding
     if contract.embeddings is None:
       contract.embedd_tokens(self.embedder)
-
 
     self._logstep("parsing document 👞 and detecting document high-level structure")
 

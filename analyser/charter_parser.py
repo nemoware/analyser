@@ -157,9 +157,10 @@ class CharterParser(ParsingContext):
 
   def analyse(self, charter: CharterDocument) -> CharterDocument:
     warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-    self.find_org_date_number(charter, AuditContext())
+    ctx = AuditContext()
+    self.find_org_date_number(charter, ctx)
     self._ebmedd(charter)
-    self.find_attributes(charter)
+    self.find_attributes(charter, ctx)
     return charter
 
   def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
@@ -178,7 +179,7 @@ class CharterParser(ParsingContext):
 
     return charter
 
-  def find_attributes(self, charter: CharterDocument) -> CharterDocument:
+  def find_attributes(self, charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
 
     if charter.sentences_embeddings is None:
       # lazy embedding
@@ -212,8 +213,9 @@ class CharterParser(ParsingContext):
       parent_org_level_tag = SemanticTag(f"{org_level.name}", org_level.name, paragraph_body.span)
       parent_org_level_tag.confidence = confidence
 
-      constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc, self.subj_patterns_embeddings,
-                                                                parent_org_level_tag)
+      constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc,
+                                                                                        self.subj_patterns_embeddings,
+                                                                                        parent_org_level_tag)
       for value in values:
         value += subdoc.start  # TODO: move into attribute_charter_subjects
 
@@ -258,9 +260,6 @@ class CharterParser(ParsingContext):
         value.parent.kind = f"{value.parent.kind}{TAG_KEY_DELIMITER}{k}"
 
       known_keys.append(value.parent.get_key())
-
-
-
 
   def attribute_charter_subjects(self, subdoc: LegalDocumentExt, emb_subj_patterns, parent_org_level_tag: SemanticTag):
     """
@@ -316,7 +315,6 @@ class CharterParser(ParsingContext):
       self._rename_margin_values_tags(contract_values)
 
     return constraint_tags, contract_values, subject_attentions_map
-
 
 
 def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contract_values: [ContractValue]):

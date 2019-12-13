@@ -94,4 +94,3 @@ class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
   RealEstate = 4, 'Недвижимость'
   Insurance = 5, 'Страхование'
   Consulting = 6, 'Консультационные услуги'
-  

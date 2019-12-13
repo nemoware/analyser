@@ -413,6 +413,12 @@ class SemanticTag:
       if s.kind == kind:
         return s
 
+  @staticmethod
+  def find_by_kind_and_value(lst: List['SemanticTag'], kind: str, val:str) -> 'SemanticTag':
+    for s in lst:
+      if s.kind == kind and s.value==val:
+        return s
+
   def offset(self, span_add: int):
     self.span = self.span[0] + span_add, self.span[1] + span_add
 

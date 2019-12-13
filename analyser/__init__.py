@@ -2,5 +2,5 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
-__version__ = "1.1.0"
+__version__ = "1.1.3"
 print(f'Nemoware Analyser v{__version__}')

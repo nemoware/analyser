@@ -66,7 +66,7 @@ class BaseProcessor:
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(db_document, legal_doc, state=10)
       if self.is_valid(legal_doc, audit):
-        self.parser.find_attributes(legal_doc)
+        self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
         print(legal_doc._id)
       else:
@@ -166,7 +166,7 @@ def run(run_pahse_2=True):
 
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], [0])
+    documents = get_docs_by_audit_id(audit["_id"], [0,5])
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
@@ -199,4 +199,4 @@ def run(run_pahse_2=True):
 
 
 if __name__ == '__main__':
-  run()
+  run(False)
