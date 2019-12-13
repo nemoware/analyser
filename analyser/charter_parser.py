@@ -24,6 +24,7 @@ class CharterDocument(LegalDocumentExt):
       self.__dict__ = {**super().__dict__, **doc.__dict__}
     self.org_tags = []
     self.charity_tags = []
+    # self.charity_tags = []
 
     self.org_levels = []
     self.constraint_tags = []
@@ -229,11 +230,11 @@ class CharterParser(ParsingContext):
         charter.org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
         _parent_org_level_tag_keys.append(_key)
 
-      # charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
-      # charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, (charity_subj_av_words + consent_words) / 2)
-      # # print(charity_tag)
-      # if charity_tag is not None:
-      #   charter.charity_tags.append(charity_tag)
+      charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
+      charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, charity_subj_av_words)
+      # print('-----charity_tag', charity_tag)
+      if charity_tag is not None:
+        charter.charity_tags.append(charity_tag)
 
     return charter
 
