@@ -211,8 +211,8 @@ def check_contract(contract, charters, protocols, audit):
                                       "date": eligible_protocol_attrs["date"]["value"]}}))
                 else:
                     for key, value in eligible_protocol_attrs.items():
-                        if key.endswidth("/value"):
-                            converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]})
+                        if key.endswith("/value"):
+                            converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]["value"]})
                             if min_constraint <= converted_value["value"] < contract_value["value"]:
                                 violations.append(create_violation(
                                     {"id": contract["_id"], "number": contract_attrs["number"]["value"],
@@ -229,6 +229,7 @@ def check_contract(contract, charters, protocols, audit):
                                      "protocol": {
                                          "org_structural_level": eligible_protocol_attrs["org_structural_level"][
                                              "value"], "date": eligible_protocol_attrs["date"]["value"]}}))
+                                break
             else:
                 if need_protocol_check:
                     violations.append(create_violation(
