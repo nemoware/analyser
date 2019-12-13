@@ -216,6 +216,7 @@ def check_contract(contract, charters, protocols, audit):
                 protocol_structural_level = None
                 if eligible_protocol_attrs.get("org_structural_level") is not None:
                     protocol_structural_level = eligible_protocol_attrs["org_structural_level"]["value"]
+
                 if eligible_protocol_attrs["date"]["value"] > contract_attrs["date"]["value"]:
                     violations.append(create_violation(
                         {"id": contract["_id"], "number": contract_number,
@@ -247,7 +248,8 @@ def check_contract(contract, charters, protocols, audit):
                                                   "value": contract_attrs["sign_value_currency/value"]["value"],
                                                   "currency": contract_attrs["sign_value_currency/currency"]["value"]},
                                      "protocol": {
-                                         "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"]}}))
+                                         "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"],
+                                         "value": converted_value["original_value"], "currency": converted_value["original_currency"]}}))
                                 break
             else:
                 if need_protocol_check:
