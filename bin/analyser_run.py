@@ -9,7 +9,7 @@ from analyser import runner
 
 
 def main():
-  check_interval = os.environ["GPN_DB_CHECK_INTERVAL"]
+  check_interval = os.environ.get("GPN_DB_CHECK_INTERVAL")
   if check_interval is None:
     check_interval = 30
     print("Environment variable GPN_DB_CHECK_INTERVAL not set. Default value is %d sec." %(check_interval))
