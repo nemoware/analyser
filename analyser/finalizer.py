@@ -147,6 +147,9 @@ def find_protocol(contract, protocols, org_level, audit):
 def check_contract(contract, charters, protocols, audit):
     violations = []
     contract_attrs = get_attrs(contract)
+    contract_number = ""
+    if contract_attrs.get("number") is not None:
+        contract_number = contract_attrs["number"]["value"]
     eligible_charter = None
     for charter in charters:
         charter_attrs = get_attrs(charter)
@@ -159,11 +162,11 @@ def check_contract(contract, charters, protocols, audit):
         for charter in charters:
             charter_attrs = get_attrs(charter)
             json_charters.append({"id": charter["_id"], "date": charter_attrs["date"]["value"]})
-        violations.append(create_violation({"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"]},
+        violations.append(create_violation({"id": contract["_id"], "number": contract_number, "type": contract["parse"]["documentType"]},
                                            None,
                                            None,
                                            "charter_not_found",
-                                           {"contract": {"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"], "date": contract_attrs["date"]["value"]},
+                                           {"contract": {"id": contract["_id"], "number": contract_number, "type": contract["parse"]["documentType"], "date": contract_attrs["date"]["value"]},
                                             "charters": json_charters}))
         return violations
     else:
@@ -215,12 +218,12 @@ def check_contract(contract, charters, protocols, audit):
                     protocol_structural_level = eligible_protocol_attrs["org_structural_level"]["value"]
                 if eligible_protocol_attrs["date"]["value"] > contract_attrs["date"]["value"]:
                     violations.append(create_violation(
-                        {"id": contract["_id"], "number": contract_attrs["number"]["value"],
+                        {"id": contract["_id"], "number": contract_number,
                          "type": contract["parse"]["documentType"]},
                         {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
                         {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
                         "contract_date_less_than_protocol_date",
-                        {"contract": {"number": contract_attrs["number"]["value"],
+                        {"contract": {"number": contract_number,
                                       "date": contract_attrs["date"]["value"],
                                       "org_type": contract_org2_type,
                                       "org_name": contract_org2_name},
@@ -232,12 +235,12 @@ def check_contract(contract, charters, protocols, audit):
                             converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]["value"]})
                             if min_constraint <= converted_value["value"] < contract_value["value"]:
                                 violations.append(create_violation(
-                                    {"id": contract["_id"], "number": contract_attrs["number"]["value"],
+                                    {"id": contract["_id"], "number": contract_number,
                                      "type": contract["parse"]["documentType"]},
                                     {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
                                     {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
                                     "contract_value_great_than_protocol_value",
-                                    {"contract": {"number": contract_attrs["number"]["value"],
+                                    {"contract": {"number": contract_number,
                                                   "date": contract_attrs["date"]["value"],
                                                   "org_type": contract_org2_type,
                                                   "org_name": contract_org2_name,
@@ -249,7 +252,7 @@ def check_contract(contract, charters, protocols, audit):
             else:
                 if need_protocol_check:
                     violations.append(create_violation(
-                        {"id": contract["_id"], "number": contract_attrs["number"]["value"],
+                        {"id": contract["_id"], "number": contract_number,
                          "type": contract["parse"]["documentType"]},
                         {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
                         {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
@@ -258,7 +261,7 @@ def check_contract(contract, charters, protocols, audit):
                          "min": min_value,
                          "max": max_value
                          },
-                        {"contract": {"number": contract_attrs["number"]["value"],
+                        {"contract": {"number": contract_number,
                                       "date": contract_attrs["date"]["value"],
                                       "org_type": contract_org2_type,
                                       "org_name": contract_org2_name,
