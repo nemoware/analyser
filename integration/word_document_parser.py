@@ -1,21 +1,21 @@
-import datetime
 import json
 import os
 import subprocess
 import warnings
 
-from contract_parser import ContractDocument
+from analyser.charter_parser import CharterDocument
+from analyser.contract_parser import ContractDocument
+from analyser.legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
+from analyser.ml_tools import SemanticTag
+from analyser.protocol_parser import ProtocolDocument
 from integration.doc_providers import DirDocProvider
-from legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
-from ml_tools import SemanticTag
-from protocol_parser import ProtocolDocument
 
 
 class WordDocParser(DirDocProvider):
 
   def __init__(self):
 
-    self.version = '1.1.10'
+    self.version = '1.1.14'
 
     x = os.system("java -version")
     assert x == 0
@@ -40,18 +40,21 @@ class WordDocParser(DirDocProvider):
     s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", fn]
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')
 
-    res = json.loads(result.stdout)
+    if result.returncode != 0:
+      raise RuntimeError(f'cannot execute {result.args}')
 
-    return res
+    return json.loads(result.stdout)
 
 
-def join_paragraphs(response, doc_id):
+def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or ProtocolDocument:
   # TODO: check type of res
-  doc = None
+
   if response['documentType'] == 'CONTRACT':
     doc: LegalDocument = ContractDocument('')
   elif response['documentType'] == 'PROTOCOL':
-    doc: LegalDocument = ProtocolDocument(None)
+    doc: LegalDocument = ProtocolDocument()
+  elif response['documentType'] == 'CHARTER':
+    doc: LegalDocument = CharterDocument()
   else:
     msg = f"Unsupported document type: {response['documentType']}"
     warnings.warn(msg)
@@ -59,17 +62,27 @@ def join_paragraphs(response, doc_id):
 
   doc.parse()
 
-  fields = ['documentDate', 'documentNumber', 'documentType']
+  fields = ['documentNumber', 'documentType']
 
   for key in fields:
     doc.__dict__[key] = response[key]
 
   last = 0
 
-  for p in response['paragraphs']:
+  # remove empty headers
+  paragraphs = []
+  for _p in response['paragraphs']:
+    header_text = _p['paragraphHeader']['text']
+    if header_text.strip() != '':
+      paragraphs.append(_p)
+    else:
+      doc.warnings.append('blank header encountered')
+      warnings.warn('blank header encountered')
 
-    header_text = p['paragraphHeader']['text'] + PARAGRAPH_DELIMITER
-    header_text = header_text.replace('\n', ' ')
+  for _p in paragraphs:
+
+    header_text = _p['paragraphHeader']['text']
+    header_text = header_text.replace('\n', ' ').strip() + PARAGRAPH_DELIMITER
 
     header = LegalDocument(header_text)
     header.parse()
@@ -79,8 +92,8 @@ def join_paragraphs(response, doc_id):
 
     last = len(doc.tokens_map)
 
-    if p['paragraphBody']:
-      body_text = p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
+    if _p['paragraphBody']:
+      body_text = _p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
       body = LegalDocument(body_text)
       body.parse()
       doc += body
@@ -93,11 +106,6 @@ def join_paragraphs(response, doc_id):
     para = Paragraph(header_tag, body_tag)
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
-
-  # doc.parse()
-
-  if response["documentDate"]:
-    doc.date = datetime.datetime.strptime(response["documentDate"], '%Y-%m-%d')
 
   doc._id = doc_id
   return doc

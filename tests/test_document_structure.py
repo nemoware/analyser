@@ -5,7 +5,7 @@
 
 import unittest
 
-from doc_structure import remove_similar_indexes_considering_weights, get_tokenized_line_number
+from analyser.doc_structure import remove_similar_indexes_considering_weights, get_tokenized_line_number
 
 
 class DocumentStructureTestCase(unittest.TestCase):
@@ -47,6 +47,11 @@ class DocumentStructureTestCase(unittest.TestCase):
   def test_get_tokenized_line_number(self):
     n, span, level, roman = get_tokenized_line_number('2. correct'.split(' '), 0)
     self.assertEqual([2], n)
+    self.assertEqual(1, level)
+    self.assertEqual(False, roman)
+
+    n, span, level, roman = get_tokenized_line_number('22. correct'.split(' '), 0)
+    self.assertEqual([22], n)
     self.assertEqual(1, level)
     self.assertEqual(False, roman)
 

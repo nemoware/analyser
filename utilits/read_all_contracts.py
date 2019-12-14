@@ -7,21 +7,20 @@ import sys
 import traceback
 
 import pymongo
-from pymongo import MongoClient
+from pandas import DataFrame
 
-from contract_agents import find_org_names
-from documents import TOKENIZER_DEFAULT
+from analyser.contract_agents import find_org_names
+from analyser.documents import TOKENIZER_DEFAULT
 from integration.word_document_parser import WordDocParser, join_paragraphs
-from legal_docs import DocumentJson
+from analyser.legal_docs import DocumentJson
 
 files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
 
 
 def read_all_contracts():
-  client = MongoClient('mongodb://localhost:27017/')
-  db = client['gpn']
+  db = get_mongodb_connection()
   collection = db['legaldocs']
-  headers_collection = db['headers']
+  # headers_collection = db['headers']
   contracts_collection = db['contracts']
   wp = WordDocParser()
   filenames = wp.list_filenames(files_dir)
@@ -136,8 +135,7 @@ def export_csv(rows, headline=['1', '2', '3', '4', '5', '6', '7', '8', '9']):
 
 
 def dump_contracts_from_db_to_jsons(output_path):
-  client = MongoClient('mongodb://localhost:27017/')
-  db = client['docsdatabase']
+  db = get_mongodb_connection()
   collection = db['legaldocs']
 
   wp = WordDocParser()
@@ -159,7 +157,7 @@ def dump_contracts_from_db_to_jsons(output_path):
 
 
 from integration.db import get_mongodb_connection
-from doc_structure import get_tokenized_line_number
+from analyser.doc_structure import get_tokenized_line_number
 
 
 def analyse_headers():
@@ -209,9 +207,6 @@ def analyse_headers():
 Точка №11
 
   """
-
-
-from pandas import DataFrame
 
 
 def find_top_headers():

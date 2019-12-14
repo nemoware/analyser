@@ -10,8 +10,8 @@ import unittest
 import numpy as np
 from nltk import TreebankWordTokenizer
 
-from documents import TextMap, span_tokenize
-from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
+from analyser.documents import TextMap, span_tokenize
+from analyser.legal_docs import   LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
@@ -40,7 +40,7 @@ class TokenisationTestCase(unittest.TestCase):
             в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
             именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
             """
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
 
     maxlen = 50
@@ -57,7 +57,7 @@ class TokenisationTestCase(unittest.TestCase):
     doc_text = """\n\n\nАкционерное 3`4`` общество «Газпром - 'Вибраниум' и Криптонит» (АО «ГВК»), "именуемое" в собранием `` акционеров собранием `` акционеров \'\' \
         дальнейшем «Благотворитель», 
         """
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
     print(doc_o.tokens_map.tokens)
 
@@ -69,7 +69,7 @@ class TokenisationTestCase(unittest.TestCase):
         в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
         именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
         """
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 300))
@@ -82,7 +82,7 @@ class TokenisationTestCase(unittest.TestCase):
   def test_subdoc_slice(self):
     doc_text = """аслово бслово цслово"""
 
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 2))
@@ -148,8 +148,6 @@ class TokenisationTestCase(unittest.TestCase):
 
     # //text_range(doc.tokens_map, [0, 10])
 
-
-
   def test_char_range(self):
     text = 'этилен мама ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -161,6 +159,12 @@ class TokenisationTestCase(unittest.TestCase):
 
     cr = tm.char_range([None, 1])
     self.assertEqual('этилен', text[cr[0]:cr[1]])
+
+  def test_tokenize_numbered(self):
+    text = '1. этилен мама, этилен!'
+    tm = TextMap(text)
+    self.assertEqual(tm.tokens[0], '1.')
+    self.assertEqual(tm.tokens[1], 'этилен')
 
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
@@ -245,7 +249,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(1, tm.token_index_by_char(4))
 
   def test_finditer(self):
-    from transaction_values import _re_greather_then
+    from analyser.transaction_values import _re_greather_then
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     tm = TextMap(text)
     iter = tm.finditer(_re_greather_then)
@@ -258,7 +262,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(5, results[1])
 
   def test_finditer__a(self):
-    from transaction_values import _re_greather_then
+    from analyser.transaction_values import _re_greather_then
 
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     __doc = LegalDocument(text)
@@ -322,11 +326,28 @@ class TokenisationTestCase(unittest.TestCase):
     print(expected)
 
     tm = TextMap(text)  # tokenization
-    ti = tm.token_indices_by_char_range_2(span)
+    ti = tm.token_indices_by_char_range(span)
     self.assertEqual(0, ti[0])
     self.assertEqual(1, ti[1])
 
     self.assertEqual(expected, tm.text_range(ti))
+
+  def test_token_indices_by_char_range_sliced(self):
+    text = 'm йe qwert'
+
+    __tm = TextMap(text)  # tokenization
+    tm = __tm.slice(slice(1, 2))
+
+    self.assertEqual('йe', tm.tokens[0])
+    self.assertEqual('йe', tm.text)
+
+    char_range = tm.char_range([0, 1])
+    ti = tm.token_indices_by_char_range(char_range)
+    self.assertEqual(0, ti[0])
+    self.assertEqual(1, ti[1])
+
+    ti = tm.token_indices_by_char_range([1, 2])
+    self.assertEqual(0, ti[0])
 
   def test_map_tokens_in_range(self):
     text = '1.2. мама   ಶ್ರೀರಾಮ'

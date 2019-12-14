@@ -5,9 +5,9 @@ import unittest
 
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import WordDocParser
-from legal_docs import LegalDocument, Paragraph
-from ml_tools import SemanticTag
-from text_normalize import normalize_text, replacements_regex
+from analyser.legal_docs import LegalDocument, Paragraph
+from analyser.ml_tools import SemanticTag
+from analyser.text_normalize import normalize_text, replacements_regex
 
 
 class TestContractParser(unittest.TestCase):

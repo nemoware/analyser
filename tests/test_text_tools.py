@@ -1,7 +1,7 @@
 import unittest
 
-from documents import TextMap
-from text_tools import find_best_sentence_end, split_into_sentences
+from analyser.documents import TextMap
+from analyser.text_tools import find_best_sentence_end, split_into_sentences
 
 
 class TextToolsTestCase(unittest.TestCase):

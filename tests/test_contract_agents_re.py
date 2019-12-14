@@ -5,15 +5,17 @@
 
 import unittest
 
-from contract_agents import *
-from text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex
+from analyser.contract_agents import *
+from analyser.contract_agents import _r_name
+from analyser.text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex, \
+  r_alias_prefix, r_types, sub_ip_quoter, sub_alias_quote, r_human_name
 
 _suffix = " слово" * 1000
 
 
 def normalize_contract(_t: str) -> str:
   t = _t
-  for (reg, to) in alias_quote_regex + replacements_regex:
+  for (reg, to) in replacements_regex:
     t = reg.sub(to, t)
 
   return t
@@ -27,10 +29,10 @@ class TestContractAgentsSearch(unittest.TestCase):
 
   def test_ru_cap(self):
     x = ru_cap(n('Государственной автономной учрежденией'))
-    self.assertEqual('[Гг]осударственн[а-я]{0,3}\s+[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
+    self.assertEqual(r'[Гг]осударственн[а-я]{0,3}\s+[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
 
     x = ru_cap('автономной учрежденией')
-    self.assertEqual('[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
+    self.assertEqual(r'[Аа]втономн[а-я]{0,3}\s+[Уу]чреждени[а-я]{0,3}', x)
 
   def test_r_name(self):
 
@@ -43,6 +45,8 @@ class TestContractAgentsSearch(unittest.TestCase):
     r = re.compile(_r_name_lat, re.MULTILINE)
     x = r.search('YYy')
     print(x)
+
+
 
   def test_r_type_and_name(self):
 
@@ -127,9 +131,9 @@ class TestContractAgentsSearch(unittest.TestCase):
       if tag is not None:
         return tag.value
 
-    self.assertEqual(expectation[1], tag_val(f'org.{org_n}.name'))
-    self.assertEqual(expectation[0], tag_val(f'org.{org_n}.type'))
-    self.assertEqual(expectation[2], tag_val(f'org.{org_n}.alias'))
+    self.assertEqual(expectation[1], tag_val(f'org-{org_n}-name'))
+    self.assertEqual(expectation[0], tag_val(f'org-{org_n}-type'))
+    self.assertEqual(expectation[2], tag_val(f'org-{org_n}-alias'))
 
   def test_org_dict_0_1(self):
 
@@ -189,7 +193,7 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
 
-    self._validate_org(tags, 1, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
+    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_2(self):
 
@@ -198,7 +202,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     """)
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
-    self._validate_org(tags, 1, ('ООО', 'Газпромнефть-Региональные продажи', 'БлаготворЮтель'))
+    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'БлаготворЮтель'))
 
   def test_org_dict_3(self):
 
@@ -209,9 +213,9 @@ class TestContractAgentsSearch(unittest.TestCase):
     нижеследующем:
     """)
 
-    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse(), decay_confidence=False)
     self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
-    self._validate_org(tags, 2, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_3_1(self):
 
@@ -223,19 +227,41 @@ class TestContractAgentsSearch(unittest.TestCase):
     self._validate_org(tags, 1, ('Федеральное государственное бюджетное образовательное учреждение высшего образования',
                                  'Государственный университет', 'Исполнитель'))
 
-  def test_org_dict_4(self):
+  def test_find_ip(self):
 
     t = n("""
-    Сибирь , и Индивидуальный предприниматель « Петров В. В. » , именуемый в дальнейшем « Исполнитель » , с другой стороны , именуемые в дальнейшем совместно « Стороны » , а по отдельности - « Сторона » , заключили настоящий договор о нижеследующем : 
+    Сибирь , и Индивидуальный предприниматель « Лужин В. В. » , именуемый в дальнейшем « Исполнитель » , \
+    с другой стороны , именуемые в дальнейшем совместно « Стороны » , а по отдельности - « Сторона » , заключили настоящий договор о нижеследующем : 
     """)
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
-    self._validate_org(tags, 1, ('Индивидуальный предприниматель', 'Петров В. В.', 'Исполнитель'))
+    self._validate_org(tags, 1, ('Индивидуальный предприниматель', 'Лужин В. В.', 'Исполнитель'))
+
+  def test_find_ip2(self):
+
+    t = n("""
+    Сибирь , и Индивидуальный предприниматель Лужин В. В., именуемый в дальнейшем « Исполнитель » , \
+    с другой стороны , именуемые в дальнейшем совместно « Стороны » , а по отдельности - « Сторона » , заключили настоящий договор о нижеследующем : 
+    """)
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('Индивидуальный предприниматель', 'Лужин В. В.', 'Исполнитель'))
+
+  def test_find_ip3(self):
+
+    t = n("""
+    Сибирь , и ИП Лужин В. В., именуемый в дальнейшем « Исполнитель » , \
+    с другой стороны , именуемые в дальнейшем совместно « Стороны » , а по отдельности - « Сторона » , заключили настоящий договор о нижеследующем : 
+    """)
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
+    self._validate_org(tags, 1, ('Индивидуальный предприниматель', 'Лужин В. В.', 'Исполнитель'))
 
   def test_org_dict_4_1(self):
 
     t = n(
-      """Автономная некоммерческая организация дополнительного профессионального образования «ООО», именуемое далее Исполнитель, в лице Директора Уткиной Е.В., действующей на основании Устава, с одной стороны,""")
+      """Автономная некоммерческая организация дополнительного профессионального образования «ООО»,  \
+      именуемое далее Исполнитель, в лице Директора Уткиной Е.В., действующей на основании Устава, с одной стороны,""")
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
     self._validate_org(tags, 1, (
@@ -268,6 +294,71 @@ class TestContractAgentsSearch(unittest.TestCase):
     self._validate_org(tags, 2,
                        ('Фонд поддержки социальных инициатив', 'Лингвистическая школа «Слово»', 'Благополучатель'))
 
+
+  # def test_find_agents_person(self):
+  #   doc_text = """Общество с ограниченной ответственностью «Кишки Бога» (ООО «Кишки Бога»), именуемое в дальнейшем «Заказчик», \
+  #   в лице генерального директора Шприца Александра Устыныча, действующего на основании Устава, с одной \
+  #   стороны, и Базедов Болезнь Бледнович, являющийся гражданином Российской Федерации, действующий \
+  #   от собственного имени, именуемый в дальнейшем «Исполнитель», с другой стороны, совместно \
+  #   именуемые «Стороны», и каждая в отдельности «Сторона», заключили настоящий """
+  #
+  #
+  #   tags: List[SemanticTag] = find_org_names(LegalDocument(doc_text).parse())
+  #   self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Кишки Бога', 'Заказчик'))
+  #   self._validate_org(tags, 2, ('', 'Базедов Болезнь Бледнович', 'Исполнитель'))
+
+  def test_find_agent_0(self):
+    txt = '''
+    , и
+    Общество с ограниченной ответственностью «Научно-производственная компания «НефтеБурГаз», в лице Генерального директора Рожкова Александра Владимировича, действующего на основании Устава, именуемое в дальнейшем «Подрядчик»,
+    '''
+
+    r = re.compile(r_type_and_name, re.MULTILINE)
+
+    x = r.search(n(txt))
+    self.assertEqual('Общество с ограниченной ответственностью', x['type'])
+    self.assertEqual('Научно-производственная компания «НефтеБурГаз', x['name'])
+
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse())
+    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Научно-производственная компания «НефтеБурГаз»', 'Подрядчик'))
+
+  def test_find_agent_2(self):
+    txt1 = '''Общество с ограниченной ответственностью «Комплекс Галерная 5», являющееся юридическим лицом, именуемое в дальнейшем «Принципал»'''
+    txt2 = '''
+        , и
+        Общество с ограниченной ответственностью «Научно-производственная компания «НефтеБурГаз», в лице Генерального директора Рожкова Александра Владимировича, действующего на основании Устава, именуемое в дальнейшем «Подрядчик»,
+        '''
+    txt=txt1+txt2
+    r = re.compile(r_type_and_name, re.MULTILINE)
+
+    x = r.search(n(txt))
+    self.assertEqual('Общество с ограниченной ответственностью', x['type'])
+    self.assertEqual('Комплекс Галерная 5', x['name'])
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse())
+    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Комплекс Галерная 5', 'Принципал'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Научно-производственная компания «НефтеБурГаз»', 'Подрядчик'))
+
+
+
+
+  def test_find_agent_1(self):
+    txt = '''
+      2016 год.
+     Акционерное общество “Газпромнефть-Омский НПЗ” (АО “Газпромнефть-ОНПЗ”), именуемое в дальнейшем «Организацией» водопроводно-канализационного хозяйства'''
+
+    txt=n(txt)
+
+
+    x = re.compile(r_type_and_name, re.MULTILINE).search(n(txt))
+    self.assertEqual('Акционерное общество', x['type'])
+    self.assertEqual('Газпромнефть-Омский НПЗ', x['name'])
+
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse())
+    self._validate_org(tags, 1, ('Акционерное общество', 'Газпромнефть-ОНПЗ', 'Организацией'))
+
   def test_org_dict_4_2(self):
     t = n(
       """Государственное автономное  учреждение дополнительного профессионального образования Свердловской области «Армавирский учебно-технический центр»,  на основании Лицензии на право осуществления образовательной деятельности в лице директора  Птицына Евгения Георгиевича, действующего на основании Устава, с одной стороны, """)
@@ -287,7 +378,7 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
     self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
-    self._validate_org(tags, 2, ('ООО', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_r_types(self):
     r = re.compile(r_types, re.MULTILINE)
@@ -437,7 +528,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     self.assertEqual(None, x)
 
   def test_r_human_abbr_name(self):
-    r = re.compile('\W' + r_human_abbr_name, re.MULTILINE)
+    r = re.compile(r'\W' + r_human_abbr_name, re.MULTILINE)
 
     x = r.search('что-то Мироздания С.К., который был')
     self.assertEqual('Мироздания С.К.', x[1])
@@ -455,7 +546,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     self.assertEqual(None, x)
 
   def test_r_human_name(self):
-    r = re.compile('\W' + r_human_name, re.MULTILINE)
+    r = re.compile(r'\W' + r_human_name, re.MULTILINE)
 
     x = r.search('что-то Мироздания С.К., который был')
     self.assertEqual('Мироздания С.К.', x['human_name'])

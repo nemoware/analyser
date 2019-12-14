@@ -4,8 +4,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 
-from embedding_tools import AbstractEmbedder
-from text_tools import Tokens
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.text_tools import Tokens
 
 
 class ElmoEmbedder(AbstractEmbedder):
@@ -63,7 +63,13 @@ class ElmoEmbedder(AbstractEmbedder):
     embedding_graph.finalize()
     return embedding_graph
 
-  def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> (np.ndarray, Tokens):
+  def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
+    if self.layer_name == 'elmo':
+      return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
+    else:
+      return self.embedd_strings(tokens)
+
+  def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> np.ndarray:
     assert self.layer_name == 'elmo', "this method works with elmo layer only"
     feed_dict = {
       self.text_input: words,  # text_input
@@ -72,11 +78,18 @@ class ElmoEmbedder(AbstractEmbedder):
 
     out = self.session.run(self.embedded_out, feed_dict=feed_dict)
 
-    return out, words
+    return out
 
-  def embedd_strings(self, strings: [str]):
+  def embedd_strings(self, strings: Tokens) -> np.ndarray:
+    _strings = []
+    for s in strings:
+      if s == '':
+        _strings.append(' ')
+      else:
+        _strings.append(s)
+
     feed_dict = {
-      self.text_input: strings,  # text_input
+      self.text_input: _strings,  # text_input
     }
 
     out = self.session.run(self.embedded_out, feed_dict=feed_dict)
