@@ -1,4 +1,5 @@
 import re
+from enum import Enum
 from typing import Iterator
 
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
@@ -300,11 +301,14 @@ class ProtocolParser(ParsingContext):
       numbers_confidence[v.value.as_slice()] += v.value.confidence
       for t in v.as_list():
         numbers_attention[t.as_slice()] = 1
+    wa['numbers_attention'] = numbers_attention
 
     block_confidence = sum_probabilities([numbers_attention, wa['relu_deal_approval'], wa['bin_votes_attention'] / 5])
 
     return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item', 0.6))
 
+# class ProtocolAttentionVectors(Enum):
+#   numbers_attention=1,
 
 class ProtocolPatternFactory(AbstractPatternFactory):
   def create_pattern(self, pattern_name, ppp):
