@@ -1,11 +1,10 @@
 import re
-from enum import Enum
 from typing import Iterator
 
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
 from analyser.contract_parser import find_value_sign_currency_attention
 from analyser.dates import find_document_date
-from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import *
@@ -145,8 +144,14 @@ class ProtocolParser(ParsingContext):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
 
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
+    if not doc.org_level:
+      doc.warn(ParserWarnings.org_struct_level_not_found)
+
     doc.org_tags = list(find_protocol_org(doc))
     doc.date = find_document_date(doc)
+    if not doc.date:
+      doc.warn(ParserWarnings.date_not_found)
+
     return doc
 
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
@@ -307,10 +312,12 @@ class ProtocolParser(ParsingContext):
 
     return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item', 0.6))
 
+
 # class ProtocolAttentionVectors(Enum):
 #   numbers_attention=1,
 
 class ProtocolPatternFactory(AbstractPatternFactory):
+
   def create_pattern(self, pattern_name, ppp):
     _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
     fp = FuzzyPattern(_ppp, pattern_name)
@@ -376,10 +383,14 @@ def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
+  else:
+    protocol.warn(ParserWarnings.org_name_not_found)
 
   tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
+  else:
+    protocol.warn(ParserWarnings.org_type_not_found)
   return ret
 
 
