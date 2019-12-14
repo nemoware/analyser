@@ -74,19 +74,6 @@ class ContractAnlysingContext(ParsingContext):
     if self.pattern_factory is None:
       self.pattern_factory = ContractPatternFactory(embedder)
 
-  def analyze_contract(self, contract_text):
-    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-
-    self._reset_context()
-    # create DOC
-    contract = ContractDocument(contract_text)
-    contract.parse()
-
-    self._logstep("parsing document 👞 and detecting document high-level structure")
-    contract.embedd_tokens(self.pattern_factory.embedder)
-
-    return self.find_attributes(contract)
-
   def find_org_date_number(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
     """
     phase 1, before embedding TF, GPU, and things

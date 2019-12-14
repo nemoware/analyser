@@ -155,14 +155,6 @@ class CharterParser(ParsingContext):
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
                                                                          self.patterns_named_embeddings)
 
-  def analyse(self, charter: CharterDocument) -> CharterDocument:
-    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-    ctx = AuditContext()
-    self.find_org_date_number(charter, ctx)
-    self._ebmedd(charter)
-    self.find_attributes(charter, ctx)
-    return charter
-
   def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding
