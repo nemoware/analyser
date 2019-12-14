@@ -134,12 +134,6 @@ class ProtocolParser(ParsingContext):
                                                                               self.patterns_dict,
                                                                               self.patterns_embeddings)
 
-  def analyse(self, doc: ProtocolDocument):
-    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-    doc = self.find_org_date_number(doc)
-    self.find_attributes(doc)
-    return doc
-
   def find_org_date_number(self, doc: ProtocolDocument, ctx: AuditContext) -> ProtocolDocument:
     """
     phase 1, before embedding TF, GPU, and things
@@ -427,13 +421,13 @@ def find_org_structural_level(doc: LegalDocument) -> Iterator[SemanticTag]:
 
 def find_confident_spans(slices: [int], block_confidence: FixedVector, tag_name: str, threshold: float) -> Iterator[
   SemanticTag]:
-  k = 0
+  count = 0
   for _slice in slices:
-    k += 1
     pv = block_confidence[_slice[0]:_slice[1]]
     confidence = estimate_confidence_by_mean_top_non_zeros(pv, 5)
 
     if confidence > threshold:
-      st = SemanticTag(f"{tag_name}_{k}", None, _slice)
+      count += 1
+      st = SemanticTag(SemanticTag.number_key(tag_name, count), None, _slice)
       st.confidence = confidence
       yield (st)
