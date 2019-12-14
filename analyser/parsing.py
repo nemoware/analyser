@@ -65,7 +65,7 @@ class ParsingContext(ParsingSimpleContext):
     """
     raise NotImplementedError()
 
-  def find_attributes(self, document: LegalDocument):
+  def find_attributes(self, document: LegalDocument, ctx: AuditContext):
     raise NotImplementedError()
 
 

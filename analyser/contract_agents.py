@@ -4,8 +4,6 @@
 
 
 import re
-import warnings
-from typing import AnyStr, Match, Dict, List
 
 from pyjarowinkler import distance
 
@@ -93,49 +91,23 @@ def clean_value(x: str) -> str or None:
   return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()
 
 
-def _find_org_names(text: str) -> List[Dict]:
-  warnings.warn("make semantic tags", DeprecationWarning)
-
-  def _to_dict(m: Match[AnyStr]):
-    warnings.warn("make semantic tags", DeprecationWarning)
-    d = {}
-    for entity_type in org_pieces:
-      d[entity_type] = (m[entity_type], m.span(entity_type))
-
-    return d
-
-  org_names = {}
-
-  for r in re.finditer(complete_re, text):
-    org = _to_dict(r)
-
-    # filter similar out
-    _name = normalize_company_name(org['name'][0])
-    if _name not in org_names:
-      org_names[_name] = org
-
-  return list(org_names.values())
-
-
-def find_org_names_in_tag(doc: LegalDocument, parent: SemanticTag, max_names=2, tag_kind_prefix='',
-                          decay_confidence=True) -> List[
-  SemanticTag]:
-  span = parent.span
-  return find_org_names(doc[span[0]:span[1]], max_names=max_names, tag_kind_prefix=tag_kind_prefix, parent=parent,
-                        decay_confidence=decay_confidence)
-
-
-def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=None, decay_confidence=True) -> List[
-  SemanticTag]:
+def find_org_names(doc: LegalDocument,
+                   max_names=2,
+                   tag_kind_prefix='',
+                   parent=None,
+                   decay_confidence=True,
+                   audit_subsidiary_name=None) -> [SemanticTag]:
   all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence)
-  return _rename_org_tags(all, tag_kind_prefix)
+  all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+
+  return _rename_org_tags(all, tag_kind_prefix, start_from=1)
 
 
-def _rename_org_tags(all: [ContractAgent], prefix=''):
+def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [SemanticTag]:
   tags = []
-  for group in range(len(all)):
-    for tag in all[group].as_list():
-      tagname = f'{prefix}org-{group + 1}-{tag.kind}'
+  for group, agent in enumerate(all):
+    for tag in agent.as_list():
+      tagname = f'{prefix}org-{group + start_from}-{tag.kind}'
       tag.kind = tagname
       tags.append(tag)
 
@@ -188,7 +160,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
         put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
 
   res = list(_map.values())
-  res = sorted(res, key=lambda a:-a.confidence())
+  res = sorted(res, key=lambda a: -a.confidence())
   return res[:max_names]
   #
 

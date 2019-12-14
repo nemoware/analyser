@@ -16,6 +16,7 @@ from analyser.contract_patterns import ContractPatternFactory
 from analyser.documents import TextMap
 from analyser.legal_docs import DocumentJson
 from analyser.ml_tools import SemanticTag
+from analyser.parsing import AuditContext
 
 
 class TestJsonExport(unittest.TestCase):
@@ -52,7 +53,8 @@ class TestJsonExport(unittest.TestCase):
     doc.__dict__['date'] = None  # hack for old pickles
     doc.__dict__['warnings'] = []  # hack for old pickles
 
-    ctx.find_attributes(doc)
+    actx = AuditContext()
+    ctx.find_attributes(doc, actx)
     json_struct = DocumentJson(doc)
     _j = json_struct.dumps()
     print(_j)
@@ -64,8 +66,8 @@ class TestJsonExport(unittest.TestCase):
     doc.__dict__['number'] = None  # hack for old pickles
     doc.__dict__['date'] = None  # hack for old pickles
     doc.__dict__['warnings'] = []  # hack for old pickles
-
-    ctx.find_attributes(doc)
+    actx = AuditContext()
+    ctx.find_attributes(doc, actx)
     json_struct = DocumentJson(doc)
     json_string = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=json_util.default)
 
