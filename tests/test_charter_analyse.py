@@ -24,7 +24,7 @@ class TestAnalyse(unittest.TestCase):
       parsed_p_json = db_document['parse']
       charter: CharterDocument = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
 
-      parser.find_org_date_number(charter,   AuditContext())
+      parser.find_org_date_number(charter, AuditContext())
 
       for tag in charter.get_tags():
         print(tag)
