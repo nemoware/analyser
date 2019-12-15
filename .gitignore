@@ -55,3 +55,5 @@ nltk_data_download/tokenizers/punkt/PY3/polish.pickle
 
 libs/document-parser**/
  
+
+*.log

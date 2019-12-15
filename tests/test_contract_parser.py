@@ -13,6 +13,7 @@ from analyser.contract_patterns import ContractPatternFactory
 from analyser.documents import TextMap
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
+from analyser.parsing import AuditContext
 from analyser.protocol_parser import ProtocolDocument
 from analyser.structures import ContractTags
 
@@ -34,7 +35,7 @@ class TestContractParser(unittest.TestCase):
   def test_find_value_sign_currency(self):
 
     doc, factory, ctx = self._get_doc_factory_ctx('Договор _2_.docx.pickle')
-
+    doc.__dict__['warnings'] =[]  #hack for old pickles
     r = ctx.find_contract_value_NEW(doc)
     print(len(r))
     for group in r:
@@ -56,7 +57,7 @@ class TestContractParser(unittest.TestCase):
   def _get_doc_factory_ctx(self, fn='2. Договор по благ-ти Радуга.docx.pickle'):
     doc, factory = self.get_doc(fn)
 
-    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
@@ -69,8 +70,10 @@ class TestContractParser(unittest.TestCase):
 
   def test_contract_analyze(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
+    doc.__dict__['number'] = None # hack for old pickles
+    doc.__dict__['date'] = None  # hack for old pickles
 
-    ctx.analyze_contract_doc(doc)
+    ctx.find_attributes(doc, AuditContext())
     tags: [SemanticTag] = doc.get_tags()
 
     _tag = SemanticTag.find_by_kind(tags, ContractTags.Value.display_string)

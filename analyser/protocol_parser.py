@@ -1,12 +1,12 @@
 import re
 from typing import Iterator
 
-from analyser.contract_agents import find_org_names, ORG_LEVELS_re
-from analyser.contract_agents import find_org_names_in_tag
+from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
 from analyser.contract_parser import find_value_sign_currency_attention
-from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
+from analyser.dates import find_document_date
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext
+from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import *
 from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, ru_cap, r_quoted
@@ -28,7 +28,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolDocument4(LegalDocument):
 
-  def __init__(self, doc: LegalDocument or None):
+  def __init__(self, doc: LegalDocument or None = None):
     super().__init__('')
     if doc is not None:
       self.__dict__ = doc.__dict__
@@ -40,13 +40,21 @@ class ProtocolDocument4(LegalDocument):
 
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
+    self.org_tags: [SemanticTag] = []
     self.agenda_questions: [SemanticTag] = []
     self.margin_values: [ContractValue] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
-    tags += self.agents_tags
+    if self.date is not None:
+      tags.append(self.date)
+
+    if self.number is not None:
+      tags.append(self.number)
+
+    tags += self.org_tags
     tags += self.org_level
+    tags += self.agents_tags
     tags += self.agenda_questions
     for mv in self.margin_values:
       tags += mv.as_list()
@@ -93,16 +101,27 @@ class ProtocolParser(ParsingContext):
 
   ]
 
-  def __init__(self, embedder, elmo_embedder_default: ElmoEmbedder):
+  def __init__(self, embedder=None, elmo_embedder_default: ElmoEmbedder = None):
     ParsingContext.__init__(self, embedder)
+    self.embedder = embedder
     self.elmo_embedder_default = elmo_embedder_default
-    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
+    self.protocols_factory: ProtocolPatternFactory = None
+    self.patterns_embeddings = None
 
+    if embedder is not None and elmo_embedder_default is not None:
+      self.init_embedders(embedder, elmo_embedder_default)
+
+  def init_embedders(self, embedder, elmo_embedder_default):
+    self.embedder = embedder
+    self.elmo_embedder_default = elmo_embedder_default
+
+    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
     patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
 
   def ebmedd(self, doc: ProtocolDocument):
-    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
+    assert self.embedder is not None, 'call init_embedders first'
+    assert self.elmo_embedder_default is not None, 'call init_embedders first'
 
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
@@ -115,41 +134,73 @@ class ProtocolParser(ParsingContext):
                                                                               self.patterns_dict,
                                                                               self.patterns_embeddings)
 
-  def analyse(self, doc: ProtocolDocument):
-    self.ebmedd(doc)
-    self._analyse_embedded(doc)
+  def find_org_date_number(self, doc: ProtocolDocument, ctx: AuditContext) -> ProtocolDocument:
+    """
+    phase 1, before embedding TF, GPU, and things
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
+    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
 
-  def _analyse_embedded(self, doc: ProtocolDocument):
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
-    doc.agents_tags = list(find_protocol_org(doc))
+
+    doc.org_tags = list(find_protocol_org(doc))
+    doc.date = find_document_date(doc)
+
+    if not doc.date:
+      doc.warn(ParserWarnings.date_not_found)
+
+    if not doc.org_level:
+      doc.warn(ParserWarnings.org_struct_level_not_found)
+    return doc
+
+  def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
+
+    if doc.sentences_embeddings is None or doc.embeddings is None:
+      self.ebmedd(doc) # lazy embedding
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
-    doc.margin_values = self.find_values(doc)
+    if not doc.agenda_questions:
+      doc.warn(ParserWarnings.protocol_agenda_not_found)
+    doc.margin_values = self.find_margin_values(doc)
+    doc.agents_tags = list(self.find_agents_in_all_sections(doc, doc.agenda_questions, ctx.audit_subsidiary_name))
 
-    doc.agents_tags += list(self.find_agents_in_all_sections(doc, doc.agenda_questions))
+    if not doc.margin_values and not doc.agents_tags:
+      doc.warn(ParserWarnings.boring_agenda_questions)
 
-  def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag]) -> List[SemanticTag]:
+    return doc
+
+  def find_agents_in_all_sections(self,
+                                  doc: LegalDocument,
+                                  agenda_questions: [SemanticTag],
+                                  audit_subsidiary_name: str) -> [SemanticTag]:
     ret = []
     for parent in agenda_questions:
-      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, tag_kind_prefix='contract_agent_',
-                                                          decay_confidence=False)
+      x: [SemanticTag] = self._find_agents_in_section(doc, parent, audit_subsidiary_name)
       if x:
         ret += x
     return ret
 
-  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag, tag_kind_prefix: str,
-                              decay_confidence=False) -> List[
-    SemanticTag]:
-    x: List[SemanticTag] = find_org_names_in_tag(protocol, parent, max_names=10, tag_kind_prefix=tag_kind_prefix,
-                                                 decay_confidence=decay_confidence)
-    return x
+  def _find_agents_in_section(self, protocol: LegalDocument, parent: SemanticTag,
+                              audit_subsidiary_name) -> [SemanticTag]:
 
-  def find_values(self, doc) -> [ContractValue]:
+    span = parent.span
+    doc = protocol[span[0]:span[1]]
+
+    all: [ContractAgent] = find_org_names_raw(doc, max_names=10, parent=parent, decay_confidence=False)
+    all: [ContractAgent] = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+
+    start_from = 2
+    if all and all[0].name.value == audit_subsidiary_name:
+      start_from = 1
+
+    return _rename_org_tags(all, 'contract_agent_', start_from=start_from)
+
+  def find_margin_values(self, doc) -> [ContractValue]:
     value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
 
-    # values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
-
-    values = []
+    values: [ContractValue] = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
       subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector,
@@ -157,19 +208,10 @@ class ProtocolParser(ParsingContext):
       values += subdoc_values
       if len(subdoc_values) > 1:
         confidence = 1.0 / len(subdoc_values)
-        k = 0
-        for v in subdoc_values:
-          k += 1
-          v *= confidence  # decrease confidence
-          v.parent.kind = f'{v.parent.kind}-{k}'
 
-    # # set parents for values
-    # for tag in doc.agenda_questions:
-    #   # subdoc = doc[tag.as_slice()]
-    #   for v in values:
-    #     if tag.is_nested(v.span()):
-    #       v.parent.set_parent_tag(tag)
-    #       # v.parent.parent = tag.kind
+        for k, v in enumerate(subdoc_values):
+          v *= confidence  # decrease confidence
+          v.parent.kind = SemanticTag.number_key(v.parent.kind, k)
 
     return values
 
@@ -257,16 +299,20 @@ class ProtocolParser(ParsingContext):
     numbers_confidence = np.zeros(len(doc.tokens_map))
     for v in values:
       numbers_confidence[v.value.as_slice()] += v.value.confidence
-      numbers_attention[v.value.as_slice()] = 1
-      numbers_attention[v.currency.as_slice()] = 1
-      numbers_attention[v.sign.as_slice()] = 1
+      for t in v.as_list():
+        numbers_attention[t.as_slice()] = 1
+    wa['numbers_attention'] = numbers_attention
 
     block_confidence = sum_probabilities([numbers_attention, wa['relu_deal_approval'], wa['bin_votes_attention'] / 5])
 
     return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item', 0.6))
 
 
+# class ProtocolAttentionVectors(Enum):
+#   numbers_attention=1,
+
 class ProtocolPatternFactory(AbstractPatternFactory):
+
   def create_pattern(self, pattern_name, ppp):
     _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
     fp = FuzzyPattern(_ppp, pattern_name)
@@ -329,15 +375,17 @@ class ProtocolPatternFactory(AbstractPatternFactory):
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   ret = []
   x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
-  nm = SemanticTag.find_by_kind(x, 'org.1.name')
+  nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
+  else:
+    protocol.warn(ParserWarnings.org_name_not_found)
 
-  tp = SemanticTag.find_by_kind(x, 'org.1.type')
+  tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
-
-  protocol.agents_tags = ret
+  else:
+    protocol.warn(ParserWarnings.org_type_not_found)
   return ret
 
 
@@ -375,7 +423,7 @@ def find_org_structural_level(doc: LegalDocument) -> Iterator[SemanticTag]:
     if span_len(char_span) > 1 and is_long_enough(val):
 
       if confidence > HyperParameters.org_level_min_confidence:
-        tag = SemanticTag(entity_type, val, span)
+        tag = SemanticTag(entity_type, OrgStructuralLevel.find_by_display_string(val), span)
         tag.confidence = confidence
 
         yield tag
@@ -383,13 +431,13 @@ def find_org_structural_level(doc: LegalDocument) -> Iterator[SemanticTag]:
 
 def find_confident_spans(slices: [int], block_confidence: FixedVector, tag_name: str, threshold: float) -> Iterator[
   SemanticTag]:
-  k = 0
+  count = 0
   for _slice in slices:
-    k += 1
     pv = block_confidence[_slice[0]:_slice[1]]
     confidence = estimate_confidence_by_mean_top_non_zeros(pv, 5)
 
     if confidence > threshold:
-      st = SemanticTag(f"{tag_name}_{k}", None, _slice)
+      count += 1
+      st = SemanticTag(SemanticTag.number_key(tag_name, count), None, _slice)
       st.confidence = confidence
       yield (st)

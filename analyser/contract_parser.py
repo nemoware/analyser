@@ -1,15 +1,15 @@
 from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory
-from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
+from analyser.dates import find_document_date, find_document_number
+from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 
-from analyser.parsing import ParsingConfig, ParsingContext
+from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import AV_SOFT, AV_PREFIX
 
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
 
-default_contract_parsing_config: ParsingConfig = ParsingConfig()
 contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
 
 from analyser.transaction_values import complete_re as transaction_values_re
@@ -34,6 +34,12 @@ class ContractDocument3(LegalDocument):
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
+    if self.date is not None:
+      tags.append(self.date)
+
+    if self.number is not None:
+      tags.append(self.number)
+
     if self.agents_tags:
       tags += self.agents_tags
 
@@ -51,96 +57,76 @@ class ContractDocument3(LegalDocument):
 ContractDocument = ContractDocument3  # Alias!
 
 
-def filter_nans(vcs: List[ProbableValue]) -> List[ProbableValue]:
-  warnings.warn("use numpy built-in functions", DeprecationWarning)
-  r: List[ProbableValue] = []
-  for vc in vcs:
-    if vc.value is not None and not np.isnan(vc.value.value):
-      r.append(vc)
-  return r
-
-
 class ContractAnlysingContext(ParsingContext):
+  # TODO: rename this class
 
-  def __init__(self, embedder, renderer=None, pattern_factory=None):
+  def __init__(self, embedder=None, pattern_factory: ContractPatternFactory = None):
     ParsingContext.__init__(self, embedder)
 
-    if not pattern_factory:
-      self.pattern_factory = ContractPatternFactory(embedder)
-    else:
-      self.pattern_factory = pattern_factory
-
-    self.contract = None
-    # self.contract_values = None
-
-    self.config = default_contract_parsing_config
+    self.pattern_factory: ContractPatternFactory or None = pattern_factory
+    if embedder is not None:
+      self.init_embedders(embedder, None)
 
     self.sections_finder = FocusingSectionsFinder(self)
 
-  def analyze_contract(self, contract_text):
-    warnings.warn("use analyze_contract_doc", DeprecationWarning)
+  def init_embedders(self, embedder, elmo_embedder_default):
+    self.embedder = embedder
+    if self.pattern_factory is None:
+      self.pattern_factory = ContractPatternFactory(embedder)
+
+  def find_org_date_number(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
+    """
+    phase 1, before embedding TF, GPU, and things
+    searching for attributes required for filtering
+    :param charter:
+    :return:
+    """
+    contract.agents_tags = find_org_names(contract, max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
+    contract.date = find_document_date(contract)
+    contract.number = find_document_number(contract)
+
+    if not contract.number:
+      contract.warn(ParserWarnings.number_not_found)
+    if not contract.date:
+      contract.warn(ParserWarnings.date_not_found)
+
+    return contract
+
+  def find_attributes(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
+    assert self.embedder is not None, 'call `init_embedders` first'
+    """
+    this analyser should care about embedding, because it decides wheater it needs (NN) embeddings or not  
+    """
 
     self._reset_context()
-    # create DOC
-    self.contract = ContractDocument(contract_text)
-    self.contract.parse()
-
-    self._logstep("parsing document 👞 and detecting document high-level structure")
-    self.contract.embedd_tokens(self.pattern_factory.embedder)
-
-    return self.analyze_contract_doc(self.contract, reset_ctx=False)
-
-  def analyze_contract_doc(self, contract: ContractDocument, reset_ctx=True):
-    # assert contract.embeddings is not None
-    # #TODO: this analyser should care about embedding, because it decides wheater it needs (NN) embeddings or not
-    """
-    MAIN METHOD 2
-
-    :param contract:
-    :return:
-    
-    """
-    if reset_ctx:
-      self._reset_context()
-
-    self.contract = contract
 
     # ------ lazy embedding
-    if self.contract.embeddings is None:
-      self.contract.embedd_tokens(self.pattern_factory.embedder)
+    if contract.embeddings is None:
+      contract.embedd_tokens(self.embedder)
 
-    # ------ agents
-    contract.agents_tags = find_org_names(contract)
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
     # ------ structure
-    self.sections_finder.find_sections(self.contract, self.pattern_factory, self.pattern_factory.headlines,
+    self.sections_finder.find_sections(contract, self.pattern_factory, self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
     # -------------------------------values
-    self.contract.contract_values = self.find_contract_value_NEW(self.contract)
+    contract.contract_values = self.find_contract_value_NEW(contract)
+    if not contract.contract_values:
+      contract.warn(ParserWarnings.contract_value_not_found)
     self._logstep("finding contract values")
 
     # -------------------------------subject
-    self.contract.subjects = self.find_contract_subject_region(self.contract)
+    contract.subjects = self.find_contract_subject_region(contract)
+    if not contract.subjects:
+      contract.warn(ParserWarnings.contract_subject_not_found)
     self._logstep("detecting contract subject")
     # --------------------------------------
 
     self.log_warnings()
 
-    return self.contract, self.contract.contract_values
-
-  def _reset_context(self):
-    super(ContractAnlysingContext, self)._reset_context()
-
-    if self.contract is not None:
-      del self.contract
-      self.contract = None
-
-  def get_contract_values(self):
-    return self.contract.contract_values
-
-  contract_values = property(get_contract_values)
+    return contract
+    # , self.contract.contract_values
 
   def select_most_confident_if_almost_equal(self, a: ProbableValue, alternative: ProbableValue, m_convert,
                                             equality_range=0.0):
@@ -151,16 +137,6 @@ class ContractAnlysingContext(ParsingContext):
       else:
         return alternative
     return a
-
-  def find_contract_best_value(self, m_convert):
-    best_value: ProbableValue = max(self.contract_values,
-                                    key=lambda item: m_convert(item.value).value)
-
-    most_confident_value = max(self.contract_values, key=lambda item: item.confidence)
-    best_value = self.select_most_confident_if_almost_equal(best_value, most_confident_value, m_convert,
-                                                            equality_range=20)
-
-    return best_value
 
   def __sub_attention_names(self, subj: ContractSubject):
     a = f'x_{subj}'
@@ -193,6 +169,7 @@ class ContractAnlysingContext(ParsingContext):
       subject_subdoc = subj_section.body
       denominator = 1
     else:
+      doc.warn(ParserWarnings.subject_section_not_found)
       self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
       subject_subdoc = doc.subdoc_slice(slice(0, 1500))
       denominator = 0.7
@@ -261,7 +238,10 @@ class ContractAnlysingContext(ParsingContext):
 
         if not values_list:
           # search in next section
-          self.warning(f'В разделе "{_section_name}" ["{section}"] стоимость сделки не найдена!')
+          msg = f'В разделе "{_section_name}" ["{section}"] стоимость сделки не найдена!'
+          contract.warn(ParserWarnings.value_section_not_found,
+                        f'В разделе "{_section_name}" стоимость сделки не найдена')
+          self.warning(msg)
 
         else:
           # decrease confidence:
@@ -332,11 +312,6 @@ def max_confident(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.integral_sorting_confidence())
 
 
-def max_confident_tag(vals: List[SemanticTag]) -> SemanticTag:
-  warnings.warn("use max_confident_tags", DeprecationWarning)
-  return max(vals, key=lambda a: a.confidence)
-
-
 def max_value(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.value.value)
 
@@ -361,18 +336,3 @@ def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vect
   confidence_region = subject_attention_vector[span[0]:span[1]]
   confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
   return span, confidence, paragraph_attention_vector
-
-
-def find_all_value_sign_currency(doc: LegalDocument) -> List[ContractValue]:
-  warnings.warn("use find_value_sign_currency ", DeprecationWarning)
-  """
-  TODO: rename
-  :param doc: LegalDocument
-  :param attention_vector: List[float]
-  :return: List[ProbableValue]
-  """
-  spans = [m for m in doc.tokens_map.finditer(transaction_values_re)]
-  return [extract_sum_sign_currency(doc, span) for span in spans]
-
-
-extract_all_contraints_from_sr_2 = find_all_value_sign_currency  # alias for compatibility, todo: remove it
