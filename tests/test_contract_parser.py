@@ -35,7 +35,7 @@ class TestContractParser(unittest.TestCase):
   def test_find_value_sign_currency(self):
 
     doc, factory, ctx = self._get_doc_factory_ctx('Договор _2_.docx.pickle')
-
+    doc.__dict__['warnings'] =[]  #hack for old pickles
     r = ctx.find_contract_value_NEW(doc)
     print(len(r))
     for group in r:

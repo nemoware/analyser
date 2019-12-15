@@ -1,11 +1,10 @@
 import re
-from enum import Enum
 from typing import Iterator
 
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
 from analyser.contract_parser import find_value_sign_currency_attention
 from analyser.dates import find_document_date
-from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import *
@@ -145,28 +144,40 @@ class ProtocolParser(ParsingContext):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
 
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
+
     doc.org_tags = list(find_protocol_org(doc))
     doc.date = find_document_date(doc)
+
+    if not doc.date:
+      doc.warn(ParserWarnings.date_not_found)
+
+    if not doc.org_level:
+      doc.warn(ParserWarnings.org_struct_level_not_found)
     return doc
 
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
 
     if doc.sentences_embeddings is None or doc.embeddings is None:
-      # lazy embedding
-      self.ebmedd(doc)
+      self.ebmedd(doc) # lazy embedding
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
-    doc.margin_values = self.find_values(doc)
-
+    if not doc.agenda_questions:
+      doc.warn(ParserWarnings.protocol_agenda_not_found)
+    doc.margin_values = self.find_margin_values(doc)
     doc.agents_tags = list(self.find_agents_in_all_sections(doc, doc.agenda_questions, ctx.audit_subsidiary_name))
+
+    if not doc.margin_values and not doc.agents_tags:
+      doc.warn(ParserWarnings.boring_agenda_questions)
 
     return doc
 
-  def find_agents_in_all_sections(self, doc: LegalDocument, agenda_questions: List[SemanticTag],
+  def find_agents_in_all_sections(self,
+                                  doc: LegalDocument,
+                                  agenda_questions: [SemanticTag],
                                   audit_subsidiary_name: str) -> [SemanticTag]:
     ret = []
     for parent in agenda_questions:
-      x: List[SemanticTag] = self._find_agents_in_section(doc, parent, audit_subsidiary_name)
+      x: [SemanticTag] = self._find_agents_in_section(doc, parent, audit_subsidiary_name)
       if x:
         ret += x
     return ret
@@ -186,12 +197,10 @@ class ProtocolParser(ParsingContext):
 
     return _rename_org_tags(all, 'contract_agent_', start_from=start_from)
 
-  def find_values(self, doc) -> [ContractValue]:
+  def find_margin_values(self, doc) -> [ContractValue]:
     value_attention_vector = doc.distances_per_pattern_dict[VALUE_ATTENTION_VECTOR_NAME]
 
-    # values: [ContractValue] = find_value_sign_currency_attention(doc, value_attention_vector)
-
-    values = []
+    values: [ContractValue] = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
       subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector,
@@ -199,19 +208,10 @@ class ProtocolParser(ParsingContext):
       values += subdoc_values
       if len(subdoc_values) > 1:
         confidence = 1.0 / len(subdoc_values)
-        k = 0
-        for v in subdoc_values:
-          k += 1
-          v *= confidence  # decrease confidence
-          v.parent.kind = f'{v.parent.kind}-{k}'
 
-    # # set parents for values
-    # for tag in doc.agenda_questions:
-    #   # subdoc = doc[tag.as_slice()]
-    #   for v in values:
-    #     if tag.is_nested(v.span()):
-    #       v.parent.set_parent_tag(tag)
-    #       # v.parent.parent = tag.kind
+        for k, v in enumerate(subdoc_values):
+          v *= confidence  # decrease confidence
+          v.parent.kind = SemanticTag.number_key(v.parent.kind, k)
 
     return values
 
@@ -307,10 +307,12 @@ class ProtocolParser(ParsingContext):
 
     return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item', 0.6))
 
+
 # class ProtocolAttentionVectors(Enum):
 #   numbers_attention=1,
 
 class ProtocolPatternFactory(AbstractPatternFactory):
+
   def create_pattern(self, pattern_name, ppp):
     _ppp = (ppp[0].lower(), ppp[1].lower(), ppp[2].lower())
     fp = FuzzyPattern(_ppp, pattern_name)
@@ -376,10 +378,14 @@ def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
+  else:
+    protocol.warn(ParserWarnings.org_name_not_found)
 
   tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
+  else:
+    protocol.warn(ParserWarnings.org_type_not_found)
   return ret
 
 

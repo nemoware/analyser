@@ -1,7 +1,7 @@
 from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.dates import find_document_date, find_document_number
-from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue
+from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 
 from analyser.parsing import ParsingContext, AuditContext
@@ -74,19 +74,6 @@ class ContractAnlysingContext(ParsingContext):
     if self.pattern_factory is None:
       self.pattern_factory = ContractPatternFactory(embedder)
 
-  def analyze_contract(self, contract_text):
-    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-
-    self._reset_context()
-    # create DOC
-    contract = ContractDocument(contract_text)
-    contract.parse()
-
-    self._logstep("parsing document 👞 and detecting document high-level structure")
-    contract.embedd_tokens(self.pattern_factory.embedder)
-
-    return self.find_attributes(contract)
-
   def find_org_date_number(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
     """
     phase 1, before embedding TF, GPU, and things
@@ -97,6 +84,12 @@ class ContractAnlysingContext(ParsingContext):
     contract.agents_tags = find_org_names(contract, max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
+
+    if not contract.number:
+      contract.warn(ParserWarnings.number_not_found)
+    if not contract.date:
+      contract.warn(ParserWarnings.date_not_found)
+
     return contract
 
   def find_attributes(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
@@ -119,10 +112,14 @@ class ContractAnlysingContext(ParsingContext):
 
     # -------------------------------values
     contract.contract_values = self.find_contract_value_NEW(contract)
+    if not contract.contract_values:
+      contract.warn(ParserWarnings.contract_value_not_found)
     self._logstep("finding contract values")
 
     # -------------------------------subject
     contract.subjects = self.find_contract_subject_region(contract)
+    if not contract.subjects:
+      contract.warn(ParserWarnings.contract_subject_not_found)
     self._logstep("detecting contract subject")
     # --------------------------------------
 
@@ -172,6 +169,7 @@ class ContractAnlysingContext(ParsingContext):
       subject_subdoc = subj_section.body
       denominator = 1
     else:
+      doc.warn(ParserWarnings.subject_section_not_found)
       self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
       subject_subdoc = doc.subdoc_slice(slice(0, 1500))
       denominator = 0.7
@@ -240,7 +238,10 @@ class ContractAnlysingContext(ParsingContext):
 
         if not values_list:
           # search in next section
-          self.warning(f'В разделе "{_section_name}" ["{section}"] стоимость сделки не найдена!')
+          msg = f'В разделе "{_section_name}" ["{section}"] стоимость сделки не найдена!'
+          contract.warn(ParserWarnings.value_section_not_found,
+                        f'В разделе "{_section_name}" стоимость сделки не найдена')
+          self.warning(msg)
 
         else:
           # decrease confidence:
@@ -311,11 +312,6 @@ def max_confident(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.integral_sorting_confidence())
 
 
-def max_confident_tag(vals: List[SemanticTag]) -> SemanticTag:
-  warnings.warn("use max_confident_tags", DeprecationWarning)
-  return max(vals, key=lambda a: a.confidence)
-
-
 def max_value(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.value.value)
 
@@ -340,18 +336,3 @@ def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vect
   confidence_region = subject_attention_vector[span[0]:span[1]]
   confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
   return span, confidence, paragraph_attention_vector
-
-
-def find_all_value_sign_currency(doc: LegalDocument) -> List[ContractValue]:
-  warnings.warn("use find_value_sign_currency ", DeprecationWarning)
-  """
-  TODO: rename
-  :param doc: LegalDocument
-  :param attention_vector: List[float]
-  :return: List[ProbableValue]
-  """
-  spans = [m for m in doc.tokens_map.finditer(transaction_values_re)]
-  return [extract_sum_sign_currency(doc, span) for span in spans]
-
-
-extract_all_contraints_from_sr_2 = find_all_value_sign_currency  # alias for compatibility, todo: remove it

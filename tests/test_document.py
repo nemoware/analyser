@@ -54,8 +54,11 @@ class LegalDocumentTestCase(unittest.TestCase):
     charter = CharterDocument().parse()
     charter += legal_doc
     charter_parser = CharterParser(emb, emb)
+    actx = AuditContext()
+    charter_parser.find_org_date_number(charter, actx)
+    charter_parser.find_attributes(charter, actx)
 
-    charter_parser.analyse(charter)
+    print(charter.warnings)
     # ctx.analyze_charter("1. ЮРИДИЧЕСКИЙ содержание 4.")
     # ctx._logstep("analyze_charter")
 

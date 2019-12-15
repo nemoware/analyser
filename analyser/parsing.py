@@ -16,7 +16,6 @@ class ParsingSimpleContext:
 
     self.warnings = []
 
-
   def _reset_context(self):
     self.warnings = []
     self.__step = 0
@@ -45,7 +44,7 @@ class ParsingSimpleContext:
 class AuditContext:
 
   def __init__(self):
-    self.audit_subsidiary_name:str=None
+    self.audit_subsidiary_name: str = None
 
 
 class ParsingContext(ParsingSimpleContext):
@@ -56,7 +55,7 @@ class ParsingContext(ParsingSimpleContext):
   def init_embedders(self, embedder, elmo_embedder_default):
     raise NotImplementedError()
 
-  def find_org_date_number(self, document: LegalDocument, ctx:AuditContext) -> LegalDocument:
+  def find_org_date_number(self, document: LegalDocument, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding TF, GPU, and things
     searching for attributes required for filtering
