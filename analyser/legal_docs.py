@@ -36,7 +36,10 @@ class ParserWarnings(Enum):
   value_section_not_found = 7,
   contract_value_not_found = 8,
   subject_section_not_found = 6,
-  contract_subject_not_found = 9
+  contract_subject_not_found = 9,
+  protocol_agenda_not_found = 10,
+
+  boring_agenda_questions = 11
 
 
 class Paragraph:
