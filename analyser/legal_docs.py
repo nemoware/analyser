@@ -31,9 +31,12 @@ class ParserWarnings(Enum):
   org_name_not_found = 1,
   org_type_not_found = 2,
   org_struct_level_not_found = 3,
-  date_not_found=4
-  number_not_found = 5
-
+  date_not_found = 4
+  number_not_found = 5,
+  value_section_not_found = 7,
+  contract_value_not_found = 8,
+  subject_section_not_found = 6,
+  contract_subject_not_found = 9
 
 
 class Paragraph:

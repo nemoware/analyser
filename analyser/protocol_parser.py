@@ -144,14 +144,16 @@ class ProtocolParser(ParsingContext):
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
 
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
-    if not doc.org_level:
-      doc.warn(ParserWarnings.org_struct_level_not_found)
+
 
     doc.org_tags = list(find_protocol_org(doc))
     doc.date = find_document_date(doc)
+
     if not doc.date:
       doc.warn(ParserWarnings.date_not_found)
 
+    if not doc.org_level:
+      doc.warn(ParserWarnings.org_struct_level_not_found)
     return doc
 
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
