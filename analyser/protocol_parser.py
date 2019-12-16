@@ -14,7 +14,10 @@ from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from tf_support.embedder_elmo import ElmoEmbedder
-
+from analyser.documents import sentences_attention_to_words
+from analyser.dates import   document_number_c
+from analyser.contract_agents import complete_re as agents_re
+from analyser.transaction_values import complete_re as values_re
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
 
@@ -245,16 +248,15 @@ class ProtocolParser(ParsingContext):
 
   def find_protocol_sections_edges(self, distances_per_pattern_dict):
 
-    patterns = ['deal_approval_', 'footers_', 'question_']
+    patterns = ['footers_', 'deal_approval_', 'question_']
     vv_ = []
     for p in patterns:
       v_ = max_exclusive_pattern_by_prefix(distances_per_pattern_dict, p)
-      v_ = relu(v_, 0.5)
+      v_ = relu(v_, 0.55)
       vv_.append(v_)
 
     v_sections_attention = sum_probabilities(vv_)
-
-    v_sections_attention = relu(v_sections_attention, 0.7)
+    v_sections_attention = best_above(v_sections_attention, 0.55)
     return v_sections_attention
 
   def _get_value_attention_vector(self, doc: LegalDocument):
@@ -273,60 +275,48 @@ class ProtocolParser(ParsingContext):
     return s_value_attention_vector
 
   def find_question_decision_sections(self, doc: ProtocolDocument):
-    wa = doc.distances_per_pattern_dict  # words attention
-    v_sections_attention = self.find_protocol_sections_edges(doc.distances_per_sentence_pattern_dict)
+    wa = doc.distances_per_pattern_dict  # words attention #shortcut
+    #-----
 
-    # --------------
-    question_spans_sent = spans_between_non_zero_attention(v_sections_attention)
-    question_spans_words = doc.sentence_map.remap_slices(question_spans_sent, doc.tokens_map)
-    # --------------
-
-    # *More* attention to spans having votes
-    _spans_having_votes = list(self.collect_spans_having_votes(question_spans_sent, doc.sentence_map))
-
-    spans_having_votes_words = doc.sentence_map.remap_slices(_spans_having_votes, doc.tokens_map)
-    # questions_attention =  spans_to_attention(question_spans_words, len(doc))
-    wa[ProtocolAV.bin_votes_attention.name] = spans_to_attention(spans_having_votes_words, len(doc))
-
-    # v_deal_approval_words = sentence_map.remap_spans(v_deal_approval,  doc.tokens_map )
+    # DEAL APPROVAL SENTENCES
     v_deal_approval = max_exclusive_pattern_by_prefix(doc.distances_per_sentence_pattern_dict, 'deal_approval_')
-    _spans, v_deal_approval_words_attention = sentences_attention_to_words(v_deal_approval, doc.sentence_map,
-                                                                           doc.tokens_map)
+    _spans, deal_approval_av = sentences_attention_to_words(v_deal_approval, doc.sentence_map,
+                                                            doc.tokens_map)
+    deal_approval_relu_av = best_above(deal_approval_av, 0.5)
 
-    ## value attention
+    # VOTES
+    votes_av = doc.tokens_map.regex_attention(protocol_votes_re)
 
-    wa[ProtocolAV.relu_value_attention_vector.name] = self._get_value_attention_vector(doc)
-    wa[ProtocolAV.relu_deal_approval.name] = relu(v_deal_approval_words_attention, 0.5)
+    # DOC NUMBERS
+    numbers_av = doc.tokens_map.regex_attention(document_number_c)
 
-    _value_attention_vector = sum_probabilities(
-      [wa[ProtocolAV.relu_value_attention_vector.name],
-       wa[ProtocolAV.relu_deal_approval.name],
-       wa[ProtocolAV.bin_votes_attention.name] / 3.0])
+    # DOC AGENTS orgs
+    agents_av = doc.tokens_map.regex_attention(agents_re)
 
-    wa[ProtocolAV.relu_value_attention_vector.name] = relu(_value_attention_vector, 0.5)
-    # // words_spans_having_votes = doc.sentence_map.remap_slices(spans_having_votes, doc.tokens_map)
+    # DOC MARGIN VALUES
+    margin_values_av = self._get_value_attention_vector(doc)
+    margin_values_v = doc.tokens_map.regex_attention(values_re)
+    margin_values_v *= margin_values_av
+    wa[ProtocolAV.relu_value_attention_vector.name]=margin_values_av
 
-    values: List[ContractValue] = find_value_sign_currency_attention(doc,
-                                                                     wa[ProtocolAV.relu_value_attention_vector.name])
+    #-----
+    combined_av = sum_probabilities([
+      deal_approval_relu_av,
+      margin_values_v,
+      agents_av / 2,
+      votes_av / 2,
+      numbers_av / 2])
 
-    numbers_attention = np.zeros(len(doc.tokens_map))
-    numbers_confidence = np.zeros(len(doc.tokens_map))
-    for v in values:
-      numbers_confidence[v.value.as_slice()] += v.value.confidence
-      for t in v.as_list():
-        numbers_attention[t.as_slice()] = 1
-    wa[ProtocolAV.digits_attention.name] = numbers_attention
+    combined_av_norm = best_above(combined_av, 0.5)
+    #--------------
 
-    block_confidence = sum_probabilities([
-      wa[ProtocolAV.digits_attention.name],
-      wa[ProtocolAV.relu_deal_approval.name],
-      wa[ProtocolAV.bin_votes_attention.name] / 5])
+    protocol_sections_edges = self.find_protocol_sections_edges( doc.distances_per_sentence_pattern_dict)
+    _question_spans_sent = spans_between_non_zero_attention(protocol_sections_edges)
+    question_spans_words = doc.sentence_map.remap_slices(_question_spans_sent, doc.tokens_map)
+    agenda_questions = list(find_confident_spans(question_spans_words, combined_av_norm, 'agenda_item', 0.6))
 
-    return list(find_confident_spans(question_spans_words, block_confidence, 'agenda_item', 0.6))
+    return agenda_questions
 
-
-# class ProtocolAttentionVectors(Enum):
-#   numbers_attention=1,
 
 class ProtocolPatternFactory(AbstractPatternFactory):
 
