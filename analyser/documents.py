@@ -7,6 +7,7 @@ import warnings
 import nltk
 
 from analyser.hyperparams import models_path
+from analyser.ml_tools import spans_to_attention
 from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
@@ -36,6 +37,10 @@ class TextMap:
       self.map.append((span[0] + off, span[1] + off))
 
     return self
+
+  def regex_attention(self, regex):
+    matches = list(self.finditer(regex))
+    return spans_to_attention(matches, len(self))
 
   def set_token(self, index, new_token):
     assert len(new_token) == self.map[index][1] - self.map[index][0]
@@ -147,7 +152,6 @@ class TextMap:
     char_range = self.char_range(span)
     target_range = target_map.token_indices_by_char_range(char_range)
     return target_range
-
 
   def remap_slices(self, spans, target_map: 'TextMap'):
     assert self._full_text == target_map._full_text

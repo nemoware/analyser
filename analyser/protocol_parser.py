@@ -91,12 +91,12 @@ class ProtocolParser(ParsingContext):
     ['agenda_start_2', 'Повестка дня'],
 
     ['deal_approval_1', 'одобрить совершение сделки'],
-    ['deal_approval_1.1', 'одобрить сделку'],
-    ['deal_approval_2', 'дать согласие на заключение договора'],
-    ['deal_approval_3', 'принять решение о совершении сделки'],
-    ['deal_approval_3.1', 'принять решение о совершении крупной сделки'],
-    ['deal_approval_4', 'заключить договор аренды'],
-    ['deal_approval_4.1', 'Одобрить сделку, связанную с заключением Дополнительного соглашения'],
+    ['deal_approval_2', 'одобрить сделку'],
+    ['deal_approval_3', 'дать согласие на заключение договора'],
+    ['deal_approval_4', 'принять решение о совершении сделки'],
+    ['deal_approval_5', 'принять решение о совершении крупной сделки'],
+    ['deal_approval_6', 'заключить договор аренды'],
+    ['deal_approval_7', 'Одобрить сделку, связанную с заключением Дополнительного соглашения'],
 
 
     ['question_1', 'По вопросу № 0'],
@@ -229,6 +229,7 @@ class ProtocolParser(ParsingContext):
     return values
 
   def collect_spans_having_votes(self, segments, textmap):
+    warnings.warn("use TextMap.regex_attention", DeprecationWarning)
     """
     search for votes in each document segment
     collect only
@@ -241,6 +242,7 @@ class ProtocolParser(ParsingContext):
       protocol_votes = list(subdoc.finditer(protocol_votes_re))
       if protocol_votes:
         yield span
+
 
   def find_protocol_sections_edges(self, distances_per_pattern_dict):
 
@@ -285,7 +287,7 @@ class ProtocolParser(ParsingContext):
 
     spans_having_votes_words = doc.sentence_map.remap_slices(_spans_having_votes, doc.tokens_map)
     # questions_attention =  spans_to_attention(question_spans_words, len(doc))
-    wa[ProtocolAV.bin_votes_attention] = spans_to_attention(spans_having_votes_words, len(doc))
+    wa[ProtocolAV.bin_votes_attention.name] = spans_to_attention(spans_having_votes_words, len(doc))
 
     # v_deal_approval_words = sentence_map.remap_spans(v_deal_approval,  doc.tokens_map )
     v_deal_approval = max_exclusive_pattern_by_prefix(doc.distances_per_sentence_pattern_dict, 'deal_approval_')
