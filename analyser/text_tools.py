@@ -361,7 +361,7 @@ def unquote(s):
 
 
 def find_best_sentence_end(txt) -> int:
-  delimiters_prio = ['\n', '.!?', ';', ',', "-—", ')', ':', ' ']
+  delimiters_prio = ['\n', '•', '.!?', ';', ',', "-—", ')', ':', ' ']
 
   for delimiters in delimiters_prio:
 
