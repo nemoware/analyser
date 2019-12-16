@@ -52,9 +52,18 @@ def find_date(text: str) -> ([], datetime.datetime):
   return None, None
 
 
+def get_doc_head(doc: LegalDocument) -> LegalDocument:
+  if doc.paragraphs:
+    headtag: SemanticTag = doc.paragraphs[0].as_combination()
+    print(len(headtag))
+    if len(headtag) > 50:
+      return doc[headtag.as_slice()]
+  #fallback
+  return doc[0:HyperParameters.protocol_caption_max_size_words]
+
+
 def find_document_number(doc: LegalDocument, tagname='number') -> SemanticTag or None:
-  head: LegalDocument = doc[0:HyperParameters.protocol_caption_max_size_words]
-  # TODO: take first paragraph. If it is short, take head.
+  head: LegalDocument = get_doc_head(doc)
 
   try:
     findings = re.finditer(document_number_c, head.text)
