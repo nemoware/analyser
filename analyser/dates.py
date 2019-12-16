@@ -69,6 +69,23 @@ def find_document_number(doc: LegalDocument, tagname='number') -> SemanticTag or
   return None
 
 
+def find_document_number_in_subdoc(doc: LegalDocument, tagname='number', parent=None) -> [SemanticTag]:
+  ret = []
+  findings = re.finditer(document_number_c, doc.text)
+  if findings:
+    for finding in findings:
+      _number = finding['number']
+      if document_number_valid_c.match(_number):
+        span = doc.tokens_map.token_indices_by_char_range(finding.span())
+        tag = SemanticTag(tagname, _number, span, parent=parent)
+        tag.offset(doc.start)
+        ret.append(tag)
+      else:
+        print('invalid', _number)
+
+  return ret
+
+
 def parse_date(finding) -> ([], datetime.datetime):
   month = _get_month_number(finding["month"])
   year = int(finding['year'])

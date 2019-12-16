@@ -2,10 +2,13 @@ import re
 from enum import Enum
 from typing import Iterator
 
+from analyser.contract_agents import complete_re as agents_re
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
 from analyser.contract_parser import find_value_sign_currency_attention
-from analyser.dates import find_document_date
-from analyser.documents import sentences_attention_to_words, TextMap
+from analyser.dates import document_number_c
+from analyser.dates import find_document_date, find_document_number_in_subdoc
+from analyser.documents import TextMap
+from analyser.documents import sentences_attention_to_words
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext
@@ -13,11 +16,9 @@ from analyser.patterns import *
 from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
-from tf_support.embedder_elmo import ElmoEmbedder
-from analyser.documents import sentences_attention_to_words
-from analyser.dates import   document_number_c
-from analyser.contract_agents import complete_re as agents_re
 from analyser.transaction_values import complete_re as values_re
+from tf_support.embedder_elmo import ElmoEmbedder
+
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
 
@@ -55,6 +56,7 @@ class ProtocolDocument4(LegalDocument):
     self.org_tags: [SemanticTag] = []
     self.agenda_questions: [SemanticTag] = []
     self.margin_values: [ContractValue] = []
+    self.contract_numbers: [SemanticTag] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
@@ -68,6 +70,7 @@ class ProtocolDocument4(LegalDocument):
     tags += self.org_level
     tags += self.agents_tags
     tags += self.agenda_questions
+    tags += self.contract_numbers
     for mv in self.margin_values:
       tags += mv.as_list()
 
@@ -175,6 +178,7 @@ class ProtocolParser(ParsingContext):
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_margin_values(doc)
+    doc.contract_numbers=self.find_contract_numbers(doc)
     doc.agents_tags = list(self.find_agents_in_all_sections(doc, doc.agenda_questions, ctx.audit_subsidiary_name))
 
     self.validate(doc)
@@ -183,7 +187,8 @@ class ProtocolParser(ParsingContext):
   def validate(self, doc):
     if not doc.agenda_questions:
       doc.warn(ParserWarnings.protocol_agenda_not_found)
-    if not doc.margin_values and not doc.agents_tags:
+
+    if not doc.margin_values and not doc.agents_tags and not doc.contract_numbers:
       doc.warn(ParserWarnings.boring_agenda_questions)
 
   def find_agents_in_all_sections(self,
@@ -231,6 +236,20 @@ class ProtocolParser(ParsingContext):
 
     return values
 
+  def find_contract_numbers(self, doc) -> [ContractValue]:
+
+    values = []
+    for agenda_question_tag in doc.agenda_questions:
+      subdoc = doc[agenda_question_tag.as_slice()]
+      # print(subdoc.text)
+      numbers = find_document_number_in_subdoc(subdoc, tagname='number', parent=agenda_question_tag)
+
+      for k, v in enumerate(numbers):
+        # v.parent = agenda_question_tag
+        v.kind = SemanticTag.number_key(v.kind, k)
+      values += numbers
+    return values
+
   def collect_spans_having_votes(self, segments, textmap):
     warnings.warn("use TextMap.regex_attention", DeprecationWarning)
     """
@@ -276,7 +295,7 @@ class ProtocolParser(ParsingContext):
 
   def find_question_decision_sections(self, doc: ProtocolDocument):
     wa = doc.distances_per_pattern_dict  # words attention #shortcut
-    #-----
+    # -----
 
     # DEAL APPROVAL SENTENCES
     v_deal_approval = max_exclusive_pattern_by_prefix(doc.distances_per_sentence_pattern_dict, 'deal_approval_')
@@ -297,9 +316,9 @@ class ProtocolParser(ParsingContext):
     margin_values_av = self._get_value_attention_vector(doc)
     margin_values_v = doc.tokens_map.regex_attention(values_re)
     margin_values_v *= margin_values_av
-    wa[ProtocolAV.relu_value_attention_vector.name]=margin_values_av
+    wa[ProtocolAV.relu_value_attention_vector.name] = margin_values_av
 
-    #-----
+    # -----
     combined_av = sum_probabilities([
       deal_approval_relu_av,
       margin_values_v,
@@ -308,9 +327,9 @@ class ProtocolParser(ParsingContext):
       numbers_av / 2])
 
     combined_av_norm = best_above(combined_av, 0.5)
-    #--------------
+    # --------------
 
-    protocol_sections_edges = self.find_protocol_sections_edges( doc.distances_per_sentence_pattern_dict)
+    protocol_sections_edges = self.find_protocol_sections_edges(doc.distances_per_sentence_pattern_dict)
     _question_spans_sent = spans_between_non_zero_attention(protocol_sections_edges)
     question_spans_words = doc.sentence_map.remap_slices(_question_spans_sent, doc.tokens_map)
     agenda_questions = list(find_confident_spans(question_spans_words, combined_av_norm, 'agenda_item', 0.6))
