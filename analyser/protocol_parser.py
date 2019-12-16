@@ -9,20 +9,21 @@ from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import *
 from analyser.structures import ORG_LEVELS_names
-from analyser.text_normalize import r_group, ru_cap, r_quoted
+from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from tf_support.embedder_elmo import ElmoEmbedder
 
 VALUE_ATTENTION_VECTOR_NAME = 'relu_value_attention_vector'
 
 something = r'(\s*.{1,100}\s*)'
-itog1 = r_group(r_group(ru_cap('итоги голосования') + '|' + ru_cap('результаты голосования')) + r"[:\n]?")
+itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
 
-r_votes_za = r_group(r_quoted('за'))
-r_votes_pr = r_group(r_quoted('против') + something)
-r_votes_vo = r_group(r_quoted('воздержался') + something)
+_number_of_votes = r'(\s*[-: ]\s*)([0-9]|(нет)|[_]{1,10})[.;]*\s*'
+r_votes_za = r_group(r_quoted('за') + _number_of_votes)
+r_votes_pr = r_group(r_quoted('против') + _number_of_votes)
+r_votes_vo = r_group(r_quoted('воздержался') + _number_of_votes)
 
-protocol_votes_ = r_group(itog1 + something) + r_group(r_votes_za + something + r_votes_pr + something + r_votes_vo)
+protocol_votes_ = r_group(itog1 + something) + r_group(r_votes_za + r_votes_pr + r_votes_vo)
 protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 
@@ -158,7 +159,7 @@ class ProtocolParser(ParsingContext):
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
 
     if doc.sentences_embeddings is None or doc.embeddings is None:
-      self.ebmedd(doc) # lazy embedding
+      self.ebmedd(doc)  # lazy embedding
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     if not doc.agenda_questions:
