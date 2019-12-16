@@ -615,6 +615,19 @@ def spans_between_non_zero_attention(attention_v: FixedVector):
   return q_sent_spans
 
 
+def best_above(v:FixedVector, relu_threshold=0.5)->FixedVector:
+  x = relu(v, relu_threshold)
+  _nonzeros = np.nonzero(x)
+
+  if len(_nonzeros[0]) > 0:
+    _min = np.min(x[_nonzeros])
+    _max = max(x)
+    _med = (_min + _max) / 2
+    return relu(x, _med)
+  else:
+    return x
+
+
 def spans_to_attention(spans: [[int]], length: int) -> FixedVector:
   selection = np.zeros(length)
   for span in list(spans):

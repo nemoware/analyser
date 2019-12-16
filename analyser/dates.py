@@ -54,6 +54,7 @@ def find_date(text: str) -> ([], datetime.datetime):
 
 def find_document_number(doc: LegalDocument, tagname='number') -> SemanticTag or None:
   head: LegalDocument = doc[0:HyperParameters.protocol_caption_max_size_words]
+  # TODO: take first paragraph. If it is short, take head.
 
   try:
     findings = re.finditer(document_number_c, head.text)
