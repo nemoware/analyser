@@ -209,6 +209,19 @@ class TextMap:
   text = property(get_text)
 
 
+def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
+  q_sent_indices = np.nonzero(attention_v)[0]
+  w_spans_attention = np.zeros(len(words_map))
+  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
+
+  w_spans = []
+  for char_range, a in char_ranges:
+    words_range = words_map.token_indices_by_char_range(char_range)
+    w_spans.append(words_range)
+    w_spans_attention[words_range[0]:words_range[1]] += a
+
+  return w_spans, w_spans_attention
+
 class CaseNormalizer:
   __shared_state = {}  ## see http://code.activestate.com/recipes/66531/
 
