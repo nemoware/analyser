@@ -8,6 +8,32 @@ from integration.db import get_mongodb_connection
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
 
 
+def add_link_if_not_exists(doc_id1, doc_id2):
+    db = get_mongodb_connection()
+    link_collection = db['links']
+
+    query = {
+        "$or": [
+            {
+                "$and": [
+                        {'fromId': doc_id1},
+                        {"told": doc_id2}
+                     ]
+            },
+            {
+                "$and": [
+                    {'fromId': doc_id2},
+                    {"told": doc_id1}
+                ]
+            }
+        ]
+    }
+
+    link = link_collection.find(query)
+    if link is None:
+        link_collection.insert_one({"fromId": doc_id1, "toId": doc_id2})
+
+
 def extract_text(span, words, text):
     first_idx = words[span[0]][0]
     last_idx = words[span[1]][0] - 1
@@ -33,7 +59,10 @@ def get_docs_by_audit_id(id: str, state, kind=None):
     }
 
     res = documents_collection.find(query).sort([("analysis.attributes.date.value", pymongo.ASCENDING)])
-    return res
+    docs = []
+    for doc in res:
+        docs.append(doc)
+    return docs
 
 
 def save_violations(audit, violations):
@@ -85,10 +114,12 @@ def get_charter_diapasons(charter):
             if subject_map is None:
                 subject_map = {}
                 subjects[subject_type] = subject_map
+            if subject_map.get(value["parent"]) is None:
+                subject_map[value["parent"]] = {"min": 0, "max": np.inf, "competence_attr_name": key}
             constraints = get_constraints_rub(key, charter_attrs)
+            if len(constraints) == 0:
+                min_constraint = 0
             for constraint in constraints:
-                if subject_map.get(value["parent"]) is None:
-                    subject_map[value["parent"]] = {"min": 0, "max": np.inf, "competence_attr_name": key}
                 if constraint["sign"] > 0:
                     if subject_map[value["parent"]]["min"] == 0:
                         subject_map[value["parent"]]["min"] = constraint["value"]
@@ -136,7 +167,7 @@ def find_protocol(contract, protocols, org_level, audit):
                             clean_protocol_org = clean_name(protocol_value["value"])
                             clean_contract_org = clean_name(contract_value["value"])
                             distance = textdistance.levenshtein.normalized_distance(clean_contract_org, clean_protocol_org)
-                            if distance > 0.9:
+                            if distance < 0.1:
                                 result.append(protocol)
     if len(result) == 0:
         return None
@@ -155,6 +186,7 @@ def check_contract(contract, charters, protocols, audit):
         charter_attrs = get_attrs(charter)
         if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
             eligible_charter = charter
+            # add_link_if_not_exists(contract["_id"], eligible_charter["_id"])
             break
 
     if eligible_charter is None:
@@ -233,8 +265,8 @@ def check_contract(contract, charters, protocols, audit):
                 else:
                     for key, value in eligible_protocol_attrs.items():
                         if key.endswith("/value"):
-                            converted_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]["value"]})
-                            if min_constraint <= converted_value["value"] < contract_value["value"]:
+                            protocol_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]["value"]})
+                            if min_constraint <= protocol_value["value"] < contract_value["value"]:
                                 violations.append(create_violation(
                                     {"id": contract["_id"], "number": contract_number,
                                      "type": contract["parse"]["documentType"]},
@@ -249,7 +281,7 @@ def check_contract(contract, charters, protocols, audit):
                                                   "currency": contract_attrs["sign_value_currency/currency"]["value"]},
                                      "protocol": {
                                          "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"],
-                                         "value": converted_value["original_value"], "currency": converted_value["original_currency"]}}))
+                                         "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
                                 break
             else:
                 if need_protocol_check:
