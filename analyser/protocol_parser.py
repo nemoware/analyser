@@ -326,13 +326,13 @@ class ProtocolParser(ParsingContext):
       votes_av / 2,
       numbers_av / 2])
 
-    combined_av_norm = best_above(combined_av, 0.5)
+    combined_av_norm = combined_av = best_above(combined_av, 0.2)
     # --------------
 
     protocol_sections_edges = self.find_protocol_sections_edges(doc.distances_per_sentence_pattern_dict)
     _question_spans_sent = spans_between_non_zero_attention(protocol_sections_edges)
     question_spans_words = doc.sentence_map.remap_slices(_question_spans_sent, doc.tokens_map)
-    agenda_questions = list(find_confident_spans(question_spans_words, combined_av_norm, 'agenda_item', 0.6))
+    agenda_questions = list(find_confident_spans(question_spans_words, combined_av_norm, 'agenda_item', 0.5))
 
     return agenda_questions
 
