@@ -47,6 +47,9 @@ class Paragraph:
     self.header: SemanticTag = header
     self.body: SemanticTag = body
 
+  def as_combination(self) -> SemanticTag:
+    return SemanticTag(self.header.kind + '-' + self.body.kind, None, span= (self.header.span[0], self.body.span[1]))
+
 
 class LegalDocument:
 
