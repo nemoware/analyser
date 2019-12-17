@@ -7,6 +7,7 @@ import warnings
 import nltk
 
 from analyser.hyperparams import models_path
+from analyser.ml_tools import spans_to_attention
 from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
@@ -36,6 +37,10 @@ class TextMap:
       self.map.append((span[0] + off, span[1] + off))
 
     return self
+
+  def regex_attention(self, regex):
+    matches = list(self.finditer(regex))
+    return spans_to_attention(matches, len(self))
 
   def set_token(self, index, new_token):
     assert len(new_token) == self.map[index][1] - self.map[index][0]
@@ -148,7 +153,6 @@ class TextMap:
     target_range = target_map.token_indices_by_char_range(char_range)
     return target_range
 
-
   def remap_slices(self, spans, target_map: 'TextMap'):
     assert self._full_text == target_map._full_text
     ret = []
@@ -204,6 +208,19 @@ class TextMap:
   tokens = property(get_tokens)
   text = property(get_text)
 
+
+def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
+  q_sent_indices = np.nonzero(attention_v)[0]
+  w_spans_attention = np.zeros(len(words_map))
+  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
+
+  w_spans = []
+  for char_range, a in char_ranges:
+    words_range = words_map.token_indices_by_char_range(char_range)
+    w_spans.append(words_range)
+    w_spans_attention[words_range[0]:words_range[1]] += a
+
+  return w_spans, w_spans_attention
 
 class CaseNormalizer:
   __shared_state = {}  ## see http://code.activestate.com/recipes/66531/

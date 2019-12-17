@@ -6,7 +6,6 @@ import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
 
-from analyser.documents import TextMap
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
 
@@ -384,7 +383,7 @@ class SemanticTag:
     self.confidence = 1.0
 
   @staticmethod
-  def number_key( base, number)->str:
+  def number_key(base, number) -> str:
     return f'{base}-{number}'
 
   def get_parent(self) -> str or None:
@@ -414,9 +413,9 @@ class SemanticTag:
         return s
 
   @staticmethod
-  def find_by_kind_and_value(lst: List['SemanticTag'], kind: str, val:str) -> 'SemanticTag':
+  def find_by_kind_and_value(lst: List['SemanticTag'], kind: str, val: str) -> 'SemanticTag':
     for s in lst:
-      if s.kind == kind and s.value==val:
+      if s.kind == kind and s.value == val:
         return s
 
   def offset(self, span_add: int):
@@ -430,9 +429,6 @@ class SemanticTag:
 
   def __str__(self):
     return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'
-
-  def quote(self, tm: TextMap):
-    return tm.text_range(self.span)
 
   slice = property(as_slice)
 
@@ -619,26 +615,25 @@ def spans_between_non_zero_attention(attention_v: FixedVector):
   return q_sent_spans
 
 
+def best_above(v:FixedVector, relu_threshold=0.5)->FixedVector:
+  x = relu(v, relu_threshold)
+  _nonzeros = np.nonzero(x)
+
+  if len(_nonzeros[0]) > 0:
+    _min = np.min(x[_nonzeros])
+    _max = max(x)
+    _med = (_min + _max) / 2
+    return relu(x, _med)
+  else:
+    return x
+
+
 def spans_to_attention(spans: [[int]], length: int) -> FixedVector:
   selection = np.zeros(length)
   for span in list(spans):
     selection[span[0]:span[1]] += 1
 
   return selection
-
-
-def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
-  q_sent_indices = np.nonzero(attention_v)[0]
-  w_spans_attention = np.zeros(len(words_map))
-  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
-
-  w_spans = []
-  for char_range, a in char_ranges:
-    words_range = words_map.token_indices_by_char_range(char_range)
-    w_spans.append(words_range)
-    w_spans_attention[words_range[0]:words_range[1]] += a
-
-  return w_spans, w_spans_attention
 
 
 def _find_max_xy_in_matrix(vals):
@@ -675,7 +670,7 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
     if maxval > threshold:
       pairs.append(max_pair)
 
-    vals[:,pattern_index] = -1
-    vals[header_index,:] = -1
+    vals[:, pattern_index] = -1
+    vals[header_index, :] = -1
 
   return pairs

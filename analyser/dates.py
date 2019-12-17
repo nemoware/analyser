@@ -54,6 +54,7 @@ def find_date(text: str) -> ([], datetime.datetime):
 
 def find_document_number(doc: LegalDocument, tagname='number') -> SemanticTag or None:
   head: LegalDocument = doc[0:HyperParameters.protocol_caption_max_size_words]
+  # TODO: take first paragraph. If it is short, take head.
 
   try:
     findings = re.finditer(document_number_c, head.text)
@@ -66,6 +67,23 @@ def find_document_number(doc: LegalDocument, tagname='number') -> SemanticTag or
   except:
     pass
   return None
+
+
+def find_document_number_in_subdoc(doc: LegalDocument, tagname='number', parent=None) -> [SemanticTag]:
+  ret = []
+  findings = re.finditer(document_number_c, doc.text)
+  if findings:
+    for finding in findings:
+      _number = finding['number']
+      if document_number_valid_c.match(_number):
+        span = doc.tokens_map.token_indices_by_char_range(finding.span())
+        tag = SemanticTag(tagname, _number, span, parent=parent)
+        tag.offset(doc.start)
+        ret.append(tag)
+      else:
+        print('invalid', _number)
+
+  return ret
 
 
 def parse_date(finding) -> ([], datetime.datetime):
