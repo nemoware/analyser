@@ -51,6 +51,9 @@ class TextMap:
       yield self.token_indices_by_char_range(m.span(0))
 
   def token_index_by_char(self, _char_index: int) -> int:
+    if not self.map: return -1
+
+    local_off = self.map[0][0]-self._offset_chars
     """
     [span 0] out of span [span 1] [span 2]
 
@@ -58,7 +61,7 @@ class TextMap:
     :return:
     """
 
-    char_index = _char_index + self._offset_chars
+    char_index =local_off+ _char_index + self._offset_chars
     for span_index in range(len(self.map)):
       span = self.map[span_index]
       if char_index < span[1]:  # span end
@@ -206,7 +209,7 @@ class TextMap:
     ]
 
   tokens = property(get_tokens)
-  text = property(get_text)
+  text = property(get_text, None)
 
 
 def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):

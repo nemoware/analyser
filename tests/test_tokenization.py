@@ -11,7 +11,7 @@ import numpy as np
 from nltk import TreebankWordTokenizer
 
 from analyser.documents import TextMap, span_tokenize
-from analyser.legal_docs import   LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
@@ -166,6 +166,34 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(tm.tokens[0], '1.')
     self.assertEqual(tm.tokens[1], 'этилен')
 
+  def test_slice_start_from_space(self):
+    offff=20
+    txt = ' ' * offff + '''основании Устава, с одной стороны, и Фонд «Благо»'''
+    tm = TextMap(txt)
+    print(tm.map[0])
+    print(tm.tokens[11])
+    print(tm.map[11])
+    # print(f'[{doc.tokens_map.text}]')
+    print(f'[{tm.text}]')
+
+    print(len(tm))
+    tm_sliced = tm.slice(slice(0, len(tm)))
+    print('span-0')
+    print(tm.map[0])
+    print(tm_sliced.map[0])
+
+    self.assertEqual(len(tm), len(tm_sliced))
+    self.assertEqual(tm.map[0], tm_sliced.map[0])
+
+    for c in range(len(tm.tokens[0])):
+      print(c)
+      self.assertEqual(0, tm.token_index_by_char(c))
+      self.assertEqual(0, tm_sliced.token_index_by_char(c))
+
+    self.assertEqual(tm.text, tm_sliced.text)
+
+    self.assertEqual(0, tm.token_index_by_char(0))
+
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -227,6 +255,23 @@ class TokenisationTestCase(unittest.TestCase):
     for i in range(6, 7):
       bounds = tm.sentence_at_index(i, return_delimiters=False)
       self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
+
+  def test_tokens_in_range_start_from_space(self):
+    text = ' мама'
+    tm = TextMap(text)
+
+    self.assertEqual(1, tm.map[0][0])
+    self.assertEqual(0, tm.token_index_by_char(0))
+
+    txt = ' ' * 20 + '''основании Устава, с одной стороны, и Фонд «Благо»'''
+    # tm = TextMap(txt)
+    doc = LegalDocument(txt).parse()
+    tm = doc.tokens_map
+    print(tm.map[0])
+    print(tm.tokens[11])
+    print(tm.map[11])
+    print(f'[{doc.tokens_map.text}]')
+    print(f'[{doc.text}]')
 
   def test_tokens_in_range(self):
     text = 'мама'
