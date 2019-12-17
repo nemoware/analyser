@@ -263,7 +263,7 @@ sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias
 # add comma before именуемое
 sub_alias_comma = (
   re.compile(
-    r_group(r'.[а-я»]\s', '_pref') +
+    r_group(r'.[»)]\s', '_pref') +
     r_group(r_alias_prefix + r_capitalized_ru, '_alias'),
     re.UNICODE | re.IGNORECASE),
   r'\g<_pref>, \g<_alias>'
