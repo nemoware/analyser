@@ -4,7 +4,7 @@
 import re
 import unittest
 
-from analyser.dates import _date_separator, find_date
+from analyser.dates import find_date, document_number_c
 
 
 class DatesTestCase(unittest.TestCase):
@@ -36,6 +36,13 @@ class DatesTestCase(unittest.TestCase):
     self.assertEqual(d, date_.day)
     self.assertEqual(m, date_.month)
     self.assertEqual(y, date_.year)
+
+  def test_find_doc_number(self):
+    t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №3 к Договору о выдаче банковских гарантий №3256-5/876 от 06-02-2013 год, заключенному между '''
+    findings = re.finditer(document_number_c, t)
+
+    self.assertEqual('№3 ', next(findings)[0])
+    self.assertEqual('№3256-5/876 ', next(findings)[0])
 
   def test_find_date_1(self):
     txt = '''
@@ -106,7 +113,6 @@ class DatesTestCase(unittest.TestCase):
 
     span, date_ = find_date(txt)
     self.validate_date(1, 12, 2019, date_)
-
 
 
 if __name__ == '__main__':
