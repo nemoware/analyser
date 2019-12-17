@@ -327,6 +327,88 @@ class TestContractAgentsSearch(unittest.TestCase):
     self._validate_org(tags, 1, (
       'Общество с ограниченной ответственностью', 'Научно-производственная компания «НефтеБурГаз»', 'Подрядчик'))
 
+  def test_find_agent_no_comma(self):
+    txt_full = '''Акционерное Общество «Газпромнефть – Терминал» именуемое в дальнейшем «Продавец», \
+      в лице генерального директора, действующего на основании Устава, с одной стороны, и ООО «Ромашка», \
+      именуемое в дальнейшем «Покупатель», в лице Петрова П. П., действующего на основании Устава, \
+      с другой стороны, совместно именуемые «Стороны», а по отдельности - «Сторона», заключили \
+      настоящий договор (далее по тексту – Договор) о нижеследующем'''
+    doc = LegalDocument(txt_full).parse()
+    print(doc.text)
+
+    txt = ''' с одной стороны, и ООО «Ромашка», \
+          именуемое в дальнейшем «Покупатель», в лице Петрова П. П., действующего на основании Устава, \
+          с другой стороны, совместно именуемые «Стороны», а по отдельности - «Сторона», заключили \
+          настоящий договор (далее по тексту – Договор) о нижеследующем'''
+
+    r = re.compile(r_quoted_name, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Ромашка', x['name'])
+
+    r = re.compile(r_type_and_name, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('ООО', x['type'])
+    self.assertEqual('Ромашка', x['name'])
+
+    r = re.compile(complete_re_str_org, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('ООО', x['type'])
+    self.assertEqual('Ромашка', x['name'])
+
+
+    r = re.compile(complete_re_str, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('ООО', x['type'])
+    self.assertEqual('Ромашка', x['name'])
+    self.assertEqual('Покупатель', x['alias'])
+    print('r_alias_prefix=', x['r_alias_prefix'])
+    print('_alias_ext=', x['_alias_ext'])
+
+    r = complete_re
+    x = r.search(n(txt))
+    self.assertEqual('ООО', x['type'])
+    self.assertEqual('Ромашка', x['name'])
+
+
+    tags: List[SemanticTag] = find_org_names(doc, decay_confidence=False)
+    self._validate_org(tags, 1, ('Акционерное общество', 'Газпромнефть-Терминал', 'Продавец'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Ромашка', 'Покупатель'))
+
+
+  def test_find_agent_ao(self):
+    txt = '''Акционерное Общество «Газпромнефть – Терминал» именуемое в дальнейшем «Продавец», \
+      в лице генерального директора, действующего на основании Устава, с одной стороны, и ООО «Ромашка»'''
+
+    r = re.compile(r_quoted_name, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Газпромнефть – Терминал', x['name'])
+
+    r = re.compile(r_type_and_name, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Акционерное Общество', x['type'])
+    self.assertEqual('Газпромнефть – Терминал', x['name'])
+
+    r = re.compile(complete_re_str_org, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Акционерное Общество', x['type'])
+    self.assertEqual('Газпромнефть – Терминал', x['name'])
+
+    r = re.compile(complete_re_str, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Акционерное Общество', x['type'])
+    self.assertEqual('Газпромнефть – Терминал', x['name'])
+
+    print('r_alias_prefix=', x['r_alias_prefix'])
+    print('_alias_ext=', x['_alias_ext'])
+
+    r = complete_re
+    x = r.search(n(txt))
+    self.assertEqual('Акционерное Общество', x['type'])
+    self.assertEqual('Газпромнефть – Терминал', x['name'])
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse(), decay_confidence=False)
+    self._validate_org(tags, 1, ('Акционерное общество', 'Газпромнефть-Терминал', 'Продавец'))
+
   def test_find_agent_fond(self):
     txt = '''Одобрить предоставление безвозмездной финансовой помощи Фонду «Олимп» в размере 1500000 (один миллион пятьсот тысяч) рублей \
      для создания и организации работы интернет-платформы «Олимп» по поддержке стартапов в сфере взаимопомощи.
@@ -573,6 +655,9 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     xx = pattern.sub(replacer, 'что-то, далее - Благожертвователь-какаха, и нечто')
     self.assertEqual('что-то, далее - «Благожертвователь-какаха», и нечто', xx)
+
+    xx = pattern.sub(replacer, 'что-то, далее именуемое Благожертвователь-какаха, и нечто')
+    self.assertEqual('что-то, далее именуемое «Благожертвователь-какаха», и нечто', xx)
 
     xx = pattern.sub(replacer, 'далее - Благожертвователь-какаха, и нечто')
     self.assertEqual('далее - «Благожертвователь-какаха», и нечто', xx)
