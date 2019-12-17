@@ -26,12 +26,14 @@ def re_legal_entity_type(xx):
 
 
 legal_entity_types_re = {}
-for t in legal_entity_types:
+for t in sorted(legal_entity_types, key=lambda x: -len(x)):
   _regex = re_legal_entity_type(t)
   rr = re.compile(_regex, re.IGNORECASE | re.UNICODE)
   legal_entity_types_re[rr] = t
   found = rr.match(t)[0]
   assert t == found
+
+
 
 _is_valid = is_long_enough
 
@@ -234,7 +236,7 @@ def find_known_legal_entity_type(txt) -> [(str, str)]:
   return found
 
 
-def normalize_legal_entity_type(txt):
+def normalize_legal_entity_type(txt)->(str, str, float):
   knowns = find_known_legal_entity_type(txt.strip())
   if len(knowns) > 0:
     if len(knowns) == 1:
