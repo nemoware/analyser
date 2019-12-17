@@ -63,7 +63,7 @@ class TestRunner(unittest.TestCase):
     docs = get_docs_by_audit_id(audit_id, kind='CONTRACT')
     for doc in docs:
       processor = document_processors.get('CONTRACT', None)
-      processor.preprocess(doc)
+      processor.preprocess(doc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_charters_phase_1(self):
@@ -85,7 +85,7 @@ class TestRunner(unittest.TestCase):
 
       for doc in docs:
         charter = runner.make_legal_doc(doc)
-        runner.protocol_parser.find_org_date_number(charter)
+        runner.protocol_parser.find_org_date_number(charter, AuditContext())
         save_analysis(doc, charter, -1)
 
   # if get_mongodb_connection() is not None:
