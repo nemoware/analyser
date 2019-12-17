@@ -327,16 +327,45 @@ class TestContractAgentsSearch(unittest.TestCase):
     self._validate_org(tags, 1, (
       'Общество с ограниченной ответственностью', 'Научно-производственная компания «НефтеБурГаз»', 'Подрядчик'))
 
-
-
-
   def test_find_agent_fond(self):
+    txt = '''Одобрить предоставление безвозмездной финансовой помощи Фонду «Олимп» в размере 1500000 (один миллион пятьсот тысяч) рублей \
+     для создания и организации работы интернет-платформы «Олимп» по поддержке стартапов в сфере взаимопомощи.
+    Время подведения итогов голосования – 18 часов 00 минут.'''
+
+    r = re.compile(r_quoted_name, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Олимп', x['name'])
+
+    r = re.compile(r_type_and_name, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Фонду', x['type'])
+    self.assertEqual('Олимп', x['name'])
+
+    r = re.compile(complete_re_str_org, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Фонду', x['type'])
+    self.assertEqual('Олимп', x['name'])
+
+    r = re.compile(complete_re_str, re.MULTILINE)
+    x = r.search(n(txt))
+    self.assertEqual('Фонду', x['type'])
+    self.assertEqual('Олимп', x['name'])
+
+    r = complete_re
+    x = r.search(n(txt))
+    self.assertEqual('Фонду', x['type'])
+    self.assertEqual('Олимп', x['name'])
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse(), decay_confidence=False)
+    self._validate_org(tags, 1, (
+      'Фонду', 'Олимп', None))
+
+  def test_find_agent_fond_2(self):
     txt = '''           основании Устава, с одной стороны, и Фонд «Благо», именуемое в дальнейшем «Благополучатель», в лице председателя'''
 
     r = re.compile(r_quoted_name, re.MULTILINE)
     x = r.search(n(txt))
     self.assertEqual('Благо', x['name'])
-
 
     r = re.compile(r_type_and_name, re.MULTILINE)
     x = r.search(n(txt))
@@ -353,17 +382,14 @@ class TestContractAgentsSearch(unittest.TestCase):
     self.assertEqual('Фонд', x['type'])
     self.assertEqual('Благо', x['name'])
 
-    r =  complete_re
+    r = complete_re
     x = r.search(n(txt))
     self.assertEqual('Фонд', x['type'])
     self.assertEqual('Благо', x['name'])
 
-
-
     tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse(), decay_confidence=False)
     self._validate_org(tags, 1, (
       'Фонд', 'Благо', 'Благополучатель'))
-
 
   def test_find_agent_2(self):
     txt1 = '''Общество с ограниченной ответственностью «Комплекс Галерная 5», являющееся юридическим лицом, именуемое в дальнейшем «Принципал»'''
