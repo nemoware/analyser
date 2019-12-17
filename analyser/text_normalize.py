@@ -247,7 +247,7 @@ ORG_TYPES_re = [
   ru_cap('Благотворительный фонд'),
   ru_cap('Индивидуальный предприниматель'), 'ИП',
 
-  r'[Фф]онд[а-я]{0,2}' + r_few_words_s,
+  r'[Фф]онд[а-я]{0,2}' + r_few_words_s, 'Фонд'
 
 ]
 _r_types_ = '|'.join([x for x in ORG_TYPES_re])
