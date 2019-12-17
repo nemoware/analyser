@@ -394,6 +394,9 @@ class SemanticTag:
 
   parent = property(get_parent)
 
+  def __len__(self) -> int:
+    return self.span[1] - self.span[0]
+
   def get_key(self):
     key = self.kind.replace('.', '-').replace(TAG_KEY_DELIMITER, '-')
     if self._parent_tag is not None:
@@ -615,7 +618,7 @@ def spans_between_non_zero_attention(attention_v: FixedVector):
   return q_sent_spans
 
 
-def best_above(v:FixedVector, relu_threshold=0.5)->FixedVector:
+def best_above(v: FixedVector, relu_threshold=0.5) -> FixedVector:
   x = relu(v, relu_threshold)
   _nonzeros = np.nonzero(x)
 
