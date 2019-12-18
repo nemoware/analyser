@@ -171,7 +171,8 @@ class ContractAnlysingContext(ParsingContext):
     else:
       doc.warn(ParserWarnings.subject_section_not_found)
       self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
-      subject_subdoc = doc.subdoc_slice(slice(0, 1500))
+      doc.warnings(ParserWarnings.contract_subject_section_not_found)
+      subject_subdoc = doc[0, 1500]
       denominator = 0.7
 
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
@@ -186,6 +187,8 @@ class ContractAnlysingContext(ParsingContext):
     all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
     subject_headline_attention: FixedVector = rectifyed_sum(all_subjects_vectors) / 2
 
+    section.distances_per_pattern_dict ['subject_headline_attention']=subject_headline_attention #for debug
+    
     max_confidence = 0
     max_subject_kind = None
     max_paragraph_span = None
