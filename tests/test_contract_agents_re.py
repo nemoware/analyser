@@ -339,22 +339,23 @@ class TestContractAgentsSearch(unittest.TestCase):
     txt = txt_full[150:]
 
     r = re.compile(r_quoted_name, re.MULTILINE)
-    x = r.search(n(txt))
+    normalized_txt = n(txt)
+    x = r.search(normalized_txt)
     self.assertEqual('Ромашка', x['name'])
 
     r = re.compile(r_type_and_name, re.MULTILINE)
-    x = r.search(n(txt))
+    x = r.search(normalized_txt)
     self.assertEqual('ООО', x['type'])
     self.assertEqual('Ромашка', x['name'])
 
     r = re.compile(complete_re_str_org, re.MULTILINE)
-    x = r.search(n(txt))
+    x = r.search(normalized_txt)
     self.assertEqual('ООО', x['type'])
     self.assertEqual('Ромашка', x['name'])
 
 
     r = re.compile(complete_re_str, re.MULTILINE)
-    x = r.search(n(txt))
+    x = r.search(normalized_txt)
     self.assertEqual('ООО', x['type'])
     self.assertEqual('Ромашка', x['name'])
     self.assertEqual('Покупатель', x['alias'])
@@ -362,7 +363,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     print('_alias_ext=', x['_alias_ext'])
 
     r = complete_re
-    x = r.search(n(txt))
+    x = r.search(normalized_txt)
     self.assertEqual('ООО', x['type'])
     self.assertEqual('Ромашка', x['name'])
 
