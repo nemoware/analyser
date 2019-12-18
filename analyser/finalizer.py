@@ -8,33 +8,16 @@ from integration.db import get_mongodb_connection
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
 
 
-def add_link_if_not_exists(audit_id, doc_id1, doc_id2):
+def remove_old_links(audit_id, contract_id):
     db = get_mongodb_connection()
     audit_collection = db['audits']
+    audit_collection.update_one({"_id": audit_id}, {"$pull": {"links": {"type": "analysis", "$or": [{"toId": contract_id}, {"fromId": contract_id}]}}})
 
-    query = {
-        "$and": [
-            {"_id": audit_id},
-            {"$or": [
-                {
-                    "$and": [
-                        {'links.toId': doc_id1},
-                        {"links.fromId": doc_id2}
-                    ]
-                },
-                {
-                    "$and": [
-                        {'links.toId': doc_id2},
-                        {"links.fromId": doc_id1}
-                    ]
-                }
-            ]}
-        ]
-    }
 
-    audit = audit_collection.find_one(query)
-    if audit is None:
-        audit_collection.update({"_id": audit_id}, {"$push": {"links": {"fromId": doc_id1, "toId": doc_id2, "type": "analysis"}}})
+def add_link(audit_id, doc_id1, doc_id2):
+    db = get_mongodb_connection()
+    audit_collection = db['audits']
+    audit_collection.update_one({"_id": audit_id}, {"$push": {"links": {"fromId": doc_id1, "toId": doc_id2, "type": "analysis"}}})
 
 
 def extract_text(span, words, text):
@@ -192,6 +175,7 @@ def check_contract(contract, charters, protocols, audit):
     violations = []
     contract_attrs = get_attrs(contract)
     contract_number = ""
+    remove_old_links(audit["_id"], contract["_id"])
     if contract_attrs.get("number") is not None:
         contract_number = contract_attrs["number"]["value"]
     eligible_charter = None
@@ -199,7 +183,7 @@ def check_contract(contract, charters, protocols, audit):
         charter_attrs = get_attrs(charter)
         if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
             eligible_charter = charter
-            add_link_if_not_exists(audit["_id"], contract["_id"], eligible_charter["_id"])
+            add_link(audit["_id"], contract["_id"], eligible_charter["_id"])
             break
 
     if eligible_charter is None:
@@ -256,7 +240,7 @@ def check_contract(contract, charters, protocols, audit):
                 contract_org2_name = contract_attrs["org-2-name"]["value"]
 
             if eligible_protocol is not None:
-                add_link_if_not_exists(audit["_id"], contract["_id"], eligible_protocol["_id"])
+                add_link(audit["_id"], contract["_id"], eligible_protocol["_id"])
                 eligible_protocol_attrs = get_attrs(eligible_protocol)
                 protocol_structural_level = None
                 if eligible_protocol_attrs.get("org_structural_level") is not None:
