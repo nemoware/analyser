@@ -7,6 +7,7 @@ import warnings
 import nltk
 
 from analyser.hyperparams import models_path
+from analyser.ml_tools import spans_to_attention
 from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
 
 TEXT_PADDING_SYMBOL = ' '
@@ -37,6 +38,10 @@ class TextMap:
 
     return self
 
+  def regex_attention(self, regex):
+    matches = list(self.finditer(regex))
+    return spans_to_attention(matches, len(self))
+
   def set_token(self, index, new_token):
     assert len(new_token) == self.map[index][1] - self.map[index][0]
     self._full_text = self._full_text[: self.map[index][0]] + new_token + self._full_text[self.map[index][1]:]
@@ -46,6 +51,9 @@ class TextMap:
       yield self.token_indices_by_char_range(m.span(0))
 
   def token_index_by_char(self, _char_index: int) -> int:
+    if not self.map: return -1
+
+    local_off = self.map[0][0]-self._offset_chars
     """
     [span 0] out of span [span 1] [span 2]
 
@@ -53,7 +61,7 @@ class TextMap:
     :return:
     """
 
-    char_index = _char_index + self._offset_chars
+    char_index =local_off+ _char_index + self._offset_chars
     for span_index in range(len(self.map)):
       span = self.map[span_index]
       if char_index < span[1]:  # span end
@@ -148,7 +156,6 @@ class TextMap:
     target_range = target_map.token_indices_by_char_range(char_range)
     return target_range
 
-
   def remap_slices(self, spans, target_map: 'TextMap'):
     assert self._full_text == target_map._full_text
     ret = []
@@ -202,8 +209,21 @@ class TextMap:
     ]
 
   tokens = property(get_tokens)
-  text = property(get_text)
+  text = property(get_text, None)
 
+
+def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
+  q_sent_indices = np.nonzero(attention_v)[0]
+  w_spans_attention = np.zeros(len(words_map))
+  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
+
+  w_spans = []
+  for char_range, a in char_ranges:
+    words_range = words_map.token_indices_by_char_range(char_range)
+    w_spans.append(words_range)
+    w_spans_attention[words_range[0]:words_range[1]] += a
+
+  return w_spans, w_spans_attention
 
 class CaseNormalizer:
   __shared_state = {}  ## see http://code.activestate.com/recipes/66531/
