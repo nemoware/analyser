@@ -626,7 +626,7 @@ def best_above(v: FixedVector, relu_threshold=0.5) -> FixedVector:
     _min = np.min(x[_nonzeros])
     _max = max(x)
     _med = (_min + _max) / 2
-    return relu(x, _med)
+    return relu(x, _med - 0.0001)
   else:
     return x
 
