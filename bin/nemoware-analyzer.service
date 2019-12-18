@@ -1,0 +1,14 @@
+[Unit]
+Description=Nemoware analyzer service
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=root
+PermissionsStartOnly=true
+WorkingDirectory=/srv/gpn_audit/analyser/
+ExecStart=/usr/bin/python3 /srv/gpn_audit/analyser/bin/analyser_run.py
+TimeoutSec=600
+Restart=on-failure
+RuntimeDirectoryMode=755
