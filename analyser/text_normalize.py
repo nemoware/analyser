@@ -253,14 +253,24 @@ ORG_TYPES_re = [
 _r_types_ = '|'.join([x for x in ORG_TYPES_re])
 r_alias_prefix = r_group(''
                          + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                         + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
+                         + r_group(r'далее\s?[–\-]?(именуе[а-я]{1,3}\s+)?\s?'), name='r_alias_prefix')
 r_types = r_group(f'{_r_types_}', 'type') + r'\s'
 r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')
 sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
 sub_org_name_quoter = (re.compile(r_quoted_name + r'\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
-sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
+sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\g<r_alias_prefix>«\g<_alias>»')
+
+# add comma before именуемое
+sub_alias_comma = (
+  re.compile(
+    r_group(r'.[»)]\s', '_pref') +
+    r_group(r_alias_prefix + r_capitalized_ru, '_alias'),
+    re.UNICODE | re.IGNORECASE),
+  r'\g<_pref>, \g<_alias>'
+)
 
 alias_quote_regex = [
+  sub_alias_comma,
   sub_alias_quote,
   sub_ip_quoter,
   sub_org_name_quoter

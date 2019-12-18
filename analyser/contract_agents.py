@@ -33,8 +33,6 @@ for t in sorted(legal_entity_types, key=lambda x: -len(x)):
   found = rr.match(t)[0]
   assert t == found
 
-
-
 _is_valid = is_long_enough
 
 ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + r'\s'
@@ -45,7 +43,7 @@ r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
-r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
+r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias, '_alias_ext')
 
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
@@ -114,12 +112,17 @@ def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [Semantic
 
 
 def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True) -> [ContractAgent]:
-  all: [ContractAgent] = find_org_names_raw_by_re(doc, regex=complete_re, confidence_base=1, max_names=max_names,
-                                                  parent=parent, decay_confidence=decay_confidence)
+  all = find_org_names_raw_by_re(doc,
+                                 regex=complete_re,
+                                 confidence_base=1,
+                                 parent=parent,
+                                 decay_confidence=decay_confidence)
 
   if len(all) < 2:
-    # falling back to case-agnostinc regexp
-    all += find_org_names_raw_by_re(doc, regex=complete_re_ignore_case, confidence_base=0.75, max_names=max_names,
+    # falling back to case-agnostic regexp
+    all += find_org_names_raw_by_re(doc,
+                                    regex=complete_re_ignore_case,  # case-agnostic
+                                    confidence_base=0.75,
                                     parent=parent,
                                     decay_confidence=decay_confidence)
 
@@ -136,7 +139,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
   #
 
 
-def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, max_names=2, parent=None,
+def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, parent=None,
                              decay_confidence=True) -> [ContractAgent]:
   all: [ContractAgent] = []
 
@@ -236,7 +239,7 @@ def find_known_legal_entity_type(txt) -> [(str, str)]:
   return found
 
 
-def normalize_legal_entity_type(txt)->(str, str, float):
+def normalize_legal_entity_type(txt) -> (str, str, float):
   knowns = find_known_legal_entity_type(txt.strip())
   if len(knowns) > 0:
     if len(knowns) == 1:
