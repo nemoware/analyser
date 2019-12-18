@@ -8,36 +8,49 @@ from integration.db import get_mongodb_connection
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
 
 
-def add_link_if_not_exists(doc_id1, doc_id2):
+def add_link_if_not_exists(audit_id, doc_id1, doc_id2):
     db = get_mongodb_connection()
-    link_collection = db['links']
+    audit_collection = db['audits']
 
     query = {
-        "$or": [
-            {
-                "$and": [
-                        {'fromId': doc_id1},
-                        {"told": doc_id2}
-                     ]
-            },
-            {
-                "$and": [
-                    {'fromId': doc_id2},
-                    {"told": doc_id1}
-                ]
-            }
+        "$and": [
+            {"_id": audit_id},
+            {"$or": [
+                {
+                    "$and": [
+                        {'links.toId': doc_id1},
+                        {"links.fromId": doc_id2}
+                    ]
+                },
+                {
+                    "$and": [
+                        {'links.toId': doc_id2},
+                        {"links.fromId": doc_id1}
+                    ]
+                }
+            ]}
         ]
     }
 
-    link = link_collection.find(query)
-    if link is None:
-        link_collection.insert_one({"fromId": doc_id1, "toId": doc_id2})
+    audit = audit_collection.find_one(query)
+    if audit is None:
+        audit_collection.update({"_id": audit_id}, {"$push": {"links": {"fromId": doc_id1, "toId": doc_id2, "type": "analysis"}}})
 
 
 def extract_text(span, words, text):
     first_idx = words[span[0]][0]
     last_idx = words[span[1]][0] - 1
     return text[first_idx:last_idx]
+
+
+def get_nearest_header(headers, position):
+    found_header = headers[0]
+    for header in headers:
+        if header["span"][0] > position:
+            return found_header
+        else:
+            found_header = header
+    return found_header
 
 
 def get_attrs(document):
@@ -78,7 +91,7 @@ def create_violation(document_id, founding_document_id, reference, violation_typ
 def convert_to_rub(value_currency):
     value_currency["original_value"] = value_currency["value"]
     value_currency["original_currency"] = value_currency["currency"]
-    value_currency["value"] = currency_rates.get(value_currency["currency"], "RUB") * value_currency["value"]
+    value_currency["value"] = currency_rates.get(value_currency["currency"], "RUB") * float(value_currency["value"])
     value_currency["currency"] = "RUB"
     return value_currency
 
@@ -186,7 +199,7 @@ def check_contract(contract, charters, protocols, audit):
         charter_attrs = get_attrs(charter)
         if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
             eligible_charter = charter
-            # add_link_if_not_exists(contract["_id"], eligible_charter["_id"])
+            add_link_if_not_exists(audit["_id"], contract["_id"], eligible_charter["_id"])
             break
 
     if eligible_charter is None:
@@ -229,7 +242,7 @@ def check_contract(contract, charters, protocols, audit):
                 if attribute is not None:
                     text = extract_text(eligible_charter_attrs[attribute]["span"],
                                         eligible_charter["analysis"]["tokenization_maps"]["words"],
-                                        eligible_charter["analysis"]["normal_text"])
+                                        eligible_charter["analysis"]["normal_text"]) + "(" + get_nearest_header(eligible_charter["analysis"]["headers"], eligible_charter_attrs[attribute]["span"][0])["value"] + ")"
                 if competence_constraint["min"] != 0:
                     min_value = {"value": competence_constraint["original_min"], "currency": competence_constraint["original_currency_min"]}
                 if competence_constraint["max"] != np.inf:
@@ -242,8 +255,8 @@ def check_contract(contract, charters, protocols, audit):
             if contract_attrs.get("org-2-name") is not None:
                 contract_org2_name = contract_attrs["org-2-name"]["value"]
 
-
             if eligible_protocol is not None:
+                add_link_if_not_exists(audit["_id"], contract["_id"], eligible_protocol["_id"])
                 eligible_protocol_attrs = get_attrs(eligible_protocol)
                 protocol_structural_level = None
                 if eligible_protocol_attrs.get("org_structural_level") is not None:
