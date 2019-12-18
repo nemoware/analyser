@@ -206,6 +206,8 @@ class ContractAnlysingContext(ParsingContext):
                                                                                              subject_attention_vector,
                                                                                              min_len=20,
                                                                                              return_delimiters=False)
+      if len(subject_attention_vector) < 400:
+        confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
 
       if self.verbosity_level > 2:
         print(f'--------------------confidence {subject_kind}=', confidence)
