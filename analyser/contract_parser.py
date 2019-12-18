@@ -188,7 +188,8 @@ class ContractAnlysingContext(ParsingContext):
 
     subject_headline_attention: FixedVector = max_exclusive_pattern(all_subjects_headlines_vectors)
     subject_headline_attention = best_above(subject_headline_attention, 0.5)
-    subject_headline_attention = momentum_t(subject_headline_attention, half_decay=80)
+    subject_headline_attention = momentum_t(subject_headline_attention, half_decay=120)
+    subject_headline_attention_max = max(subject_headline_attention)
 
     section.distances_per_pattern_dict['subject_headline_attention'] = subject_headline_attention  # for debug
 
@@ -196,10 +197,10 @@ class ContractAnlysingContext(ParsingContext):
     max_subject_kind = None
     max_paragraph_span = None
 
-    subject_headline_attention_max = max(subject_headline_attention)
+
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
       subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, None)
-      if subject_headline_attention_max > 0.5:
+      if subject_headline_attention_max > 0.2:
         subject_attention_vector *= subject_headline_attention
 
       paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(section,
