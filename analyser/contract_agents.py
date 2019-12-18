@@ -43,7 +43,7 @@ r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
-r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias, '_alias_ext')
+r_alias = r_group(r".{0,140}?" + r_alias_prefix + r'\s*' + r_quoted_name_alias, '_alias_ext')
 
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
