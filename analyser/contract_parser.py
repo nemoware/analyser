@@ -159,7 +159,7 @@ class ContractAnlysingContext(ParsingContext):
     section.distances_per_pattern_dict[attention_vector_name] = x
 
     #   x = x-np.mean(x)
-    x = relu(x, 0.6)
+    x = best_above(x, 0.5)
 
     return x
 
@@ -186,6 +186,9 @@ class ContractAnlysingContext(ParsingContext):
 
     all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
     subject_headline_attention: FixedVector = rectifyed_sum(all_subjects_vectors) / 2
+    subject_headline_attention = smooth(subject_headline_attention, 30)
+    subject_headline_attention = best_above(subject_headline_attention, 0.4)
+ 
 
     section.distances_per_pattern_dict ['subject_headline_attention']=subject_headline_attention #for debug
     
