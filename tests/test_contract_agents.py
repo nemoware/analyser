@@ -6,7 +6,7 @@
 import unittest
 
 from analyser.contract_agents import find_org_names, compare_masked_strings, find_closest_org_name, ContractAgent
-from analyser.contract_parser import ContractDocument3
+from analyser.contract_parser import ContractDocument
 from analyser.hyperparams import HyperParameters
 from gpn.gpn import subsidiaries
 
@@ -23,7 +23,7 @@ class ContractAgentsTestCase(unittest.TestCase):
      ДОГОВОР № САХ-16/00000/00104/Р.на оказание охранных услуг г. Санкт- Петербург     «27» декабря 2016 год.Общество с ограниченной ответственностью «Газпромнефть-Сахалин», именуемое в дальнейшем «Заказчик», в лице Генерального директора Коробкова Александра Николаевича, действующего на основании Устава, с одной стороны, и Общество с ограниченной ответственностью «Частная охранная организация «СТАФ» (ООО «ЧОО «СТАФ») (Лицензия, серия ЧО № 035162, регистрационный № 629 от 30-11-2015 год, на осуществление частной охранной деятельности, выдана ГУ МВД России по г. Санкт-Петербургу и Ленинградской области, предоставлена на срок до 11-02-2022 года), именуемое в дальнейшем «Исполнитель», в лице Генерального директора Гончарова Геннадия Дмитриевича, действующего на основании Устава, с другой стороны при отдельном упоминании именуемая – Сторона, при совместном упоминании именуемые – Стороны, заключили настоящий договор (далее по тексту – Договор) о нижеследующем1. 
     """
 
-    cd = ContractDocument3(text)
+    cd = ContractDocument(text)
     cd.parse()
 
     cd.agents_tags = find_org_names(cd)
