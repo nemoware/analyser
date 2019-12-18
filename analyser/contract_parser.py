@@ -156,7 +156,8 @@ class ContractAnlysingContext(ParsingContext):
     vectors = []
     for v in _vectors:
       vectors.append(best_above(v, 0.4))
-    x = sum_probabilities(vectors)
+
+    x = max_exclusive_pattern(vectors)
 
     section.distances_per_pattern_dict[attention_vector_name_soft] = x
     section.distances_per_pattern_dict[attention_vector_name] = x
