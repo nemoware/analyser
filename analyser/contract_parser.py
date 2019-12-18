@@ -172,7 +172,7 @@ class ContractAnlysingContext(ParsingContext):
       doc.warn(ParserWarnings.subject_section_not_found)
       self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
       doc.warn(ParserWarnings.contract_subject_section_not_found)
-      subject_subdoc = doc[0, 1500]
+      subject_subdoc = doc[0:1500]
       denominator = 0.7
 
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
