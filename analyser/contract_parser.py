@@ -158,7 +158,7 @@ class ContractAnlysingContext(ParsingContext):
       vectors.append(best_above(v, 0.4))
 
     x = max_exclusive_pattern(vectors)
-
+    x = relu(x, 0.6)
     section.distances_per_pattern_dict[attention_vector_name_soft] = x
     section.distances_per_pattern_dict[attention_vector_name] = x
 
@@ -197,7 +197,6 @@ class ContractAnlysingContext(ParsingContext):
     max_confidence = 0
     max_subject_kind = None
     max_paragraph_span = None
-
 
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
       subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, None)
