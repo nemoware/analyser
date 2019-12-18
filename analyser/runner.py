@@ -204,4 +204,4 @@ def run(run_pahse_2=True, kind=None):
 
 
 if __name__ == '__main__':
-  run(True, kind="PROTOCOL")
+  run()
