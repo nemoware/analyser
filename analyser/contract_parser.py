@@ -184,11 +184,11 @@ class ContractAnlysingContext(ParsingContext):
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
 
-    all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
-    subject_headline_attention: FixedVector = rectifyed_sum(all_subjects_vectors) / 2
-    subject_headline_attention = smooth(subject_headline_attention, 30)
-    subject_headline_attention = best_above(subject_headline_attention, 0.4)
- 
+    all_subjects_headlines_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
+    subject_headline_attention: FixedVector = max_exclusive_pattern(all_subjects_headlines_vectors)
+    subject_headline_attention = best_above(subject_headline_attention, 0.5)
+    subject_headline_attention = smooth(subject_headline_attention, 10)
+
 
     section.distances_per_pattern_dict ['subject_headline_attention']=subject_headline_attention #for debug
     
