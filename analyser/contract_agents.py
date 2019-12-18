@@ -12,18 +12,12 @@ from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
-  _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types
+  _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types, r_human_name, morphology_agnostic_re
 from analyser.text_tools import is_long_enough, span_len
 from gpn.gpn import subsidiaries
 
-
-def morphology_agnostic_re(x):
-  if len(x) > 2:
-    r = f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}'
-    r = f'({r})'
-    return r
-  else:
-    return f'({x})'
+r_being_a_citizen = r_group(r'являющ[а-я]{2,5}\s*граждан[а-я]{2,5}', 'citizen')
+r_being_a_human_citizen = r_group(r_human_name + r',*\s*' + r_being_a_citizen, 'human_citizen')
 
 
 def re_legal_entity_type(xx):
@@ -32,7 +26,7 @@ def re_legal_entity_type(xx):
 
 
 legal_entity_types_re = {}
-for t in legal_entity_types:
+for t in sorted(legal_entity_types, key=lambda x: -len(x)):
   _regex = re_legal_entity_type(t)
   rr = re.compile(_regex, re.IGNORECASE | re.UNICODE)
   legal_entity_types_re[rr] = t
@@ -49,24 +43,28 @@ r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
-r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
+r_alias = r_group(r".{0,140}?" + r_alias_prefix + r'\s*' + r_quoted_name_alias, '_alias_ext')
 
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
-complete_re_str = r_type_and_name + r'\s*' + r_alter + r_alias + '?'
+complete_re_str_org = r_type_and_name + r'\s*' + r_alter
+complete_re_str = r_group(complete_re_str_org + "|" + r_being_a_human_citizen) + r_alias + '?'
+
 # ----------------------------------
-complete_re = re.compile(complete_re_str, re.MULTILINE | re.IGNORECASE)
+complete_re = re.compile(complete_re_str, re.MULTILINE | re.UNICODE)
+complete_re_ignore_case = re.compile(complete_re_str, re.MULTILINE | re.UNICODE | re.IGNORECASE)
 
 # ----------------------------------
 
-org_pieces = ['type', 'name', 'alt_name', 'alias', 'type_ext']
+org_pieces = ['type', 'name', 'human_name', 'alt_name', 'alias', 'type_ext']
 
 
 class ContractAgent:
   # org_pieces = ['type', 'name', 'alt_name', 'alias', 'type_ext']
   def __init__(self):
     self.name: SemanticTag or None = None
+    self.human_name: SemanticTag or None = None
     self.type: SemanticTag or None = None
     self.alt_name: SemanticTag or None = None
     self.alias: SemanticTag or None = None
@@ -77,12 +75,12 @@ class ContractAgent:
 
   def confidence(self):
     confidence = 0
-    for key in ['type', 'name']:
+    for key in ['type', 'name', 'alias']:
       tag = self.__dict__[key]
       if tag is not None:
         confidence += tag.confidence
 
-    return confidence / 2
+    return confidence / 3.0
 
 
 def clean_value(x: str) -> str or None:
@@ -115,25 +113,61 @@ def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [Semantic
 
 
 def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True) -> [ContractAgent]:
+  all = find_org_names_raw_by_re(doc,
+                                 regex=complete_re,
+                                 confidence_base=1,
+                                 parent=parent,
+                                 decay_confidence=decay_confidence)
+
+  if len(all) < 2:
+    # falling back to case-agnostic regexp
+    all += find_org_names_raw_by_re(doc,
+                                    regex=complete_re_ignore_case,  # case-agnostic
+                                    confidence_base=0.75,
+                                    parent=parent,
+                                    decay_confidence=decay_confidence)
+
+  # filter, keep unique names
+  _map = {}
+  for ca in all:
+    if ca.name is not None:
+      if ca.confidence() > 0.2:
+        put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
+
+  res = list(_map.values())
+  res = sorted(res, key=lambda a: -a.confidence())
+  return res[:max_names]
+  #
+
+
+def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, parent=None,
+                             decay_confidence=True) -> [ContractAgent]:
   all: [ContractAgent] = []
 
-  for m in re.finditer(complete_re, doc.text):
+  iter = [m for m in re.finditer(regex, doc.text)]
+
+  for m in iter:
     ca = ContractAgent()
     all.append(ca)
-    for kind in org_pieces:
-      char_span = m.span(kind)
-      span = doc.tokens_map.token_indices_by_char_range(char_span)
-      confidence = 1
-      if decay_confidence:
-        confidence = 1.0 - (span[0] / len(doc))
+    for re_kind in org_pieces:
+      char_span = m.span(re_kind)
+      if span_len(char_span) > 1:
+        span = doc.tokens_map.token_indices_by_char_range(char_span)
+        confidence = confidence_base
+        if decay_confidence:
+          confidence *= (1.0 - (span[0] / len(doc)))
 
-      val = doc.tokens_map.text_range(span)
-      val = val.strip()
-      if span_len(char_span) > 1 and _is_valid(val):
-        tag = SemanticTag(kind, val, span, parent=parent)
-        tag.confidence = confidence
-        tag.offset(doc.start)
-        ca.__dict__[kind] = tag
+        kind = re_kind
+        if re_kind == 'human_name':
+          kind = 'name'
+
+        val = doc.tokens_map.text_range(span)
+        val = val.strip()
+        if _is_valid(val):
+          tag = SemanticTag(kind, val, span, parent=parent)
+          tag.confidence = confidence
+          tag.offset(doc.start)
+          ca.__dict__[kind] = tag
 
   # normalize org_name names by find_closest_org_name
   for ca in all:
@@ -152,17 +186,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
       ca.type.value = long_
       ca.type.confidence *= confidence_
 
-  # filter, keep unique names
-  _map = {}
-  for ca in all:
-    if ca.name is not None:
-      if ca.confidence() > 0.2:
-        put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
-
-  res = list(_map.values())
-  res = sorted(res, key=lambda a: -a.confidence())
-  return res[:max_names]
-  #
+  return all
 
 
 def compare_masked_strings(a, b, masked_substrings):
@@ -216,7 +240,7 @@ def find_known_legal_entity_type(txt) -> [(str, str)]:
   return found
 
 
-def normalize_legal_entity_type(txt):
+def normalize_legal_entity_type(txt) -> (str, str, float):
   knowns = find_known_legal_entity_type(txt.strip())
   if len(knowns) > 0:
     if len(knowns) == 1:

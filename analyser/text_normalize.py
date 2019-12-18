@@ -19,8 +19,18 @@ r_quote_open = r_group(r'[«"<“]\s?|[\'`]{2}\s?')
 r_quote_close = r_group(r'\s?[»">”]|\s?[\'`]{2}')
 
 
+def morphology_agnostic_re(x):
+  if len(x) > 2:
+    r = f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}'
+    r = f'({r})'
+    return r
+  else:
+    return f'({x})'
+
+
 def ru_cap(xx):
-  return r'\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])
+  ret = r'\s+'.join(morphology_agnostic_re(x) for x in xx.split(' '))
+  return ret  # // r'\s+'.join([f'[{x[0].upper()}{x[0].lower()}]{x[1:-2]}[а-я]{{0,3}}' for x in xx.split(' ')])+'|'+xx.upper()
 
 
 def r_bracketed(x, name=None):
@@ -33,11 +43,11 @@ r_capitalized_ru = r'([А-Я][a-яА-Я–\-]{0,25})'
 r_capitalized = r_group(r'[A-ZА-Я][a-zA-Za-яА-Я–\-]{0,25}')
 # _r_name = r'[А-ЯA-Z][А-Яа-яA-Za-z\-–\[\]. ]{0,40}[а-яa-z.]'
 # _r_name_ru_having_quote = r'«([А-Я][А-Яа-я\-–\[\].\s«]{0,40}[А-Яа-я.,])»'
-_r_name_ru =  r'[А-Я][№А-Яа-я\-–\[\].\s«]{0,50}[А-Яа-я.,]'
-_r_name_ru_with_number =  r'[А-Я][0-9А-Яа-я\-–\[\].\s«]{0,85}[0-9А-Яа-я.,]'
+_r_name_ru = r'[А-Я][№А-Яа-я\-–\[\].\s«]{0,50}[А-Яа-я.,]'
+_r_name_ru_with_number = r'[А-Я][0-9А-Яа-я\-–\[\].\s«]{0,85}[0-9А-Яа-я.,]'
 _r_name_lat = r'[A-Z][№A-Za-z\-–\[\].\s]{0,50}[A-Za-z,]'
 _r_name = r_group(_r_name_ru_with_number) + '|' + r_group(_r_name_lat)
-r_name = r_group(_r_name   , 'name')
+r_name = r_group(_r_name, 'name')
 
 """Puts name into qotes"""
 r_human_name_part = r_capitalized
@@ -47,8 +57,6 @@ r_human_abbr_name = r_group(r_human_name_part + r'\s*' + '([А-ЯA-Z][.]\s?){1,2
 r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name')
 
 
-
-
 def r_quoted(x):
   assert x is not None
   return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
@@ -56,7 +64,7 @@ def r_quoted(x):
 
 r_quoted_name = r_group(r_quoted(r_name), 'r_quoted_name')
 
-_bell='\x07'
+_bell = '\x07'
 spaces_regex = [
   (re.compile(_bell), '\n'),
   (re.compile(r'\t'), ' '),
@@ -135,7 +143,7 @@ numbers_regex = [
   (re.compile(r'(?<=\d)+[. ](?=\d{3}\s*[(].{3,40}\sтысяч?)'), ''),  # 3.000 (Три тысячи)
   (re.compile(r'(?<=\d)+[. ](?=\d{3})[. ]?(?=\d{3})'), ''),  # 3.000 (Три тысячи)
 
-  (re.compile(r'(?<=\d\.)([а-яa-z]{2,30})',re.IGNORECASE|re.UNICODE), r' \1'), ##space after dot
+  (re.compile(r'(?<=\d\.)([а-яa-z]{2,30})', re.IGNORECASE | re.UNICODE), r' \1'),  ##space after dot
 ]
 
 fixtures_regex = [
@@ -144,7 +152,7 @@ fixtures_regex = [
   (re.compile(r'(У\sС\sТ\sА\sВ)', re.IGNORECASE | re.MULTILINE), 'УСТАВ'),
 
   (re.compile(r'FORMTEXT'), ''),
-  (re.compile(r''), ' ') #ACHTUNG!! this is not just a space
+  (re.compile(r''), ' ')  # ACHTUNG!! this is not just a space
 
 ]
 
@@ -164,7 +172,6 @@ table_of_contents_regex = [
    ''),
 
 ]
-
 
 
 def normalize_text(_t: str, replacements_regex):
@@ -230,7 +237,7 @@ ORG_TYPES_re = [
   ru_cap('образовательное учреждение высшего образования'),
   ru_cap('Федеральное казенное учреждение'),
   ru_cap('Частное учреждение дополнительного профессионального образования'), 'ЧУДПО',
-  ru_cap('Частное образовательное учреждение'),'ЧОУ',
+  ru_cap('Частное образовательное учреждение'), 'ЧОУ',
   ru_cap('Частное учреждение'),
   ru_cap('Общественная организация'),
   ru_cap('Общество с ограниченной ответственностью'), 'ООО',
@@ -240,21 +247,30 @@ ORG_TYPES_re = [
   ru_cap('Благотворительный фонд'),
   ru_cap('Индивидуальный предприниматель'), 'ИП',
 
-  r'[Фф]онд[а-я]{0,2}' + r_few_words_s,
+  r'[Фф]онд[а-я]{0,2}' + r_few_words_s, 'Фонд[уоме]{0,3}'
 
 ]
 _r_types_ = '|'.join([x for x in ORG_TYPES_re])
 r_alias_prefix = r_group(''
                          + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                         + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
+                         + r_group(r'далее\s?[–\-]?(именуе[а-я]{1,3}\s+)?\s?'), name='r_alias_prefix')
 r_types = r_group(f'{_r_types_}', 'type') + r'\s'
 r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')
 sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
 sub_org_name_quoter = (re.compile(r_quoted_name + r'\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
-sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
+sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\g<r_alias_prefix>«\g<_alias>»')
 
+# add comma before именуемое
+sub_alias_comma = (
+  re.compile(
+    r_group(r'.[»)]\s', '_pref') +
+    r_group(r_alias_prefix + r_capitalized_ru, '_alias'),
+    re.UNICODE | re.IGNORECASE),
+  r'\g<_pref>, \g<_alias>'
+)
 
 alias_quote_regex = [
+  sub_alias_comma,
   sub_alias_quote,
   sub_ip_quoter,
   sub_org_name_quoter

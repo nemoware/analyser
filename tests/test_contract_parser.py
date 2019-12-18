@@ -167,9 +167,8 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    self.assertEqual(
-      '1. ПРЕДМЕТ ДОГОВОРА.\n1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
-      doc.tokens_map.text_range(result.span).strip())
+    expected = """1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя: \n1.1.1. Счет № 115 на приобретение спортивного оборудования (теннисный стол, рукоход с перекладинами, шведская стенка). Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается."""
+    self.assertEqual(expected, doc.tokens_map.text_range(result.span).strip())
 
   def test_find_contract_subject_region(self):
     doc, factory, ctx = self._get_doc_factory_ctx()

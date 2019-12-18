@@ -37,6 +37,7 @@ class ParserWarnings(Enum):
   contract_value_not_found = 8,
   subject_section_not_found = 6,
   contract_subject_not_found = 9,
+  contract_subject_section_not_found = 12,
   protocol_agenda_not_found = 10,
 
   boring_agenda_questions = 11
@@ -46,6 +47,9 @@ class Paragraph:
   def __init__(self, header: SemanticTag, body: SemanticTag):
     self.header: SemanticTag = header
     self.body: SemanticTag = body
+
+  def as_combination(self) -> SemanticTag:
+    return SemanticTag(self.header.kind + '-' + self.body.kind, None, span= (self.header.span[0], self.body.span[1]))
 
 
 class LegalDocument:
