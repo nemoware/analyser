@@ -4,8 +4,6 @@
 
 
 import re
-import warnings
-from typing import AnyStr, Match, Dict, List
 
 from pyjarowinkler import distance
 
@@ -14,7 +12,7 @@ from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
-  _r_name, r_quoted_name, ru_cap, r_few_words_s, r_human_name, normalize_company_name
+  _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types
 from analyser.text_tools import is_long_enough, span_len
 from gpn.gpn import subsidiaries
 
@@ -45,47 +43,14 @@ _is_valid = is_long_enough
 
 ORG_LEVELS_re = r_group('|'.join([ru_cap(x) for x in ORG_LEVELS_names]), 'org_structural_level') + r'\s'
 
-ORG_TYPES_re = [
-  ru_cap('Акционерное общество'), 'АО',
-  ru_cap('Закрытое акционерное общество'), 'ЗАО',
-  ru_cap('Открытое акционерное общество'), 'ОАО',
-  ru_cap('Государственное автономное учреждение'),
-  ru_cap('Муниципальное бюджетное учреждение'),
-  ru_cap('Некоммерческое партнерство'),
-
-  # ru_cap('учреждение'),
-
-  ru_cap('Федеральное государственное унитарное предприятие'), 'ФГУП',
-  ru_cap('Федеральное государственное бюджетное образовательное учреждение высшего образования'), 'ФГБОУ',
-  ru_cap('образовательное учреждение высшего образования'),
-  ru_cap('Федеральное казенное учреждение'),
-  ru_cap('Частное учреждение дополнительного профессионального образования'), 'ЧУДПО',
-  ru_cap('Частное учреждение'),
-  ru_cap('Общественная организация'),
-  ru_cap('Общество с ограниченной ответственностью'), 'ООО',
-  ru_cap('Партнерство с ограниченной ответственностью'),
-  ru_cap('Некоммерческая организация'),
-  ru_cap('Автономная некоммерческая организация'), 'АНО',
-  ru_cap('Благотворительный фонд'),
-  ru_cap('Индивидуальный предприниматель'), 'ИП',
-
-  r'[Фф]онд[а-я]{0,2}' + r_few_words_s,
-
-]
-_r_types_ = '|'.join([x for x in ORG_TYPES_re])
-
 r_few_words = r'\s+[А-Я]{1}[а-я\-, ]{1,80}'
 
 r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
-r_alias_prefix = r_group(''
-                         + r_group(r'(именуе[а-я]{1,3}\s+)?в?\s*дал[а-я]{2,8}\s?[–\-]?') + '|'
-                         + r_group(r'далее\s?[–\-]?\s?'), name='r_alias_prefix')
 r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias)
 
-r_types = r_group(f'{_r_types_}', 'type') + r'\s'
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
 r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
@@ -126,49 +91,23 @@ def clean_value(x: str) -> str or None:
   return x.replace('\t', ' ').replace('\n', ' ').replace(' – ', '-').lower()
 
 
-def _find_org_names(text: str) -> List[Dict]:
-  warnings.warn("make semantic tags", DeprecationWarning)
-
-  def _to_dict(m: Match[AnyStr]):
-    warnings.warn("make semantic tags", DeprecationWarning)
-    d = {}
-    for entity_type in org_pieces:
-      d[entity_type] = (m[entity_type], m.span(entity_type))
-
-    return d
-
-  org_names = {}
-
-  for r in re.finditer(complete_re, text):
-    org = _to_dict(r)
-
-    # filter similar out
-    _name = normalize_company_name(org['name'][0])
-    if _name not in org_names:
-      org_names[_name] = org
-
-  return list(org_names.values())
-
-
-def find_org_names_in_tag(doc: LegalDocument, parent: SemanticTag, max_names=2, tag_kind_prefix='',
-                          decay_confidence=True) -> List[
-  SemanticTag]:
-  span = parent.span
-  return find_org_names(doc[span[0]:span[1]], max_names=max_names, tag_kind_prefix=tag_kind_prefix, parent=parent,
-                        decay_confidence=decay_confidence)
-
-
-def find_org_names(doc: LegalDocument, max_names=2, tag_kind_prefix='', parent=None, decay_confidence=True) -> List[
-  SemanticTag]:
+def find_org_names(doc: LegalDocument,
+                   max_names=2,
+                   tag_kind_prefix='',
+                   parent=None,
+                   decay_confidence=True,
+                   audit_subsidiary_name=None) -> [SemanticTag]:
   all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence)
-  return _rename_org_tags(all, tag_kind_prefix)
+  all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+
+  return _rename_org_tags(all, tag_kind_prefix, start_from=1)
 
 
-def _rename_org_tags(all: [ContractAgent], prefix=''):
+def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [SemanticTag]:
   tags = []
-  for group in range(len(all)):
-    for tag in all[group].as_list():
-      tagname = f'{prefix}org-{group + 1}-{tag.kind}'
+  for group, agent in enumerate(all):
+    for tag in agent.as_list():
+      tagname = f'{prefix}org-{group + start_from}-{tag.kind}'
       tag.kind = tagname
       tags.append(tag)
 
@@ -189,6 +128,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
         confidence = 1.0 - (span[0] / len(doc))
 
       val = doc.tokens_map.text_range(span)
+      val = val.strip()
       if span_len(char_span) > 1 and _is_valid(val):
         tag = SemanticTag(kind, val, span, parent=parent)
         tag.confidence = confidence
@@ -220,21 +160,9 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
         put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
 
   res = list(_map.values())
-  res = sorted(res, key=lambda a:-a.confidence())
+  res = sorted(res, key=lambda a: -a.confidence())
   return res[:max_names]
   #
-
-
-r_ip = r_group(r'(\s|^)' + ru_cap('Индивидуальный предприниматель') + r'\s*' + r'|(\s|^)ИП\s*', 'ip')
-sub_ip_quoter = (re.compile(r_ip + r_human_name), r'\1«\g<human_name>»')
-sub_org_name_quoter = (re.compile(r_quoted_name + r'\s*' + r_bracketed(r_types)), r'\g<type> «\g<name>» ')
-
-sub_alias_quote = (re.compile(r_alias_prefix + r_group(r_capitalized_ru, '_alias')), r'\1«\g<_alias>»')
-alias_quote_regex = [
-  sub_alias_quote,
-  sub_ip_quoter,
-  sub_org_name_quoter
-]
 
 
 def compare_masked_strings(a, b, masked_substrings):
@@ -289,7 +217,7 @@ def find_known_legal_entity_type(txt) -> [(str, str)]:
 
 
 def normalize_legal_entity_type(txt):
-  knowns = find_known_legal_entity_type(txt)
+  knowns = find_known_legal_entity_type(txt.strip())
   if len(knowns) > 0:
     if len(knowns) == 1:
       k = knowns[0]

@@ -3,6 +3,13 @@ from integration.db import get_mongodb_connection
 data = {
   "Subsidiary": [
     {
+      "_id": "Газпром нефть",
+      "legal_entity_type": "ПАО",
+      "aliases": [
+        "Газпром нефть"
+      ]
+    },
+    {
       "_id": "Арктика Медиа",
       "legal_entity_type": "АО",
       "aliases": [

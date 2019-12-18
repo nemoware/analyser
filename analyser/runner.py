@@ -3,6 +3,7 @@ import warnings
 import pymongo
 
 import analyser
+from analyser import finalizer
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractAnlysingContext
 from analyser.legal_docs import LegalDocument
@@ -53,17 +54,26 @@ class BaseProcessor:
   def preprocess(self, db_document, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(db_document, legal_doc, state=2)
+    save_analysis(db_document, legal_doc, state=5)
 
   def process(self, db_document, audit, context: AuditContext):
+    if db_document.get("retry_number") is not None and db_document["retry_number"] > 2:
+      print(f'document {db_document["_id"]} exceeds maximum retries for analysis and is skipped')
+      return None
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
-    # todo: remove find_org_date_number call
-    self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(db_document, legal_doc, state=2)
-    if self.is_valid(legal_doc, audit):
-      self.parser.find_attributes(legal_doc)
-      save_analysis(db_document, legal_doc, state=3)
-      print(legal_doc._id)
+    try:
+      # todo: remove find_org_date_number call
+      self.parser.find_org_date_number(legal_doc, context)
+      save_analysis(db_document, legal_doc, state=10)
+      if self.is_valid(legal_doc, audit):
+        self.parser.find_attributes(legal_doc, context)
+        save_analysis(db_document, legal_doc, state=15)
+        print(legal_doc._id)
+      else:
+        save_analysis(db_document, legal_doc, 12)
+    except:
+      print(f'cant process document {db_document["_id"]}')
+      save_analysis(db_document, legal_doc, 11, db_document["retry_number"] + 1)
     return legal_doc
 
   def is_valid(self, legal_doc, audit):
@@ -103,7 +113,7 @@ def get_audits():
   return res
 
 
-def get_docs_by_audit_id(id: str, state=None, kind=None):
+def get_docs_by_audit_id(id: str, states=None, kind=None):
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
@@ -117,8 +127,9 @@ def get_docs_by_audit_id(id: str, state=None, kind=None):
     ]
   }
 
-  if state is not None:
-    query["$and"][2]["$or"].append({"state": state})
+  if states is not None:
+    for state in states:
+      query["$and"][2]["$or"].append({"state": state})
 
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
@@ -127,12 +138,13 @@ def get_docs_by_audit_id(id: str, state=None, kind=None):
   return res
 
 
-def save_analysis(db_document, doc: LegalDocument, state: int):
+def save_analysis(db_document, doc: LegalDocument, state: int, retry_number: int=0):
   analyse_json_obj = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
   db_document['analysis'] = analyse_json_obj
   db_document["state"] = state
+  db_document["retry_number"] = retry_number
   documents_collection.update({'_id': doc._id}, db_document, True)
 
 
@@ -141,7 +153,7 @@ def change_audit_status(audit, status):
   db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"status": status}})
 
 
-def run(run_pahse_2=True):
+def run(run_pahse_2=True, kind=None):
   # phase 1
   print('=' * 80)
   print('PHASE 1')
@@ -154,11 +166,13 @@ def run(run_pahse_2=True):
 
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], 1)
+    documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
     for document in documents:
       processor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
+        print(f'........pre-processing  {document["parse"]["documentType"]}')
         processor.preprocess(db_document=document, context=ctx)
+
 
   if run_pahse_2:
     # phase 2
@@ -172,16 +186,22 @@ def run(run_pahse_2=True):
 
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
-      documents = get_docs_by_audit_id(audit["_id"], 2)
+      documents = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind)
       for document in documents:
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
+          print(f'........processing  {document["parse"]["documentType"]}')
           processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
+
+      print(f'.....finalizing audit {audit["_id"]}')
+      finalizer.finalize(audit)
+      change_audit_status(audit, "Done")
+      print(f'.....audit {audit["_id"]} is waiting for approval')
   else:
     warnings.warn("phase 2 is skipped")
 
 
 if __name__ == '__main__':
-  run()
+  run(True, kind="PROTOCOL")

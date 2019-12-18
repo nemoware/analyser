@@ -6,9 +6,10 @@
 import unittest
 
 from analyser.charter_parser import CharterParser, CharterDocument
-from analyser.contract_parser import ContractAnlysingContext
+from analyser.contract_parser import ContractAnlysingContext, ContractDocument
 from analyser.legal_docs import *
 from analyser.legal_docs import _embedd_large
+from analyser.parsing import AuditContext
 from tests.test_utilits import FakeEmbedder
 
 
@@ -37,7 +38,11 @@ class LegalDocumentTestCase(unittest.TestCase):
     emb = FakeEmbedder(point1)
 
     ctx = ContractAnlysingContext(emb)
-    ctx.analyze_contract("1. ЮРИДИЧЕСКИЙ содержание 4.")
+    contract = ContractDocument("1. ЮРИДИЧЕСКИЙ содержание 4.")
+    contract.parse()
+    actx = AuditContext()
+    ctx.find_org_date_number(contract, actx)
+    ctx.find_attributes(contract, actx)
 
     ctx._logstep("analyze_contract")
 
