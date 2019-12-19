@@ -9,7 +9,9 @@ https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks
 https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks/dev_Contracts.ipynb
  
 ### Уставы:
- - pending
+https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks/dev_Charters.ipynb
+
+
 
 ___
 ## Misc commands
