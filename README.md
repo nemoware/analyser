@@ -1,11 +1,17 @@
 # Analyser core & nlp_tools
 
 ## Интерактивный анализ
-### Прооколоы:
+### Протоколы:
 для быстрой проверки анализа протокола и экспорта в JSON используйте этот инструмент:
 https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks/dev_Protocols.ipynb
 
+### Договоры:
+ - pending
+ 
+### Уставы:
+ - pending
 
+___
 ## Misc commands
 - Create wheel: 
 ```
