@@ -59,6 +59,12 @@ class NumbersTestCase(unittest.TestCase):
 
     self.assertEqual('ДК 834/34-2', findings[0][1])
 
+  def test_find_doc_number_last_g_with_dot(self):
+    t = ''''Договор пожертвования N 16-89/44 г. Санкт-Петербург                     «11» декабря 2018 год.\nМуниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем «Благополучатель»'''
+    findings = list(re.finditer(document_number_c, t))
+
+    self.assertEqual('16-89/44', findings[0][1])
+
   def test_find_doc_number_two_upper_space_latin(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №XK 834/34-2.'''
     findings = list(re.finditer(document_number_c, t))
