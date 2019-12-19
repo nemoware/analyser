@@ -1,8 +1,8 @@
 # Analyser core & nlp_tools
 
 ## Интерактивный анализ
+для быстрой проверки анализатора документов и экспорта в JSON используйте эти инструменты:
 ### Протоколы:
-для быстрой проверки анализа протокола и экспорта в JSON используйте этот инструмент:
 https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks/dev_Protocols.ipynb
 
 ### Договоры:
