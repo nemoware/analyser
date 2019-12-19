@@ -6,7 +6,7 @@
 https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks/dev_Protocols.ipynb
 
 ### Договоры:
- - pending
+https://colab.research.google.com/github/nemoware/analyser/blob/master/notebooks/dev_Contracts.ipynb
  
 ### Уставы:
  - pending
