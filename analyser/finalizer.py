@@ -51,7 +51,10 @@ def get_docs_by_audit_id(id: str, state, kind=None):
         'auditId': id,
         'parse.documentType': kind,
         "state": state,
-        "analysis.attributes.date": {"$ne": None}
+        "$or": [
+            {"analysis.attributes.date": {"$ne": None}},
+            {"user.attributes.date": {"$ne": None}}
+        ]
     }
 
     res = documents_collection.find(query).sort([("analysis.attributes.date.value", pymongo.ASCENDING)])
