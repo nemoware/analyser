@@ -11,10 +11,10 @@ class NumbersTestCase(unittest.TestCase):
 
   def test_find_doc_number(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №3 к Договору о выдаче банковских гарантий №3256-5/876 от 06-02-2013 год, заключенному между '''
-    findings = re.finditer(document_number_c, t)
+    findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual('3', next(findings)[0])
-    self.assertEqual('3256-5/876', next(findings)[0])
+    self.assertEqual('3', findings[0][1])
+    self.assertEqual('3256-5/876', findings[1][1])
 
   def test_find_doc_number_missing_na(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения № на на ыдаче'''
@@ -32,25 +32,25 @@ class NumbersTestCase(unittest.TestCase):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №343434.'''
     findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual('343434', findings[0][0])
+    self.assertEqual('343434', findings[0][1])
 
   def test_find_doc_number_two_upper_space(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №ДК 834/34-2.'''
     findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual('ДК 834/34-2', findings[0][0])
+    self.assertEqual('ДК 834/34-2', findings[0][1])
 
   def test_find_doc_number_two_upper_space_latin(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №XK 834/34-2.'''
     findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual('ДК XK 834/34-2', findings[0][0])
+    self.assertEqual('XK 834/34-2', findings[0][1])
 
   def test_find_doc_number_two_upper_space_latin_eol(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №XK 834/34-2'''
     findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual('ДК XK 834/34-2', findings[0][0])
+    self.assertEqual('XK 834/34-2', findings[0][1])
 
 
 
