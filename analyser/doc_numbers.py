@@ -4,7 +4,8 @@ from analyser.doc_dates import get_doc_head
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
 
-document_number_c = re.compile(r"[№N#]\s*(?P<number>(?!на|от)[A-Za-zА-Яа-я0-9]{1,8}([ \/\-][0-9]{1,4}){0,3})")
+doc_num_exclude_prefixes = r"(?<!лицензии )(?<!лицензнии )"
+document_number_c = re.compile(doc_num_exclude_prefixes+r"[№N#]\s*(?P<number>(?!на|от)([A-Za-zА-Яа-я]{2,10}|[0-9]{1,15})([ \/\-][0-9]{1,4}){0,3})")
 document_number_valid_c = re.compile(r"([A-Za-zА-Яа-я0-9]+)")
 
 
