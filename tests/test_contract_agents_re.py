@@ -7,6 +7,7 @@ import unittest
 from typing import List
 
 from analyser.contract_agents import *
+from analyser.contract_parser import ContractDocument
 from analyser.text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex, \
   r_alias_prefix, r_types, sub_ip_quoter, sub_alias_quote, r_human_name
 
@@ -184,8 +185,8 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
 
-    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть-Сахалин', 'Заказчик'))
-    self._validate_org(tags, 2, (
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Газпромнефть-Сахалин', 'Заказчик'))
+    self._validate_org(tags, 1, (
       'ЧАСТНОЕ УЧРЕЖДЕНИЕ ДОПОЛНИТЕЛЬНОГО ПРОФЕССИОНАЛЬНОГО ОБРАЗОВАНИЯ', 'БИЗНЕС ШКОЛА-СЕМИНАРЫ', 'Исполнитель'))
 
   def test_org_dict_1(self):
@@ -219,8 +220,8 @@ class TestContractAgentsSearch(unittest.TestCase):
     """)
 
     tags: [SemanticTag] = find_org_names(LegalDocument(t).parse(), decay_confidence=False)
-    self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
-    self._validate_org(tags, 2, (
+    self._validate_org(tags, 2, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
+    self._validate_org(tags, 1, (
       'Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_org_dict_3_1(self):
@@ -273,6 +274,19 @@ class TestContractAgentsSearch(unittest.TestCase):
     self._validate_org(tags, 1, (
       'Автономная некоммерческая организация', 'ООО', 'Исполнитель'))
 
+  def test_find_agents_chu(self):
+    t='ДОГОВОР НА ОКАЗАНИЕ ОБРАЗОВАТЕЛЬНЫХ УСЛУГ № 1449\nГород Москва\t03.10.2016\nОбщество с ограниченной ' \
+      'ответственностью «Радость-Радость», в лице Генерального директора, Александра Александра Александра, действу' \
+      'ющего на основании Устава, именуемое ' \
+      'в дальнейшем «Заказчик», и ЧАСТНОЕ УЧРЕЖДЕНИЕ ДОПОЛНИТЕЛЬНОГО ПРОФЕССИОНАЛЬНОГО ОБРАЗОВАНИЯ " БИЗНЕС ШКОЛА - СЕМИНАРЫ", действующее ' \
+      'на основании лицензии №_____от _______., именуемое в ' \
+      'дальнейшем «Исполнитель», в лице ___________ Александры Александры Александры, ' \
+      'действующего на основании Устава, и '
+
+    tags: List[SemanticTag] = find_org_names(ContractDocument(t).parse())
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Радость-Радость', 'Заказчик'))
+    self._validate_org(tags, 1, ('ЧАСТНОЕ УЧРЕЖДЕНИЕ ДОПОЛНИТЕЛЬНОГО ПРОФЕССИОНАЛЬНОГО ОБРАЗОВАНИЯ', 'БИЗНЕС ШКОЛА-СЕМИНАРЫ', 'Исполнитель'))
+
   def test_find_agents_1(self):
     doc_text = """Акционерное общество «Газпромнефть - МАбильная карта» (АО «ГВК»), именуемое в \
     дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
@@ -308,8 +322,8 @@ class TestContractAgentsSearch(unittest.TestCase):
     именуемые «Стороны», и каждая в отдельности «Сторона», заключили настоящий """
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(doc_text).parse())
-    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Кишки Бога', 'Заказчик'))
-    self._validate_org(tags, 2, (None, 'Базедов Болезнь Бледнович', 'Исполнитель'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Кишки Бога', 'Заказчик'))
+    self._validate_org(tags, 1, (None, 'Базедов Болезнь Бледнович', 'Исполнитель'))
 
   def test_find_agent_0(self):
     txt = '''
@@ -521,8 +535,8 @@ class TestContractAgentsSearch(unittest.TestCase):
     """ + _suffix
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t).parse())
-    self._validate_org(tags, 1, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
-    self._validate_org(tags, 2, (
+    self._validate_org(tags, 2, ('Муниципальное бюджетное учреждение', 'Радуга', 'Благополучатель'))
+    self._validate_org(tags, 1, (
       'Общество с ограниченной ответственностью', 'Газпромнефть-Региональные продажи', 'Благотворитель'))
 
   def test_r_types(self):
@@ -721,8 +735,8 @@ class TestContractAgentsSearch(unittest.TestCase):
     # self.assertEqual('Базедов Недуг Бледнович', x['human_name'])
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(t0).parse())
-    self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Кишки Бога', 'Заказчик'))
-    self._validate_org(tags, 2, (None, 'Базедов Недуг Бледнович', 'Исполнитель'))
+    self._validate_org(tags, 2, ('Общество с ограниченной ответственностью', 'Кишки Бога', 'Заказчик'))
+    self._validate_org(tags, 1, (None, 'Базедов Недуг Бледнович', 'Исполнитель'))
 
   def test_r_human_citizen(self):
     t0 = ''' в лице генерального директора Пулькина Фасо Кларобыча, действующего \

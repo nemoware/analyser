@@ -46,6 +46,30 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     ctx._logstep("analyze_contract")
 
+  def test_checksum(self):
+    d0 = LegalDocument("aasasasasas aasasas")
+    d0.parse()
+
+    d1 = LegalDocument("bgfgjfgdfg dfgj d gj")
+    d1.parse()
+
+    d = LegalDocument("aasasasasas aasasas")
+    d.parse()
+    print(d.checksum)
+    self.assertIsNotNone(d.checksum)
+    self.assertTrue(d.checksum != 0)
+
+    self.assertEqual(d0.checksum, d.checksum)
+    self.assertNotEqual(d0.checksum, d1.checksum)
+
+
+    self.assertEqual(d0.checksum, DocumentJson(d0).checksum)
+    self.assertEqual(d.checksum, DocumentJson(d).checksum)
+    self.assertEqual(d1.checksum, DocumentJson(d1).checksum)
+
+    self.assertEqual(d1.checksum, d1.checksum)
+    self.assertEqual(d1.get_checksum(), d1.get_checksum())
+
   def test_charter_parser(self):
     # from renderer import SilentRenderer
     point1 = [1, 6, 4]

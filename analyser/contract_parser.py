@@ -77,7 +77,7 @@ class ContractAnlysingContext(ParsingContext):
     :param charter:
     :return:
     """
-    contract.agents_tags = find_org_names(contract, max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
+    contract.agents_tags = find_org_names(contract[0:2000], max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
 
