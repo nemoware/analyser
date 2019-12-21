@@ -1,20 +1,16 @@
 from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory
-from analyser.dates import find_document_date, find_document_number
+from analyser.doc_dates import find_document_date
+from analyser.doc_numbers import find_document_number
 from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue, ParserWarnings
 from analyser.ml_tools import *
-
 from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import AV_SOFT, AV_PREFIX
-
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
-
-contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
-
 from analyser.transaction_values import complete_re as transaction_values_re
 
-from analyser.hyperparams import HyperParameters
+contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
 
 
 class ContractDocument3(LegalDocument):

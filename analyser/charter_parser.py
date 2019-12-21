@@ -1,7 +1,8 @@
 # origin: charter_parser.py
 from analyser.contract_agents import find_org_names
 from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
-from analyser.dates import find_document_date
+from analyser.doc_dates import find_document_date
+
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
   tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns, ParserWarnings
