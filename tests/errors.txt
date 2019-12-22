@@ -1,21 +1,12 @@
 1.1. Договор пожертвования.docx:	org_2_name 
 	 expected: 'Детская городская больница №1' 
 	   ACTUAL: 'nan'
-3 этап по правилам/ДД_4.docx:	org_2_name 
-	 expected: 'БИЗНЕС ШКОЛА-СЕМИНАРЫ' 
-	   ACTUAL: 'nan'
-3 этап по правилам/ДД_6.docx:	value 
-	 expected: '27140000.0' 
-	   ACTUAL: '23000000.0'
 3 этап по правилам/Договор 12.docx:	subject 
 	 expected: 'Deal' 
 	   ACTUAL: 'nan'
 3 этап по правилам/Договор 15.doc:	org_2_name 
 	 expected: 'А' 
 	   ACTUAL: 'nan'
-3 этап по правилам/Договор 17.docx:	org_1_name 
-	 expected: 'Ромашка' 
-	   ACTUAL: 'РОМАШКА'
 3 этап по правилам/Договор 18.docx:	subject 
 	 expected: 'Deal' 
 	   ACTUAL: 'nan'
@@ -40,12 +31,6 @@
 3 этап по правилам/Договор поставки_1_.docx:	value 
 	 expected: 'nan' 
 	   ACTUAL: '100000.0'
-3 этап по правилам/договор.1.docx:	org_1_name 
-	 expected: 'Радуга' 
-	   ACTUAL: 'Многофункциональный комплекс «Лахта центр»'
-3 этап по правилам/договор.1.docx:	org_2_name 
-	 expected: 'Многофункциональный комплекс «Лахта центр»' 
-	   ACTUAL: 'Радуга'
 3 этап по правилам/договор.2.docx:	value 
 	 expected: '55000.0' 
 	   ACTUAL: '45833.33'
@@ -56,17 +41,11 @@
 	 expected: 'Deal' 
 	   ACTUAL: 'nan'
 3 этап по правилам/договор.4.docx:	org_1_name 
-	 expected: 'Радуга' 
+	 expected: 'Газпромнефть–Сахалин' 
 	   ACTUAL: 'Газпромнефть-Сахалин'
 3 этап по правилам/договор.4.docx:	org_2_name 
-	 expected: 'Газпромнефть–Сахалин' 
-	   ACTUAL: 'nan'
-3 этап по правилам/договор.5.docx:	org_1_name 
 	 expected: 'Радуга' 
-	   ACTUAL: 'Многофункциональный комплекс «Лахта центр»'
-3 этап по правилам/договор.5.docx:	org_2_name 
-	 expected: 'Многофункциональный комплекс «Лахта центр»' 
-	   ACTUAL: 'Радуга'
+	   ACTUAL: 'nan'
 3 этап по правилам/договор.5.docx:	value 
 	 expected: 'nan' 
 	   ACTUAL: '500000.0'
@@ -76,5 +55,11 @@
 3 этап по правилам/договор.5_.docx:	value 
 	 expected: '-0.0' 
 	   ACTUAL: '50000000.0'
+3 этап по правилам/договор.7.docx:	value 
+	 expected: '1000000.0' 
+	   ACTUAL: '0.0'
+3 этап по правилам/договор.9_.docx:	value 
+	 expected: '100000.0' 
+	   ACTUAL: '1000.0'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	26 of 43 docs
+ERRRORS: 	21 of 52 docs
