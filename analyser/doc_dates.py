@@ -25,12 +25,9 @@ _date_separator = r'(\s*|\-|\.)'
 date_regex_str = f'{_date_day}{_date_separator}{_date_month}{_date_separator}{_date_year}'
 date_regex_c = re.compile(date_regex_str, re.IGNORECASE | re.UNICODE)
 
-document_number_c = re.compile(r"[№N][ \t]*(?P<number>\S+)(\s+|$)")
-document_number_valid_c = re.compile(r"([A-Za-zА-Яа-я0-9]+)")
-
 
 def find_document_date(doc: LegalDocument, tagname='date') -> SemanticTag or None:
-  head: LegalDocument = doc[0:HyperParameters.protocol_caption_max_size_words]
+  head: LegalDocument = get_doc_head(doc)
   c_span, _date = find_date(head.text)
   if c_span is None:
     return None
@@ -52,20 +49,13 @@ def find_date(text: str) -> ([], datetime.datetime):
   return None, None
 
 
-def find_document_number(doc: LegalDocument, tagname='number') -> SemanticTag or None:
-  head: LegalDocument = doc[0:HyperParameters.protocol_caption_max_size_words]
-
-  try:
-    findings = re.finditer(document_number_c, head.text)
-    if findings:
-      finding = next(findings)
-      _number = finding['number']
-      if document_number_valid_c.match(_number):
-        span = head.tokens_map.token_indices_by_char_range(finding.span())
-        return SemanticTag(tagname, _number, span)
-  except:
-    pass
-  return None
+def get_doc_head(doc: LegalDocument) -> LegalDocument:
+  if doc.paragraphs:
+    headtag: SemanticTag = doc.paragraphs[0].as_combination()
+    if len(headtag) > 50:
+      return doc[headtag.as_slice()]
+  # fallback
+  return doc[0:HyperParameters.protocol_caption_max_size_words]
 
 
 def parse_date(finding) -> ([], datetime.datetime):
@@ -95,7 +85,6 @@ if __name__ == '__main__':
   doc = LegalDocument(
     'Договор пожертвования N 16-89/44 г. Санкт-Петербург                     «11» декабря 2018 год.\nМуниципальное бюджетное учреждение города Москвы «Радуга» именуемый в дальнейшем «Благополучатель»')
   doc.parse()
-  tag = find_document_number(doc)
-  print(tag)
+
   tag = find_document_date(doc)
   print(tag)

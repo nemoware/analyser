@@ -1,15 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-import re
 import unittest
 
-from analyser.dates import _date_separator, find_date
+from analyser.doc_dates import find_date
 
 
 class DatesTestCase(unittest.TestCase):
-  # def test_parse_date(self):
-  #   parse_date('15» мая 2014 года')
 
   def test_find_date_0(self):
     txt = '''
@@ -106,7 +103,6 @@ class DatesTestCase(unittest.TestCase):
 
     span, date_ = find_date(txt)
     self.validate_date(1, 12, 2019, date_)
-
 
 
 if __name__ == '__main__':

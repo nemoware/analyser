@@ -1,10 +1,11 @@
 # origin: charter_parser.py
 from analyser.contract_agents import find_org_names
 from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
-from analyser.dates import find_document_date
+from analyser.doc_dates import find_document_date
+
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
-  tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns
+  tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns, ParserWarnings
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
@@ -154,14 +155,6 @@ class CharterParser(ParsingContext):
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
                                                                          self.patterns_named_embeddings)
-
-  def analyse(self, charter: CharterDocument) -> CharterDocument:
-    warnings.warn("call 1) find_org_date_number 2) find_attributes", DeprecationWarning)
-    ctx = AuditContext()
-    self.find_org_date_number(charter, ctx)
-    self._ebmedd(charter)
-    self.find_attributes(charter, ctx)
-    return charter
 
   def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
@@ -424,9 +417,13 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
+  else:
+    charter.warn(ParserWarnings.org_name_not_found)
 
   tp = SemanticTag.find_by_kind(x, 'org-1-type')
   if tp is not None:
     ret.append(tp)
+  else:
+    charter.warn(ParserWarnings.org_type_not_found)
 
   return ret
