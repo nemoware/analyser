@@ -5,8 +5,8 @@ from typing import Iterator
 from analyser.contract_agents import complete_re as agents_re
 from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
 from analyser.contract_parser import find_value_sign_currency_attention
-from analyser.dates import document_number_c
-from analyser.dates import find_document_date, find_document_number_in_subdoc
+from analyser.doc_dates import find_document_date
+from analyser.doc_numbers import document_number_c, find_document_number_in_subdoc
 from analyser.documents import TextMap
 from analyser.documents import sentences_attention_to_words
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings

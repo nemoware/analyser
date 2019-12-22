@@ -96,7 +96,10 @@ def find_org_names(doc: LegalDocument,
                    decay_confidence=True,
                    audit_subsidiary_name=None) -> [SemanticTag]:
   all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence)
-  all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+  if audit_subsidiary_name:
+    all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+  else:
+    all = sorted(all, key=lambda a: a.name.value)
 
   return _rename_org_tags(all, tag_kind_prefix, start_from=1)
 
