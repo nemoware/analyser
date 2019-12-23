@@ -1,20 +1,16 @@
 from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory
-from analyser.dates import find_document_date, find_document_number
+from analyser.doc_dates import find_document_date
+from analyser.doc_numbers import find_document_number
 from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue, ParserWarnings
 from analyser.ml_tools import *
-
 from analyser.parsing import ParsingContext, AuditContext
 from analyser.patterns import AV_SOFT, AV_PREFIX
-
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
-
-contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
-
 from analyser.transaction_values import complete_re as transaction_values_re
 
-from analyser.hyperparams import HyperParameters
+contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
 
 
 class ContractDocument3(LegalDocument):
@@ -81,7 +77,7 @@ class ContractAnlysingContext(ParsingContext):
     :param charter:
     :return:
     """
-    contract.agents_tags = find_org_names(contract, max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
+    contract.agents_tags = find_org_names(contract[0:2000], max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
 
@@ -148,18 +144,19 @@ class ContractAnlysingContext(ParsingContext):
 
     pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
 
-    vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
+    _vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
     if addon is not None:
-      vectors = list(vectors)
-      vectors.append(addon)
-    x = max_exclusive_pattern(vectors)
-    assert x is not None, f'no patterns for {subject_kind}'
+      _vectors = list(_vectors)
+      _vectors.append(addon)
 
+    vectors = []
+    for v in _vectors:
+      vectors.append(best_above(v, 0.4))
+
+    x = max_exclusive_pattern(vectors)
+    x = relu(x, 0.6)
     section.distances_per_pattern_dict[attention_vector_name_soft] = x
     section.distances_per_pattern_dict[attention_vector_name] = x
-
-    #   x = x-np.mean(x)
-    x = relu(x, 0.6)
 
     return x
 
@@ -171,7 +168,8 @@ class ContractAnlysingContext(ParsingContext):
     else:
       doc.warn(ParserWarnings.subject_section_not_found)
       self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
-      subject_subdoc = doc.subdoc_slice(slice(0, 1500))
+      doc.warn(ParserWarnings.contract_subject_section_not_found)
+      subject_subdoc = doc[0:1500]
       denominator = 0.7
 
     return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
@@ -183,21 +181,30 @@ class ContractAnlysingContext(ParsingContext):
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
     section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
 
-    all_subjects_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
-    subject_headline_attention: FixedVector = rectifyed_sum(all_subjects_vectors) / 2
+    all_subjects_headlines_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
+
+    subject_headline_attention: FixedVector = max_exclusive_pattern(all_subjects_headlines_vectors)
+    subject_headline_attention = best_above(subject_headline_attention, 0.5)
+    subject_headline_attention = momentum_t(subject_headline_attention, half_decay=120)
+    subject_headline_attention_max = max(subject_headline_attention)
+
+    section.distances_per_pattern_dict['subject_headline_attention'] = subject_headline_attention  # for debug
 
     max_confidence = 0
     max_subject_kind = None
     max_paragraph_span = None
 
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
-      subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind,
-                                                                                   subject_headline_attention)
+      subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, None)
+      if subject_headline_attention_max > 0.2:
+        subject_attention_vector *= subject_headline_attention
 
       paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(section,
                                                                                              subject_attention_vector,
                                                                                              min_len=20,
                                                                                              return_delimiters=False)
+      if len(subject_attention_vector) < 400:
+        confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
 
       if self.verbosity_level > 2:
         print(f'--------------------confidence {subject_kind}=', confidence)

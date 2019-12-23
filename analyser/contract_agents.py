@@ -43,16 +43,17 @@ r_type_ext = r_group(r'[А-Яa-zа-яА-Я0-9\s]*', 'type_ext')
 r_name_alias = r_group(_r_name, 'alias')
 
 r_quoted_name_alias = r_group(r_quoted(r_name_alias), 'r_quoted_name_alias')
-r_alias = r_group(r".{0,140}" + r_alias_prefix + r'\s*' + r_quoted_name_alias, '_alias_ext')
+r_alias = r_group(r".{0,140}?" + r_alias_prefix + r'\s*' + r_quoted_name_alias, '_alias_ext')
 
 r_type_and_name = r_types + r_type_ext + r_quoted_name
 
-r_alter = r_group(r_bracketed(r'.{1,70}') + r'{0,2}', 'alt_name')
+r_alter = r_group(r_bracketed(r'.{1,70}?') + r'{0,2}', 'alt_name')
 complete_re_str_org = r_type_and_name + r'\s*' + r_alter
 complete_re_str = r_group(complete_re_str_org + "|" + r_being_a_human_citizen) + r_alias + '?'
+
 # ----------------------------------
-complete_re = re.compile(complete_re_str, re.MULTILINE | re.UNICODE)
-complete_re_ignore_case = re.compile(complete_re_str, re.MULTILINE | re.UNICODE | re.IGNORECASE)
+complete_re = re.compile(complete_re_str, re.MULTILINE | re.UNICODE | re.DOTALL)
+complete_re_ignore_case = re.compile(complete_re_str, re.MULTILINE | re.UNICODE | re.IGNORECASE | re.DOTALL)
 
 # ----------------------------------
 
@@ -95,7 +96,10 @@ def find_org_names(doc: LegalDocument,
                    decay_confidence=True,
                    audit_subsidiary_name=None) -> [SemanticTag]:
   all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence)
-  all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+  if audit_subsidiary_name:
+    all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+  else:
+    all = sorted(all, key=lambda a: a.name.value)
 
   return _rename_org_tags(all, tag_kind_prefix, start_from=1)
 

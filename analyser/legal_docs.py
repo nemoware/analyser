@@ -37,6 +37,7 @@ class ParserWarnings(Enum):
   contract_value_not_found = 8,
   subject_section_not_found = 6,
   contract_subject_not_found = 9,
+  contract_subject_section_not_found = 12,
   protocol_agenda_not_found = 10,
 
   boring_agenda_questions = 11
@@ -48,7 +49,7 @@ class Paragraph:
     self.body: SemanticTag = body
 
   def as_combination(self) -> SemanticTag:
-    return SemanticTag(self.header.kind + '-' + self.body.kind, None, span= (self.header.span[0], self.body.span[1]))
+    return SemanticTag(self.header.kind + '-' + self.body.kind, None, span=(self.header.span[0], self.body.span[1]))
 
 
 class LegalDocument:
@@ -97,7 +98,6 @@ class LegalDocument:
     self._normal_text = self.preprocess_text(txt)
     self.tokens_map = TextMap(self._normal_text)
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
-
     return self
 
   def __len__(self):
@@ -166,11 +166,15 @@ class LegalDocument:
   def get_text(self):
     return self.tokens_map.text
 
+  def get_checksum(self):
+    return hash(self._normal_text)
+
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
   original_text = property(get_original_text)
-  normal_text = property(get_normal_text)
+  normal_text = property(get_normal_text, None)
   text = property(get_text)
+  checksum = property(get_checksum, None)
 
   def preprocess_text(self, txt):
     assert txt is not None
@@ -314,9 +318,9 @@ class DocumentJson:
 
     if doc is None:
       return
-
+    self.checksum = doc.get_checksum()
     self.warnings: [str] = list(doc.warnings)
-    self.checksum = hash(doc.normal_text)
+
     self.tokenization_maps['words'] = doc.tokens_map.map
 
     for field in doc.__dict__:
