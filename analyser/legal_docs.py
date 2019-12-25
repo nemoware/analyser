@@ -446,7 +446,7 @@ class ContractValue:
     else:
       return [self.value, self.currency, self.parent]
 
-  def __add__(self, addon):
+  def __add__(self, addon:int)->'ContractValue':
     for t in self.as_list():
       t.offset(addon)
     return self
