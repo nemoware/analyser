@@ -218,8 +218,8 @@ class CharterParser(ParsingContext):
 
   def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
     margin_values = []
-    org_levels=[]
-    constraint_tags=[]
+    org_levels = []
+    constraint_tags = []
     if _charter.sentences_embeddings is None:
       # lazy embedding
       self._ebmedd(_charter)
@@ -251,53 +251,66 @@ class CharterParser(ParsingContext):
       # constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc,
       #                                                                                   parent_org_level_tag)
 
-      subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
-      subject_spans = collect_subjects_spans(subdoc, subject_attentions_map)
+      _constraint_tags, _margin_values = self.find_attributes_in_sections(subdoc, parent_org_level_tag)
+      margin_values += _margin_values
+      constraint_tags += _constraint_tags
 
-      values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
-      self._rename_margin_values_tags(values)
-      valued_sentence_spans = collect_sentences_having_constraint_values(subdoc, values, merge_spans=True)
-
-      united_spans = []
-      for c in valued_sentence_spans:
-        united_spans.append(c)
-      for c in subject_spans:
-        united_spans.append(c)
-
-      united_spans = merge_colliding_spans(united_spans)
-
-      constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
-                                                                                 parent_org_level_tag,
-                                                                                 absolute_spans=False)
-
-      margin_values += values
-      constraint_tags += constraint_tags
-
-      #offsetting
-      for value in values:
-        value +=  subdoc.start
-      for constraint_tag in constraint_tags:
-        constraint_tag.offset(subdoc.start)
-
-      for constraint_tag in constraint_tags:
-        for value in values:
-          v_group = value.parent
-          if constraint_tag.wraps(v_group.span):
-            v_group.set_parent_tag(constraint_tag)
-
-      if values:
-        _key = parent_org_level_tag.get_key()
-      #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
-      #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
+      if _constraint_tags:
+        # _key = parent_org_level_tag.get_key()
+        #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
+        #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
         org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
-        _parent_org_level_tag_keys.append(_key)
+        # _parent_org_level_tag_keys.append(_key)
 
-    #---
+    # --------------- populate charter
 
     _charter.org_levels = org_levels
     _charter.constraint_tags = constraint_tags
     _charter.margin_values = margin_values
     return _charter
+
+  def find_attributes_in_sections(self, subdoc, parent_org_level_tag):
+
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
+    subject_spans = collect_subjects_spans(subdoc, subject_attentions_map)
+
+    values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
+    self._rename_margin_values_tags(values)
+    valued_sentence_spans = collect_sentences_having_constraint_values(subdoc, values, merge_spans=True)
+
+    united_spans = []
+    for c in valued_sentence_spans:
+      united_spans.append(c)
+    for c in subject_spans:
+      united_spans.append(c)
+
+    united_spans = merge_colliding_spans(united_spans)
+
+    constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
+                                                                               parent_org_level_tag,
+                                                                               absolute_spans=False)
+
+    # nesting values
+    for parent_tag in constraint_tags:
+      for value in values:
+        v_group = value.parent
+        if parent_tag.contains(v_group.span):
+          v_group.set_parent_tag(parent_tag)
+
+    # if values:
+    #   _key = parent_org_level_tag.get_key()
+    #   #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
+    #   #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
+    #   org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
+    #   _parent_org_level_tag_keys.append(_key)
+
+    # offsetting tags to absolute values
+    for value in values:
+      value += subdoc.start
+    for constraint_tag in constraint_tags:
+      constraint_tag.offset(subdoc.start)
+
+    return constraint_tags, values
 
   def _rename_margin_values_tags(self, values):
 
@@ -319,7 +332,6 @@ class CharterParser(ParsingContext):
         value.parent.kind = f"{value.parent.kind}{TAG_KEY_DELIMITER}{k}"
 
       known_keys.append(value.parent.get_key())
-
 
   def attribute_spans_to_subjects(self,
                                   unique_sentence_spans: Spans,
