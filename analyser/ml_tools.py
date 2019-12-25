@@ -443,8 +443,8 @@ class SemanticTag:
   def set_parent_tag(self, pt):
     self._parent_tag = pt
 
-  def is_nested(self, other: [int]) -> bool:
-    return self.span[0] <= other[0] and self.span[1] >= other[1]
+  def wraps(self, child: [int]) -> bool:
+    return self.span[0] <= child[0] and self.span[1] >= child[1]
 
   def __str__(self):
     return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'
