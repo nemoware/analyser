@@ -290,7 +290,7 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: Contr
 
 
 def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None,
-                                       parent_tag=None) -> List[
+                                       parent_tag=None, absolute_spans=False) -> List[
   ContractValue]:
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = []
@@ -311,6 +311,13 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
         value_sign_currency.parent.set_parent_tag(parent_tag)
 
       values_list.append(value_sign_currency)
+
+  # offsetting
+  if absolute_spans:
+    for value in values_list:
+      value += value_section_subdoc.start
+
+
 
   return values_list
 
@@ -334,9 +341,9 @@ def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vect
                                _padding:-_padding]
 
   top_index = int(np.argmax(paragraph_attention_vector))
-  span = section.tokens_map.sentence_at_index(top_index)
+  span = section.sentence_at_index(top_index)
   if min_len is not None and span[1] - span[0] < min_len:
-    next_span = section.tokens_map.sentence_at_index(span[1] + 1, return_delimiters)
+    next_span = section.sentence_at_index(span[1] + 1, return_delimiters)
     span = (span[0], next_span[1])
 
   # confidence = paragraph_attention_vector[top_index]

@@ -1,5 +1,6 @@
 import math
 import warnings
+from enum import Enum
 from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
@@ -14,7 +15,13 @@ Vector = TypeVar('Vector', FixedVector, Iterable[float])
 Vectors = TypeVar('Vectors', List[Vector], Iterable[Vector])
 FixedVectors = TypeVar('FixedVectors', List[FixedVector], Iterable[FixedVector])
 
+Spans = [(int, int)]
+
 T = TypeVar('T')  # just type variable
+
+
+def span_to_slice(span) -> slice:
+  return slice(span[0], span[1])
 
 
 class ProbableValue(Generic[T]):
@@ -368,9 +375,15 @@ TAG_KEY_DELIMITER = '/'
 
 class SemanticTag:
 
-  def __init__(self, kind, value, span: (int, int), span_map='words', parent: 'SemanticTag' = None):
+  def __init__(self,
+               kind: str,
+               value: str or Enum or None,
+               span: (int, int),
+               span_map: str or None = 'words',
+               parent: 'SemanticTag' = None):
+
     self.kind = kind
-    self.value = value
+    self.value: str or Enum or None = value
     '''name of the parent (or group) tag '''
 
     self._parent_tag: 'SemanticTag' = parent
@@ -383,7 +396,10 @@ class SemanticTag:
     self.confidence = 1.0
 
   @staticmethod
-  def number_key(base, number) -> str:
+  def number_key(base: str or Enum, number: int) -> str:
+    if isinstance(base, Enum):
+      base = base.name
+
     return f'{base}-{number}'
 
   def get_parent(self) -> str or None:
@@ -501,12 +517,12 @@ def combined_attention_vectors(vectors_dict, vector_names):
 sum_probabilities_by_name = combined_attention_vectors
 
 
-def find_non_zero_spans(tokens_map, attention_vector_relu):
-  nonzeros = np.argwhere(attention_vector_relu > 0.001)[:, 0]
-  return np.unique([tokens_map.sentence_at_index(i) for i in nonzeros], axis=0)
-
-
-find_sentences_with_attention = find_non_zero_spans
+# def find_non_zero_spans(tokens_map, attention_vector_relu):
+#   nonzeros = np.argwhere(attention_vector_relu > 0.001)[:, 0]
+#   return np.unique([tokens_map.sentence_at_index(i) for i in nonzeros], axis=0)
+#
+#
+# find_sentences_with_attention = find_non_zero_spans
 
 
 def find_first_gt(indx: int, indices) -> int or None:
@@ -531,21 +547,34 @@ def remove_colliding_spans(spans, eps=0):
   return np.array(ret)
 
 
-def merge_colliding_spans(spans, eps=0):
-  if len(spans) == 0:
+# def merge_colliding_spans(spans: Spans, eps=0) -> Spans:
+#
+#   sorted_spans = sorted(spans, lambda x:x[0])
+
+# def span_intersect
+
+def merge_colliding_spans(spans: Spans, eps=0) -> Spans:
+  sorted_spans = sorted(spans, key=lambda x: x[0])
+  sorted_spans = [[s[0], s[1]] for s in sorted_spans]
+  if len(sorted_spans) == 0:
     return []
   """
   [0..2][2..4][4..5] -> [0..5]
   """
-  ret = [spans[0]]
+  ret = [sorted_spans[0]]
 
-  for i in range(1, len(spans)):
-    distance_to_next = abs(ret[-1][1] - spans[i][0])
+  for i in range(1, len(sorted_spans)):
+    span_a = ret[-1]
+    span_b = sorted_spans[i]
+
+    distance_to_next = span_b[0] - span_a[1]
     if distance_to_next > eps:  # sections is not empty
-      ret.append(spans[i])
+      ret.append(span_b)
     else:
-      ret[-1][1] = spans[i][1]
+      # merge
+      span_a[1] = span_b[1]
 
+  ret = [(s[0], s[1]) for s in ret]
   return np.array(ret)
 
 
@@ -677,3 +706,28 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
     vals[header_index, :] = -1
 
   return pairs
+
+
+def attention_vector(pattern_emb, text_emb):
+  return np.array([1.0 - distance.cosine(e, pattern_emb) for e in text_emb])
+
+
+def multi_attention_vector(patterns_emb, text_emb):
+  vectors = []
+  for pattern_emb in patterns_emb:
+    av = attention_vector(pattern_emb, text_emb)
+    vectors.append(av)
+
+  return max_exclusive_pattern(vectors)
+
+
+def best_window(attention_vector, wnd_len):
+  max_sum = 0
+  best_index = 0
+  for k in range(len(attention_vector) - wnd_len + 1):
+    wnd = attention_vector[k:k + wnd_len]
+    _sum = sum(wnd)
+    if _sum > max_sum:
+      max_sum = _sum
+      best_index = k
+  return best_index, max_sum, max_sum / wnd_len

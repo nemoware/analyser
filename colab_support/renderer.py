@@ -5,11 +5,11 @@ import numpy as np
 
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import ProbableValue
-from analyser.transaction_values import ValueConstraint
 from analyser.parsing import known_subjects
 from analyser.patterns import AV_PREFIX, AV_SOFT
 from analyser.structures import ContractSubject
 from analyser.structures import OrgStructuralLevel
+from analyser.transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
                      'head.all': 'orange',
@@ -172,8 +172,8 @@ class HtmlRenderer(AbstractRenderer):
       raise ValueError("number of weights differs weights={} tokens={}".format(len(weights), len(tokens)))
 
     #   if()
-    vmin = weights.min()
-    vmax = weights.max()
+    vmin = weights.min() - 0.00001
+    vmax = weights.max() + 0.00001
 
     if _range is not None:
       vmin = _range[0]

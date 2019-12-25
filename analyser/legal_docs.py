@@ -12,7 +12,7 @@ from bson import json_util
 
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
-from analyser.documents import TextMap
+from analyser.documents import TextMap, split_sentences_into_map
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.ml_tools import SemanticTag, conditional_p_sum, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
@@ -22,7 +22,6 @@ from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
-from tests.test_text_tools import split_sentences_into_map
 
 REPORTED_DEPRECATED = {}
 
@@ -99,6 +98,9 @@ class LegalDocument:
     self.tokens_map = TextMap(self._normal_text)
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
     return self
+
+  def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
+    return self.tokens_map.sentence_at_index(i, return_delimiters)
 
   def __len__(self):
     return self.tokens_map.get_len()
@@ -346,6 +348,10 @@ class DocumentJson:
 
     key = t.get_key()
     attribute = t.__dict__.copy()
+
+    if isinstance(t.value, Enum):
+      attribute['value'] = t.value.name
+
     del attribute['kind']
     if '_parent_tag' in attribute:
       if t.parent is not None:
