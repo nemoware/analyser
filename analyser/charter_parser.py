@@ -106,8 +106,8 @@ class CharterParser(ParsingContext):
     ],
 
     CharterSubject.BigDeal: [
-      'принятие решений о совершении крупных сделок',
-      'принятие решений о согласии на совершение или последующее одобрение крупных сделок'
+      'совершение крупных сделок',
+      'согласие на совершение или одобрение крупных сделок'
     ],
 
     CharterSubject.Charity: [
@@ -162,11 +162,14 @@ class CharterParser(ParsingContext):
     ],
 
     CharterSubject.Renting: [
-      'получение в аренду или субаренду недвижимого имущества'
+      'получение в аренду или субаренду недвижимого имущества',
+      'о совершении сделок, связанных с получением в аренду недвижимоcти'
     ],
 
     CharterSubject.RentingOut: [
-      'передача в аренду или субаренду недвижимого имущества'
+      'передача в аренду или субаренду недвижимого имущества',
+      'о совершении сделок, связанных с передачей в аренду недвижимоcти'
+
     ]
 
   }
@@ -359,7 +362,8 @@ class CharterParser(ParsingContext):
       # end for
 
       if best_subject is not None:
-        constraint_tag = SemanticTag(number_key(best_subject, sentence_number),
+        # $number_key(best_subject, sentence_number),
+        constraint_tag = SemanticTag(best_subject.name,
                                      best_subject,
                                      contract_value_sentence_span,
                                      parent=parent_org_level_tag)
