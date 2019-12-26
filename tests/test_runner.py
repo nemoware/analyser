@@ -67,13 +67,12 @@ class TestRunner(unittest.TestCase):
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_charters_phase_1(self):
-    runner = Runner.get_instance()
 
     audit_id = next(get_audits())['_id']
     docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
     for doc in docs:
       processor = document_processors.get('CHARTER', None)
-      processor.preprocess(doc)
+      processor.preprocess(doc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_protocols_phase_1(self):

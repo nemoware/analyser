@@ -360,7 +360,7 @@ def unquote(s):
   return s
 
 
-def find_best_sentence_end(txt) -> int:
+def find_best_sentence_end(txt) -> (int, str):
   delimiters_prio = ['\n', '•', '.!?', ';', ',', "-—", ')', ':', ' ']
 
   for delimiters in delimiters_prio:
@@ -368,17 +368,21 @@ def find_best_sentence_end(txt) -> int:
     for i in reversed(range(len(txt))):
       c = txt[i:i + 1]
       if delimiters.find(c) >= 0:
-        return i + 1
+        return i + 1, c
 
-  return len(txt)
+  return len(txt), ''
 
 
 def split_into_sentences(txt, max_len_chars=150):
   spans = []
   begin = 0
+
   while begin < len(txt):
     segment = txt[begin:begin + max_len_chars]
-    end = find_best_sentence_end(segment)
+    if len(segment) < max_len_chars:
+      end = len(segment)
+    else:
+      end, __char = find_best_sentence_end(segment)
     span = begin, begin + end
     begin = span[1]
     spans.append(span)
@@ -418,7 +422,7 @@ def _count_digits(txt):
 
 if __name__ == '__main__':
   x = '12345 aaaa.1234 ttt. dfdfd. 0123456789'
-  be = find_best_sentence_end(x)
+  be, char = find_best_sentence_end(x)
   spans = split_into_sentences(x, max_len_chars=12)
   for span in spans:
     print('S >>>', x[span[0]:span[1]])
