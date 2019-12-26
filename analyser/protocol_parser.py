@@ -1,5 +1,4 @@
 import re
-from enum import Enum
 from typing import Iterator
 
 from analyser.contract_agents import complete_re as agents_re
@@ -178,7 +177,7 @@ class ProtocolParser(ParsingContext):
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_margin_values(doc)
-    doc.contract_numbers=self.find_contract_numbers(doc)
+    doc.contract_numbers = self.find_contract_numbers(doc)
     doc.agents_tags = list(self.find_agents_in_all_sections(doc, doc.agenda_questions, ctx.audit_subsidiary_name))
 
     self.validate(doc)
@@ -219,13 +218,14 @@ class ProtocolParser(ParsingContext):
 
   def find_margin_values(self, doc) -> [ContractValue]:
     assert ProtocolAV.relu_value_attention_vector.name in doc.distances_per_pattern_dict, 'call find_question_decision_sections first'
-    value_attention_vector = doc.distances_per_pattern_dict[ProtocolAV.relu_value_attention_vector.name]
 
     values: [ContractValue] = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
-      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc, value_attention_vector,
-                                                                          parent_tag=agenda_question_tag)
+      subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc,
+                                                                          ProtocolAV.relu_value_attention_vector.name,
+                                                                          parent_tag=agenda_question_tag,
+                                                                          absolute_spans=True)
       values += subdoc_values
       if len(subdoc_values) > 1:
         confidence = 1.0 / len(subdoc_values)

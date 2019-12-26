@@ -413,6 +413,14 @@ class SemanticTag:
   def __len__(self) -> int:
     return self.span[1] - self.span[0]
 
+  def __add__(self, addon: int) -> 'SemanticTag':
+    self.span = self.span[0] + addon, self.span[1] + addon
+    return self
+
+  def offset(self, span_add: int):
+    self.span = self.span[0] + span_add, self.span[1] + span_add
+    return self
+
   def get_key(self):
     key = self.kind.replace('.', '-').replace(TAG_KEY_DELIMITER, '-')
     if self._parent_tag is not None:
@@ -437,14 +445,11 @@ class SemanticTag:
       if s.kind == kind and s.value == val:
         return s
 
-  def offset(self, span_add: int):
-    self.span = self.span[0] + span_add, self.span[1] + span_add
-
   def set_parent_tag(self, pt):
     self._parent_tag = pt
 
-  def is_nested(self, other: [int]) -> bool:
-    return self.span[0] <= other[0] and self.span[1] >= other[1]
+  def contains(self, child: [int]) -> bool:
+    return self.span[0] <= child[0] and child[1] <= self.span[1]
 
   def __str__(self):
     return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'

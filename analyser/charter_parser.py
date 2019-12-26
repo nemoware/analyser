@@ -106,8 +106,8 @@ class CharterParser(ParsingContext):
     ],
 
     CharterSubject.BigDeal: [
-      'принятие решений о совершении крупных сделок',
-      'принятие решений о согласии на совершение или последующее одобрение крупных сделок'
+      'совершение крупных сделок',
+      'согласие на совершение или одобрение крупных сделок'
     ],
 
     CharterSubject.Charity: [
@@ -162,11 +162,14 @@ class CharterParser(ParsingContext):
     ],
 
     CharterSubject.Renting: [
-      'получение в аренду или субаренду недвижимого имущества'
+      'получение в аренду или субаренду недвижимого имущества',
+      'о совершении сделок, связанных с получением в аренду недвижимоcти'
     ],
 
     CharterSubject.RentingOut: [
-      'передача в аренду или субаренду недвижимого имущества'
+      'передача в аренду или субаренду недвижимого имущества',
+      'о совершении сделок, связанных с передачей в аренду недвижимоcти'
+
     ]
 
   }
@@ -216,18 +219,20 @@ class CharterParser(ParsingContext):
 
     return charter
 
-  def find_attributes(self, charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
-
-    if charter.sentences_embeddings is None:
+  def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
+    margin_values = []
+    org_levels = []
+    constraint_tags = []
+    if _charter.sentences_embeddings is None:
       # lazy embedding
-      self._ebmedd(charter)
+      self._ebmedd(_charter)
 
     # reset for preventing doubling tags
-    charter.reset_attributes()
+    _charter.reset_attributes()
 
     # --------------
     # (('Pattern name', 16), 0.8978644013404846),
-    patterns_by_headers = map_headlines_to_patterns(charter,
+    patterns_by_headers = map_headlines_to_patterns(_charter,
                                                     self.patterns_named_embeddings,
                                                     self.elmo_embedder_default)
 
@@ -237,11 +242,11 @@ class CharterParser(ParsingContext):
       _pattern_name = p_mapping[0][0]
       _paragraph_id = p_mapping[0][1]
 
-      paragraph_body = charter.paragraphs[_paragraph_id].body
+      paragraph_body = _charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
-      subdoc = charter.subdoc_slice(paragraph_body.as_slice())
+      subdoc = _charter.subdoc_slice(paragraph_body.as_slice())
       # --
       parent_org_level_tag = SemanticTag(org_level.name, org_level, paragraph_body.span)
       parent_org_level_tag.confidence = confidence
@@ -249,47 +254,64 @@ class CharterParser(ParsingContext):
       # constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc,
       #                                                                                   parent_org_level_tag)
 
-      subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
-      subject_spans = collect_subjects_spans(subdoc, subject_attentions_map)
+      _constraint_tags, _margin_values = self.find_attributes_in_sections(subdoc, parent_org_level_tag)
+      margin_values += _margin_values
+      constraint_tags += _constraint_tags
 
-      contract_values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
-      self._rename_margin_values_tags(contract_values)
-      valued_sentence_spans = collect_sentences_having_constraint_values(subdoc, contract_values, merge_spans=True)
+      if _constraint_tags:
+        # _key = parent_org_level_tag.get_key()
+        #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
+        #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
+        org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
+        # _parent_org_level_tag_keys.append(_key)
 
-      united_spans = []
-      for c in valued_sentence_spans:
-        united_spans.append(c)
-      for c in subject_spans:
-        united_spans.append(c)
+    # --------------- populate charter
 
-      united_spans = merge_colliding_spans(united_spans)
+    _charter.org_levels = org_levels
+    _charter.constraint_tags = constraint_tags
+    _charter.margin_values = margin_values
+    return _charter
 
-      constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
-                                                                                 parent_org_level_tag,
-                                                                                 absolute_spans=False)
+  def find_attributes_in_sections(self, subdoc, parent_org_level_tag):
 
-      charter.margin_values += contract_values  # TODO: collect all, then assign to charter
-      charter.constraint_tags += constraint_tags
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
+    subject_spans = collect_subjects_spans(subdoc, subject_attentions_map)
 
-      #offsetting
-      for value in contract_values:
-        value +=  subdoc.start
-      for constraint_tag in constraint_tags:
-        constraint_tag.offset(subdoc.start)
+    values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
+    self._rename_margin_values_tags(values)
+    valued_sentence_spans = collect_sentences_having_constraint_values(subdoc, values, merge_spans=True)
 
-      for constraint_tag in constraint_tags:
-        for contract_value in contract_values:
-          if constraint_tag.is_nested(contract_value.parent.span):
-            contract_value.parent.set_parent_tag(constraint_tag)
+    united_spans = []
+    for c in valued_sentence_spans:
+      united_spans.append(c)
+    for c in subject_spans:
+      united_spans.append(c)
 
-      if contract_values:
-        _key = parent_org_level_tag.get_key()
-        if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
-          parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
-        charter.org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
-        _parent_org_level_tag_keys.append(_key)
+    united_spans = merge_colliding_spans(united_spans)
 
-    return charter
+    constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
+                                                                               parent_org_level_tag,
+                                                                               absolute_spans=False)
+
+    # nesting values
+    for parent_tag in constraint_tags:
+      for value in values:
+        v_group = value.parent
+        if parent_tag.contains(v_group.span):
+          v_group.set_parent_tag(parent_tag)
+
+    # if values:
+    #   _key = parent_org_level_tag.get_key()
+    #   #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
+    #   #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
+    #   org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
+    #   _parent_org_level_tag_keys.append(_key)
+
+    # offsetting tags to absolute values
+    for value in values: value += subdoc.start
+    for constraint_tag in constraint_tags: constraint_tag += subdoc.start
+
+    return constraint_tags, values
 
   def _rename_margin_values_tags(self, values):
 
@@ -311,7 +333,6 @@ class CharterParser(ParsingContext):
         value.parent.kind = f"{value.parent.kind}{TAG_KEY_DELIMITER}{k}"
 
       known_keys.append(value.parent.get_key())
-
 
   def attribute_spans_to_subjects(self,
                                   unique_sentence_spans: Spans,
@@ -340,7 +361,8 @@ class CharterParser(ParsingContext):
       # end for
 
       if best_subject is not None:
-        constraint_tag = SemanticTag(number_key(best_subject, sentence_number),
+        # $number_key(best_subject, sentence_number),
+        constraint_tag = SemanticTag(best_subject.name,
                                      best_subject,
                                      contract_value_sentence_span,
                                      parent=parent_org_level_tag)
