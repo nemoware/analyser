@@ -99,6 +99,11 @@ class TestTextNormalization(unittest.TestCase):
     doc.parse()
     self.assertEqual(doc.text, "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)")
 
+  def test_normalize_slash(self):
+    doc_text = 'с передачей в аренду/субаренду недвижимого'
+    doc = LegalDocument(doc_text).parse()
+    self.assertEqual('с передачей в аренду / субаренду недвижимого', doc.text)
+
   def test_normalize_double_quotes(self):
     # doc_text = " '' "
     # doc = CharterDocument(doc_text)

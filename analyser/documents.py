@@ -8,7 +8,7 @@ import nltk
 
 from analyser.hyperparams import models_path
 from analyser.ml_tools import spans_to_attention
-from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text
+from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text, split_into_sentences
 
 TEXT_PADDING_SYMBOL = ' '
 nltk.download('punkt')
@@ -105,11 +105,14 @@ class TextMap:
     last = 0
     for i in range(self.get_len()):
       if self[i] == delimiter:
-        yield [last, i + addon]
+        yield (last, i + addon)
         last = i + 1
-    yield [last, self.get_len()]
+    yield (last, self.get_len())
 
   def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
+
+    warnings.warn("use LegalDocument.sentence_at_index", DeprecationWarning)
+
     sent_spans = self.split_spans('\n', add_delimiter=return_delimiters)
     d_add = 1
     if return_delimiters:
@@ -118,7 +121,7 @@ class TextMap:
     for s in sent_spans:
       if i >= s[0] and i < s[1] + d_add:
         return s
-    return [0, self.get_len()]
+    return (0, self.get_len())
 
   def char_range(self, span: [int]) -> (int, int):
     a = span[0]
@@ -210,6 +213,13 @@ class TextMap:
 
   tokens = property(get_tokens)
   text = property(get_text, None)
+
+
+
+def split_sentences_into_map(substr, max_len_chars=150) -> TextMap:
+  spans1 = split_into_sentences(substr, max_len_chars)
+  tm = TextMap(substr, spans1)
+  return tm
 
 
 def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):

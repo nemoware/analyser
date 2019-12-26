@@ -89,9 +89,13 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
 @unique
 class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
   Deal = 0, 'Сделка'
+  BigDeal = 10, ' Крупная сделка'
   Charity = 1, 'Благотворительность'
-  Other = 2, 'Другое'
+  # Other = 2, 'Другое'
   Lawsuit = 3, 'Судебные издержки'
   RealEstate = 4, 'Недвижимость'
+  Loans = 7, 'Сделки с займами/кредитами'
   Insurance = 5, 'Страхование'
   Consulting = 6, 'Консультационные услуги'
+  RentingOut = 8, 'Передача в аренду'
+  Renting = 9, 'Получение в аренду недвижимого имущества'
