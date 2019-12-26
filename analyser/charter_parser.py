@@ -307,7 +307,6 @@ class CharterParser(ParsingContext):
     #   org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
     #   _parent_org_level_tag_keys.append(_key)
 
-
     # offsetting tags to absolute values
     for value in values: value += subdoc.start
     for constraint_tag in constraint_tags: constraint_tag += subdoc.start

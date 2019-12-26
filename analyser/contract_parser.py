@@ -274,27 +274,32 @@ class ContractAnlysingContext(ParsingContext):
         self.warning(f'Раздел [{section}]  не обнаружен')
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
-  ContractValue]:
+def find_value_sign_currency(value_section_subdoc: LegalDocument,
+                             factory: ContractPatternFactory = None) -> List[ContractValue]:
   if factory is not None:
     value_section_subdoc.calculate_distances_per_pattern(factory)
     vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
     # merge dictionaries of attention vectors
     value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
-    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
+    attention_vector_tuned =  'value_attention_vector_tuned'
   else:
     # HATI-HATI: this case is for Unit Testing only
     attention_vector_tuned = None
 
-  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned)
+  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned, absolute_spans=True)
 
 
-def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None,
-                                       parent_tag=None, absolute_spans=False) -> List[
-  ContractValue]:
+def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
+                                       attention_vector_name:str=None,
+                                       parent_tag=None,
+                                       absolute_spans=False) -> List[ContractValue]:
 
   # todo: attention_vector_tuned should be part of value_section_subdoc.distances_per_pattern_dict!!!
+
+  attention_vector_tuned = None
+  if attention_vector_name is not None:
+    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict[attention_vector_name]
 
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = []
@@ -305,8 +310,6 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
 
       # Estimating confidence by looking at attention vector
       if attention_vector_tuned is not None:
-        # offsetting spans
-        value_sign_currency += value_section_subdoc.start #TODO: do not offset here!!!!
 
         for t in value_sign_currency.as_list():
           t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
