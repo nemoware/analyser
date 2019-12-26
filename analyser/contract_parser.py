@@ -77,7 +77,8 @@ class ContractAnlysingContext(ParsingContext):
     :param charter:
     :return:
     """
-    contract.agents_tags = find_org_names(contract[0:2000], max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
+    contract.agents_tags = find_org_names(contract[0:2000], max_names=2,
+                                          audit_subsidiary_name=ctx.audit_subsidiary_name)
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
 
@@ -309,6 +310,7 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
             attention_vector_tuned[t.slice]))
 
         value_sign_currency.parent.set_parent_tag(parent_tag)
+        value_sign_currency.parent.span = value_sign_currency.span()  ##fix span
 
       values_list.append(value_sign_currency)
 
@@ -316,8 +318,6 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, atte
   if absolute_spans:
     for value in values_list:
       value += value_section_subdoc.start
-
-
 
   return values_list
 
