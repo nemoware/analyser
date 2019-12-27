@@ -1,13 +1,13 @@
 # origin: charter_parser.py
 from analyser.contract_agents import find_org_names
-from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
 from analyser.doc_dates import find_document_date
 
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
-  tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns, ParserWarnings
+  embedd_sentences, map_headlines_to_patterns, ParserWarnings, tokenize_doc_into_sentences_map
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext, AuditContext
+from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
+  _find_most_relevant_paragraph
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
 from analyser.structures import *
 from analyser.transaction_values import number_re
@@ -26,8 +26,6 @@ class CharterDocument(LegalDocumentExt):
     if doc is not None:
       self.__dict__ = {**super().__dict__, **doc.__dict__}
     self.org_tags = []
-
-    # TODO: remove this
     self.charity_tags = []
     self.org_levels = []
     self.constraint_tags = []
@@ -72,9 +70,6 @@ class CharterDocument(LegalDocumentExt):
       tags += mv.as_list()
 
     return tags
-
-
-""" ❤️ == GOOD CharterDocumentParser  ====================================== """
 
 
 def _make_org_level_patterns() -> pd.DataFrame:
@@ -210,11 +205,9 @@ class CharterParser(ParsingContext):
     :param charter:
     :return:
     """
-
     # TODO move this call from here to CharterDoc
     charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
     charter.org_tags = find_charter_org(charter)
-
     charter.date = find_document_date(charter)
 
     return charter
@@ -272,7 +265,7 @@ class CharterParser(ParsingContext):
     _charter.margin_values = margin_values
     return _charter
 
-  def find_attributes_in_sections(self, subdoc, parent_org_level_tag):
+  def find_attributes_in_sections(self, subdoc: LegalDocumentExt, parent_org_level_tag):
 
     subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
     subject_spans = collect_subjects_spans(subdoc, subject_attentions_map)
@@ -299,13 +292,6 @@ class CharterParser(ParsingContext):
         v_group = value.parent
         if parent_tag.contains(v_group.span):
           v_group.set_parent_tag(parent_tag)
-
-    # if values:
-    #   _key = parent_org_level_tag.get_key()
-    #   #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
-    #   #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
-    #   org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
-    #   _parent_org_level_tag_keys.append(_key)
 
     # offsetting tags to absolute values
     for value in values: value += subdoc.start
@@ -350,7 +336,7 @@ class CharterParser(ParsingContext):
       best_subject = None
 
       for subj in all_subjects:
-        av: FixedVector = subject_attentions_map[subj]['words']
+        av: FixedVector = subject_attentions_map[subj]
 
         confidence_region: FixedVector = av[span_to_slice(contract_value_sentence_span)]
         confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
@@ -458,35 +444,16 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
     subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6)  # TODO: use hyper parameter
     subj_av_words = remap_attention_vector(subj_av, subdoc.sentence_map, subdoc.tokens_map)
 
-    _distances_per_subj[subj] = {
-      'words': subj_av_words,
-      'sentences': subj_av,  ## TODO: this is not in use
-    }
+    _distances_per_subj[subj] = subj_av_words
+
   return _distances_per_subj
-
-
-def find_subject_paragraphs(parent_org_level_tag: SemanticTag,
-                            subdoc: LegalDocument,
-                            subj: CharterSubject,
-                            subject_attention: FixedVector) -> SemanticTag:
-  warnings.warn("use collect_subjects_spans and attribute_spans_to_subjects", DeprecationWarning)
-  paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
-                                                                                         subject_attention,
-                                                                                         min_len=20,
-                                                                                         return_delimiters=False)
-
-  if confidence > HyperParameters.charter_subject_attention_confidence:
-    subject_tag = SemanticTag(subj.name, subj, paragraph_span, parent=parent_org_level_tag)
-    subject_tag.offset(subdoc.start)
-    subject_tag.confidence = confidence
-    return subject_tag
 
 
 def collect_subjects_spans(subdoc, subject_attentions_map, min_len=20):
   spans = []
   for subj in CharterSubject:
 
-    subject_attention = subject_attentions_map[subj]['words']
+    subject_attention = subject_attentions_map[subj]
     paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
                                                                                            subject_attention,
                                                                                            min_len=min_len,

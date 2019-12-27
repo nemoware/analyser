@@ -14,6 +14,7 @@ import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap, split_sentences_into_map
 from analyser.embedding_tools import AbstractEmbedder
+from analyser.hyperparams import HyperParameters
 from analyser.ml_tools import SemanticTag, conditional_p_sum, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
 from analyser.patterns import *
@@ -277,7 +278,7 @@ class LegalDocumentExt(LegalDocument):
 
   def parse(self, txt=None):
     super().parse(txt)
-    self.sentence_map = tokenize_doc_into_sentences_map(self, 200)
+    self.sentence_map = tokenize_doc_into_sentences_map(self, HyperParameters.charter_sentence_max_len)
     return self
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -412,11 +413,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 
 
 def find_value_sign(txt: TextMap) -> (int, (int, int)):
-  """
-  todo: rename to 'find_value_sign'
-  :param txt:
-  :return:
-  """
 
   a = next(txt.finditer(_re_greather_then_1), None)  # не менее, не превышающую
   if a:

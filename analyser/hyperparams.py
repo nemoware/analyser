@@ -7,7 +7,9 @@ models_path = os.path.join(__location__, 'vocab')
 class HyperParameters:
   protocol_caption_max_size_words = 200
 
-  charter_sentence_max_len = 200
+
+  sentence_max_len = 200
+  charter_sentence_max_len = sentence_max_len
 
   subsidiary_name_match_min_jaro_similarity = 0.9
 
