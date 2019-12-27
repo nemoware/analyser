@@ -207,12 +207,12 @@ class TextMap:
     else:
       raise TypeError("Invalid argument type.")
 
-  def get_tokens(self):
+  def get_tokens(self)->Tokens:
     return [
       self._full_text[tr[0]:tr[1]] for tr in self.map
     ]
 
-  tokens = property(get_tokens)
+  tokens = property(get_tokens, None)
   text = property(get_text, None)
 
 

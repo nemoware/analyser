@@ -1,6 +1,6 @@
 import numpy as np
 
-from analyser.embedding_tools import AbstractEmbedder
+from analyser.embedding_tools import AbstractEmbedder, Embeddings
 from analyser.text_tools import Tokens
 
 
@@ -9,11 +9,10 @@ class FakeEmbedder(AbstractEmbedder):
   def __init__(self, default_point):
     self.default_point = default_point
 
-  def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
+  def embedd_tokens(self, tokens: Tokens) -> Embeddings:
     return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
 
-  def embedd_strings(self, strings: Tokens) -> np.ndarray:
-
+  def embedd_strings(self, strings: Tokens) -> Embeddings:
     ret = self.embedd_tokens(strings)
     return ret
 

@@ -13,7 +13,7 @@ from bson import json_util
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap, split_sentences_into_map
-from analyser.embedding_tools import AbstractEmbedder
+from analyser.embedding_tools import AbstractEmbedder, Embeddings
 from analyser.hyperparams import HyperParameters
 from analyser.ml_tools import SemanticTag, conditional_p_sum, \
   FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
@@ -273,7 +273,7 @@ class LegalDocumentExt(LegalDocument):
       self.__dict__ = doc.__dict__
 
     self.sentence_map: TextMap or None = None
-    self.sentences_embeddings: [] = None
+    self.sentences_embeddings: Embeddings = None
     self.distances_per_sentence_pattern_dict = {}
 
   def parse(self, txt=None):
