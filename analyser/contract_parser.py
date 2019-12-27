@@ -44,7 +44,6 @@ class ContractDocument(LegalDocument):
     return tags
 
 
-# ContractDocument = ContractDocument3  # Alias!
 ContractDocument3 = ContractDocument
 
 
@@ -268,7 +267,9 @@ class ContractParser(ParsingContext):
       else:
         self.warning(f'Раздел [{section}]  не обнаружен')
 
-ContractAnlysingContext = ContractParser ##just alias, for compatibility. TODO: remove
+
+ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove
+
 
 def max_confident(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.integral_sorting_confidence())
