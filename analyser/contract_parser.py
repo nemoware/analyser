@@ -254,12 +254,12 @@ class ContractParser(ParsingContext):
           # reduce number of found values
           # take only max value and most confident ones (we hope, it is the same finding)
 
-          max_confident_cv = max_confident(values_list)
-          max_valued_cv = max_value(values_list)
+          max_confident_cv: ContractValue = max_confident(values_list)
+          max_valued_cv: ContractValue = max_value(values_list)
           if max_confident_cv == max_valued_cv:
             return [max_confident_cv]
           else:
-            # TODO:
+            # TODO: Insurance docs have big value, its not what we're looking for. Biggest is not the best see https://github.com/nemoware/analyser/issues/55
             max_valued_cv *= 0.5
             return [max_valued_cv]
 

@@ -255,7 +255,7 @@ class CharterParser(ParsingContext):
         # _key = parent_org_level_tag.get_key()
         #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
         #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
-        org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
+        org_levels.append(parent_org_level_tag)
         # _parent_org_level_tag_keys.append(_key)
 
     # --------------- populate charter
