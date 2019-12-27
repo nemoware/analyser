@@ -11,7 +11,7 @@ import unittest
 
 from bson import json_util
 
-from analyser.contract_parser import ContractAnlysingContext, ContractDocument
+from analyser.contract_parser import ContractParser, ContractDocument
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.documents import TextMap
 from analyser.legal_docs import DocumentJson
@@ -37,7 +37,7 @@ class TestJsonExport(unittest.TestCase):
   def _get_doc_factory_ctx(self):
     doc, factory = self._get_doc()
 
-    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
+    ctx = ContractParser(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')

@@ -10,7 +10,8 @@ import nltk
 import numpy as np
 
 from analyser.charter_parser import split_by_number_2
-from analyser.contract_parser import ContractDocument, find_value_sign_currency
+from analyser.contract_parser import ContractDocument
+from analyser.parsing import find_value_sign_currency
 from analyser.documents import TextMap
 from analyser.legal_docs import find_value_sign
 from analyser.ml_tools import conditional_p_sum

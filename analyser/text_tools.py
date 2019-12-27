@@ -14,27 +14,6 @@ from numpy.core.multiarray import ndarray
 Tokens = List[str] or ndarray
 
 
-def find_ner_end(tokens, start, max_len=20):
-  # TODO: use regex
-  for i in range(start, len(tokens)):
-    if tokens[i] == '"':
-      return i
-
-    elif tokens[i] == '»':
-      return i
-
-    elif tokens[i] == '\n':
-      return i
-
-    elif tokens[i] == '.':
-      return i
-
-    elif tokens[i] == ';':
-      return i
-
-  return min(len(tokens), start + max_len)
-
-
 def to_float(string):
   try:
     return float(string.replace(" ", "").replace(",", "."))

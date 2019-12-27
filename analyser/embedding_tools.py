@@ -1,10 +1,14 @@
 from abc import abstractmethod
+from typing import List
 
 import numpy as np
 
 from analyser.documents import TextMap
 from analyser.text_tools import Tokens
 
+
+Embedding = 'np.ndarray[float]' or [float]
+Embeddings = 'np.ndarray[Embedding]' or [Embedding]
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
@@ -36,15 +40,15 @@ class AbstractEmbedder:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
+  def embedd_tokens(self, tokens: Tokens) -> Embeddings:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
+  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> Embeddings:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_strings(self, strings: Tokens) -> np.ndarray:
+  def embedd_strings(self, strings: Tokens) -> Embeddings:
     raise NotImplementedError()
 
   def embedd_contextualized_patterns(self, patterns, trim_padding=True):

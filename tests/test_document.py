@@ -6,7 +6,7 @@
 import unittest
 
 from analyser.charter_parser import CharterParser, CharterDocument
-from analyser.contract_parser import ContractAnlysingContext, ContractDocument
+from analyser.contract_parser import ContractParser, ContractDocument
 from analyser.legal_docs import *
 from analyser.legal_docs import _embedd_large
 from analyser.parsing import AuditContext
@@ -37,7 +37,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
 
-    ctx = ContractAnlysingContext(emb)
+    ctx = ContractParser(emb)
     contract = ContractDocument("1. ЮРИДИЧЕСКИЙ содержание 4.")
     contract.parse()
     actx = AuditContext()
@@ -61,7 +61,6 @@ class LegalDocumentTestCase(unittest.TestCase):
 
     self.assertEqual(d0.checksum, d.checksum)
     self.assertNotEqual(d0.checksum, d1.checksum)
-
 
     self.assertEqual(d0.checksum, DocumentJson(d0).checksum)
     self.assertEqual(d.checksum, DocumentJson(d).checksum)

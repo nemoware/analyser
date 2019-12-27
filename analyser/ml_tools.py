@@ -499,21 +499,6 @@ def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> floa
   return float(np.mean(sorted(x)[-head_size:]))
 
 
-def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
-                                          equality_range=0.0) -> ProbableValue:
-  try:
-    if abs(a.value.value - alternative.value.value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-  except:
-    # TODO: why dan hell we should have an exception here??
-    return a
-
-  return a
-
-
 def combined_attention_vectors(vectors_dict, vector_names):
   vectors = [vectors_dict[v] for v in vector_names]
   return sum_probabilities(vectors)
