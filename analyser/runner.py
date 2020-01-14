@@ -194,14 +194,10 @@ def run(run_pahse_2=True, kind=None):
           processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
-
-      print(f'.....finalizing audit {audit["_id"]}')
-      finalizer.finalize(audit)
-      change_audit_status(audit, "Done")
-      print(f'.....audit {audit["_id"]} is waiting for approval')
   else:
     warnings.warn("phase 2 is skipped")
 
+  finalizer.finalize()
 
 if __name__ == '__main__':
   run()

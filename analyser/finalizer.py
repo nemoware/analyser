@@ -7,6 +7,12 @@ from integration.db import get_mongodb_connection
 
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
 
+def get_audits():
+  db = get_mongodb_connection()
+  audits_collection = db['audits']
+
+  res = audits_collection.find({'status': 'Finalizing'}).sort([("createDate", pymongo.ASCENDING)])
+  return res
 
 def remove_old_links(audit_id, contract_id):
     db = get_mongodb_connection()
@@ -65,9 +71,9 @@ def get_docs_by_audit_id(id: str, state, kind=None):
 
 
 def save_violations(audit, violations):
-    audit["violations"] = violations
     db = get_mongodb_connection()
     db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"violations": violations}})
+    db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"status": "Done"}})
 
 
 def create_violation(document_id, founding_document_id, reference, violation_type, violation_reason):
@@ -348,16 +354,20 @@ def check_contract(contract, charters, protocols, audit):
     return violations
 
 
-def finalize(audit):
-    violations = []
-    contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
-    charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
-    protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
+def finalize():
+    audits = get_audits()
+    for audit in audits:
+        print(f'.....finalizing audit {audit["_id"]}')
+        violations = []
+        contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
+        charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
+        protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
 
-    for contract in contracts:
-        violations.extend(check_contract(contract, charters, protocols, audit))
+        for contract in contracts:
+            violations.extend(check_contract(contract, charters, protocols, audit))
 
-    save_violations(audit, violations)
+        save_violations(audit, violations)
+        print(f'.....audit {audit["_id"]} is waiting for approval')
 
 
 def create_fake_finalization(audit):
