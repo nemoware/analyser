@@ -266,8 +266,10 @@ def check_contract(contract, charters, protocols, audit):
                     for key, value in eligible_protocol_attrs.items():
                         if key.endswith("/value"):
                             protocol_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]["value"]})
-
-                            if eligible_protocol_attrs[key[:-5] + "sign"]["value"] < 0 and min_constraint <= protocol_value["value"] < contract_value["value"]:
+                            sign = 0
+                            if eligible_protocol_attrs.get(key[:-5] + "sign") is not None:
+                                sign = eligible_protocol_attrs[key[:-5] + "sign"]["value"]
+                            if sign < 0 and min_constraint <= protocol_value["value"] < contract_value["value"]:
                                 violations.append(create_violation(
                                     {"id": contract["_id"], "number": contract_number,
                                      "type": contract["parse"]["documentType"]},
@@ -285,7 +287,7 @@ def check_contract(contract, charters, protocols, audit):
                                          "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
                                 break
 
-                            if eligible_protocol_attrs[key[:-5] + "sign"]["value"] == 0 and min_constraint <= protocol_value["value"] != contract_value["value"]:
+                            if sign == 0 and min_constraint <= protocol_value["value"] != contract_value["value"]:
                                 violations.append(create_violation(
                                     {"id": contract["_id"], "number": contract_number,
                                      "type": contract["parse"]["documentType"]},
@@ -303,7 +305,7 @@ def check_contract(contract, charters, protocols, audit):
                                          "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
                                 break
 
-                            if eligible_protocol_attrs[key[:-5] + "sign"]["value"] > 0 and min_constraint <= protocol_value["value"] > contract_value["value"]:
+                            if sign > 0 and min_constraint <= protocol_value["value"] > contract_value["value"]:
                                 violations.append(create_violation(
                                     {"id": contract["_id"], "number": contract_number,
                                      "type": contract["parse"]["documentType"]},
