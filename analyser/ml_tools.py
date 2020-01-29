@@ -686,7 +686,7 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
   for __header_index in range(headers_n):
 
     header_index, pattern_index, maxval = _find_max_xy_in_matrix(vals)
-    # print(header_index, pattern_index,maxval )
+
     pattern_name = header_to_pattern_distances_.columns[pattern_index]
     max_pair = ((pattern_name, header_index), maxval)
 
