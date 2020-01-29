@@ -142,7 +142,6 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
                                        attention_vector_name: str = None,
                                        parent_tag=None,
                                        absolute_spans=False) -> List[ContractValue]:
-
   attention_vector_tuned = None
   if attention_vector_name is not None:
     attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict[attention_vector_name]

@@ -7,6 +7,7 @@ import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
 
+from analyser.embedding_tools import Embeddings
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
 
@@ -702,8 +703,8 @@ def attention_vector(pattern_emb, text_emb):
   return np.array([1.0 - distance.cosine(e, pattern_emb) for e in text_emb])
 
 
-def multi_attention_vector(patterns_emb, text_emb):
-  vectors = []
+def multi_attention_vector(patterns_emb: Embeddings, text_emb) -> FixedVector:
+  vectors: FixedVectors = []
   for pattern_emb in patterns_emb:
     av = attention_vector(pattern_emb, text_emb)
     vectors.append(av)
