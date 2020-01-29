@@ -318,7 +318,7 @@ def check_contract(contract, charters, protocols, audit):
                                     {"id": eligible_charter["_id"],
                                      "date": eligible_charter_attrs["date"]["value"]},
                                     {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
-                                    "contract_value_great_than_protocol_value",
+                                    "contract_value_less_than_protocol_value",
                                     {"contract": {"number": contract_number,
                                                   "date": contract_attrs["date"]["value"],
                                                   "org_type": contract_org2_type,
@@ -357,6 +357,9 @@ def check_contract(contract, charters, protocols, audit):
 def finalize():
     audits = get_audits()
     for audit in audits:
+        if audit["subsidiary"]["name"] == "Все ДО":
+            print(f'.....audit {audit["_id"]} finalizing skipped')
+            continue
         print(f'.....finalizing audit {audit["_id"]}')
         violations = []
         contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")

@@ -83,7 +83,7 @@ class BaseProcessor:
     else:
       date_is_ok = True
 
-    return legal_doc.is_same_org(audit["subsidiary"]["name"]) and date_is_ok
+    return ("Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(audit["subsidiary"]["name"])) and date_is_ok
 
 
 
