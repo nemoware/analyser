@@ -1,14 +1,12 @@
 from abc import abstractmethod
-from typing import List
 
 import numpy as np
 
 from analyser.documents import TextMap
+from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
 
 
-Embedding = 'np.ndarray[float]' or [float]
-Embeddings = 'np.ndarray[Embedding]' or [Embedding]
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
