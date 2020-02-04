@@ -450,7 +450,7 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
 
 def collect_subjects_spans(subdoc, subject_attentions_map, min_len=20):
   spans = []
-  for subj in CharterSubject:
+  for subj in subject_attentions_map.keys():
 
     subject_attention = subject_attentions_map[subj]
     paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
