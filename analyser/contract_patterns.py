@@ -202,6 +202,11 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
       cp('Продавец обязуется передать в собственность',
          'недвижимое имущество', 'объекты , земельные участки')
 
+    subj = ContractSubject.Loans
+    if True:
+      cp('Займодавец передает Заемщику', 'в качестве займа', 'денежные средства')
+      cp('Займодавец передает Заемщику', 'Заемщику целевой заем', 'полностью либо частями (далее «траншами») на возобновляемой основе')
+
 
 if __name__ == '__main__':
   CPF = ContractPatternFactory(ElmoEmbedder())

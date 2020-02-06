@@ -74,27 +74,27 @@ class ContractTags(Enum, metaclass=DisplayStringEnumMeta):
   Sign = 2, 'sign'
 
 
+
 @unique
 class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   '''
   TODO: rename ContractSubject->DocumentSubject, because contract subjects are only a subset of this
   '''
+  Other = -1, 'Другое'
+
   Deal = 0, 'Сделка'
   Charity = 1, 'Благотворительность'
-  Other = 2, 'Другое'
-  Lawsuit = 3, 'Судебные издержки'
-  RealEstate = 4, 'Недвижимость'
-
+  RealEstate = 4, 'Сделки с недвижимым имуществом'
+  Loans = 7, 'Займы, кредиты и др. обязательста'
 
 @unique
-class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
-  Deal = 0, 'Сделка'
+class CharterSubject(ContractSubject ):
+
   BigDeal = 10, ' Крупная сделка'
-  Charity = 1, 'Благотворительность'
+
   # Other = 2, 'Другое'
   Lawsuit = 3, 'Судебные издержки'
-  RealEstate = 4, 'Недвижимость'
-  Loans = 7, 'Сделки с займами/кредитами'
+
   Insurance = 5, 'Страхование'
   Consulting = 6, 'Консультационные услуги'
   RentingOut = 8, 'Передача в аренду'
@@ -124,3 +124,5 @@ class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
   RegisteredCapital = 40, ''
   ParticipationInOtherOrganizations = 41, ''
   DecisionsForSubsidiary = 42, ''
+
+

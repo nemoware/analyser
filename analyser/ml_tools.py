@@ -7,14 +7,11 @@ import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
 
-
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
 
-
 Embedding = 'np.ndarray[float]' or [float]
 Embeddings = 'np.ndarray[Embedding]' or [Embedding]
-
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
 Vector = TypeVar('Vector', FixedVector, Iterable[float])
@@ -704,11 +701,11 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
   return pairs
 
 
-def attention_vector(pattern_emb, text_emb):
+def attention_vector(pattern_emb, text_emb: Embeddings) -> FixedVector:
   return np.array([1.0 - distance.cosine(e, pattern_emb) for e in text_emb])
 
 
-def multi_attention_vector(patterns_emb: Embeddings, text_emb) -> FixedVector:
+def multi_attention_vector(patterns_emb: Embeddings, text_emb: Embeddings) -> FixedVector:
   vectors: FixedVectors = []
   for pattern_emb in patterns_emb:
     av = attention_vector(pattern_emb, text_emb)
@@ -717,7 +714,7 @@ def multi_attention_vector(patterns_emb: Embeddings, text_emb) -> FixedVector:
   return max_exclusive_pattern(vectors)
 
 
-def best_window(attention_vector, wnd_len):
+def best_window(attention_vector, wnd_len) -> (int, float, float):
   max_sum = 0
   best_index = 0
   for k in range(len(attention_vector) - wnd_len + 1):

@@ -9,7 +9,11 @@ from analyser.patterns import AV_SOFT, AV_PREFIX
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
 
-contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
+contract_subjects = [
+  ContractSubject.RealEstate,
+  ContractSubject.Charity,
+  ContractSubject.Deal,
+  ContractSubject.Loans]
 
 
 class ContractDocument(LegalDocument):
