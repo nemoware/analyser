@@ -8,7 +8,6 @@ from analyser.contract_patterns import ContractPatternFactory
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, extract_sum_sign_currency
 from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe
-from analyser.structures import ContractSubject
 from analyser.transaction_values import complete_re as transaction_values_re
 
 PROF_DATA = {}
@@ -115,11 +114,6 @@ head_types_dict = {'head.directors': 'Совет директоров',
                    'head.pravlenie': 'Правление общества',
                    'head.unknown': '*Неизвестный орган управления*'}
 head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
-
-known_subjects = [
-  ContractSubject.Charity,
-  ContractSubject.RealEstate,
-  ContractSubject.Lawsuit]
 
 
 def find_value_sign_currency(value_section_subdoc: LegalDocument,

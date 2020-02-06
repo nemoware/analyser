@@ -10,8 +10,8 @@ from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
 
 contract_subjects = [
-  ContractSubject.RealEstate,
   ContractSubject.Charity,
+  ContractSubject.RealEstate,
   ContractSubject.Deal,
   ContractSubject.Loans]
 
@@ -133,24 +133,34 @@ class ContractParser(ParsingContext):
         return alternative
     return a
 
-  def __sub_attention_names(self, subj: ContractSubject):
+  def __sub_attention_names(self, subj: Enum):
     a = f'x_{subj}'
     b = AV_PREFIX + f'x_{subj}'
     c = AV_SOFT + a
     return a, b, c
 
-  def make_subject_attention_vector_3(self, section, subject_kind: ContractSubject, addon=None) -> FixedVector:
+  def make_subject_attention_vector_3(self, section: LegalDocument, subject_kind: ContractSubject,
+                                      addon=None) -> FixedVector:
 
     pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
 
     _vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
+    _vectors = list(_vectors)
+
+    if not _vectors:
+      _vectors = []
+      _vectors.append(np.zeros(len(section.tokens_map)))
+      warnings.warn(f'no patterns for {subject_kind}')
+
     if addon is not None:
-      _vectors = list(_vectors)
+
       _vectors.append(addon)
 
     vectors = []
     for v in _vectors:
       vectors.append(best_above(v, 0.4))
+
+    # assert len(vectors) > 0, f'no vectors for {pattern_prefix} {attention_vector_name} {attention_vector_name_soft}'
 
     x = max_exclusive_pattern(vectors)
     x = relu(x, 0.6)
