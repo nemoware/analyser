@@ -74,7 +74,6 @@ class ContractTags(Enum, metaclass=DisplayStringEnumMeta):
   Sign = 2, 'sign'
 
 
-
 @unique
 class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   '''
@@ -87,8 +86,15 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   RealEstate = 4, 'Сделки с недвижимым имуществом'
   Loans = 7, 'Займы, кредиты и др. обязательста'
 
+
 @unique
-class CharterSubject(ContractSubject ):
+class CharterSubject(Enum, metaclass=DisplayStringEnumMeta):
+  Other = -1, 'Другое'
+
+  Deal = 0, 'Сделка'
+  Charity = 1, 'Благотворительность'
+  RealEstate = 4, 'Сделки с недвижимым имуществом'
+  Loans = 7, 'Займы, кредиты и др. обязательста'
 
   BigDeal = 10, ' Крупная сделка'
 
@@ -124,5 +130,3 @@ class CharterSubject(ContractSubject ):
   RegisteredCapital = 40, ''
   ParticipationInOtherOrganizations = 41, ''
   DecisionsForSubsidiary = 42, ''
-
-
