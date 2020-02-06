@@ -13,7 +13,8 @@ contract_subjects = [
   ContractSubject.Charity,
   ContractSubject.RealEstate,
   ContractSubject.Deal,
-  ContractSubject.Loans]
+  ContractSubject.Loans,
+  ContractSubject.PledgeEncumbrance]
 
 
 class ContractDocument(LegalDocument):
@@ -153,7 +154,6 @@ class ContractParser(ParsingContext):
       warnings.warn(f'no patterns for {subject_kind}')
 
     if addon is not None:
-
       _vectors.append(addon)
 
     vectors = []

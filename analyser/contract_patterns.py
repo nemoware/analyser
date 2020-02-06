@@ -210,6 +210,11 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
       cp('Заемщик обязуется вернуть указанную', 'сумму займа', 'вместе с причитающимися процентами')
 
 
+    subj = ContractSubject.PledgeEncumbrance
+    if True:
+      cp('Залогодержатель принимает, а', 'Залогодатель передает в залог', 'в качестве обеспечения')
+
+
 if __name__ == '__main__':
   CPF = ContractPatternFactory(ElmoEmbedder())
   for p in CPF.patterns:
