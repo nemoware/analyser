@@ -12,6 +12,7 @@ from analyser.structures import ContractSubject
 contract_subjects = [
   ContractSubject.Charity,
   ContractSubject.RealEstate,
+  ContractSubject.Renting,
   ContractSubject.Deal,
   ContractSubject.Loans,
   ContractSubject.PledgeEncumbrance]

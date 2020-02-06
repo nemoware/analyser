@@ -214,6 +214,12 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     if True:
       cp('Залогодержатель принимает, а', 'Залогодатель передает в залог', 'в качестве обеспечения')
 
+    subj = ContractSubject.Renting
+    if True:
+      cp('Арендодатель передает, а', 'Арендатор принимает в аренду', '(во временное владение и пользование) здание')
+
+
+
 
 if __name__ == '__main__':
   CPF = ContractPatternFactory(ElmoEmbedder())
