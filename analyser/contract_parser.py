@@ -186,7 +186,7 @@ class ContractParser(ParsingContext):
 
     header_subject, conf = find_headline_subject_match(doc, self.pattern_factory)
     if conf > a.confidence and conf > 0.5:
-      a.value = header_subject  # override subject kind detected in text by subject detected in 1st headline
+      a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
       a.confidence = (a.confidence + conf) / 2.0
     return a
 
@@ -230,7 +230,7 @@ class ContractParser(ParsingContext):
         max_paragraph_span = paragraph_span
 
     if max_subject_kind:
-      subject_tag = SemanticTag('subject', max_subject_kind, max_paragraph_span)
+      subject_tag = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
       subject_tag.confidence = max_confidence * denominator
       subject_tag.offset(section.start)
 
