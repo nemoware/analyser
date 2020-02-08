@@ -4,6 +4,20 @@ from analyser.patterns import AbstractPatternFactoryLowCase
 from analyser.structures import ContractSubject
 from tf_support.embedder_elmo import ElmoEmbedder
 
+contract_headlines_patterns = {
+  'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОГО ИМУЩЕСТВА': ContractSubject.RealEstate,
+  'купли-продажи': ContractSubject.Deal,
+  'займа': ContractSubject.Loans,
+  'оказания консультационных услуг': ContractSubject.Consulting,
+  'на оказание услуг': ContractSubject.Service,
+  'залога': ContractSubject.PledgeEncumbrance,
+  'о безвозмездной помощи ( Пожертвование )': ContractSubject.Charity,
+  'безвозмездного пользования нежилым помещением': ContractSubject.Charity,
+  'генерального подряда': ContractSubject.GeneralContract,
+  'аренды недвижимого имущества': ContractSubject.Renting
+}
+head_subject_patterns_prefix = 'hds_'
+
 
 class ContractPatternFactory(AbstractPatternFactoryLowCase):
 
@@ -16,11 +30,19 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
                       'resp', 'forcemajor', 'confidence', 'appl', 'addresses', 'conficts']
 
     self._build_head_patterns()
+    self._build_head_subject_patterns()
     self._build_sum_patterns()
     self._build_subject_patterns()
 
     if embedder is not None:
       self.embedd()
+
+  def _build_head_subject_patterns(self):
+
+    for txt in contract_headlines_patterns:
+      cnt = len(self.patterns)
+      self.create_pattern(f'{head_subject_patterns_prefix}{contract_headlines_patterns[txt]}.{cnt}',
+                          ('Договор', txt.lower(), ''))
 
   def _build_head_patterns(self):
     def cp(name, tuples):
@@ -194,7 +216,8 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     subj = ContractSubject.RealEstate
     if True:
       cp('Покупатель обязуется', 'оплатить Объект недвижимого', 'имущества')
-      cp('Продавец обязуется', 'передать в собственность Покупателя', 'объект недвижимого имущества здание, расположенное по адресу')
+      cp('Продавец обязуется', 'передать в собственность Покупателя',
+         'объект недвижимого имущества здание, расположенное по адресу')
       cp('Продавец обязуется передать в собственность', 'недвижимое имущество', 'объекты , земельные участки')
 
     subj = ContractSubject.Loans

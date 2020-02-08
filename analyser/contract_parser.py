@@ -1,11 +1,11 @@
 from analyser.contract_agents import find_org_names
-from analyser.contract_patterns import ContractPatternFactory
+from analyser.contract_patterns import ContractPatternFactory, head_subject_patterns_prefix, contract_headlines_patterns
 from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import find_document_number
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency, _find_most_relevant_paragraph
-from analyser.patterns import AV_SOFT, AV_PREFIX
+from analyser.patterns import AV_SOFT, AV_PREFIX, AbstractPatternFactory
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
 
@@ -182,7 +182,13 @@ class ContractParser(ParsingContext):
       subject_subdoc = doc[0:1500]
       denominator = 0.7
 
-    return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
+    a: SemanticTag = self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
+
+    header_subject, conf = find_headline_subject_match(doc, self.pattern_factory)
+    if conf > a.confidence and conf > 0.5:
+      a.value = header_subject  # override subject kind detected in text by subject detected in 1st headline
+      a.confidence = (a.confidence + conf) / 2.0
+    return a
 
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
     # TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
@@ -224,7 +230,7 @@ class ContractParser(ParsingContext):
         max_paragraph_span = paragraph_span
 
     if max_subject_kind:
-      subject_tag = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
+      subject_tag = SemanticTag('subject', max_subject_kind, max_paragraph_span)
       subject_tag.confidence = max_confidence * denominator
       subject_tag.offset(section.start)
 
@@ -281,6 +287,51 @@ class ContractParser(ParsingContext):
 
       else:
         self.warning(f'Раздел [{section}]  не обнаружен')
+
+
+# --------------- END of CLASS
+
+
+def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubject) -> FixedVector:
+  pattern_prefix = f'{head_subject_patterns_prefix}{subject_kind}'
+
+  _vectors = list(filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix))
+
+  if not _vectors:
+    warnings.warn(f'no patterns for {subject_kind}')
+    return np.zeros(len(section.tokens_map))
+
+  vectors = [best_above(v, 0.4) for v in _vectors]
+
+  x = max_exclusive_pattern(vectors)
+  x = relu(x, 0.6)
+
+  return x
+
+
+def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (ContractSubject, float):
+  headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
+
+  max_confidence = 0
+  best_subj = None
+  for header_index, header in enumerate(
+          headers[0:3]):  # take only 3 fist headlines; normally contract type is known by the 1st one.
+
+    if header.text and header.text.strip():
+
+      # TODO: must be pre-calculated
+      header.calculate_distances_per_pattern(factory, pattern_prefix=head_subject_patterns_prefix, merge=False)
+
+      for subject_kind in contract_headlines_patterns.values():  # like ContractSubject.RealEstate ..
+        subject_attention_vector: FixedVector = match_headline_to_subject(header, subject_kind)
+        _confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
+        if _confidence > max_confidence:
+          max_confidence = _confidence
+          best_subj = subject_kind
+
+        # print (subject_kind, _confidence)
+
+  return best_subj, max_confidence
 
 
 ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove
