@@ -9,9 +9,16 @@ contract_headlines_patterns = {
   'купли-продажи': ContractSubject.Deal,
   'займа': ContractSubject.Loans,
   'оказания консультационных услуг': ContractSubject.Consulting,
+
   'на оказание услуг': ContractSubject.Service,
+  'ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ': ContractSubject.Service,
+  'на выполнение работ по разработке информационных систем': ContractSubject.Service,
+
   'залога': ContractSubject.PledgeEncumbrance,
+
   'о безвозмездной помощи ( Пожертвование )': ContractSubject.Charity,
+  'пожертвования': ContractSubject.Charity,
+
   'безвозмездного пользования нежилым помещением': ContractSubject.Charity,
   'генерального подряда': ContractSubject.GeneralContract,
   'аренды недвижимого имущества': ContractSubject.Renting

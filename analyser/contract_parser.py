@@ -184,10 +184,17 @@ class ContractParser(ParsingContext):
 
     a: SemanticTag = self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
 
-    header_subject, conf = find_headline_subject_match(doc, self.pattern_factory)
-    if conf >= a.confidence or conf > 0.7:
-      a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
-      a.confidence = (a.confidence + conf) / 2.0
+    header_subject, header_subject_conf, header_subject_subdoc = find_headline_subject_match(doc, self.pattern_factory)
+
+    if header_subject is not None:
+      if a is None:
+        a = SemanticTag('subject', header_subject.name, (header_subject_subdoc.start, header_subject_subdoc.end))
+        a.confidence = header_subject_conf
+
+      if header_subject_conf >= a.confidence or header_subject_conf > 0.7:
+        a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
+        a.confidence = (a.confidence + header_subject_conf) / 2.0
+        
     return a
 
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
@@ -309,11 +316,13 @@ def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubj
   return x
 
 
-def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (ContractSubject, float):
+def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (
+ContractSubject, float, LegalDocument):
   headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 
   max_confidence = 0
   best_subj = None
+  subj_header = None
   for header_index, header in enumerate(
           headers[0:3]):  # take only 3 fist headlines; normally contract type is known by the 1st one.
 
@@ -328,10 +337,10 @@ def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFact
         if _confidence > max_confidence:
           max_confidence = _confidence
           best_subj = subject_kind
-
+          subj_header = header
         # print (subject_kind, _confidence)
 
-  return best_subj, max_confidence
+  return best_subj, max_confidence, subj_header
 
 
 ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove
