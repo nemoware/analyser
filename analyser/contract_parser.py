@@ -185,7 +185,7 @@ class ContractParser(ParsingContext):
     a: SemanticTag = self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
 
     header_subject, conf = find_headline_subject_match(doc, self.pattern_factory)
-    if conf > a.confidence and conf > 0.5:
+    if conf >= a.confidence or conf > 0.7:
       a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
       a.confidence = (a.confidence + conf) / 2.0
     return a
