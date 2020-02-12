@@ -206,7 +206,7 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
       cp('Жертвователь', 'безвозмездно', '')
 
     # ----------------------------------------------------------
-    subj = ContractSubject.Deal
+    subj = ContractSubject.Service
     if True:
       # TODO: 🚷 sorry, order matters!!! do not 🚷 touch
 
