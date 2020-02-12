@@ -134,7 +134,7 @@ class CharterParser(ParsingContext):
       'совершение сделок страхования'
     ],
 
-    ContractSubject.Consulting: [
+    ContractSubject.Service: [
       'оказания консультационных услуг',
       'заключение агентского договора',
       'оказание обществу информационных юридических услуг'

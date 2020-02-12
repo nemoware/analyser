@@ -14,6 +14,7 @@ contract_subjects = [
   ContractSubject.RealEstate,
   ContractSubject.Renting,
   ContractSubject.Deal,
+  ContractSubject.Service,
   ContractSubject.Loans,
   ContractSubject.PledgeEncumbrance]
 
@@ -194,7 +195,7 @@ class ContractParser(ParsingContext):
       if header_subject_conf >= a.confidence or header_subject_conf > 0.7:
         a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
         a.confidence = (a.confidence + header_subject_conf) / 2.0
-        
+
     return a
 
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:

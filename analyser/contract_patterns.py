@@ -6,10 +6,16 @@ from tf_support.embedder_elmo import ElmoEmbedder
 
 contract_headlines_patterns = {
   'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОГО ИМУЩЕСТВА': ContractSubject.RealEstate,
-  'купли-продажи': ContractSubject.Deal,
-  'займа': ContractSubject.Loans,
-  'оказания консультационных услуг': ContractSubject.Consulting,
 
+  'купли-продажи': ContractSubject.Deal,
+  'поставки': ContractSubject.Deal,
+
+  'займа': ContractSubject.Loans,
+
+  'агентирования': ContractSubject.AgencyContract,
+  'агентский': ContractSubject.AgencyContract,
+
+  'оказания консультационных услуг': ContractSubject.Service,
   'на оказание услуг': ContractSubject.Service,
   'ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ': ContractSubject.Service,
   'на выполнение работ по разработке информационных систем': ContractSubject.Service,

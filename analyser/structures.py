@@ -106,7 +106,7 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   RentingOut = 8, 'Передача в аренду'
   Renting = 9, 'Получение в аренду недвижимого имущества'
 
-  AgencyContract = 21, ''
+  AgencyContract = 21, 'Агентский договор'
   BankGuarantees = 22, ''
   RelatedTransactions = 23, ''
   GeneralContract = 24, ''
