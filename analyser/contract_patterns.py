@@ -6,8 +6,8 @@ from tf_support.embedder_elmo import ElmoEmbedder
 
 contract_headlines_patterns = {
   'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОГО ИМУЩЕСТВА': ContractSubject.RealEstate,
+  'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОСТИ': ContractSubject.RealEstate,
 
-  'купли-продажи': ContractSubject.Deal,
   'поставки': ContractSubject.Deal,
 
   'займа': ContractSubject.Loans,
