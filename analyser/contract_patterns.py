@@ -250,6 +250,12 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
       cp('', 'Арендодатель обязуется передать',
          'Арендатору во временное владение и пользование (аренду) следующее недвижимое имущество')
 
+    subj = ContractSubject.AgencyContract
+    if True:
+      cp('', 'Агент', 'обязуется совершать по поручению Принципала')
+
+
+
 
 if __name__ == '__main__':
   CPF = ContractPatternFactory(ElmoEmbedder())
