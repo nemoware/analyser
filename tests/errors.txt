@@ -1,17 +1,35 @@
+Договор купли-продажи_ООО Парацельс.doc:	value 
+	 expected: '20800000.0' 
+	   ACTUAL: '21666666.66'
+ГПН 1 договор к-п Н.docx:	value 
+	 expected: '124800000.0' 
+	   ACTUAL: '130000000.0'
+ДКП Половинной НБ и АЗС.docx:	org_1_name 
+	 expected: 'Газпромнефть-Новосибирск (НБ)' 
+	   ACTUAL: 'Контис'
+ДКП Половинной НБ и АЗС.docx:	org_2_name 
+	 expected: 'Контис' 
+	   ACTUAL: 'nan'
+ДКП Половинной НБ и АЗС.docx:	value 
+	 expected: '1234529.0' 
+	   ACTUAL: '10000000.0'
+ДКП Половинной НБ и АЗС.docx:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'Service'
+4. Договор Собственник.docx:	value 
+	 expected: '1165510.0' 
+	   ACTUAL: '742100.0'
 1.1. Договор пожертвования.docx:	org_2_name 
 	 expected: 'Детская городская больница №1' 
-	   ACTUAL: 'nan'
-3 этап по правилам/Договор 12.docx:	subject 
-	 expected: 'Deal' 
 	   ACTUAL: 'nan'
 3 этап по правилам/Договор 15.doc:	org_2_name 
 	 expected: 'А' 
 	   ACTUAL: 'nan'
-3 этап по правилам/Договор 18.docx:	subject 
-	 expected: 'Deal' 
-	   ACTUAL: 'nan'
+3 этап по правилам/Договор 17.docx:	subject 
+	 expected: 'Insurance' 
+	   ACTUAL: 'Service'
 3 этап по правилам/Договор 7.docx:	value 
-	 expected: '86000000.0' 
+	 expected: '73033898.66' 
 	   ACTUAL: '71666666.66'
 3 этап по правилам/Договор _7.doc:	value 
 	 expected: '3000000.0' 
@@ -22,15 +40,15 @@
 3 этап по правилам/Договор ИК.docx:	value 
 	 expected: '1110635.4' 
 	   ACTUAL: '941216.44'
-3 этап по правилам/Договор на оценку_clean.docx:	subject 
-	 expected: 'Deal' 
-	   ACTUAL: 'nan'
 3 этап по правилам/Договор П.docx:	value 
 	 expected: '2619600.0' 
 	   ACTUAL: '2183000.0'
 3 этап по правилам/Договор поставки_1_.docx:	value 
 	 expected: 'nan' 
 	   ACTUAL: '100000.0'
+3 этап по правилам/Договор поставки_1_.docx:	subject 
+	 expected: 'DealЧТО??' 
+	   ACTUAL: 'Service'
 3 этап по правилам/договор.2.docx:	value 
 	 expected: '55000.0' 
 	   ACTUAL: '45833.33'
@@ -38,8 +56,8 @@
 	 expected: '110000.0' 
 	   ACTUAL: '91666.66'
 3 этап по правилам/договор.4.doc:	subject 
-	 expected: 'Deal' 
-	   ACTUAL: 'nan'
+	 expected: 'AgencyContract' 
+	   ACTUAL: 'Renting'
 3 этап по правилам/договор.4.docx:	org_1_name 
 	 expected: 'Газпромнефть–Сахалин' 
 	   ACTUAL: 'Газпромнефть-Сахалин'
@@ -49,12 +67,21 @@
 3 этап по правилам/договор.5.docx:	value 
 	 expected: 'nan' 
 	   ACTUAL: '500000.0'
+3 этап по правилам/договор.5.docx:	subject 
+	 expected: 'AgencyContract' 
+	   ACTUAL: 'Service'
 3 этап по правилам/договор.5_.docx:	org_1_name 
 	 expected: 'Газпромнефть–Сахалин' 
 	   ACTUAL: 'Газпромнефть-Сахалин'
 3 этап по правилам/договор.5_.docx:	value 
 	 expected: '-0.0' 
 	   ACTUAL: '50000000.0'
+3 этап по правилам/договор.5_.docx:	subject 
+	 expected: 'AgencyContract' 
+	   ACTUAL: 'Service'
+3 этап по правилам/договор.6.docx:	subject 
+	 expected: 'AgencyContract' 
+	   ACTUAL: 'Service'
 3 этап по правилам/договор.7.docx:	value 
 	 expected: '1000000.0' 
 	   ACTUAL: '0.0'
@@ -62,4 +89,4 @@
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	21 of 52 docs
+ERRRORS: 	30 of 58 docs
