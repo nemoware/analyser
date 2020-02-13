@@ -13,15 +13,15 @@
 ДКП Половинной НБ и АЗС.docx:	value 
 	 expected: '1234529.0' 
 	   ACTUAL: '10000000.0'
-ДКП Половинной НБ и АЗС.docx:	subject 
-	 expected: 'RealEstate' 
-	   ACTUAL: 'Service'
 4. Договор Собственник.docx:	value 
 	 expected: '1165510.0' 
 	   ACTUAL: '742100.0'
 1.1. Договор пожертвования.docx:	org_2_name 
 	 expected: 'Детская городская больница №1' 
 	   ACTUAL: 'nan'
+3 этап по правилам/Договор 13.docx:	subject 
+	 expected: 'Service' 
+	   ACTUAL: 'Renting'
 3 этап по правилам/Договор 15.doc:	org_2_name 
 	 expected: 'А' 
 	   ACTUAL: 'nan'
@@ -48,7 +48,7 @@
 	   ACTUAL: '100000.0'
 3 этап по правилам/Договор поставки_1_.docx:	subject 
 	 expected: 'DealЧТО??' 
-	   ACTUAL: 'Service'
+	   ACTUAL: 'Renting'
 3 этап по правилам/договор.2.docx:	value 
 	 expected: '55000.0' 
 	   ACTUAL: '45833.33'
@@ -85,8 +85,11 @@
 3 этап по правилам/договор.7.docx:	value 
 	 expected: '1000000.0' 
 	   ACTUAL: '0.0'
+3 этап по правилам/договор.9.docx:	subject 
+	 expected: 'Service' 
+	   ACTUAL: 'Renting'
 3 этап по правилам/договор.9_.docx:	value 
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	30 of 58 docs
+ERRRORS: 	31 of 58 docs
