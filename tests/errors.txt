@@ -57,7 +57,7 @@
 	   ACTUAL: '91666.66'
 3 этап по правилам/договор.4.doc:	subject 
 	 expected: 'AgencyContract' 
-	   ACTUAL: 'Renting'
+	   ACTUAL: 'nan'
 3 этап по правилам/договор.4.docx:	org_1_name 
 	 expected: 'Газпромнефть–Сахалин' 
 	   ACTUAL: 'Газпромнефть-Сахалин'
