@@ -19,15 +19,9 @@
 1.1. Договор пожертвования.docx:	org_2_name 
 	 expected: 'Детская городская больница №1' 
 	   ACTUAL: 'nan'
-3 этап по правилам/Договор 13.docx:	subject 
-	 expected: 'Service' 
-	   ACTUAL: 'Renting'
 3 этап по правилам/Договор 15.doc:	org_2_name 
 	 expected: 'А' 
 	   ACTUAL: 'nan'
-3 этап по правилам/Договор 17.docx:	subject 
-	 expected: 'Insurance' 
-	   ACTUAL: 'Service'
 3 этап по правилам/Договор 7.docx:	value 
 	 expected: '73033898.66' 
 	   ACTUAL: '71666666.66'
@@ -92,4 +86,4 @@
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	31 of 58 docs
+ERRRORS: 	29 of 58 docs
