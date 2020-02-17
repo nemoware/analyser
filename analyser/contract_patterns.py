@@ -19,6 +19,7 @@ contract_headlines_patterns = {
   'на оказание услуг': ContractSubject.Service,
   'ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ': ContractSubject.Service,
   'на выполнение работ по разработке информационных систем': ContractSubject.Service,
+  'НА ВЫПОЛНЕНИЕ ИНЖЕНЕРНО-ИЗЫСКАТЕЛЬСКИХ РАБОТ': ContractSubject.Service,
 
   'залога': ContractSubject.PledgeEncumbrance,
 
@@ -27,7 +28,9 @@ contract_headlines_patterns = {
 
   'безвозмездного пользования нежилым помещением': ContractSubject.Charity,
   'генерального подряда': ContractSubject.GeneralContract,
-  'аренды недвижимого имущества': ContractSubject.Renting
+  'аренды недвижимого имущества': ContractSubject.Renting,
+
+  'страхования': ContractSubject.Insurance
 }
 head_subject_patterns_prefix = 'hds_'
 
