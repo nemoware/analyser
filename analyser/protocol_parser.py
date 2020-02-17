@@ -343,54 +343,10 @@ class ProtocolPatternFactory(AbstractPatternFactory):
   def __init__(self, embedder):
     AbstractPatternFactory.__init__(self, embedder)
 
-    self._build_subject_pattern()
-
     create_value_negation_patterns(self)
     create_value_patterns(self)
 
     self.embedd()
-
-  def _build_subject_pattern(self):
-    ep = ExclusivePattern()
-
-    PRFX = "Повестка дня заседания: \n"
-
-    if True:
-      ep.add_pattern(self.create_pattern('t_deal_1', (PRFX, 'Об одобрении сделки', 'связанной с продажей')))
-      ep.add_pattern(self.create_pattern('t_deal_2', (
-        PRFX + 'О согласии на', 'совершение сделки', 'связанной с заключением договора')))
-      ep.add_pattern(self.create_pattern('t_deal_3', (
-        PRFX + 'об одобрении', 'крупной сделки', 'связанной с продажей недвижимого имущества')))
-
-      for p in ep.patterns:
-        p.soft_sliding_window_borders = True
-
-    if True:
-      ep.add_pattern(self.create_pattern('t_org_1', (PRFX, 'О создании филиала', 'Общества')))
-      ep.add_pattern(self.create_pattern('t_org_2', (PRFX, 'Об утверждении Положения', 'о филиале Общества')))
-      ep.add_pattern(self.create_pattern('t_org_3', (PRFX, 'О назначении руководителя', 'филиала')))
-      ep.add_pattern(self.create_pattern('t_org_4', (PRFX, 'О прекращении полномочий руководителя', 'филиала')))
-      ep.add_pattern(self.create_pattern('t_org_5', (PRFX, 'О внесении изменений', '')))
-
-    if True:
-      ep.add_pattern(
-        self.create_pattern('t_charity_1', (PRFX + 'О предоставлении', 'безвозмездной', 'финансовой помощи')))
-      ep.add_pattern(
-        self.create_pattern('t_charity_2', (PRFX + 'О согласии на совершение сделки', 'пожертвования', '')))
-      ep.add_pattern(self.create_pattern('t_charity_3', (PRFX + 'Об одобрении сделки', 'пожертвования', '')))
-
-      t_char_mix = CoumpoundFuzzyPattern()
-      t_char_mix.name = "t_charity_mixed"
-
-      t_char_mix.add_pattern(
-        self.create_pattern('tm_charity_1', (PRFX + 'О предоставлении', 'безвозмездной финансовой помощи', '')))
-      t_char_mix.add_pattern(
-        self.create_pattern('tm_charity_2', (PRFX + 'О согласии на совершение', 'сделки пожертвования', '')))
-      t_char_mix.add_pattern(self.create_pattern('tm_charity_3', (PRFX + 'Об одобрении сделки', 'пожертвования', '')))
-
-      ep.add_pattern(t_char_mix)
-
-    self.subject_pattern = ep
 
 
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
