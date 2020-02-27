@@ -1,4 +1,3 @@
-import analyser
 from integration.db import get_mongodb_connection
 
 data = {
@@ -10,15 +9,6 @@ data = {
         "Газпром нефть"
       ]
     },
-
-    {
-      "_id": "Газпромнефть Шиппинг",
-      "legal_entity_type": "ООО",
-      "aliases": [
-        "Газпромнефть Шиппинг"
-      ]
-    },
-
     {
       "_id": "Газпромнефть Шиппинг",
       "legal_entity_type": "ООО",
@@ -683,7 +673,7 @@ def update_subsidiaries_in_db():
 
   coll = db["subsidiaries"]
   coll.delete_many({})
-  coll.insert_many( subsidiaries )
+  coll.insert_many(subsidiaries)
 
 
 if __name__ == '__main__':
