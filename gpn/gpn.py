@@ -681,8 +681,9 @@ subsidiaries = data['Subsidiary']
 def update_subsidiaries_in_db():
   db = get_mongodb_connection()
 
-  coll = db["dictionaries"]
-  coll.update({'_id': 'Subsidiary'}, {"values": subsidiaries, "version": analyser.__version__}, upsert=True)
+  coll = db["subsidiaries"]
+  coll.delete_many({})
+  coll.insert_many( subsidiaries )
 
 
 if __name__ == '__main__':
