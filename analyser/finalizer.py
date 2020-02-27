@@ -434,7 +434,6 @@ def create_fake_finalization(audit):
 
 
 if __name__ == '__main__':
-    update_subsidiaries_in_db()
 
     db = get_mongodb_connection()
     audits_collection = db['audits']
