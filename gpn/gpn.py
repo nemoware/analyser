@@ -19,6 +19,13 @@ data = {
     },
 
     {
+      "_id": "Газпромнефть Шиппинг",
+      "legal_entity_type": "ООО",
+      "aliases": [
+        "Газпромнефть Шиппинг"
+      ]
+    },
+    {
       "_id": "Арктика Медиа",
       "legal_entity_type": "АО",
       "aliases": [
@@ -669,7 +676,13 @@ data = {
 
 subsidiaries = data['Subsidiary']
 
-if __name__ == '__main__':
+
+def update_subsidiaries_in_db():
   db = get_mongodb_connection()
-  # db['Subsidiary'].insert_many( subsidiaries)
-# if db:
+
+  coll = db["dictionaries"]
+  coll.update({'_id': 'Subsidiary'}, {"values": subsidiaries}, upsert=True)
+
+
+if __name__ == '__main__':
+  update_subsidiaries_in_db()
