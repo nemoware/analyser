@@ -1,3 +1,4 @@
+import analyser
 from integration.db import get_mongodb_connection
 
 data = {
@@ -672,7 +673,7 @@ def update_subsidiaries_in_db():
   db = get_mongodb_connection()
 
   coll = db["dictionaries"]
-  coll.update({'_id': 'Subsidiary'}, {"values": subsidiaries}, upsert=True)
+  coll.update({'_id': 'Subsidiary'}, {"values": subsidiaries, "version": analyser.__version__}, upsert=True)
 
 
 if __name__ == '__main__':
