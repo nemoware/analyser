@@ -434,5 +434,5 @@ def create_fake_finalization(audit):
 
 
 if __name__ == '__main__':
-    finalize( )
-        # create_fake_finalization(audit)
+    finalize()
+
