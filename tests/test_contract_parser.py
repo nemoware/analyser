@@ -8,13 +8,14 @@ import pickle
 import unittest
 import warnings
 
-from contract_parser import ContractAnlysingContext, ContractDocument
-from contract_patterns import ContractPatternFactory
-from documents import TextMap
-from legal_docs import LegalDocument
-from ml_tools import SemanticTag
-from protocol_parser import ProtocolDocument
-from structures import ContractTags
+from analyser.contract_parser import ContractParser, ContractDocument
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.documents import TextMap
+from analyser.legal_docs import LegalDocument
+from analyser.ml_tools import SemanticTag
+from analyser.parsing import AuditContext
+from analyser.protocol_parser import ProtocolDocument
+from analyser.structures import ContractTags
 
 
 class TestContractParser(unittest.TestCase):
@@ -34,7 +35,7 @@ class TestContractParser(unittest.TestCase):
   def test_find_value_sign_currency(self):
 
     doc, factory, ctx = self._get_doc_factory_ctx('Договор _2_.docx.pickle')
-
+    doc.__dict__['warnings'] = []  # hack for old pickles
     r = ctx.find_contract_value_NEW(doc)
     print(len(r))
     for group in r:
@@ -56,7 +57,7 @@ class TestContractParser(unittest.TestCase):
   def _get_doc_factory_ctx(self, fn='2. Договор по благ-ти Радуга.docx.pickle'):
     doc, factory = self.get_doc(fn)
 
-    ctx = ContractAnlysingContext(embedder={}, renderer=None, pattern_factory=factory)
+    ctx = ContractParser(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
@@ -69,8 +70,10 @@ class TestContractParser(unittest.TestCase):
 
   def test_contract_analyze(self):
     doc, factory, ctx = self._get_doc_factory_ctx()
+    doc.__dict__['number'] = None  # hack for old pickles
+    doc.__dict__['date'] = None  # hack for old pickles
 
-    ctx.analyze_contract_doc(doc)
+    ctx.find_attributes(doc, AuditContext())
     tags: [SemanticTag] = doc.get_tags()
 
     _tag = SemanticTag.find_by_kind(tags, ContractTags.Value.display_string)
@@ -87,7 +90,7 @@ class TestContractParser(unittest.TestCase):
   def test_find_contract_value(self):
     doc, factory = self.get_doc(fn='2. Договор по благ-ти Радуга.docx.pickle')
 
-    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
+    ctx = ContractParser(embedder={}, pattern_factory=factory)
     ctx.verbosity_level = 3
     ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
                                       headline_patterns_prefix='headline.')
@@ -164,9 +167,8 @@ class TestContractParser(unittest.TestCase):
     # ---------------------
 
     self.print_semantic_tag(result, doc.tokens_map)
-    self.assertEqual(
-      '1. ПРЕДМЕТ ДОГОВОРА.\n1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя:',
-      doc.tokens_map.text_range(result.span).strip())
+    expected = """1.1 Благотворитель оплачивает следующий счет, выставленный на Благополучателя: \n1.1.1. Счет № 115 на приобретение спортивного оборудования (теннисный стол, рукоход с перекладинами, шведская стенка). Стоимость оборудования 80000,00 (восемьдесят тысяч рублей рублей 00 копеек) рублей, НДС не облагается."""
+    self.assertEqual(expected, doc.tokens_map.text_range(result.span).strip())
 
   def test_find_contract_subject_region(self):
     doc, factory, ctx = self._get_doc_factory_ctx()

@@ -5,9 +5,11 @@
 
 import unittest
 
-from documents import CaseNormalizer, TextMap
-from legal_docs import CharterDocument
-from text_normalize import *
+from analyser.contract_agents import normalize_legal_entity_type
+from analyser.documents import CaseNormalizer, TextMap
+from analyser.legal_docs import LegalDocument
+from analyser.structures import legal_entity_types
+from analyser.text_normalize import *
 
 
 class CaseNormalizerTestCase(unittest.TestCase):
@@ -25,7 +27,7 @@ class CaseNormalizerTestCase(unittest.TestCase):
         в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
         именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
         """
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
     self.assertEqual(doc.tokens_map.text.lower(), doc.tokens_map_norm.text.lower())
 
@@ -91,35 +93,16 @@ class TestTextNormalization(unittest.TestCase):
     # test idempotence
     # self.assertEqual(_norm2, b)
 
-  # def test_de_acronym(self):
-  #     # self._testNorm(' стороны, именуемые в дальнейшем совместно «Стороны», а по отдельности - «Сторона», заключили ',
-  #     #                ' стороны, заключили ')
-  #
-  #     # self._testNorm('«ИВа», именуемая в дальнейшем «Исполнитель», ', '«ИВа», именуемое «Исполнитель», ')
-  #
-  #     self._testNorm('ООО ', 'Общество с ограниченной ответственностью ')
-  #     self._testNorm('xx ООО ', 'xx Общество с ограниченной ответственностью ')
-  #
-  #     self._testNorm('ПАОП', 'ПАОП')
-  #     self._testNorm('лиловое АО ', 'лиловое Акционерное Общество ')
-  #     self._testNorm('ЗАО ', 'Закрытое Акционерное Общество ')
-  #     self._testNorm('XЗАОX', 'XЗАОX')
-  #     self._testNorm('витальное ЗАО ', 'витальное Закрытое Акционерное Общество ')
-  #
-
-  # #     self._testNorm('смотри п.2.2.2 нау',  'смотри пункт 2.2.2 нау')
-  # #     self._testNorm('смотри\n\n п.2.2.2 нау',   'смотри\n пункт 2.2.2 нау')
-  #
-  # #     self._testNorm(' в п.п. 4.1. – 4.5. ',   ' в пунктах 4.1. – 4.5. ')
-  # def test_deacronym_failed(self):
-  #     self._testNorm('АО ', 'Акционерное Общество ')
-  #     # self._testNorm('АО\n', 'Акционерное Общество.\n')
-
   def test_normalize_doc_1(self):
     doc_text = "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)"
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
     self.assertEqual(doc.text, "«Газпром - Вибраниум и Криптонит» (АО «ГВК»)")
+
+  def test_normalize_slash(self):
+    doc_text = 'с передачей в аренду/субаренду недвижимого'
+    doc = LegalDocument(doc_text).parse()
+    self.assertEqual('с передачей в аренду / субаренду недвижимого', doc.text)
 
   def test_normalize_double_quotes(self):
     # doc_text = " '' "
@@ -137,7 +120,7 @@ class TestTextNormalization(unittest.TestCase):
     # self.assertEqual(' " ', doc.text)
 
     tt = "''Газпром''"
-    doc = CharterDocument(tt)
+    doc = LegalDocument(tt)
     doc.parse()
     self.assertEqual('"Газпром"', doc.text)
 
@@ -172,13 +155,14 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm('составит 32000', 'составит 32000')
     self._testNorm('составит 32.00', 'составит 32.00')
 
+    self._testNorm('\x07составит', '\nсоставит')
+
     self._testNorm('настоящим договором в сумме 5 000 (Пять тысяч) рублей',
                    'настоящим договором в сумме 5000 (Пять тысяч) рублей')
 
     self._testNorm(
       '«Базовый курс » - 3.000 (Три тысячи) рублей 00 коп., - 2.000 (Две тысячи)',
       '«Базовый курс» - 3000 (Три тысячи) рублей 00 копеек, - 2000 (Две тысячи)')
-
 
   def test_normalize_numbered(self):
     self._testNorm(
@@ -194,6 +178,15 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm(
       '2.01.этилен мама, этилен!',
       '2.01. этилен мама, этилен!')
+
+  def test_normalize_caption(self):
+    self._testNorm(
+      'У С Т А В Акционерного общества «ГПН-ГПН »',
+      'УСТАВ Акционерного общества «ГПН-ГПН»')
+
+    self._testNorm(
+      'У С Т А В',
+      'УСТАВ')
 
   def test_normalize_numbered_3(self):
     self._testNorm(
@@ -240,6 +233,20 @@ class TestTextNormalization(unittest.TestCase):
     self._testNorm('Предложение  . Предложение. .25', 'Предложение. Предложение. 0.25')
 
     self._testNorm('пункт 2.12', 'пункт 2.12')
+
+  def test_normalize_legal_entity_type_long(self):
+    for t in legal_entity_types:
+      print(t, legal_entity_types[t])
+
+      long_, short_, confidence = normalize_legal_entity_type(t)
+      self.assertEqual(t, long_)
+
+  def test_normalize_legal_entity_type_short(self):
+    for t in legal_entity_types:
+      print(t, legal_entity_types[t])
+
+      long_, short_, confidence = normalize_legal_entity_type(t)
+      self.assertEqual(legal_entity_types[t], short_)
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

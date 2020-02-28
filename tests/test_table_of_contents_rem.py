@@ -5,7 +5,7 @@
 
 import unittest
 
-from text_normalize import normalize_text, replacements_regex
+from analyser.text_normalize import normalize_text, replacements_regex
 
 
 class TableOfContentsRemovalTest(unittest.TestCase):

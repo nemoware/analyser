@@ -10,8 +10,8 @@ import unittest
 import numpy as np
 from nltk import TreebankWordTokenizer
 
-from documents import TextMap, span_tokenize
-from legal_docs import CharterDocument, LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
+from analyser.documents import TextMap, span_tokenize
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
 class TokenisationTestCase(unittest.TestCase):
@@ -40,7 +40,7 @@ class TokenisationTestCase(unittest.TestCase):
             в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
             именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
             """
-    doc = CharterDocument(doc_text)
+    doc = LegalDocument(doc_text)
     doc.parse()
 
     maxlen = 50
@@ -57,7 +57,7 @@ class TokenisationTestCase(unittest.TestCase):
     doc_text = """\n\n\nАкционерное 3`4`` общество «Газпром - 'Вибраниум' и Криптонит» (АО «ГВК»), "именуемое" в собранием `` акционеров собранием `` акционеров \'\' \
         дальнейшем «Благотворитель», 
         """
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
     print(doc_o.tokens_map.tokens)
 
@@ -69,7 +69,7 @@ class TokenisationTestCase(unittest.TestCase):
         в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
         именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
         """
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 300))
@@ -82,7 +82,7 @@ class TokenisationTestCase(unittest.TestCase):
   def test_subdoc_slice(self):
     doc_text = """аслово бслово цслово"""
 
-    doc_o = CharterDocument(doc_text)
+    doc_o = LegalDocument(doc_text)
     doc_o.parse()
 
     doc = doc_o.subdoc_slice(slice(0, 2))
@@ -166,6 +166,34 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(tm.tokens[0], '1.')
     self.assertEqual(tm.tokens[1], 'этилен')
 
+  def test_slice_start_from_space(self):
+    offff=20
+    txt = ' ' * offff + '''основании Устава, с одной стороны, и Фонд «Благо»'''
+    tm = TextMap(txt)
+    print(tm.map[0])
+    print(tm.tokens[11])
+    print(tm.map[11])
+    # print(f'[{doc.tokens_map.text}]')
+    print(f'[{tm.text}]')
+
+    print(len(tm))
+    tm_sliced = tm.slice(slice(0, len(tm)))
+    print('span-0')
+    print(tm.map[0])
+    print(tm_sliced.map[0])
+
+    self.assertEqual(len(tm), len(tm_sliced))
+    self.assertEqual(tm.map[0], tm_sliced.map[0])
+
+    for c in range(len(tm.tokens[0])):
+      print(c)
+      self.assertEqual(0, tm.token_index_by_char(c))
+      self.assertEqual(0, tm_sliced.token_index_by_char(c))
+
+    self.assertEqual(tm.text, tm_sliced.text)
+
+    self.assertEqual(0, tm.token_index_by_char(0))
+
   def test_slice(self):
     text = 'этилен мама   ಶ್ರೀರಾಮ'
     tm = TextMap(text)
@@ -228,6 +256,23 @@ class TokenisationTestCase(unittest.TestCase):
       bounds = tm.sentence_at_index(i, return_delimiters=False)
       self.assertEqual('ДОГОВОРА', tm.text_range(bounds))
 
+  def test_tokens_in_range_start_from_space(self):
+    text = ' мама'
+    tm = TextMap(text)
+
+    self.assertEqual(1, tm.map[0][0])
+    self.assertEqual(0, tm.token_index_by_char(0))
+
+    txt = ' ' * 20 + '''основании Устава, с одной стороны, и Фонд «Благо»'''
+    # tm = TextMap(txt)
+    doc = LegalDocument(txt).parse()
+    tm = doc.tokens_map
+    print(tm.map[0])
+    print(tm.tokens[11])
+    print(tm.map[11])
+    print(f'[{doc.tokens_map.text}]')
+    print(f'[{doc.text}]')
+
   def test_tokens_in_range(self):
     text = 'мама'
     tm = TextMap(text)
@@ -249,7 +294,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(1, tm.token_index_by_char(4))
 
   def test_finditer(self):
-    from transaction_values import _re_greather_then
+    from analyser.transaction_values import _re_greather_then
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     tm = TextMap(text)
     iter = tm.finditer(_re_greather_then)
@@ -262,7 +307,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(5, results[1])
 
   def test_finditer__a(self):
-    from transaction_values import _re_greather_then
+    from analyser.transaction_values import _re_greather_then
 
     text = """стоимость, равную или превышающую 2000000 ( два миллиона ) долларов сша, но менее"""
     __doc = LegalDocument(text)

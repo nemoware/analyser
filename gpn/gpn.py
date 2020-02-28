@@ -3,6 +3,20 @@ from integration.db import get_mongodb_connection
 data = {
   "Subsidiary": [
     {
+      "_id": "Газпром нефть",
+      "legal_entity_type": "ПАО",
+      "aliases": [
+        "Газпром нефть"
+      ]
+    },
+    {
+      "_id": "Газпромнефть Шиппинг",
+      "legal_entity_type": "ООО",
+      "aliases": [
+        "Газпромнефть Шиппинг"
+      ]
+    },
+    {
       "_id": "Арктика Медиа",
       "legal_entity_type": "АО",
       "aliases": [
@@ -198,7 +212,10 @@ data = {
       "_id": "МЗСМ",
       "legal_entity_type": "АО",
       "aliases": [
-        "МЗСМ"
+        "МЗСМ",
+        "Газпромнефть Московский Завод Смазочных Материалов",
+        "Газпромнефть МЗСМ",
+        "Московский Завод Смазочных Материалов"
       ]
     },
     {
@@ -413,7 +430,8 @@ data = {
       "_id": "ГПН-Развитие",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Развитие"
+        "ГПН-Развитие",
+        "Газпромнефть-Развитие"
       ]
     },
     {
@@ -428,7 +446,8 @@ data = {
       "_id": "Южно-Приобский ГПЗ",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Южно-Приобский ГПЗ"
+        "Южно-Приобский ГПЗ",
+        "Южно-Приобский газоперерабатывающий завод"
       ]
     },
     {
@@ -585,7 +604,8 @@ data = {
       "_id": "Газпромнефть-Новосибирск",
       "legal_entity_type": "АО",
       "aliases": [
-        "Газпромнефть-Новосибирск"
+        "Газпромнефть-Новосибирск",
+        "Газпромнефть-Новосибирск (НБ)"
       ]
     },
     {
@@ -649,7 +669,14 @@ data = {
 
 subsidiaries = data['Subsidiary']
 
-if __name__ == '__main__':
+
+def update_subsidiaries_in_db():
   db = get_mongodb_connection()
-  # db['Subsidiary'].insert_many( subsidiaries)
-# if db:
+
+  coll = db["subsidiaries"]
+  coll.delete_many({})
+  coll.insert_many(subsidiaries)
+
+
+if __name__ == '__main__':
+  update_subsidiaries_in_db()
