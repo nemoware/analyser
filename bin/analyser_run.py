@@ -6,9 +6,12 @@ import schedule
 
 import analyser
 from analyser import runner
+from gpn.gpn import update_subsidiaries_in_db
 
 
 def main():
+  update_subsidiaries_in_db()
+
   check_interval = os.environ.get("GPN_DB_CHECK_INTERVAL")
   if check_interval is None:
     check_interval = 30
