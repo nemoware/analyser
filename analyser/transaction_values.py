@@ -39,17 +39,47 @@ class ValueConstraint:
 
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
-  r'(?P<digits>\d+([., ]\d+)*)'  # digits #0
+  r'('
+  r'(?P<digits>\d+([\., ]\d+)*)'  # digits #0
   r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
   r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
-  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
-  r'?((?P<currency>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
-  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis 
-  r'(\s*(?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?'  # cents
-  r'(\s*.{1,5}(?P<vat>(учётом|учетом|включая|т\.ч\.|том числе)\s*ндс)(\s*\((?P<percent>\d{1,2})\%\))?)?'
+  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis
+  r'(?P<currency>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге[\.,]?)'  # currency #7
+  r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis
+  r'((?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?'  # cents
+  r'(\s*.{1,5}(?P<vat>(учётом|учетом|включая|т\.ч\.|том числе)\s*(ндс|ндфл))(\s*\((?P<percent>\d{1,2})\%\))?)?'
+  r')|('
+  r'(?P<digits1>\d+([\., ]\d+)*)\s*\)\s*'
+  r'(\s*(?P<qualifier1>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
+  r'(?P<currency1>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге[\.,]?)'
+  r'.{0,25}?'
+  r'\s*\(\s*((?P<cents1>\d+)\s*\)\s*коп[а-я]{0,4})?'
+  r'(\s*.{1,5}(?P<vat1>(учётом|учетом|включая|т\.ч\.|том числе)\s*(ндс|ндфл))(\s*\(\s*(?P<percent1>\d+)\%\s*\))?)?'
+  r')'
   ,
   re.MULTILINE | re.IGNORECASE
 )
+
+
+'''
+2.2 Общая стоимость Услуг составляет шестьдесят два миллиона ( 62000000 ) рублей ноль ( 30 ) копеек, включая НДС ( 20% ): 
+Десять миллионов четыреста тысяч ( 10400000 ) рубля ноль ( 00 ) копеек. 
+Стоимость Услуг является фиксированной (твердой) и не подлежит изменению в течение срока действия Договора.
+'''
+# complete_re = re.compile(
+#   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
+#   r'(?P<digits>\d+([\., ]\d+)*)\)?\s'  # digits #0
+#   r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
+#   r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
+#   r'.{0,50}?'  # some shit in parenthesis
+#   r'(\s*(?P<currency>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
+#   r'.{0,50}'  # some shit in parenthesis
+#   r'(\s*(?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?'  # cents
+#   r'(\s*.{1,5}(?P<vat>(учётом|учетом|включая|т\.ч\.|том числе)\s*(ндс|ндфл))(\s*\((?P<percent>\d{1,2})\%\))?)?'
+#   ,
+#   re.MULTILINE | re.IGNORECASE
+# )
+
 
 
 # for r in re.finditer(complete_re, text):
@@ -60,8 +90,13 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
   if r is None:
     return None, None
 
-  number = to_float(r[1])
-  r_num = r[4]
+
+  ix = ''
+  if r['digits1'] is not None:
+    ix = '1'
+
+  number = to_float(r['digits'+ix])
+  r_num = r['qualifier'+ix]
   if r_num:
     if r_num.startswith('тыс'):
       number *= 1000
@@ -69,19 +104,19 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
       if r_num.startswith('м'):
         number *= 1000000
 
-  r_cents = r[10]
+  r_cents = r['cents'+ix]
   if r_cents:
     frac, whole = math.modf(number)
     if frac == 0:
       number += to_float(r_cents) / 100.
 
   original_sum = number
-  vat_span = r.span('vat')
+  vat_span = r.span('vat'+ix)
   r_vat = _sentence[vat_span[0]:vat_span[1]]
   including_vat = False
   if r_vat:
 
-    vat_percent_span = r.span('percent')
+    vat_percent_span = r.span('percent'+ix)
     r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
     if r_vat_percent:
       vat_percent = to_float(r_vat_percent) / 100
@@ -91,7 +126,7 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     number = int(number * 100.) / 100.  # dumned truncate!
     including_vat = True
 
-  curr = r[7][0:3]
+  curr = r['currency'+ix][0:3]
 
   return number, currencly_map[curr.lower()], including_vat, original_sum
 
@@ -123,16 +158,20 @@ number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 VALUE_SIGN_MIN_TOKENS = 5
 
 
-def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, List[int], str):
+def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, List[int], str, bool, float):
   for match in complete_re.finditer(_sentence):
 
+    ix = ''
+    if match['digits1'] is not None:
+      ix = '1'
+
     # NUMBER
-    number_span = match.span('digits')
+    number_span = match.span('digits'+ix)
 
     number = to_float(_sentence[number_span[0]:number_span[1]])
 
     # NUMBER MULTIPLIER
-    qualifier_span = match.span('qualifier')
+    qualifier_span = match.span('qualifier'+ix)
     qualifier = _sentence[qualifier_span[0]:qualifier_span[1]]
     if qualifier:
       if qualifier.startswith('тыс'):
@@ -142,7 +181,7 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
           number *= 1000000
 
     # FRACTION (CENTS, KOPs)
-    cents_span = match.span('cents')
+    cents_span = match.span('cents'+ix)
     r_cents = _sentence[cents_span[0]:cents_span[1]]
     if r_cents:
       frac, whole = math.modf(number)
@@ -150,19 +189,19 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
         number += to_float(r_cents) / 100.
 
     # CURRENCY
-    currency_span = match.span('currency')
+    currency_span = match.span('currency'+ix)
     currency = _sentence[currency_span[0]:currency_span[1]]
     curr = currency[0:3]
     currencly_name = currencly_map[curr.lower()]
 
     original_sum = number
 
-    vat_span = match.span('vat')
+    vat_span = match.span('vat'+ix)
     r_vat = _sentence[vat_span[0]:vat_span[1]]
     including_vat = False
     if r_vat:
 
-      vat_percent_span = match.span('percent')
+      vat_percent_span = match.span('percent'+ix)
       r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
       if r_vat_percent:
         vat_percent = to_float(r_vat_percent) / 100
@@ -180,6 +219,10 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
 
 
 if __name__ == '__main__':
+  ex =  '2.2 Общая стоимость Услуг составляет шестьдесят два миллиона (62000000) рублей ноль (30) копеек, включая НДС (20%): ' \
+        'Десять миллионов четыреста тысяч (10400000) рубля ноль (00) копеек. Стоимость Услуг является фиксированной (твердой) ' \
+        'и не подлежит изменению в течение срока действия Договора.'
+  print('sum', extract_sum(ex))
   ex = "составит - не более 1661 293,757 тыс. рублей  25 копеек ( с учетом ндс ) ( 0,93 % балансовой стоимости активов)"
   val = find_value_spans(ex)
   print('extract_sum', extract_sum(ex))
