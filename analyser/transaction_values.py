@@ -123,7 +123,8 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
       # print(f'vat_percent::{vat_percent}')
 
     number = number / (1. + vat_percent)
-    number = int(number * 100.) / 100.  # dumned truncate!
+    # number = int(number * 100.) / 100.  # dumned truncate!
+    number = round(number, 2)  # not truncate, round!
     including_vat = True
 
   curr = r['currency'+ix][0:3]
@@ -208,7 +209,8 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
         # print(f'vat_percent::{vat_percent}')
 
       number = number / (1. + vat_percent)
-      number = int(number * 100.) / 100.  # dumned truncate!
+      # number = int(number * 100.) / 100.  # dumned truncate!
+      number = round(number, 2)             # not truncate, round!
       including_vat = True
 
     # TODO: include fration span to the return value
