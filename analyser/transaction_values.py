@@ -40,7 +40,7 @@ class ValueConstraint:
 complete_re = re.compile(
   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
   r'('
-  r'(?P<digits>\d+([\., ]\d+)*)'  # digits #0
+  r'(?P<digits>\d+([\.,\= ]\d+)*)'  # digits #0
   r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
   r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
   r'(\s*\((?:(?!\)).)+?\))?\s*'  # some shit in parenthesis
