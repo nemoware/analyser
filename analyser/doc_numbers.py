@@ -5,7 +5,7 @@ from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
 
 doc_num_exclude_prefixes = r"(?<!лицензии )(?<!лицензнии )"
-document_number_c = re.compile(doc_num_exclude_prefixes+r"(№|N|#)\s*(?P<number>(?!на|от)([a-zа-я0-9]+([-\/][a-zа-я0-9]+)*))", re.IGNORECASE)
+document_number_c = re.compile(doc_num_exclude_prefixes+r"(№|N|#)\s*(?P<number>(?!на|от)([a-zа-я0-9]{2,10}([-\/][a-zа-я0-9]+)*))", re.IGNORECASE)
 document_number_valid_c = re.compile(r"([a-zа-я0-9]+)", re.IGNORECASE)
 
 
