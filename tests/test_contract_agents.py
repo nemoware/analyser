@@ -27,11 +27,11 @@ class ContractAgentsTestCase(unittest.TestCase):
         "Газпромнефть-Мобильная карта"
       ]
     }
-    known_org_name, _ = find_closest_org_name([mc], 'Газпромнефть - МАбильная карта',
+    known_org_name, _ = find_closest_org_name([mc], 'Газпромнефть - Мбильная карта',
                                               HyperParameters.subsidiary_name_match_min_jaro_similarity)
     self.assertIsNotNone(known_org_name)
 
-    known_org_name, _ = find_closest_org_name(subsidiaries, 'Газпромнефть - МАбильная карта',
+    known_org_name, _ = find_closest_org_name(subsidiaries, 'Газпромнефть - Мбильная карта',
                                               HyperParameters.subsidiary_name_match_min_jaro_similarity)
     self.assertIsNotNone(known_org_name)
     self.assertEqual(mc['_id'], known_org_name['_id'])
