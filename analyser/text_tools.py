@@ -10,7 +10,7 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 from numpy.core.multiarray import ndarray
-from pyjarowinkler import distance
+from pyjarowinkler import distance as jaro
 
 Tokens = List[str] or ndarray
 
@@ -419,4 +419,4 @@ def compare_masked_strings(a, b, masked_substrings):
       b1 = b1.replace(masked, '')
 
   # print(a1, '--', b1)
-  return distance.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
+  return jaro.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
