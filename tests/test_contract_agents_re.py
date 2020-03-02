@@ -503,7 +503,7 @@ class TestContractAgentsSearch(unittest.TestCase):
     self._validate_org(tags, 2, (
       'Общество с ограниченной ответственностью', 'Научно-производственная компания «НефтеБурГаз»', 'Подрядчик'))
 
-  def test_find_agent_1(self):
+  def test_find_agent_ONPZ(self):
     txt = '''
       2016 год.
      Акционерное общество “Газпромнефть-Омский НПЗ” (АО “Газпромнефть-ОНПЗ”), именуемое в дальнейшем «Организацией» водопроводно-канализационного хозяйства'''
@@ -516,6 +516,20 @@ class TestContractAgentsSearch(unittest.TestCase):
 
     tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse())
     self._validate_org(tags, 1, ('Акционерное общество', 'Газпромнефть-ОНПЗ', 'Организацией'))
+
+  def test_find_agent_MPZ(self):
+    txt = '''
+      2016 год.
+     Акционерное общество “Газпромнефть - МНПЗ” (АО “ГПН-МНПЗ”), именуемое в дальнейшем «Организацией» водопроводно-канализационного хозяйства'''
+
+    txt = n(txt)
+
+    x = re.compile(r_type_and_name, re.MULTILINE).search(n(txt))
+    self.assertEqual('Акционерное общество', x['type'])
+    self.assertEqual('Газпромнефть - МНПЗ', x['name'])
+
+    tags: List[SemanticTag] = find_org_names(LegalDocument(txt).parse())
+    self._validate_org(tags, 1, ('Акционерное общество', 'Газпромнефть-МНПЗ', 'Организацией'))
 
   def test_org_dict_4_2(self):
     t = n(
