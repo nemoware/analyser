@@ -5,7 +5,8 @@
 
 import unittest
 
-from analyser.contract_agents import compare_masked_strings, find_closest_org_name, ContractAgent
+from analyser.contract_agents import find_closest_org_name, ContractAgent
+from analyser.text_tools import compare_masked_strings
 from analyser.hyperparams import HyperParameters
 from gpn.gpn import subsidiaries
 

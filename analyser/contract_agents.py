@@ -13,7 +13,7 @@ from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types, r_human_name, morphology_agnostic_re
-from analyser.text_tools import is_long_enough, span_len
+from analyser.text_tools import is_long_enough, span_len, compare_masked_strings
 from gpn.gpn import subsidiaries
 
 r_being_a_citizen = r_group(r'являющ[а-я]{2,5}\s*граждан[а-я]{2,5}', 'citizen')
@@ -190,18 +190,6 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
       ca.type.confidence *= confidence_
 
   return all
-
-
-def compare_masked_strings(a, b, masked_substrings):
-  a1 = a
-  b1 = b
-  for masked in masked_substrings:
-    if a1.find(masked) >= 0 and b1.find(masked) >= 0:
-      a1 = a1.replace(masked, '')
-      b1 = b1.replace(masked, '')
-
-  # print(a1, '--', b1)
-  return distance.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
 
 
 def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
