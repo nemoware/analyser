@@ -12,14 +12,14 @@ class NumbersTestCase(unittest.TestCase):
   def get_number(self, t):
     doc = LegalDocument(t)
     doc.parse()
-    tag = find_document_number(doc)
+    return find_document_number(doc)
 
   def test_find_doc_number(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №3 к Договору о выдаче банковских гарантий №3256-5/876 от 06-02-2013 год, заключенному между '''
     findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual('3', findings[0]['number'][0])
-    self.assertEqual('3256-5/876', findings[0]['number'])
+    self.assertEqual('3', findings[1]['number'][0])
+    self.assertEqual('3256-5/876', findings[1]['number'])
 
   def test_find_doc_number_missing_na(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения № на на ыдаче'''
