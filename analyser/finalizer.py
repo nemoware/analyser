@@ -89,6 +89,18 @@ def convert_to_rub(value_currency):
     return value_currency
 
 
+def get_max_value(doc_attrs):
+    max_value = None
+    sign = 0
+    for key, value in doc_attrs.items():
+        if key.endswith("/value"):
+            if doc_attrs.get(key[:-5] + "sign") is not None:
+                sign = doc_attrs[key[:-5] + "sign"]["value"]
+            current_value = convert_to_rub({"value": value["value"], "currency": doc_attrs[key[:-5] + "currency"]["value"]})
+            if max_value is None or max_value["value"] < current_value["value"]:
+                max_value = current_value
+    return max_value, sign
+
 def get_constraints_rub(key, attributes):
     constraints = []
     for key2, value2 in attributes.items():
@@ -270,69 +282,62 @@ def check_contract(contract, charters, protocols, audit):
                          "protocol": {"org_structural_level": protocol_structural_level,
                                       "date": eligible_protocol_attrs["date"]["value"]}}))
                 else:
-                    for key, value in eligible_protocol_attrs.items():
-                        if key.endswith("/value"):
-                            protocol_value = convert_to_rub({"value": value["value"], "currency": eligible_protocol_attrs[key[:-5] + "currency"]["value"]})
-                            sign = 0
-                            if eligible_protocol_attrs.get(key[:-5] + "sign") is not None:
-                                sign = eligible_protocol_attrs[key[:-5] + "sign"]["value"]
-                            if sign < 0 and min_constraint <= protocol_value["value"] < contract_value["value"]:
-                                violations.append(create_violation(
-                                    {"id": contract["_id"], "number": contract_number,
-                                     "type": contract["parse"]["documentType"]},
-                                    {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
-                                    {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
-                                    "contract_value_great_than_protocol_value",
-                                    {"contract": {"number": contract_number,
-                                                  "date": contract_attrs["date"]["value"],
-                                                  "org_type": contract_org2_type,
-                                                  "org_name": contract_org2_name,
-                                                  "value": contract_attrs["sign_value_currency/value"]["value"],
-                                                  "currency": contract_attrs["sign_value_currency/currency"]["value"]},
-                                    "protocol": {
-                                         "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"],
-                                         "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
-                                break
+                    protocol_value, sign = get_max_value(eligible_protocol_attrs)
+                    if protocol_value is not None:
+                        if sign < 0 and min_constraint <= protocol_value["value"] < contract_value["value"]:
+                            violations.append(create_violation(
+                                {"id": contract["_id"], "number": contract_number,
+                                 "type": contract["parse"]["documentType"]},
+                                {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
+                                {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
+                                "contract_value_great_than_protocol_value",
+                                {"contract": {"number": contract_number,
+                                              "date": contract_attrs["date"]["value"],
+                                              "org_type": contract_org2_type,
+                                              "org_name": contract_org2_name,
+                                              "value": contract_attrs["sign_value_currency/value"]["value"],
+                                              "currency": contract_attrs["sign_value_currency/currency"]["value"]},
+                                "protocol": {
+                                     "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"],
+                                     "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
 
-                            if sign == 0 and min_constraint <= protocol_value["value"] != contract_value["value"]:
-                                violations.append(create_violation(
-                                    {"id": contract["_id"], "number": contract_number,
-                                     "type": contract["parse"]["documentType"]},
-                                    {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
-                                    {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
-                                    "contract_value_not_equal_protocol_value",
-                                    {"contract": {"number": contract_number,
-                                                  "date": contract_attrs["date"]["value"],
-                                                  "org_type": contract_org2_type,
-                                                  "org_name": contract_org2_name,
-                                                  "value": contract_attrs["sign_value_currency/value"]["value"],
-                                                  "currency": contract_attrs["sign_value_currency/currency"]["value"]},
-                                    "protocol": {
-                                         "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"],
-                                         "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
-                                break
+                        if sign == 0 and min_constraint <= protocol_value["value"] != contract_value["value"]:
+                            violations.append(create_violation(
+                                {"id": contract["_id"], "number": contract_number,
+                                 "type": contract["parse"]["documentType"]},
+                                {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
+                                {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
+                                "contract_value_not_equal_protocol_value",
+                                {"contract": {"number": contract_number,
+                                              "date": contract_attrs["date"]["value"],
+                                              "org_type": contract_org2_type,
+                                              "org_name": contract_org2_name,
+                                              "value": contract_attrs["sign_value_currency/value"]["value"],
+                                              "currency": contract_attrs["sign_value_currency/currency"]["value"]},
+                                "protocol": {
+                                     "org_structural_level": protocol_structural_level, "date": eligible_protocol_attrs["date"]["value"],
+                                     "value": protocol_value["original_value"], "currency": protocol_value["original_currency"]}}))
 
-                            if sign > 0 and min_constraint <= protocol_value["value"] > contract_value["value"]:
-                                violations.append(create_violation(
-                                    {"id": contract["_id"], "number": contract_number,
-                                     "type": contract["parse"]["documentType"]},
-                                    {"id": eligible_charter["_id"],
-                                     "date": eligible_charter_attrs["date"]["value"]},
-                                    {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
-                                    "contract_value_less_than_protocol_value",
-                                    {"contract": {"number": contract_number,
-                                                  "date": contract_attrs["date"]["value"],
-                                                  "org_type": contract_org2_type,
-                                                  "org_name": contract_org2_name,
-                                                  "value": contract_attrs["sign_value_currency/value"]["value"],
-                                                  "currency": contract_attrs["sign_value_currency/currency"][
-                                                      "value"]},
-                                    "protocol": {
-                                         "org_structural_level": protocol_structural_level,
-                                         "date": eligible_protocol_attrs["date"]["value"],
-                                         "value": protocol_value["original_value"],
-                                         "currency": protocol_value["original_currency"]}}))
-                                break
+                        if sign > 0 and min_constraint <= protocol_value["value"] > contract_value["value"]:
+                            violations.append(create_violation(
+                                {"id": contract["_id"], "number": contract_number,
+                                 "type": contract["parse"]["documentType"]},
+                                {"id": eligible_charter["_id"],
+                                 "date": eligible_charter_attrs["date"]["value"]},
+                                {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
+                                "contract_value_less_than_protocol_value",
+                                {"contract": {"number": contract_number,
+                                              "date": contract_attrs["date"]["value"],
+                                              "org_type": contract_org2_type,
+                                              "org_name": contract_org2_name,
+                                              "value": contract_attrs["sign_value_currency/value"]["value"],
+                                              "currency": contract_attrs["sign_value_currency/currency"][
+                                                  "value"]},
+                                "protocol": {
+                                     "org_structural_level": protocol_structural_level,
+                                     "date": eligible_protocol_attrs["date"]["value"],
+                                     "value": protocol_value["original_value"],
+                                     "currency": protocol_value["original_currency"]}}))
 
             else:
                 if need_protocol_check:
@@ -434,10 +439,5 @@ def create_fake_finalization(audit):
 
 
 if __name__ == '__main__':
+    finalize()
 
-    db = get_mongodb_connection()
-    audits_collection = db['audits']
-    audits = audits_collection.find({'status': 'Finalizing'}).sort([("createDate", pymongo.ASCENDING)])
-    for audit in audits:
-        finalize(audit)
-        # create_fake_finalization(audit)
