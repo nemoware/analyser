@@ -2,8 +2,6 @@ import pymongo
 import numpy as np
 import textdistance
 
-import analyser
-from gpn.gpn import update_subsidiaries_in_db
 from integration.db import get_mongodb_connection
 
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}

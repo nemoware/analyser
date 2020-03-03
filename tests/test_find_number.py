@@ -4,15 +4,10 @@
 import re
 import unittest
 
-from analyser.doc_numbers import document_number_c, find_document_number
-from analyser.legal_docs import LegalDocument
+from analyser.doc_numbers import document_number_c
 
 
 class NumbersTestCase(unittest.TestCase):
-  def get_number(self, t):
-    doc = LegalDocument(t)
-    doc.parse()
-    return find_document_number(doc)
 
   def test_find_doc_number(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №3 к Договору о выдаче банковских гарантий №3256-5/876 от 06-02-2013 год, заключенному между '''
