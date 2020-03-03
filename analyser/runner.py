@@ -76,15 +76,21 @@ class BaseProcessor:
       save_analysis(db_document, legal_doc, 11, db_document["retry_number"] + 1)
     return legal_doc
 
-  def is_valid(self, legal_doc, audit):
+  def is_valid(self, legal_doc, audit, db_document):
     if legal_doc.date is not None:
       _date = legal_doc.date.value
       date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
     else:
       date_is_ok = True
 
-    return ("Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(audit["subsidiary"]["name"])) and date_is_ok
+    return ("Все ДО" == audit["subsidiary"]["name"] or self.is_same_org(legal_doc, db_document, audit["subsidiary"]["name"]) and date_is_ok)
 
+  def is_same_org(self, legal_doc, db_doc, subsidiary):
+    if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"]["attributes"].get("org-1-name") is not None:
+      if subsidiary == db_doc["user"]["attributes"]["org-1-name"]["value"]:
+        return True
+    else:
+      return legal_doc.is_same_org(subsidiary)
 
 
 class ProtocolProcessor(BaseProcessor):

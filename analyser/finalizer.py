@@ -127,7 +127,7 @@ def get_charter_diapasons(charter):
     min_constraint = np.inf
     for key, value in charter_attrs.items():
         if key.count("/") == 1:
-            subject_type = value["value"]
+            subject_type = key.split("/")[1]
             subject_map = subjects.get(subject_type)
             if subject_map is None:
                 subject_map = {}
@@ -138,7 +138,7 @@ def get_charter_diapasons(charter):
             if len(constraints) == 0:
                 min_constraint = 0
             for constraint in constraints:
-                if constraint["sign"] > 0:
+                if int(constraint["sign"]) > 0:
                     if subject_map[value["parent"]]["min"] == 0:
                         subject_map[value["parent"]]["min"] = constraint["value"]
                         subject_map[value["parent"]]["original_min"] = constraint["original_value"]
@@ -226,6 +226,8 @@ def check_contract(contract, charters, protocols, audit):
         competences = None
         if contract_attrs.get("subject") is not None:
             competences = charter_subject_map.get(contract_attrs["subject"]["value"])
+        if competences is None:
+            competences = charter_subject_map.get("Deal")
         contract_value = None
         if contract_attrs.get("sign_value_currency/value") is not None and contract_attrs.get("sign_value_currency/currency") is not None:
             contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
