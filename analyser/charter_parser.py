@@ -219,7 +219,7 @@ class CharterParser(ParsingContext):
       # lazy embedding
       self._ebmedd(_charter)
 
-    # reset for preventing doubling tags
+    # reset for preventing tags doubling
     _charter.reset_attributes()
 
     # --------------
@@ -234,7 +234,7 @@ class CharterParser(ParsingContext):
       _pattern_name = p_mapping[0][0]
       _paragraph_id = p_mapping[0][1]
 
-      paragraph_body = _charter.paragraphs[_paragraph_id].body
+      paragraph_body:SemanticTag = _charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
@@ -264,10 +264,13 @@ class CharterParser(ParsingContext):
     _charter.margin_values = margin_values
     return _charter
 
+
+
+
   def find_attributes_in_sections(self, subdoc: LegalDocumentExt, parent_org_level_tag):
 
-    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
-    subject_spans = collect_subjects_spans(subdoc, subject_attentions_map)
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings) #dictionary
+    subject_spans = collect_subjects_spans2(subdoc, subject_attentions_map)
 
     values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
     self._rename_margin_values_tags(values)
@@ -279,7 +282,7 @@ class CharterParser(ParsingContext):
     for c in subject_spans:
       united_spans.append(c)
 
-    united_spans = merge_colliding_spans(united_spans)
+    united_spans = merge_colliding_spans(united_spans, eps=-1)#XXX: check this
 
     constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
                                                                                parent_org_level_tag,
@@ -462,8 +465,23 @@ def collect_subjects_spans(subdoc, subject_attentions_map, min_len=20):
         spans.append(paragraph_span)
 
   unique_sentence_spans = merge_colliding_spans(spans, eps=1)
-  # for span in unique_sentence_spans:
-  #   print(span, subdoc.tokens_map.text_range(span) )
+
+  return unique_sentence_spans
+
+def collect_subjects_spans2(subdoc, subject_attentions_map, min_len=20):
+  spans = []
+  for subj in subject_attentions_map.keys():
+
+    subject_attention = subject_attentions_map[subj]
+    paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
+                                                                                           subject_attention,
+                                                                                           min_len=min_len,
+                                                                                           return_delimiters=False)
+    if confidence > HyperParameters.charter_subject_attention_confidence:
+      if paragraph_span not in spans:
+        spans.append(paragraph_span)
+
+  unique_sentence_spans = merge_colliding_spans(spans, eps=-1)
 
   return unique_sentence_spans
 

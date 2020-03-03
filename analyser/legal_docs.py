@@ -251,7 +251,7 @@ class LegalDocument:
           return True
     return False
 
-  def get_tag_text(self, tag: SemanticTag):
+  def get_tag_text(self, tag: SemanticTag)->str:
     return self.tokens_map.text_range(tag.span)
 
   def substr(self, tag: SemanticTag) -> str:
