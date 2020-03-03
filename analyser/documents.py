@@ -5,10 +5,11 @@ import traceback
 import warnings
 
 import nltk
+import numpy as np
 
 from analyser.hyperparams import models_path
 from analyser.ml_tools import spans_to_attention
-from analyser.text_tools import Tokens, my_punctuation, untokenize, replace_tokens, tokenize_text, split_into_sentences
+from analyser.text_tools import Tokens, untokenize, replace_tokens, tokenize_text, split_into_sentences
 
 TEXT_PADDING_SYMBOL = ' '
 nltk.download('punkt')
@@ -53,7 +54,7 @@ class TextMap:
   def token_index_by_char(self, _char_index: int) -> int:
     if not self.map: return -1
 
-    local_off = self.map[0][0]-self._offset_chars
+    local_off = self.map[0][0] - self._offset_chars
     """
     [span 0] out of span [span 1] [span 2]
 
@@ -61,7 +62,7 @@ class TextMap:
     :return:
     """
 
-    char_index =local_off+ _char_index + self._offset_chars
+    char_index = local_off + _char_index + self._offset_chars
     for span_index in range(len(self.map)):
       span = self.map[span_index]
       if char_index < span[1]:  # span end
@@ -206,14 +207,13 @@ class TextMap:
     else:
       raise TypeError("Invalid argument type.")
 
-  def get_tokens(self):
+  def get_tokens(self)->Tokens:
     return [
       self._full_text[tr[0]:tr[1]] for tr in self.map
     ]
 
-  tokens = property(get_tokens)
+  tokens = property(get_tokens, None)
   text = property(get_text, None)
-
 
 
 def split_sentences_into_map(substr, max_len_chars=150) -> TextMap:
@@ -221,19 +221,6 @@ def split_sentences_into_map(substr, max_len_chars=150) -> TextMap:
   tm = TextMap(substr, spans1)
   return tm
 
-
-def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):
-  q_sent_indices = np.nonzero(attention_v)[0]
-  w_spans_attention = np.zeros(len(words_map))
-  char_ranges = [(sentence_map.map[i], attention_v[i]) for i in q_sent_indices]
-
-  w_spans = []
-  for char_range, a in char_ranges:
-    words_range = words_map.token_indices_by_char_range(char_range)
-    w_spans.append(words_range)
-    w_spans_attention[words_range[0]:words_range[1]] += a
-
-  return w_spans, w_spans_attention
 
 class CaseNormalizer:
   __shared_state = {}  ## see http://code.activestate.com/recipes/66531/
@@ -279,18 +266,6 @@ class CaseNormalizer:
       return token
 
 
-class EmbeddableText:
-  warnings.warn("deprecated", DeprecationWarning)
-
-  def __init__(self):
-    warnings.warn("deprecated", DeprecationWarning)
-
-    self.embeddings = None
-
-
-# ---------------------------------------------------
-
-
 class GTokenizer:
   def tokenize(self, s) -> Tokens:
     raise NotImplementedError()
@@ -334,11 +309,6 @@ class DefaultGTokenizer(GTokenizer):
   def tokenize(self, text) -> Tokens:
     return [text[t[0]:t[1]] for t in self.tokens_map(text)]
 
-  def untokenize(self, tokens: Tokens) -> str:
-    warnings.warn("deprecated", DeprecationWarning)
-    # TODO: remove it!!
-    return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
-
   # build tokens map to char pos
   def tokens_map(self, text):
 
@@ -353,10 +323,7 @@ class DefaultGTokenizer(GTokenizer):
     return result
 
 
-# TODO: use it!
 TOKENIZER_DEFAULT = DefaultGTokenizer()
-
-import numpy as np
 
 
 def sentences_attention_to_words(attention_v, sentence_map: TextMap, words_map: TextMap):

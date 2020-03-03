@@ -5,7 +5,8 @@
 
 import unittest
 
-from analyser.contract_agents import compare_masked_strings, find_closest_org_name, ContractAgent
+from analyser.contract_agents import find_closest_org_name, ContractAgent
+from analyser.text_tools import compare_masked_strings
 from analyser.hyperparams import HyperParameters
 from gpn.gpn import subsidiaries
 
@@ -13,7 +14,7 @@ from gpn.gpn import subsidiaries
 class ContractAgentsTestCase(unittest.TestCase):
 
   def test_compare_masked_strings(self):
-    similarity = compare_masked_strings('Газпромнефть -  МАбильная карта', 'Газпромнефть-Мобильная карта', [])
+    similarity = compare_masked_strings('Газпром нефть-Мобильная карта', 'Газпромнефть-Мобильная карта', [])
     print('similarity=', similarity)
     self.assertGreater(similarity, HyperParameters.subsidiary_name_match_min_jaro_similarity)
 
@@ -78,7 +79,7 @@ class ContractAgentsTestCase(unittest.TestCase):
 
     # finding uppercased
     for s1 in subsidiaries:
-      augmented = s1['_id'] + ' x'
+      augmented = s1['_id'] + ' '
       known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
       self.assertIsNotNone(known_org_name, f'{augmented} -> NOTHING {similarity}')
       self.assertEqual(s1['_id'], known_org_name['_id'])
@@ -88,21 +89,14 @@ class ContractAgentsTestCase(unittest.TestCase):
 
     # finding uppercased
     for s1 in subsidiaries:
-      augmented = s1['_id'] + ' 2'
+      augmented = s1['_id'] + ' '
       known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
       self.assertIsNotNone(known_org_name, f'{augmented} -> NOTHING {similarity}')
       self.assertEqual(s1['_id'], known_org_name['_id'])
       print(known_org_name)
 
-  def test_find_closest_org_prefix(self):
-    _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity
 
-    # finding uppercased
-    for s1 in subsidiaries:
-      augmented = 'c' + s1['_id']
-      known_org_name, similarity = find_closest_org_name(subsidiaries, augmented, _threshold)
-      self.assertIsNotNone(known_org_name, f'{augmented} -> NOTHING {similarity}')
-      self.assertEqual(s1['_id'], known_org_name['_id'])
+
 
   def test_find_closest_org_names_cut_begin(self):
     _threshold = 0.8

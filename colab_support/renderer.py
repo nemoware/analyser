@@ -5,7 +5,6 @@ import numpy as np
 
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import ProbableValue
-from analyser.parsing import known_subjects
 from analyser.patterns import AV_PREFIX, AV_SOFT
 from analyser.structures import ContractSubject
 from analyser.structures import OrgStructuralLevel
@@ -31,6 +30,11 @@ known_subjects_dict = {
   ContractSubject.Deal: "Совершение сделки",
   ContractSubject.Other: "Прочее"
 }
+
+known_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Lawsuit]
 
 org_level_dict = {OrgStructuralLevel.BoardOfDirectors: 'Совет директоров',
                   OrgStructuralLevel.ShareholdersGeneralMeeting: 'Общее собрание участников/акционеров',

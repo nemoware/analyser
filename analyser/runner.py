@@ -5,7 +5,7 @@ import pymongo
 import analyser
 from analyser import finalizer
 from analyser.charter_parser import CharterParser
-from analyser.contract_parser import ContractAnlysingContext
+from analyser.contract_parser import ContractParser
 from analyser.legal_docs import LegalDocument
 from analyser.parsing import AuditContext
 from analyser.protocol_parser import ProtocolParser
@@ -25,7 +25,7 @@ class Runner:
       self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
 
     self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
-    self.contract_parser = ContractAnlysingContext(self.elmo_embedder)
+    self.contract_parser = ContractParser(self.elmo_embedder)
     self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
 
   def init_embedders(self):
@@ -92,7 +92,6 @@ class BaseProcessor:
     else:
       return legal_doc.is_same_org(subsidiary)
 
-
 class ProtocolProcessor(BaseProcessor):
   def __init__(self):
     self.parser = Runner.get_instance().protocol_parser
@@ -144,7 +143,7 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
   return res
 
 
-def save_analysis(db_document, doc: LegalDocument, state: int, retry_number: int=0):
+def save_analysis(db_document, doc: LegalDocument, state: int, retry_number: int = 0):
   analyse_json_obj = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
@@ -178,7 +177,6 @@ def run(run_pahse_2=True, kind=None):
       if processor is not None:
         print(f'........pre-processing  {document["parse"]["documentType"]}')
         processor.preprocess(db_document=document, context=ctx)
-
 
   if run_pahse_2:
     # phase 2
