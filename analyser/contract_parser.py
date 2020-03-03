@@ -136,7 +136,8 @@ class ContractParser(ParsingContext):
         return alternative
     return a
 
-  def make_subject_attention_vector_3(self, section: LegalDocument, subject_kind: ContractSubject,
+  @staticmethod
+  def make_subject_attention_vector_3(section: LegalDocument, subject_kind: ContractSubject,
                                       addon=None) -> FixedVector:
 
     pattern_prefix, attention_vector_name, attention_vector_name_soft = _sub_attention_names(subject_kind)

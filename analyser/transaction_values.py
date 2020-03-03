@@ -60,29 +60,7 @@ complete_re = re.compile(
   re.MULTILINE | re.IGNORECASE
 )
 
-'''
-2.2 Общая стоимость Услуг составляет шестьдесят два миллиона ( 62000000 ) рублей ноль ( 30 ) копеек, включая НДС ( 20% ): 
-Десять миллионов четыреста тысяч ( 10400000 ) рубля ноль ( 00 ) копеек. 
-Стоимость Услуг является фиксированной (твердой) и не подлежит изменению в течение срока действия Договора.
-'''
 
-
-# complete_re = re.compile(
-#   # r'(свыше|превыша[а-я]{2,4}|не превыша[а-я]{2,4})?\s+'
-#   r'(?P<digits>\d+([\., ]\d+)*)\)?\s'  # digits #0
-#   r'(?:\s*\(.+?\)\s*(?:тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # bullshit like 'от 1000000 ( одного ) миллиона рублей'
-#   r'(\s*(?P<qualifier>тыс[а-я]*|млн|милли[а-я]{0,4})\.?)?'  # *1000 qualifier
-#   r'.{0,50}?'  # some shit in parenthesis
-#   r'(\s*(?P<currency>руб[а-я]{0,4}|доллар[а-я]{1,2}|евро|тенге)[\.,]?)'  # currency #7
-#   r'.{0,50}'  # some shit in parenthesis
-#   r'(\s*(?P<cents>\d+)(\s*\(.+?\))?\s*коп[а-я]{0,4})?'  # cents
-#   r'(\s*.{1,5}(?P<vat>(учётом|учетом|включая|т\.ч\.|том числе)\s*(ндс|ндфл))(\s*\((?P<percent>\d{1,2})\%\))?)?'
-#   ,
-#   re.MULTILINE | re.IGNORECASE
-# )
-
-
-# for r in re.finditer(complete_re, text):
 def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
   warnings.warn("use find_value_spans", DeprecationWarning)
   r = complete_re.search(_sentence)
