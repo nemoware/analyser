@@ -3,20 +3,56 @@
 # coding=utf-8
 
 
+import json
 import os
 import pickle
 import re
 import unittest
 
 from analyser.contract_agents import ORG_LEVELS_re
-from analyser.contract_parser import ContractDocument
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.legal_docs import LegalDocument
-from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re
+from analyser.ml_tools import SemanticTag
+from analyser.parsing import AuditContext
+from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re, ProtocolDocument
+from analyser.runner import Runner
 from analyser.structures import OrgStructuralLevel
 
 
+def load_json_sample(fn: str):
+  pth = os.path.dirname(__file__)
+  with open(os.path.join(pth, fn), 'rb') as handle:
+    data = json.load(handle)
+
+  return data
+
+
 class TestProtocolParser(unittest.TestCase):
+
+  def test_read_json(self):
+    data = load_json_sample('protocol_1.json')
+    print(data['parse'])
+
+  def test_protocol_processor(self):
+    json_doc = load_json_sample('protocol_1.json')
+
+    # print (doc)
+
+    pp = Runner.get_instance().protocol_parser
+    legal_doc = Runner.get_instance().make_legal_doc(json_doc)
+    pp.find_org_date_number(legal_doc, AuditContext())
+
+    orgtags = legal_doc.org_tags
+    for t in orgtags:
+      print(t)
+
+    def tag_val(name):
+      tag = SemanticTag.find_by_kind(orgtags, name)
+      if tag is not None:
+        return tag.value
+
+    self.assertEqual('Газпромнефть Шиппинг', tag_val('org-1-name'))
+    self.assertEqual('Общество с ограниченной ответственностью', tag_val('org-1-type'))
 
   def get_doc(self, fn) -> (LegalDocument, ContractPatternFactory):
     pth = os.path.dirname(__file__)
@@ -39,8 +75,7 @@ class TestProtocolParser(unittest.TestCase):
     txt = '''Протокол № 3/2019 Проведения итогов заочного голосования Совета директоров Общества с ограниченной ответственностью «Технологический центр «Бажен» (далее – ООО «Технологический центр «Бажен») г. Санкт-Петербург Дата составления протокола «__» _______ 2019 года
     Дата окончания приема бюллетеней для голосования членов Совета директоров «___»__________ 2019 года.
     ''' + suff
-    doc = ContractDocument(txt)
-    doc.parse()
+    doc = ProtocolDocument(LegalDocument(txt).parse())
 
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)

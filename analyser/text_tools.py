@@ -10,34 +10,14 @@ import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 from numpy.core.multiarray import ndarray
+from pyjarowinkler import distance as jaro
 
 Tokens = List[str] or ndarray
 
 
-def find_ner_end(tokens, start, max_len=20):
-  # TODO: use regex
-  for i in range(start, len(tokens)):
-    if tokens[i] == '"':
-      return i
-
-    elif tokens[i] == '»':
-      return i
-
-    elif tokens[i] == '\n':
-      return i
-
-    elif tokens[i] == '.':
-      return i
-
-    elif tokens[i] == ';':
-      return i
-
-  return min(len(tokens), start + max_len)
-
-
 def to_float(string):
   try:
-    return float(string.replace(" ", "").replace(",", "."))
+    return float(string.replace(" ", "").replace(",", ".").replace("=", "."))
   except:
     return np.nan
 
@@ -428,3 +408,15 @@ if __name__ == '__main__':
     print('S >>>', x[span[0]:span[1]])
 
   # print('E >>>', x[be:])
+
+
+def compare_masked_strings(a, b, masked_substrings):
+  a1 = a
+  b1 = b
+  for masked in masked_substrings:
+    if a1.find(masked) >= 0 and b1.find(masked) >= 0:
+      a1 = a1.replace(masked, '')
+      b1 = b1.replace(masked, '')
+
+  # print(a1, '--', b1)
+  return jaro.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)

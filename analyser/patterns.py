@@ -5,7 +5,7 @@ import random
 
 from analyser.documents import CaseNormalizer
 from analyser.ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
-from analyser.structures import ContractSubject, OrgStructuralLevel
+from analyser.structures import OrgStructuralLevel, ContractSubject
 from analyser.text_tools import *
 from analyser.transaction_values import ValueConstraint
 

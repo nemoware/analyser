@@ -1,3 +1,5 @@
+from analyser.hyperparams import HyperParameters
+from analyser.text_tools import compare_masked_strings
 from integration.db import get_mongodb_connection
 
 data = {
@@ -7,6 +9,13 @@ data = {
       "legal_entity_type": "ПАО",
       "aliases": [
         "Газпром нефть"
+      ]
+    },
+    {
+      "_id": "Газпромнефть Шиппинг",
+      "legal_entity_type": "ООО",
+      "aliases": [
+        "Газпромнефть Шиппинг"
       ]
     },
     {
@@ -82,13 +91,6 @@ data = {
       ]
     },
     {
-      "_id": "Газпромнефть-ОНПЗ",
-      "legal_entity_type": "АО",
-      "aliases": [
-        "Газпромнефть-ОНПЗ"
-      ]
-    },
-    {
       "_id": "Газпромнефть-Каталитические системы",
       "legal_entity_type": "ООО",
       "aliases": [
@@ -148,10 +150,17 @@ data = {
       "_id": "Газпромнефть-МНПЗ",
       "legal_entity_type": "АО",
       "aliases": [
-        "Газпромнефть-МНПЗ",
         "Газпромнефть–Московский НПЗ"
       ]
     },
+    {
+      "_id": "Газпромнефть-ОНПЗ",
+      "legal_entity_type": "АО",
+      "aliases": [
+        "Газпромнефть-Омский НПЗ"
+      ]
+    },
+
     {
       "_id": "Нефтехимремонт",
       "legal_entity_type": "ООО",
@@ -164,6 +173,7 @@ data = {
       "legal_entity_type": "ООО",
       "aliases": [
         "РМЗ ГПН-ОНПЗ"
+        'РМЗ «ГПН-ОНПЗ»',
       ]
     },
     {
@@ -245,7 +255,6 @@ data = {
       "aliases": [
         "МФК Лахта Центр",
         'МФК «Лахта центр»',
-        "Многофункциональный комплекс «Лахта центр»",
         "Многофункциональный комплекс Лахта центр"
       ]
     },
@@ -253,14 +262,14 @@ data = {
       "_id": "ГПН-Инвест",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Инвест"
+        "Газпромнефть-Инвест"
       ]
     },
     {
       "_id": "ГПН-ЗС",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-ЗС"
+        "Газпромнефть-ЗС"
       ]
     },
     {
@@ -274,14 +283,14 @@ data = {
       "_id": "ГПН-Финанс",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Финанс"
+        "Газпромнефть-Финанс"
       ]
     },
     {
       "_id": "ГПН-Энерго",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Энерго"
+        "Газпромнефть-Энерго"
       ]
     },
     {
@@ -295,7 +304,7 @@ data = {
       "_id": "ГПН-проект",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-проект"
+        "Газпромнефть-проект"
       ]
     },
     {
@@ -439,7 +448,8 @@ data = {
       "_id": "Южно-Приобский ГПЗ",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Южно-Приобский ГПЗ"
+        "Южно-Приобский ГПЗ",
+        "Южно-Приобский газоперерабатывающий завод"
       ]
     },
     {
@@ -511,6 +521,7 @@ data = {
       "legal_entity_type": "ООО",
       "aliases": [
         "ГПН-Сахалин",
+        "Газпромнефть-Сахалин",
         "Газпромнефть-Сахалин"
       ]
     },
@@ -596,7 +607,8 @@ data = {
       "_id": "Газпромнефть-Новосибирск",
       "legal_entity_type": "АО",
       "aliases": [
-        "Газпромнефть-Новосибирск"
+        "Газпромнефть-Новосибирск",
+        "Газпромнефть-Новосибирск (НБ)"
       ]
     },
     {
@@ -660,7 +672,43 @@ data = {
 
 subsidiaries = data['Subsidiary']
 
-if __name__ == '__main__':
+
+def all_do_names():
+  for s in subsidiaries:
+    for alias in s['aliases'] + [s['_id']]:
+      yield alias
+
+
+def update_do_threshold():
+  top_similarity = 0
+
+  for name1 in all_do_names():
+    for name2 in all_do_names():
+      name1 = name1.replace('»', '').replace('«', '')
+      name2 = name2.replace('»', '').replace('«', '')
+
+
+      if name1.lower() != name2.lower():
+
+        similarity = compare_masked_strings(name1, name2, [])
+        if similarity > top_similarity:
+          top_similarity = similarity
+          print(top_similarity, name1, name2)
+
+  return top_similarity
+
+
+def update_subsidiaries_in_db():
   db = get_mongodb_connection()
-  # db['Subsidiary'].insert_many( subsidiaries)
-# if db:
+
+  coll = db["subsidiaries"]
+  coll.delete_many({})
+  coll.insert_many(subsidiaries)
+
+
+HyperParameters.subsidiary_name_match_min_jaro_similarity = update_do_threshold()
+print('HyperParameters.subsidiary_name_match_min_jaro_similarity',
+      HyperParameters.subsidiary_name_match_min_jaro_similarity)
+
+if __name__ == '__main__':
+  update_subsidiaries_in_db()

@@ -10,6 +10,9 @@ from pandas import DataFrame
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
 
+Embedding = 'np.ndarray[float]' or [float]
+Embeddings = 'np.ndarray[Embedding]' or [Embedding]
+
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
 Vector = TypeVar('Vector', FixedVector, Iterable[float])
 Vectors = TypeVar('Vectors', List[Vector], Iterable[Vector])
@@ -499,21 +502,6 @@ def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> floa
   return float(np.mean(sorted(x)[-head_size:]))
 
 
-def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
-                                          equality_range=0.0) -> ProbableValue:
-  try:
-    if abs(a.value.value - alternative.value.value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-  except:
-    # TODO: why dan hell we should have an exception here??
-    return a
-
-  return a
-
-
 def combined_attention_vectors(vectors_dict, vector_names):
   vectors = [vectors_dict[v] for v in vector_names]
   return sum_probabilities(vectors)
@@ -700,7 +688,7 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
   for __header_index in range(headers_n):
 
     header_index, pattern_index, maxval = _find_max_xy_in_matrix(vals)
-    # print(header_index, pattern_index,maxval )
+
     pattern_name = header_to_pattern_distances_.columns[pattern_index]
     max_pair = ((pattern_name, header_index), maxval)
 
@@ -713,12 +701,12 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
   return pairs
 
 
-def attention_vector(pattern_emb, text_emb):
+def attention_vector(pattern_emb, text_emb: Embeddings) -> FixedVector:
   return np.array([1.0 - distance.cosine(e, pattern_emb) for e in text_emb])
 
 
-def multi_attention_vector(patterns_emb, text_emb):
-  vectors = []
+def multi_attention_vector(patterns_emb: Embeddings, text_emb: Embeddings) -> FixedVector:
+  vectors: FixedVectors = []
   for pattern_emb in patterns_emb:
     av = attention_vector(pattern_emb, text_emb)
     vectors.append(av)
@@ -726,7 +714,7 @@ def multi_attention_vector(patterns_emb, text_emb):
   return max_exclusive_pattern(vectors)
 
 
-def best_window(attention_vector, wnd_len):
+def best_window(attention_vector, wnd_len) -> (int, float, float):
   max_sum = 0
   best_index = 0
   for k in range(len(attention_vector) - wnd_len + 1):

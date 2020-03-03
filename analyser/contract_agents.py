@@ -13,7 +13,7 @@ from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types, r_human_name, morphology_agnostic_re
-from analyser.text_tools import is_long_enough, span_len
+from analyser.text_tools import is_long_enough, span_len, compare_masked_strings
 from gpn.gpn import subsidiaries
 
 r_being_a_citizen = r_group(r'являющ[а-я]{2,5}\s*граждан[а-я]{2,5}', 'citizen')
@@ -55,6 +55,10 @@ complete_re_str = r_group(complete_re_str_org + "|" + r_being_a_human_citizen) +
 complete_re = re.compile(complete_re_str, re.MULTILINE | re.UNICODE | re.DOTALL)
 complete_re_ignore_case = re.compile(complete_re_str, re.MULTILINE | re.UNICODE | re.IGNORECASE | re.DOTALL)
 
+protocol_caption_complete_re = re.compile(complete_re_str_org, re.MULTILINE | re.UNICODE | re.DOTALL)
+protocol_caption_complete_re_ignore_case = re.compile(complete_re_str_org,
+                                                      re.MULTILINE | re.UNICODE | re.IGNORECASE | re.DOTALL)
+
 # ----------------------------------
 
 org_pieces = ['type', 'name', 'human_name', 'alt_name', 'alias', 'type_ext']
@@ -94,8 +98,10 @@ def find_org_names(doc: LegalDocument,
                    tag_kind_prefix='',
                    parent=None,
                    decay_confidence=True,
-                   audit_subsidiary_name=None) -> [SemanticTag]:
-  all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence)
+                   audit_subsidiary_name=None, regex=complete_re,
+                   re_ignore_case=complete_re_ignore_case) -> [SemanticTag]:
+  all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
+                                            re_ignore_case=re_ignore_case)
   if audit_subsidiary_name:
     all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
   else:
@@ -115,20 +121,21 @@ def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [Semantic
   return tags
 
 
-def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True) -> [ContractAgent]:
+def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True, regex=complete_re,
+                       re_ignore_case=complete_re_ignore_case) -> [ContractAgent]:
   all = find_org_names_raw_by_re(doc,
-                                 regex=complete_re,
+                                 regex=regex,
                                  confidence_base=1,
                                  parent=parent,
                                  decay_confidence=decay_confidence)
 
-  if len(all) < 2:
-    # falling back to case-agnostic regexp
-    all += find_org_names_raw_by_re(doc,
-                                    regex=complete_re_ignore_case,  # case-agnostic
-                                    confidence_base=0.75,
-                                    parent=parent,
-                                    decay_confidence=decay_confidence)
+  # if len(all) < 200:
+  # falling back to case-agnostic regexp
+  all += find_org_names_raw_by_re(doc,
+                                  regex=re_ignore_case,  # case-agnostic
+                                  confidence_base=0.75,
+                                  parent=parent,
+                                  decay_confidence=decay_confidence)
 
   # filter, keep unique names
   _map = {}
@@ -153,24 +160,27 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
     ca = ContractAgent()
     all.append(ca)
     for re_kind in org_pieces:
-      char_span = m.span(re_kind)
-      if span_len(char_span) > 1:
-        span = doc.tokens_map.token_indices_by_char_range(char_span)
-        confidence = confidence_base
-        if decay_confidence:
-          confidence *= (1.0 - (span[0] / len(doc)))
+      try:
+        char_span = m.span(re_kind)
+        if span_len(char_span) > 1:
+          span = doc.tokens_map.token_indices_by_char_range(char_span)
+          confidence = confidence_base
+          if decay_confidence:
+            confidence *= (1.0 - (span[0] / len(doc)))
 
-        kind = re_kind
-        if re_kind == 'human_name':
-          kind = 'name'
+          kind = re_kind
+          if re_kind == 'human_name':
+            kind = 'name'
 
-        val = doc.tokens_map.text_range(span)
-        val = val.strip()
-        if _is_valid(val):
-          tag = SemanticTag(kind, val, span, parent=parent)
-          tag.confidence = confidence
-          tag.offset(doc.start)
-          ca.__dict__[kind] = tag
+          val = doc.tokens_map.text_range(span)
+          val = val.strip()
+          if _is_valid(val):
+            tag = SemanticTag(kind, val, span, parent=parent)
+            tag.confidence = confidence
+            tag.offset(doc.start)
+            ca.__dict__[kind] = tag
+      except:
+        pass
 
   # normalize org_name names by find_closest_org_name
   for ca in all:
@@ -190,18 +200,6 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
       ca.type.confidence *= confidence_
 
   return all
-
-
-def compare_masked_strings(a, b, masked_substrings):
-  a1 = a
-  b1 = b
-  for masked in masked_substrings:
-    if a1.find(masked) >= 0 and b1.find(masked) >= 0:
-      a1 = a1.replace(masked, '')
-      b1 = b1.replace(masked, '')
-
-  # print(a1, '--', b1)
-  return distance.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
 
 
 def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):

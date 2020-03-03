@@ -1,22 +1,21 @@
 import re
 from typing import Iterator
 
-from analyser.contract_agents import complete_re as agents_re
-from analyser.contract_agents import find_org_names, ORG_LEVELS_re, find_org_names_raw, ContractAgent, _rename_org_tags
-from analyser.contract_parser import find_value_sign_currency_attention
+from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
+  ContractAgent, _rename_org_tags, protocol_caption_complete_re, protocol_caption_complete_re_ignore_case
 from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import document_number_c, find_document_number_in_subdoc
-from analyser.documents import TextMap
 from analyser.documents import sentences_attention_to_words
-from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings, \
+  LegalDocumentExt
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext, AuditContext
+from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import *
 from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
-from tf_support.embedder_elmo import ElmoEmbedder
 
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
@@ -38,17 +37,13 @@ class ProtocolAV(Enum):
   relu_value_attention_vector = 4
 
 
-class ProtocolDocument4(LegalDocument):
+class ProtocolDocument(LegalDocumentExt):
 
-  def __init__(self, doc: LegalDocument or None = None):
-    super().__init__('')
+  def __init__(self, doc: LegalDocument = None):
+    super().__init__(doc)
+
     if doc is not None:
-      self.__dict__ = doc.__dict__
-
-    self.sentence_map: TextMap = None
-    self.sentences_embeddings = None
-
-    self.distances_per_sentence_pattern_dict = {}
+      self.__dict__ = {**super().__dict__, **doc.__dict__}
 
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
@@ -76,7 +71,7 @@ class ProtocolDocument4(LegalDocument):
     return tags
 
 
-ProtocolDocument = ProtocolDocument4  # aliasing
+ProtocolDocument4 = ProtocolDocument  # aliasing #todo: remove it
 
 
 class ProtocolParser(ParsingContext):
@@ -116,7 +111,7 @@ class ProtocolParser(ParsingContext):
 
   ]
 
-  def __init__(self, embedder=None, elmo_embedder_default: ElmoEmbedder = None):
+  def __init__(self, embedder=None, elmo_embedder_default: AbstractEmbedder = None):
     ParsingContext.__init__(self, embedder)
     self.embedder = embedder
     self.elmo_embedder_default = elmo_embedder_default
@@ -348,59 +343,18 @@ class ProtocolPatternFactory(AbstractPatternFactory):
   def __init__(self, embedder):
     AbstractPatternFactory.__init__(self, embedder)
 
-    self._build_subject_pattern()
-
     create_value_negation_patterns(self)
     create_value_patterns(self)
 
     self.embedd()
 
-  def _build_subject_pattern(self):
-    ep = ExclusivePattern()
-
-    PRFX = "Повестка дня заседания: \n"
-
-    if True:
-      ep.add_pattern(self.create_pattern('t_deal_1', (PRFX, 'Об одобрении сделки', 'связанной с продажей')))
-      ep.add_pattern(self.create_pattern('t_deal_2', (
-        PRFX + 'О согласии на', 'совершение сделки', 'связанной с заключением договора')))
-      ep.add_pattern(self.create_pattern('t_deal_3', (
-        PRFX + 'об одобрении', 'крупной сделки', 'связанной с продажей недвижимого имущества')))
-
-      for p in ep.patterns:
-        p.soft_sliding_window_borders = True
-
-    if True:
-      ep.add_pattern(self.create_pattern('t_org_1', (PRFX, 'О создании филиала', 'Общества')))
-      ep.add_pattern(self.create_pattern('t_org_2', (PRFX, 'Об утверждении Положения', 'о филиале Общества')))
-      ep.add_pattern(self.create_pattern('t_org_3', (PRFX, 'О назначении руководителя', 'филиала')))
-      ep.add_pattern(self.create_pattern('t_org_4', (PRFX, 'О прекращении полномочий руководителя', 'филиала')))
-      ep.add_pattern(self.create_pattern('t_org_5', (PRFX, 'О внесении изменений', '')))
-
-    if True:
-      ep.add_pattern(
-        self.create_pattern('t_charity_1', (PRFX + 'О предоставлении', 'безвозмездной', 'финансовой помощи')))
-      ep.add_pattern(
-        self.create_pattern('t_charity_2', (PRFX + 'О согласии на совершение сделки', 'пожертвования', '')))
-      ep.add_pattern(self.create_pattern('t_charity_3', (PRFX + 'Об одобрении сделки', 'пожертвования', '')))
-
-      t_char_mix = CoumpoundFuzzyPattern()
-      t_char_mix.name = "t_charity_mixed"
-
-      t_char_mix.add_pattern(
-        self.create_pattern('tm_charity_1', (PRFX + 'О предоставлении', 'безвозмездной финансовой помощи', '')))
-      t_char_mix.add_pattern(
-        self.create_pattern('tm_charity_2', (PRFX + 'О согласии на совершение', 'сделки пожертвования', '')))
-      t_char_mix.add_pattern(self.create_pattern('tm_charity_3', (PRFX + 'Об одобрении сделки', 'пожертвования', '')))
-
-      ep.add_pattern(t_char_mix)
-
-    self.subject_pattern = ep
-
 
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   ret = []
-  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
+  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words], max_names=1,
+                                        regex=protocol_caption_complete_re,
+                                        re_ignore_case=protocol_caption_complete_re_ignore_case)
+
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)

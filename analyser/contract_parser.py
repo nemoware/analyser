@@ -1,24 +1,25 @@
 from analyser.contract_agents import find_org_names
-from analyser.contract_patterns import ContractPatternFactory
+from analyser.contract_patterns import ContractPatternFactory, head_subject_patterns_prefix, contract_headlines_patterns
 from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import find_document_number
-from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue, ParserWarnings
+from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext, AuditContext
-from analyser.patterns import AV_SOFT, AV_PREFIX
+from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency, _find_most_relevant_paragraph
+from analyser.patterns import AV_SOFT, AV_PREFIX, AbstractPatternFactory
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject
-from analyser.transaction_values import complete_re as transaction_values_re
 
-contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
+contract_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Renting,
+  ContractSubject.Deal,
+  ContractSubject.Service,
+  ContractSubject.Loans,
+  ContractSubject.PledgeEncumbrance]
 
 
-class ContractDocument3(LegalDocument):
-  '''
-
-  '''
-
-  # TODO: rename it
+class ContractDocument(LegalDocument):
 
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
@@ -50,10 +51,10 @@ class ContractDocument3(LegalDocument):
     return tags
 
 
-ContractDocument = ContractDocument3  # Alias!
+ContractDocument3 = ContractDocument
 
 
-class ContractAnlysingContext(ParsingContext):
+class ContractParser(ParsingContext):
   # TODO: rename this class
 
   def __init__(self, embedder=None, pattern_factory: ContractPatternFactory = None):
@@ -135,24 +136,28 @@ class ContractAnlysingContext(ParsingContext):
         return alternative
     return a
 
-  def __sub_attention_names(self, subj: ContractSubject):
-    a = f'x_{subj}'
-    b = AV_PREFIX + f'x_{subj}'
-    c = AV_SOFT + a
-    return a, b, c
+  @staticmethod
+  def make_subject_attention_vector_3(section: LegalDocument, subject_kind: ContractSubject,
+                                      addon=None) -> FixedVector:
 
-  def make_subject_attention_vector_3(self, section, subject_kind: ContractSubject, addon=None) -> FixedVector:
-
-    pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
+    pattern_prefix, attention_vector_name, attention_vector_name_soft = _sub_attention_names(subject_kind)
 
     _vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
+    _vectors = list(_vectors)
+
+    if not _vectors:
+      _vectors = []
+      _vectors.append(np.zeros(len(section.tokens_map)))
+      warnings.warn(f'no patterns for {subject_kind}')
+
     if addon is not None:
-      _vectors = list(_vectors)
       _vectors.append(addon)
 
     vectors = []
     for v in _vectors:
       vectors.append(best_above(v, 0.4))
+
+    # assert len(vectors) > 0, f'no vectors for {pattern_prefix} {attention_vector_name} {attention_vector_name_soft}'
 
     x = max_exclusive_pattern(vectors)
     x = relu(x, 0.6)
@@ -173,7 +178,20 @@ class ContractAnlysingContext(ParsingContext):
       subject_subdoc = doc[0:1500]
       denominator = 0.7
 
-    return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
+    a: SemanticTag = self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
+
+    header_subject, header_subject_conf, header_subject_subdoc = find_headline_subject_match(doc, self.pattern_factory)
+
+    if header_subject is not None:
+      if a is None:
+        a = SemanticTag('subject', header_subject.name, (header_subject_subdoc.start, header_subject_subdoc.end))
+        a.confidence = header_subject_conf
+
+      if header_subject_conf >= a.confidence or header_subject_conf > 0.7:
+        a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
+        a.confidence = (a.confidence + header_subject_conf) / 2.0
+
+    return a
 
   def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
     # TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
@@ -260,12 +278,12 @@ class ContractAnlysingContext(ParsingContext):
           # reduce number of found values
           # take only max value and most confident ones (we hope, it is the same finding)
 
-          max_confident_cv = max_confident(values_list)
-          max_valued_cv = max_value(values_list)
+          max_confident_cv: ContractValue = max_confident(values_list)
+          max_valued_cv: ContractValue = max_value(values_list)
           if max_confident_cv == max_valued_cv:
             return [max_confident_cv]
           else:
-            # TODO:
+            # TODO: Insurance docs have big value, its not what we're looking for. Biggest is not the best see https://github.com/nemoware/analyser/issues/55
             max_valued_cv *= 0.5
             return [max_valued_cv]
 
@@ -274,58 +292,53 @@ class ContractAnlysingContext(ParsingContext):
         self.warning(f'Раздел [{section}]  не обнаружен')
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument,
-                             factory: ContractPatternFactory = None) -> List[ContractValue]:
-  if factory is not None:
-    value_section_subdoc.calculate_distances_per_pattern(factory)
-    vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
-    # merge dictionaries of attention vectors
-    value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
-
-    attention_vector_tuned =  'value_attention_vector_tuned'
-  else:
-    # HATI-HATI: this case is for Unit Testing only
-    attention_vector_tuned = None
-
-  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned, absolute_spans=True)
+# --------------- END of CLASS
 
 
-def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
-                                       attention_vector_name:str=None,
-                                       parent_tag=None,
-                                       absolute_spans=False) -> List[ContractValue]:
+def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubject) -> FixedVector:
+  pattern_prefix = f'{head_subject_patterns_prefix}{subject_kind}'
 
-  # todo: attention_vector_tuned should be part of value_section_subdoc.distances_per_pattern_dict!!!
+  _vectors = list(filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix))
 
-  attention_vector_tuned = None
-  if attention_vector_name is not None:
-    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict[attention_vector_name]
+  if not _vectors:
+    warnings.warn(f'no patterns for {subject_kind}')
+    return np.zeros(len(section.tokens_map))
 
-  spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
-  values_list = []
+  vectors = [best_above(v, 0.4) for v in _vectors]
 
-  for span in spans:
-    value_sign_currency = extract_sum_sign_currency(value_section_subdoc, span)
-    if value_sign_currency is not None:
+  x = max_exclusive_pattern(vectors)
+  x = relu(x, 0.6)
 
-      # Estimating confidence by looking at attention vector
-      if attention_vector_tuned is not None:
+  return x
 
-        for t in value_sign_currency.as_list():
-          t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
-            attention_vector_tuned[t.slice]))
-      #---end if
 
-      value_sign_currency.parent.set_parent_tag(parent_tag)
-      value_sign_currency.parent.span = value_sign_currency.span()  ##fix span
-      values_list.append(value_sign_currency)
+def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (
+        ContractSubject, float, LegalDocument):
+  headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 
-  # offsetting
-  if absolute_spans: #TODO: do not offset here!!!!
-    for value in values_list:
-      value += value_section_subdoc.start
+  max_confidence = 0
+  best_subj = None
+  subj_header = None
+  for header in headers[:3]:  # take only 3 fist headlines; normally contract type is known by the 1st one.
 
-  return values_list
+    if header.text and header.text.strip():
+
+      # TODO: must be pre-calculated
+      header.calculate_distances_per_pattern(factory, pattern_prefix=head_subject_patterns_prefix, merge=False)
+
+      for subject_kind in contract_headlines_patterns.values():  # like ContractSubject.RealEstate ..
+        subject_attention_vector: FixedVector = match_headline_to_subject(header, subject_kind)
+        _confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
+        if _confidence > max_confidence:
+          max_confidence = _confidence
+          best_subj = subject_kind
+          subj_header = header
+        # print (subject_kind, _confidence)
+
+  return best_subj, max_confidence, subj_header
+
+
+ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove
 
 
 def max_confident(vals: List[ContractValue]) -> ContractValue:
@@ -336,23 +349,8 @@ def max_value(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.value.value)
 
 
-def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vector: FixedVector, min_len: int,
-                                  return_delimiters=True):
-  # paragraph_attention_vector = smooth(attention_vector, 6)
-
-  _blur = HyperParameters.subject_paragraph_attention_blur
-  _padding = _blur * 2 + 1
-
-  paragraph_attention_vector = smooth_safe(np.pad(subject_attention_vector, _padding, mode='constant'), _blur)[
-                               _padding:-_padding]
-
-  top_index = int(np.argmax(paragraph_attention_vector))
-  span = section.sentence_at_index(top_index)
-  if min_len is not None and span[1] - span[0] < min_len:
-    next_span = section.sentence_at_index(span[1] + 1, return_delimiters)
-    span = (span[0], next_span[1])
-
-  # confidence = paragraph_attention_vector[top_index]
-  confidence_region = subject_attention_vector[span[0]:span[1]]
-  confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
-  return span, confidence, paragraph_attention_vector
+def _sub_attention_names(subj: Enum):
+  a = f'x_{subj}'
+  b = AV_PREFIX + f'x_{subj}'
+  c = AV_SOFT + a
+  return a, b, c

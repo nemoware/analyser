@@ -1,8 +1,14 @@
 import time
 from functools import wraps
+from typing import List
 
-from analyser.legal_docs import LegalDocument
-from analyser.structures import ContractSubject
+import numpy as np
+
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument, ContractValue, extract_sum_sign_currency
+from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe
+from analyser.transaction_values import complete_re as transaction_values_re
 
 PROF_DATA = {}
 
@@ -109,7 +115,75 @@ head_types_dict = {'head.directors': 'Совет директоров',
                    'head.unknown': '*Неизвестный орган управления*'}
 head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
 
-known_subjects = [
-  ContractSubject.Charity,
-  ContractSubject.RealEstate,
-  ContractSubject.Lawsuit]
+
+def find_value_sign_currency(value_section_subdoc: LegalDocument,
+                             factory: ContractPatternFactory = None) -> List[ContractValue]:
+  if factory is not None:
+    value_section_subdoc.calculate_distances_per_pattern(factory)
+    vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
+    # merge dictionaries of attention vectors
+    value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
+
+    attention_vector_tuned = 'value_attention_vector_tuned'
+  else:
+    # HATI-HATI: this case is for Unit Testing only
+    attention_vector_tuned = None
+
+  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned, absolute_spans=True)
+
+
+def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
+                                       attention_vector_name: str = None,
+                                       parent_tag=None,
+                                       absolute_spans=False) -> List[ContractValue]:
+  attention_vector_tuned = None
+  if attention_vector_name is not None:
+    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict[attention_vector_name]
+
+  spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
+  values_list = []
+
+  for span in spans:
+    value_sign_currency = extract_sum_sign_currency(value_section_subdoc, span)
+    if value_sign_currency is not None:
+
+      # Estimating confidence by looking at attention vector
+      if attention_vector_tuned is not None:
+
+        for t in value_sign_currency.as_list():
+          t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
+            attention_vector_tuned[t.slice]))
+      # ---end if
+
+      value_sign_currency.parent.set_parent_tag(parent_tag)
+      value_sign_currency.parent.span = value_sign_currency.span()  ##fix span
+      values_list.append(value_sign_currency)
+
+  # offsetting
+  if absolute_spans:  # TODO: do not offset here!!!!
+    for value in values_list:
+      value += value_section_subdoc.start
+
+  return values_list
+
+
+def _find_most_relevant_paragraph(section: LegalDocument,
+                                  attention_vector: FixedVector,
+                                  min_len: int,
+                                  return_delimiters=True):
+  _blur = HyperParameters.subject_paragraph_attention_blur
+  _padding = _blur * 2 + 1
+
+  paragraph_attention_vector = smooth_safe(np.pad(attention_vector, _padding, mode='constant'), _blur)[
+                               _padding:-_padding]
+
+  top_index = int(np.argmax(paragraph_attention_vector))
+  span = section.sentence_at_index(top_index)
+  if min_len is not None and span[1] - span[0] < min_len:
+    next_span = section.sentence_at_index(span[1] + 1, return_delimiters)
+    span = (span[0], next_span[1])
+
+  # confidence = paragraph_attention_vector[top_index]
+  confidence_region = attention_vector[span[0]:span[1]]
+  confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
+  return span, confidence, paragraph_attention_vector
