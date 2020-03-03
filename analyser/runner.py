@@ -65,7 +65,7 @@ class BaseProcessor:
       # todo: remove find_org_date_number call
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(db_document, legal_doc, state=10)
-      if self.is_valid(legal_doc, audit):
+      if self.is_valid(legal_doc, audit, db_document):
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
         print(legal_doc._id)
