@@ -238,6 +238,8 @@ def check_contract(contract, charters, protocols, audit):
                     need_protocol_check = True
                     competence_constraint = constraint
                     eligible_protocol = find_protocol(contract, protocols, competence, audit)
+                    if eligible_protocol is not None:
+                        break
 
             attribute = None
             text = None
