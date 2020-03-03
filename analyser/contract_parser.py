@@ -136,16 +136,11 @@ class ContractParser(ParsingContext):
         return alternative
     return a
 
-  def __sub_attention_names(self, subj: Enum):
-    a = f'x_{subj}'
-    b = AV_PREFIX + f'x_{subj}'
-    c = AV_SOFT + a
-    return a, b, c
-
-  def make_subject_attention_vector_3(self, section: LegalDocument, subject_kind: ContractSubject,
+  @staticmethod
+  def make_subject_attention_vector_3(section: LegalDocument, subject_kind: ContractSubject,
                                       addon=None) -> FixedVector:
 
-    pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
+    pattern_prefix, attention_vector_name, attention_vector_name_soft = _sub_attention_names(subject_kind)
 
     _vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
     _vectors = list(_vectors)
@@ -318,14 +313,13 @@ def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubj
 
 
 def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (
-ContractSubject, float, LegalDocument):
+        ContractSubject, float, LegalDocument):
   headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 
   max_confidence = 0
   best_subj = None
   subj_header = None
-  for header_index, header in enumerate(
-          headers[0:3]):  # take only 3 fist headlines; normally contract type is known by the 1st one.
+  for header in headers[:3]:  # take only 3 fist headlines; normally contract type is known by the 1st one.
 
     if header.text and header.text.strip():
 
@@ -353,3 +347,10 @@ def max_confident(vals: List[ContractValue]) -> ContractValue:
 
 def max_value(vals: List[ContractValue]) -> ContractValue:
   return max(vals, key=lambda a: a.value.value)
+
+
+def _sub_attention_names(subj: Enum):
+  a = f'x_{subj}'
+  b = AV_PREFIX + f'x_{subj}'
+  c = AV_SOFT + a
+  return a, b, c
