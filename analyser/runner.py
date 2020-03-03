@@ -167,7 +167,7 @@ def run(run_pahse_2=True, kind=None):
     print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
     for document in documents:
-      processor = document_processors.get(document["parse"]["documentType"], None)
+      processor:BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         print(f'........pre-processing  {document["parse"]["documentType"]}')
         processor.preprocess(db_document=document, context=ctx)

@@ -2,7 +2,7 @@ import re
 from typing import Iterator
 
 from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
-  ContractAgent, _rename_org_tags
+  ContractAgent, _rename_org_tags, protocol_caption_complete_re, protocol_caption_complete_re_ignore_case
 from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import document_number_c, find_document_number_in_subdoc
 from analyser.documents import sentences_attention_to_words
@@ -351,7 +351,10 @@ class ProtocolPatternFactory(AbstractPatternFactory):
 
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   ret = []
-  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words])
+  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words], max_names=1,
+                                        regex=protocol_caption_complete_re,
+                                        re_ignore_case=protocol_caption_complete_re_ignore_case)
+
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
