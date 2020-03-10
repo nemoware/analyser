@@ -1,5 +1,5 @@
 from analyser.hyperparams import HyperParameters
-from analyser.structures import OrgStructuralLevel
+from analyser.structures import OrgStructuralLevel, legal_entity_types_as_db_json
 from analyser.text_tools import compare_masked_strings
 from integration.db import get_mongodb_connection
 
@@ -705,9 +705,13 @@ def update_db_dictionaries():
   coll.delete_many({})
   coll.insert_many(subsidiaries)
 
-  coll2 = db["orgStructuralLevel"]
-  coll2.delete_many({})
-  coll2.insert_many(OrgStructuralLevel.as_db_json())
+  coll = db["orgStructuralLevel"]
+  coll.delete_many({})
+  coll.insert_many(OrgStructuralLevel.as_db_json())
+
+  coll = db["legalEntityTypes"]
+  coll.delete_many({})
+  coll.insert_many(legal_entity_types_as_db_json())
 
 
 HyperParameters.subsidiary_name_match_min_jaro_similarity = estimate_subsidiary_name_match_min_jaro_similarity()

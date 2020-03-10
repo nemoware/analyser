@@ -32,6 +32,11 @@ legal_entity_types = {
 }
 
 
+def legal_entity_types_as_db_json():
+  for k in legal_entity_types.keys():
+    yield {'_id': k, 'alias': legal_entity_types[k]}
+
+
 class DisplayStringEnumMeta(EnumMeta):
   def __new__(mcs, name, bases, attrs):
     obj = super().__new__(mcs, name, bases, attrs)
