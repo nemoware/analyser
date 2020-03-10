@@ -63,6 +63,10 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
         return x.name
     return None
 
+  @staticmethod
+  def as_db_json():
+    return [{"_id": x.name, "sort_order": x.value, "alias": x.display_string} for x in OrgStructuralLevel]
+
 
 ORG_LEVELS_names = [x.display_string for x in OrgStructuralLevel]
 
