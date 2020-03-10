@@ -7,16 +7,7 @@ from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency, _find_most_relevant_paragraph
 from analyser.patterns import AV_SOFT, AV_PREFIX, AbstractPatternFactory
 from analyser.sections_finder import FocusingSectionsFinder
-from analyser.structures import ContractSubject
-
-contract_subjects = [
-  ContractSubject.Charity,
-  ContractSubject.RealEstate,
-  ContractSubject.Renting,
-  ContractSubject.Deal,
-  ContractSubject.Service,
-  ContractSubject.Loans,
-  ContractSubject.PledgeEncumbrance]
+from analyser.structures import ContractSubject, contract_subjects
 
 
 class ContractDocument(LegalDocument):

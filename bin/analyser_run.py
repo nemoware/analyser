@@ -5,7 +5,7 @@ import time
 import schedule
 
 from analyser import runner
-from gpn.gpn import update_db_dictionaries
+from analyser.dictionaries import update_db_dictionaries
 
 
 def main():

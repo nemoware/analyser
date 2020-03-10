@@ -32,9 +32,7 @@ legal_entity_types = {
 }
 
 
-def legal_entity_types_as_db_json():
-  for k in legal_entity_types.keys():
-    yield {'_id': k, 'alias': legal_entity_types[k]}
+
 
 
 class DisplayStringEnumMeta(EnumMeta):
@@ -69,7 +67,7 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
 
   @staticmethod
   def as_db_json():
-    return [{"_id": x.name, "sort_order": x.value, "alias": x.display_string} for x in OrgStructuralLevel]
+    return [{"_id": x.name, "number": x.value, "alias": x.display_string} for x in OrgStructuralLevel]
 
 
 ORG_LEVELS_names = [x.display_string for x in OrgStructuralLevel]
@@ -138,3 +136,16 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   RegisteredCapital = 40, ''
   ParticipationInOtherOrganizations = 41, ''
   DecisionsForSubsidiary = 42, ''
+
+
+contract_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Renting,
+  ContractSubject.Deal,
+  ContractSubject.Service,
+  ContractSubject.Loans,
+  ContractSubject.PledgeEncumbrance]
+
+
+
