@@ -9,7 +9,6 @@ legal_entity_types = {
   'Общество с ограниченной ответственностью': 'ООО',
   'Иностранное общество с ограниченной ответственностью': 'ИООО',
   'Товарищество с ограниченной ответственностью': 'ТОО',
-  'Товарищество с ограниченной ответственностью и какашками': 'ТОО',
   'Закрытое акционерное общество': 'ЗАО',
   'Открытое акционерное общество': 'ОАО',
   'Государственное автономное учреждение': 'ГАУ',
@@ -31,6 +30,9 @@ legal_entity_types = {
   'Индивидуальный предприниматель': 'ИП',
   'Автономная некоммерческая организация': 'АНО',
 }
+
+
+
 
 
 class DisplayStringEnumMeta(EnumMeta):
@@ -62,6 +64,10 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
       if x.display_string == nm:
         return x.name
     return None
+
+  @staticmethod
+  def as_db_json():
+    return [{"_id": x.name, "number": x.value, "alias": x.display_string} for x in OrgStructuralLevel]
 
 
 ORG_LEVELS_names = [x.display_string for x in OrgStructuralLevel]
@@ -130,3 +136,16 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   RegisteredCapital = 40, ''
   ParticipationInOtherOrganizations = 41, ''
   DecisionsForSubsidiary = 42, ''
+
+
+contract_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Renting,
+  ContractSubject.Deal,
+  ContractSubject.Service,
+  ContractSubject.Loans,
+  ContractSubject.PledgeEncumbrance]
+
+
+

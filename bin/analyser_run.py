@@ -5,11 +5,11 @@ import time
 import schedule
 
 from analyser import runner
-from gpn.gpn import update_subsidiaries_in_db
+from analyser.dictionaries import update_db_dictionaries
 
 
 def main():
-  update_subsidiaries_in_db()
+  update_db_dictionaries()
 
   check_interval = os.environ.get("GPN_DB_CHECK_INTERVAL")
   if check_interval is None:
