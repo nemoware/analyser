@@ -1,4 +1,5 @@
-from analyser import compare_masked_strings, HyperParameters
+from analyser.hyperparams import HyperParameters
+from analyser.text_tools import compare_masked_strings
 
 data = {
   "Subsidiary": [
