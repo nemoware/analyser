@@ -397,9 +397,9 @@ def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
         List[List[str]], List[int], List[slice]):
   indexes = []
   last_token_is_number = False
-  for i in range(len(tokens)):
+  for i, token in enumerate( tokens):
 
-    if attention[i] > threshold and len(number_re.findall(tokens[i])) > 0:
+    if attention[i] > threshold and len(number_re.findall(token)) > 0:
       if not last_token_is_number:
         indexes.append(i)
       last_token_is_number = True
