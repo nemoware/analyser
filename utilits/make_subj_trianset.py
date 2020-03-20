@@ -1,12 +1,14 @@
 import json
 
 from integration.db import get_mongodb_connection
+from integration.word_document_parser import WordDocParser
 from utilits.read_all_contracts import read_all_docs
 
-_files_dir = '/Users/artem/Google Drive/GazpromOil/Примеры документов/'
+# _files_dir = '/Users/artem/Google Drive/GazpromOil/Примеры документов/'
 
 
-# _files_dir = '/Users/artem/work/nemo/goil/IN/'
+# _files_dir = '/Users/artem/work/nemo/goil/IN/яДата-сет 16.12'
+_files_dir = '/Users/artem/work/nemo/goil/IN/'
 
 
 def make_trainset():
@@ -30,7 +32,7 @@ def export_contracts():
   db = get_mongodb_connection()
 
   filter = {
-    'version': '1.1.18'
+    'version': WordDocParser.version
   }
 
   res = db['legaldocs'].find(filter)
@@ -51,5 +53,5 @@ def export_contracts():
 
 
 if __name__ == '__main__':
-  # make_trainset()
+  make_trainset()
   export_contracts()

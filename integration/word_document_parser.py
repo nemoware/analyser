@@ -12,10 +12,11 @@ from integration.doc_providers import DirDocProvider
 
 
 class WordDocParser(DirDocProvider):
-  version = '1.1.18'
+  version = '1.1.19'
+
   def __init__(self):
 
-    self.version = '1.1.18'
+    self.version = WordDocParser.version
 
     x = os.system("java -version")
     assert x == 0
