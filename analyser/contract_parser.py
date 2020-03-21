@@ -305,7 +305,7 @@ def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubj
 
 def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (
         ContractSubject, float, LegalDocument):
-  headers = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
+  headers:[LegalDocument] = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 
   max_confidence = 0
   best_subj = None

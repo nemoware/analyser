@@ -8,7 +8,9 @@ contract_headlines_patterns = {
   'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОГО ИМУЩЕСТВА': ContractSubject.RealEstate,
   'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОСТИ': ContractSubject.RealEstate,
 
-  'поставки': ContractSubject.Deal,
+  'ПОСТАВКИ': ContractSubject.Deal,
+  'ЛИЦЕНЗИОННЫЙ': ContractSubject.Deal,
+  'СУБЛИЦЕНЗИОННЫЙ': ContractSubject.Deal,
 
   'займа': ContractSubject.Loans,
 
@@ -20,15 +22,25 @@ contract_headlines_patterns = {
   'ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ': ContractSubject.Service,
   'на выполнение работ по разработке информационных систем': ContractSubject.Service,
   'НА ВЫПОЛНЕНИЕ ИНЖЕНЕРНО-ИЗЫСКАТЕЛЬСКИХ РАБОТ': ContractSubject.Service,
+  'НА ТЕХНИЧЕСКОЕ ОБСЛУЖИВАНИЕ И РЕМОНТ': ContractSubject.Service,
+  'НА Разработку': ContractSubject.Service,
 
   'залога': ContractSubject.PledgeEncumbrance,
 
   'о безвозмездной помощи ( Пожертвование )': ContractSubject.Charity,
   'пожертвования': ContractSubject.Charity,
-
+  'целевого пожертвования': ContractSubject.Charity,
+  'благотворительной помощи': ContractSubject.Charity,
+  'ДАРЕНИЯ': ContractSubject.Charity,
+  'дарения движимого имущества': ContractSubject.Charity,
   'безвозмездного пользования нежилым помещением': ContractSubject.Charity,
+
+
   'генерального подряда': ContractSubject.GeneralContract,
+  'подряда': ContractSubject.GeneralContract,
+
   'аренды недвижимого имущества': ContractSubject.Renting,
+  'аренды': ContractSubject.Renting,
 
   'страхования': ContractSubject.Insurance
 }
@@ -254,7 +266,7 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     if True:
       cp('Арендодатель передает, а', 'Арендатор принимает в аренду', '(во временное владение и пользование) здание')
       cp('', 'Арендодатель',
-         'обязуется передать Арендатору во временное владение и пользование (аренду) следующее недвижимое имущество')
+         'обязуется передать Арендатору во временное владение и пользование (аренду) недвижимое имущество')
 
     subj = ContractSubject.AgencyContract
     if True:
