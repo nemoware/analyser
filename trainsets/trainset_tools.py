@@ -11,6 +11,30 @@ from analyser.legal_docs import LegalDocument
 from analyser.structures import ContractSubject
 
 VALIDATION_SET_PROPORTION = 0.25
+import urllib.request
+
+from keras.models import load_model, Model
+
+import os
+
+
+def load_subject_detection_trained_model() -> Model:
+  cp_name = 'conv_bi_LSTM_dropouts_rev.checkpoint'
+  url = 'https://github.com/nemoware/analyser/releases/download/checkpoint.0.0.1/' + cp_name
+
+  file_name = cp_name
+  if not os.path.exists(file_name):
+    print(f'downloading trained NN model from {url}')
+    with urllib.request.urlopen(url) as response, open(file_name, 'wb') as out_file:
+      data = response.read()  # a `bytes` object
+      out_file.write(data)
+      print(f'NN model saved as {cp_name}')
+  print(f'loading NN model from {cp_name}')
+
+  model: Model = load_model(file_name)
+  model.summary()
+
+  return model
 
 
 class TrainsetBalancer:
@@ -19,7 +43,7 @@ class TrainsetBalancer:
     pass
 
   def get_indices_split(self, df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
-  [int], [int]):
+          [int], [int]):
     cat_count = df[category_column_name].value_counts()
 
     subject_bags = {key: [] for key in cat_count.index}
@@ -159,15 +183,15 @@ class SubjectTrainsetManager:
       yield (batch_x, batch_y)
 
 
-import sys
-
 if __name__ == '__main__':
-  print(sys.version)
-  fn = '/Users/artem/Google Drive/GazpromOil/trainsets/meta_info/contracts.subjects-manually-filtered.csv'
-  tsm: SubjectTrainsetManager = SubjectTrainsetManager(fn)
-  # for k, v in tsm.subject_name_1hot_map.items():
-  #   print(k, v)
-  gen = tsm.get_generator(batch_size=2, all_indices=[0, 1], randomize=True)
-  x, y = next(gen)
-  print('X->Y :', x.shape, '-->', y.shape)
-  print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
+  # print(sys.version)
+  # fn = '/Users/artem/Google Drive/GazpromOil/trainsets/meta_info/contracts.subjects-manually-filtered.csv'
+  # tsm: SubjectTrainsetManager = SubjectTrainsetManager(fn)
+  # # for k, v in tsm.subject_name_1hot_map.items():
+  # #   print(k, v)
+  # gen = tsm.get_generator(batch_size=2, all_indices=[0, 1], randomize=True)
+  # x, y = next(gen)
+  # print('X->Y :', x.shape, '-->', y.shape)
+  # print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
+
+  model = load_subject_detection_trained_model()
