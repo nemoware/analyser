@@ -5,6 +5,8 @@
 
 import unittest
 
+import pymongo
+
 from analyser.parsing import AuditContext
 from analyser.runner import Runner, get_audits, get_docs_by_audit_id, document_processors, save_analysis
 from integration.db import get_mongodb_connection
