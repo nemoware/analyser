@@ -12,7 +12,7 @@ from pandas import DataFrame
 from analyser.contract_agents import find_org_names
 from analyser.contract_parser import ContractDocument
 from analyser.documents import TOKENIZER_DEFAULT
-from analyser.legal_docs import DocumentJson, LegalDocument
+from analyser.legal_docs import LegalDocument
 from integration.word_document_parser import WordDocParser, join_paragraphs
 
 _files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
@@ -73,12 +73,12 @@ def read_all_docs(files_dir: str, doc_type='CONTRACT'):
           _doc = _parse_doc(res, _doc_id)
           yield _doc
 
-          if False:
-            contract: ContractDocument = _parse_contract(_doc, row)
-            json_struct = DocumentJson(contract).__dict__
-
-            if contracts_collection.find_one({"_id": _doc_id}) is None:
-              contracts_collection.insert_one(json_struct)
+          # if False:
+          #   contract: ContractDocument = _parse_contract(_doc, row)
+          #   json_struct = DocumentJson(contract).__dict__
+          #
+          #   if contracts_collection.find_one({"_id": _doc_id}) is None:
+          #     contracts_collection.insert_one(json_struct)
 
   stats()
   # print(f'failures:\t{failures}\t unknowns: {unknowns}\t nodate: {nodate}' )
