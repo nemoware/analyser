@@ -3,6 +3,8 @@
 # coding=utf-8
 from enum import Enum, unique, EnumMeta
 
+import numpy as np
+
 legal_entity_types = {
   'Акционерное общество': 'АО',
   'Публичное акционерное общество': 'ПАО',
@@ -30,9 +32,6 @@ legal_entity_types = {
   'Индивидуальный предприниматель': 'ИП',
   'Автономная некоммерческая организация': 'АНО',
 }
-
-
-
 
 
 class DisplayStringEnumMeta(EnumMeta):
@@ -137,6 +136,10 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   ParticipationInOtherOrganizations = 41, ''
   DecisionsForSubsidiary = 42, ''
 
+  @staticmethod
+  def as_matrix():
+    return np.array([[s.name, s.value] for s in ContractSubject])
+
 
 contract_subjects = [
   ContractSubject.Charity,
@@ -146,6 +149,3 @@ contract_subjects = [
   ContractSubject.Service,
   ContractSubject.Loans,
   ContractSubject.PledgeEncumbrance]
-
-
-
