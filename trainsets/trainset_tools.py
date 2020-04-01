@@ -25,10 +25,12 @@ def load_subject_detection_trained_model() -> Model:
   file_name = cp_name
   if not os.path.exists(file_name):
     print(f'downloading trained NN model from {url}')
+
     with urllib.request.urlopen(url) as response, open(file_name, 'wb') as out_file:
       data = response.read()  # a `bytes` object
       out_file.write(data)
       print(f'NN model saved as {cp_name}')
+
   print(f'loading NN model from {cp_name}')
 
   model: Model = load_model(file_name)
@@ -86,6 +88,8 @@ class SubjectTrainsetManager:
 
     self.csv_path = trainset_description_csv
 
+    self.picle_relosver = None  # hack for tests
+
     # -------
     self.trainset_rows: DataFrame = self._read_trainset_meta()
     self.train_indices, self.test_indices = self.balance_trainset(self.trainset_rows)
@@ -134,9 +138,12 @@ class SubjectTrainsetManager:
     max_pop = max(self.subj_count.values)
     return 1 - subj_popularity / max_pop
 
-  def get_embeddings_raw(self, filename):
+  def get_embeddings_raw(self, _filename):
     # TODO:::
-    filename = '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'
+    filename = _filename
+    if self.picle_relosver:
+      filename = self.picle_relosver(_filename)
+
     if filename not in self.embeddings_cache:
       with open(filename, "rb") as pickle_in:
         doc: LegalDocument = pickle.load(pickle_in)
@@ -185,13 +192,17 @@ class SubjectTrainsetManager:
 
 if __name__ == '__main__':
   # print(sys.version)
-  # fn = '/Users/artem/Google Drive/GazpromOil/trainsets/meta_info/contracts.subjects-manually-filtered.csv'
-  # tsm: SubjectTrainsetManager = SubjectTrainsetManager(fn)
-  # # for k, v in tsm.subject_name_1hot_map.items():
-  # #   print(k, v)
-  # gen = tsm.get_generator(batch_size=2, all_indices=[0, 1], randomize=True)
-  # x, y = next(gen)
-  # print('X->Y :', x.shape, '-->', y.shape)
-  # print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
+
+  pickle_resolver = lambda f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'
+
+  fn = '/Users/artem/Google Drive/GazpromOil/trainsets/meta_info/contracts.subjects-manually-filtered.csv'
+  tsm: SubjectTrainsetManager = SubjectTrainsetManager(fn)
+  tsm.picle_relosver = pickle_resolver  # hack for tests
+  # for k, v in tsm.subject_name_1hot_map.items():
+  #   print(k, v)
+  gen = tsm.get_generator(batch_size=2, all_indices=[0, 1], randomize=True)
+  x, y = next(gen)
+  print('X->Y :', x.shape, '-->', y.shape)
+  print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
 
   model = load_subject_detection_trained_model()
