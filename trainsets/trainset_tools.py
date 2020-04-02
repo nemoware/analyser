@@ -81,8 +81,11 @@ class TrainsetBalancer:
 
 class SubjectTrainsetManager:
   EMB_NOISE_AMOUNT = 0.05
+  OUTLIERS_PERCENT = 0.05
 
   def __init__(self, trainset_description_csv: str):
+    self.outliers_percent = SubjectTrainsetManager.OUTLIERS_PERCENT
+
     self.embeddings_cache = {}
     # self.subj_count = {}
 
@@ -94,6 +97,8 @@ class SubjectTrainsetManager:
     self.trainset_rows: DataFrame = self._read_trainset_meta()
     self.train_indices, self.test_indices = self.balance_trainset(self.trainset_rows)
     self.subject_name_1hot_map = self._encode_1_hot()
+
+    self.number_of_classes = len(list(self.subject_name_1hot_map.values())[0])
 
   @staticmethod
   def balance_trainset(trainset_dataframe: DataFrame):
@@ -127,7 +132,7 @@ class SubjectTrainsetManager:
 
     return subject_name_1hot_map
 
-  def noise_embedding(self, emb, var=EMB_NOISE_AMOUNT):
+  def noise_embedding(self, emb, var=0.1):
     _mean = 0
     sigma = var ** 0.5
     gauss = np.random.normal(_mean, sigma, emb.shape)
@@ -161,23 +166,49 @@ class SubjectTrainsetManager:
 
     return embedding
 
+  def make_fake_outlier(self, emb):
+    label = self.subject_name_1hot_map['Other']
+    _mode = np.random.choice([1, 2, 3, 4])
+
+    # print('make_fake_outlier mode', _mode)
+
+    if _mode == 1:
+      return emb * -1, label
+
+    elif _mode == 2:
+      return self.noise_embedding(emb, 3), label
+
+    elif _mode == 3:
+      return emb * -0.5, label
+
+    elif _mode == 4:
+      return np.zeros_like(emb), label
+
+    # return np.zeros_like(emb)
+
   def get_generator(self, batch_size, all_indices, randomize=False):
     while True:
       # Select files (paths/indices) for the batch
       batch_indices = np.random.choice(a=all_indices, size=batch_size)
+      __split = int(self.outliers_percent * batch_size)
 
       batch_input = []
       batch_output = []
 
       # Read in each input, perform preprocessing and get labels
-      for i in batch_indices:
+      for pos, i in enumerate(batch_indices):
         _row = self.trainset_rows.iloc[i]
         _subj = _row['subject']
         _filename = _row['pickle']
+
         _emb = self.get_embeddings(_filename, _subj, randomize=randomize)
+        label = self.subject_name_1hot_map[_subj]
+
+        if pos < __split:
+          _emb, outlier_label = self.make_fake_outlier(_emb)
 
         batch_input.append(_emb)
-        batch_output.append(self.subject_name_1hot_map[_subj])
+        batch_output.append(label)
 
       # Return a tuple of (input, output) to feed the network
       # batch_x = np.array(batch_input)
@@ -200,9 +231,10 @@ if __name__ == '__main__':
   tsm.picle_relosver = pickle_resolver  # hack for tests
   # for k, v in tsm.subject_name_1hot_map.items():
   #   print(k, v)
-  gen = tsm.get_generator(batch_size=2, all_indices=[0, 1], randomize=True)
+  gen = tsm.get_generator(batch_size=50, all_indices=[0, 1], randomize=True)
   x, y = next(gen)
   print('X->Y :', x.shape, '-->', y.shape)
   print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
+  print("number_of_classes", tsm.number_of_classes)
 
-  model = load_subject_detection_trained_model()
+  # model = load_subject_detection_trained_model()
