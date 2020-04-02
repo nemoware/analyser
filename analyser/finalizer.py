@@ -99,6 +99,7 @@ def get_max_value(doc_attrs):
                 max_value = current_value
     return max_value, sign
 
+
 def get_constraints_rub(key, attributes):
     constraints = []
     for key2, value2 in attributes.items():

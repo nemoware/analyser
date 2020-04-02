@@ -139,7 +139,10 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
 
-  res = documents_collection.find(query)
+  cursor = documents_collection.find(query)
+  res = []
+  for doc in cursor:
+    res.append(doc)
   return res
 
 
