@@ -84,6 +84,12 @@ class SubjectTrainsetManager:
   OUTLIERS_PERCENT = 0.05
   NOISY_SAMPLES_AMOUNT = 0.5
 
+
+  def print_parameters(self):
+    print(f'outliers_percent={self.outliers_percent}')
+    print(f'noisy_samples_amount={self.noisy_samples_amount}')
+    print(f'noise_amount={self.noise_amount}')
+
   def __init__(self, trainset_description_csv: str):
     self.outliers_percent = SubjectTrainsetManager.OUTLIERS_PERCENT
 
