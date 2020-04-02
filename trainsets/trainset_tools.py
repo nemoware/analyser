@@ -82,9 +82,20 @@ class TrainsetBalancer:
 class SubjectTrainsetManager:
   EMB_NOISE_AMOUNT = 0.05
   OUTLIERS_PERCENT = 0.05
+  NOISY_SAMPLES_AMOUNT = 0.5
 
   def __init__(self, trainset_description_csv: str):
     self.outliers_percent = SubjectTrainsetManager.OUTLIERS_PERCENT
+
+    '''
+    percentange of samples to add noise
+    '''
+    self.noisy_samples_amount = SubjectTrainsetManager.NOISY_SAMPLES_AMOUNT
+
+    '''
+    amount of noise
+    '''
+    self.noise_amount = SubjectTrainsetManager.EMB_NOISE_AMOUNT
 
     self.embeddings_cache = {}
     # self.subj_count = {}
@@ -119,7 +130,7 @@ class SubjectTrainsetManager:
   @staticmethod
   def _encode_1_hot():
     '''
-    bit of paranoya to reserve order
+    bit of paranoia to reserve order
     :return:
     '''
     all_subjects_map = ContractSubject.as_matrix()
@@ -161,8 +172,9 @@ class SubjectTrainsetManager:
     embedding = self.get_embeddings_raw(filename)
 
     if randomize:
-      _var = SubjectTrainsetManager.EMB_NOISE_AMOUNT * self._noise_amount(subj)
-      embedding = self.noise_embedding(embedding, var=_var)
+      if random.random() < self.noisy_samples_amount:
+        _var = self.noise_amount * self._noise_amount(subj)
+        embedding = self.noise_embedding(embedding, var=_var)
 
     return embedding
 
@@ -184,7 +196,7 @@ class SubjectTrainsetManager:
     elif _mode == 4:
       return np.zeros_like(emb), label
 
-    # return np.zeros_like(emb)
+
 
   def get_generator(self, batch_size, all_indices, randomize=False):
     while True:
