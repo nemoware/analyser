@@ -84,7 +84,6 @@ class SubjectTrainsetManager:
   OUTLIERS_PERCENT = 0.05
   NOISY_SAMPLES_AMOUNT = 0.5
 
-
   def print_parameters(self):
     print(f'outliers_percent={self.outliers_percent}')
     print(f'noisy_samples_amount={self.noisy_samples_amount}')
@@ -202,7 +201,34 @@ class SubjectTrainsetManager:
     elif _mode == 4:
       return np.zeros_like(emb), label
 
+  def get_evaluation_generator(self, batch_size):
+    while True:
+      # Select files (paths/indices) for the batch
+      batch_indices = np.random.choice(a=[] + self.test_indices + self.train_indices, size=batch_size)
 
+      batch_input = []
+      batch_output = []
+
+      # Read in each input, perform preprocessing and get labels
+      for pos, i in enumerate(batch_indices):
+        _row = self.trainset_rows.iloc[i]
+        _subj = _row['subject']
+        _filename = _row['pickle']
+
+        _emb = self.get_embeddings_raw(_filename)
+        label = self.subject_name_1hot_map[_subj]
+
+        batch_input.append(_emb)
+        batch_output.append(label)
+
+      # Return a tuple of (input, output) to feed the network
+
+      maxlen = 1000  # random.choice([700, 800, 900, 1000, 1100])
+      batch_y = np.array(batch_output)
+      batch_x = np.array(pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post')).reshape(
+        (batch_size, maxlen, 1024))
+
+      yield (batch_x, batch_y)
 
   def get_generator(self, batch_size, all_indices, randomize=False):
     while True:
