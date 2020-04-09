@@ -724,3 +724,13 @@ def best_window(attention_vector, wnd_len) -> (int, float, float):
       max_sum = _sum
       best_index = k
   return best_index, max_sum, max_sum / wnd_len
+
+
+def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column: str) -> Embeddings:
+  centroids = []
+  for cn in np.unique(clustered[labels_column]):
+    items = clustered[clustered[labels_column] == cn]
+    m = embeddings[items.index].mean(axis=0)
+    centroids.append(m)
+
+  return np.array(centroids)

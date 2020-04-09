@@ -34,10 +34,6 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
 class AbstractEmbedder:
 
   @abstractmethod
-  def get_embedding_tensor(self, tokenized_sentences_list):
-    raise NotImplementedError()
-
-  @abstractmethod
   def embedd_tokens(self, tokens: Tokens) -> Embeddings:
     raise NotImplementedError()
 
