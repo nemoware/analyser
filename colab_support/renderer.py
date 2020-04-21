@@ -3,7 +3,6 @@ from typing import List
 
 import matplotlib as mpl
 import numpy as np
-from matplotlib import cm
 from matplotlib import colors
 
 from analyser.legal_docs import LegalDocument

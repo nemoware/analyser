@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from analyser.documents import CaseNormalizer, TextMap
 from analyser.hyperparams import HyperParameters
-from analyser.ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum, max_exclusive_pattern, get_centroids, \
+from analyser.ml_tools import max_exclusive_pattern, get_centroids, \
   Embeddings
 from analyser.structures import OrgStructuralLevel, ContractSubject
 from analyser.text_tools import *
@@ -340,7 +340,6 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
 
 
 """ 💔🛐  ===========================📈=================================  ✂️ """
-
 
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'

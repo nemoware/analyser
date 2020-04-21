@@ -85,4 +85,3 @@ if __name__ == '__main__':
 
   cp = CentroidPattensBuilder()
   cp.calc_patterns_centroids(headers_patterns)
-  pass
