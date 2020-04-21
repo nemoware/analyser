@@ -31,8 +31,6 @@ class AttentionVectors:
     if self.size is None:
       self.size = len(x)
 
-    assert len(x) == self.size
-
     self.vectors[name] = np.array(x)
     self.vectors[name].flags.writeable = False
 
@@ -148,10 +146,6 @@ class FuzzyMatcher:
       v = relu(v, p_threshold)
 
     return v
-
-
-
-
 
 
 def prepare_patters_for_embedding_2(patterns):

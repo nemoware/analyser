@@ -1,13 +1,16 @@
 import html as escaper
 from typing import List
 
+import matplotlib as mpl
 import numpy as np
+from matplotlib import colors
 
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import ProbableValue
 from analyser.patterns import AV_PREFIX, AV_SOFT
 from analyser.structures import ContractSubject
 from analyser.structures import OrgStructuralLevel
+from analyser.text_tools import Tokens
 from analyser.transaction_values import ValueConstraint
 
 head_types_colors = {'head.directors': 'crimson',
@@ -301,3 +304,134 @@ def as_c_quote(txt):
 def print_headers(contract: LegalDocument):
   for p in contract.paragraphs:
     print('\t --> 📂', contract.substr(p.header))
+
+
+def _to_color_text(_tokens, weights, colormap='coolwarm', _range=None, separator=' '):
+  tokens = [escaper.escape(t) for t in _tokens]
+
+  if len(tokens) == 0:
+    return " - empty -"
+
+  if len(weights) != len(tokens):
+    raise ValueError("number of weights differs weights={} tokens={}".format(len(weights), len(tokens)))
+
+  #   if()
+  vmin = weights.min() - 0.00001
+  vmax = weights.max() + 0.00001
+
+  if _range is not None:
+    vmin = _range[0]
+    vmax = _range[1]
+
+  norm = mpl.colors.Normalize(vmin=vmin - 0.5, vmax=vmax)
+  cmap = mpl.cm.get_cmap(colormap)
+
+  html = ""
+
+  for d in range(0, len(weights)):
+    word = tokens[d]
+    if word == ' ':
+      word = '&nbsp;_ '
+    token_color = mpl.colors.to_hex(cmap(norm(weights[d])))
+    html += f'<span title="{d} {weights[d]:.4f}" style="background-color:{token_color}">{word}{separator}</span>'
+
+    if tokens[d] == '\n':
+      html += "¶<br>"
+
+  return html
+
+
+def to_color_text(tokens, weights, colormap='coolwarm', _range=None, separator=' '):
+  return _to_color_text(tokens, weights, colormap=colormap, _range=_range, separator=separator)
+
+
+def render_spans(spans, subdoc, attention_v, ht='') -> str:
+  ht += '<ol>'
+  for span in spans:
+    _s = slice(span[0], span[1])
+
+    ht += '<li>'
+    t = subdoc.tokens_map.tokens[_s]
+    l = attention_v[_s]
+    ht += to_color_text(t, l, _range=(0, 1.2))
+    ht += '<br><hr>'
+    ht += '</li>'
+  ht += '</ol>'
+
+  return ht
+
+
+def rgb_by_string(s):
+  h = abs(hash(s))
+  r = (h % 256)
+  g = int(h / 256.) % 256
+  b = 255 - g
+  return (r, g, b)
+
+
+def color_by_string(s, palette=None) -> str:
+  h = abs(hash(s))
+  if palette is None:
+    r = (h % 256)
+    g = int(h / 256.) % 256
+    b = 255 - g
+    return f'#{r:02x}{g:02x}{b:02x}'
+  else:
+    return palette[h % (len(palette))]
+
+
+def hex2rgb(c: str):
+  return [int(c[1:3], base=16), int(c[3:5], base=16), int(c[5:], base=16)]
+
+
+def lerp_int(a, b, w):
+  return int(a * w + b * (1. - w))
+
+
+def lerp_float(a, b, w):
+  return a * w + b * (1. - w)
+
+
+def whiter(c: str, weight: float):
+  rgb = hex2rgb(c)
+  return colors.to_hex([lerp_float(a / 255., 1, weight) for a in rgb])
+
+
+def render_token_clusters(tokens: Tokens, clusters: [int], pal: [str], weights=None) -> str:
+  html = ''
+  separator = ' '
+
+  for d, word in enumerate(tokens):
+
+    if word == ' ':
+      word = '&nbsp;_ '
+    token_color = pal[clusters[d]]
+    if weights is not None:
+      # whiter(token_color, weights[d])
+      _w = max(0.5, min(weights[d], 1))
+      # token_color =token_color +'{:02x}'.format(_w)
+      token_color = whiter(token_color, _w)
+
+    html += f'<span title="{d} {clusters[d]:.2f}" style="background-color:{token_color}">{word}{separator}</span>'
+
+    if tokens[d] == '\n':
+      html += "¶<br>"
+
+  return html
+
+
+def render_doc(doc, semantic_map, default_color='#eeeeee', palette: [str] or None = None):
+  _pal = [default_color] + [color_by_string(c, palette) for c in semantic_map.columns]
+
+  clusters: [int] = np.argmax(semantic_map.values, axis=1)
+  wieghts = np.max(semantic_map.values, axis=1)
+
+  h = ''
+  for p in doc.paragraphs:
+    s: slice = p.body.as_slice()
+
+    h += f'<h3>{doc.get_tag_text(p.header)}</h3>'
+    paragraph_html = render_token_clusters(doc.tokens[s], clusters[s], _pal, wieghts[s])
+    h += f'<p style="padding:0.5cm 1cm">{paragraph_html}</p>'
+
+  return h

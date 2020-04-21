@@ -5,9 +5,10 @@ from typing import List
 import numpy as np
 
 from analyser.contract_patterns import ContractPatternFactory
+from analyser.documents import TextMap
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, extract_sum_sign_currency
-from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe
+from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe, relu
 from analyser.transaction_values import complete_re as transaction_values_re
 
 PROF_DATA = {}
@@ -187,3 +188,26 @@ def _find_most_relevant_paragraph(section: LegalDocument,
   confidence_region = attention_vector[span[0]:span[1]]
   confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
   return span, confidence, paragraph_attention_vector
+
+
+def find_most_relevant_paragraphs(section: TextMap,
+                                  attention_vector: FixedVector,
+                                  min_len: int = 20,
+                                  return_delimiters=True, threshold=0.45):
+  _blur = int(HyperParameters.subject_paragraph_attention_blur)
+  _padding = int(_blur * 2 + 1)
+
+  paragraph_attention_vector = smooth_safe(np.pad(attention_vector, _padding, mode='constant'), _blur)[
+                               _padding:-_padding]
+
+  paragraph_attention_vector = relu(paragraph_attention_vector, threshold)
+
+  top_indices = [i for i, v in enumerate(paragraph_attention_vector) if v > 0.00001]
+  spans = []
+  for i in top_indices:
+    span = section.sentence_at_index(i, return_delimiters)
+    if min_len is not None and span[1] - span[0] < min_len:
+      if not span in spans:
+        spans.append(span)
+
+  return spans, paragraph_attention_vector
