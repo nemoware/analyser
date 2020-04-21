@@ -96,7 +96,9 @@ class ContractParser(ParsingContext):
     self._logstep("parsing document 👞 and detecting document high-level structure")
 
     # ------ structure
-    self.sections_finder.find_sections(contract, self.pattern_factory, self.pattern_factory.headlines,
+    self.sections_finder.find_sections(contract,
+                                       self.pattern_factory,
+                                       self.pattern_factory.headlines,
                                        headline_patterns_prefix='headline.')
 
     # -------------------------------values

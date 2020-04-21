@@ -4,7 +4,8 @@ from analyser.doc_dates import find_document_date
 
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
-  embedd_sentences, map_headlines_to_patterns, ParserWarnings, tokenize_doc_into_sentences_map
+  embedd_sentences, ParserWarnings, tokenize_doc_into_sentences_map
+from analyser.sections_finder import map_headlines_to_patterns
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
   _find_most_relevant_paragraph

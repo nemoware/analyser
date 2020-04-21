@@ -6,6 +6,7 @@ from typing import List, TypeVar, Iterable, Generic
 import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
+from scipy import special as scs
 
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
@@ -147,6 +148,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
 
 
 def relu(x: np.ndarray, relu_th: float = 0.0) -> np.ndarray:
+  """deprecated: use np.maximum( )"""
   assert type(x) is np.ndarray
 
   _relu = x * (x > relu_th)
@@ -734,3 +736,11 @@ def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column
     centroids.append(m)
 
   return np.array(centroids)
+
+
+def softmax_rows(headers_df: DataFrame, columns):
+  _x = headers_df[columns]
+  _x = scs.softmax(_x, axis=1)
+  headers_df[columns] = _x
+
+  return headers_df

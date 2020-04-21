@@ -21,16 +21,16 @@ class Runner:
     self.elmo_embedder: ElmoEmbedder = None
     self.elmo_embedder_default: ElmoEmbedder = None
     if init_embedder:
-      self.elmo_embedder = ElmoEmbedder()
-      self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+      self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
+      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
 
     self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
     self.contract_parser = ContractParser(self.elmo_embedder)
     self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
 
   def init_embedders(self):
-    self.elmo_embedder = ElmoEmbedder()
-    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+    self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
+    self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
     self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
     self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
     self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
@@ -83,7 +83,8 @@ class BaseProcessor:
     else:
       date_is_ok = True
 
-    return ("Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(audit["subsidiary"]["name"])) and date_is_ok
+    return ("Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(
+      audit["subsidiary"]["name"])) and date_is_ok
 
 
 class ProtocolProcessor(BaseProcessor):
@@ -167,7 +168,7 @@ def run(run_pahse_2=True, kind=None):
     print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
     for document in documents:
-      processor:BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
+      processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         print(f'........pre-processing  {document["parse"]["documentType"]}')
         processor.preprocess(db_document=document, context=ctx)
@@ -196,6 +197,7 @@ def run(run_pahse_2=True, kind=None):
     warnings.warn("phase 2 is skipped")
 
   finalizer.finalize()
+
 
 if __name__ == '__main__':
   run()
