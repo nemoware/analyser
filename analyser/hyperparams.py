@@ -25,3 +25,6 @@ class HyperParameters:
 
   charter_charity_attention_confidence = 0.6
   charter_subject_attention_confidence = 0.66
+
+  obligations_date_pattern_threshold = 0.4
+  hdbscan_cluster_proximity=0.8

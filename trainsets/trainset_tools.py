@@ -46,7 +46,8 @@ class TrainsetBalancer:
 
   def get_indices_split(self, df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
           [int], [int]):
-    cat_count = df[category_column_name].value_counts()
+
+    cat_count = df[category_column_name].value_counts() #distribution by category
 
     subject_bags = {key: [] for key in cat_count.index}
 
