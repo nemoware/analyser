@@ -184,8 +184,8 @@ def make_echo(av: FixedVector, k=0.5) -> np.ndarray:
 def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
-  for i in range(len(x)):
-    m += x[i]
+  for i, xi in enumerate(x):
+    m += xi
     innertia[i] = m
     m *= decay
 
@@ -195,8 +195,8 @@ def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
 def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
-  for i in range(len(x)):
-    m = max(m, x[i])
+  for i, xi in enumerate(x):
+    m = max(m, xi)
     innertia[i] = m
     m *= decay
 

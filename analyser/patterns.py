@@ -342,26 +342,6 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
 """ 💔🛐  ===========================📈=================================  ✂️ """
 
 
-def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
-  assert vv is not None
-  meta_pattern, meta_pattern_confidence, best_id = make_smart_meta_click_pattern(vv, embeddings)
-  meta_pattern_attention_v = make_pattern_attention_vector(meta_pattern, embeddings)
-  meta_pattern_attention_v = relu(meta_pattern_attention_v, relu_th)
-
-  meta_pattern_attention_v = meta_pattern_attention_v * mix + vv * (1.0 - mix)
-  return meta_pattern_attention_v, best_id
-
-
-""" ❤️  =============================📈=================================  ✂️ """
-
-
-def make_improved_attention_vector(distances_per_pattern_dict, embeddings, pattern_prefix, relu_th: float):
-  vvvvv = filter_values_by_key_prefix(distances_per_pattern_dict, pattern_prefix)
-  _max_hit_attention, _ = rectifyed_sum(vvvvv, relu_th)
-  improved = improve_attention_vector(embeddings, _max_hit_attention, mix=1)
-  return improved
-
-
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'
 
