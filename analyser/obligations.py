@@ -22,13 +22,11 @@ def build_patterns():
   # obligations_patterns
   pat_df = DataFrame(columns=['key'])
   for key, _patterns in obligation_patterns.items():
-    date_patterns_emb, _clusterisation_info, embeddings = cp.build_patterns(obligations_patterns_train_text, _patterns,
-                                                                            embeddings=t_embeddings)
+    date_patterns_emb, _clusterisation_info, _ = cp.build_patterns(obligations_patterns_train_text, _patterns,
+                                                                   embeddings=t_embeddings)
     _df = DataFrame(date_patterns_emb)
     _df['key'] = key
-    # _df['cluster'] = _clusterisation_info['hdbscan']
     pat_df = pd.concat([pat_df, _df], ignore_index=True)
-    # _clusterisation_info.to_csv(os.path.join(models_path, key + '_clusterisation_info.csv'))
 
   pat_df.to_csv(os.path.join(models_path, 'obligations_patterns_emb.csv'))
 

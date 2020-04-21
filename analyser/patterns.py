@@ -509,7 +509,10 @@ class CentroidPattensBuilder:
 
   @staticmethod
   def clusterize(selected_embeddings: Embeddings, resulting_df: DataFrame, min_cluster_size=5):
-    assert len(selected_embeddings) == len(resulting_df)
+
+    if len(selected_embeddings) != len(resulting_df):
+      raise AssertionError('len(selected_embeddings) != len(resulting_df)')
+
     print('clustering with HDBSCAN....')
     clusterer = hdbscan.HDBSCAN(metric="cosine", algorithm="generic", min_cluster_size=min_cluster_size)
     clusterer.fit(selected_embeddings.astype(np.double))
