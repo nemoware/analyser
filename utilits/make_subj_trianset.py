@@ -31,11 +31,11 @@ def make_trainset():
 def export_contracts():
   db = get_mongodb_connection()
 
-  filter = {
+  criterion = {
     'version': WordDocParser.version
   }
 
-  res = db['legaldocs'].find(filter)
+  res = db['legaldocs'].find(criterion)
 
   arr = {}
   for docs in res:

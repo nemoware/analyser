@@ -185,7 +185,7 @@ class SubjectTrainsetManager:
       batch_output = []
 
       # Read in each input, perform preprocessing and get labels
-      for pos, i in enumerate(batch_indices):
+      for i in batch_indices:
         _row = self.trainset_rows.iloc[i]
         _subj = _row['subject']
         _filename = _row['pickle']
@@ -224,7 +224,7 @@ class SubjectTrainsetManager:
         label = self.subject_name_1hot_map[_subj]
 
         if pos < __split:
-          _emb, outlier_label = self.make_fake_outlier(_emb)
+          _emb, _ = self.make_fake_outlier(_emb)
 
         batch_input.append(_emb)
         batch_output.append(label)

@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-import csv
 import json
 import sys
 import traceback
@@ -51,7 +50,7 @@ def read_all_docs(files_dir: str, doc_type='CONTRACT'):
       try:
         docs = wp.read_doc(fn)
 
-          # for res in docs['documents']:
+        # for res in docs['documents']:
         docs['short_filename'] = shortfn
         docs['path'] = pth
         docs['_id'] = _doc_id
@@ -97,14 +96,6 @@ def _parse_contract(contract, row) -> ContractDocument:
               contract.tag_value('org.2.name'),
               contract.tag_value('org.2.alias')]
   return contract
-
-
-def export_csv(files_dir: str, rows, headline=['1', '2', '3', '4', '5', '6', '7', '8', '9']):
-  with open(f'{files_dir}contracts-stats.csv', mode='w') as csv_file:
-    _writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    _writer.writerow(headline)
-    for l in rows:
-      _writer.writerow(l)
 
 
 def dump_contracts_from_db_to_jsons(output_path):

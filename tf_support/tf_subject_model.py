@@ -5,7 +5,6 @@ from keras.layers import Conv1D, LSTM, Dense, Bidirectional, Input, Dropout
 from keras.layers import MaxPooling1D
 
 from analyser.hyperparams import models_path
-from analyser.structures import ContractSubject
 from trainsets.trainset_tools import SubjectTrainsetManager
 
 VALIDATION_SET_PROPORTION = 0.25
@@ -16,7 +15,6 @@ from keras.models import Model
 import os
 
 EMB = 1024  # embedding dimentionality
-
 
 
 def set_conv_bi_LSTM_dropouts_training_params(dataset_manager: SubjectTrainsetManager):
