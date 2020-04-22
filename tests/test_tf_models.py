@@ -7,7 +7,7 @@ import unittest
 
 import numpy as np
 
-from trainsets.trainset_tools import load_subject_detection_trained_model
+from tf_support.tf_subject_model import load_subject_detection_trained_model
 
 
 class TestLoadTfModel(unittest.TestCase):

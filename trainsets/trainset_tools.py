@@ -11,32 +11,6 @@ from analyser.legal_docs import LegalDocument
 from analyser.structures import ContractSubject
 
 VALIDATION_SET_PROPORTION = 0.25
-import urllib.request
-
-from keras.models import load_model, Model
-
-import os
-
-
-def load_subject_detection_trained_model() -> Model:
-  cp_name = 'conv_bi_LSTM_dropouts_rev.checkpoint'
-  url = 'https://github.com/nemoware/analyser/releases/download/checkpoint.0.0.1/' + cp_name
-
-  file_name = cp_name
-  if not os.path.exists(file_name):
-    print(f'downloading trained NN model from {url}')
-
-    with urllib.request.urlopen(url) as response, open(file_name, 'wb') as out_file:
-      data = response.read()  # a `bytes` object
-      out_file.write(data)
-      print(f'NN model saved as {cp_name}')
-
-  print(f'loading NN model from {cp_name}')
-
-  model: Model = load_model(file_name)
-  model.summary()
-
-  return model
 
 
 class TrainsetBalancer:
@@ -47,7 +21,7 @@ class TrainsetBalancer:
   def get_indices_split(self, df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
           [int], [int]):
 
-    cat_count = df[category_column_name].value_counts() #distribution by category
+    cat_count = df[category_column_name].value_counts()  # distribution by category
 
     subject_bags = {key: [] for key in cat_count.index}
 
@@ -283,3 +257,5 @@ if __name__ == '__main__':
   print("number_of_classes", tsm.number_of_classes)
 
   # model = load_subject_detection_trained_model()
+
+  # load_subject_detection_trained_model()
