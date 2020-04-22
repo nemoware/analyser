@@ -6,7 +6,6 @@
 # legal_docs.py
 import datetime
 import json
-from enum import Enum
 
 from bson import json_util
 
@@ -14,8 +13,7 @@ import analyser
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import split_sentences_into_map
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.ml_tools import SemanticTag, conditional_p_sum, \
-  FixedVector
+from analyser.ml_tools import *
 from analyser.patterns import *
 from analyser.structures import ContractTags
 from analyser.text_normalize import *
