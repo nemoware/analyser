@@ -5,6 +5,8 @@ from keras.layers import Conv1D, LSTM, Dense, Bidirectional, Input, Dropout
 from keras.layers import MaxPooling1D
 
 from analyser.hyperparams import models_path
+from analyser.ml_tools import FixedVector
+from analyser.structures import ContractSubject
 from trainsets.trainset_tools import SubjectTrainsetManager
 
 VALIDATION_SET_PROPORTION = 0.25
@@ -15,6 +17,24 @@ from keras.models import Model
 import os
 
 EMB = 1024  # embedding dimentionality
+
+
+def decode_subj_prediction(result: FixedVector) -> (ContractSubject, float, int):
+  max_i = result.argmax()
+  print(max_i)
+  predicted_subj_name = ContractSubject(max_i)
+  confidence = result[max_i]
+  return predicted_subj_name, confidence, max_i
+
+
+def predict_subject(model, doc) -> FixedVector:
+  _embeddings_head = doc.embeddings[:1000]
+  # reshaping to batch-like shape (1, ?, 1024)
+  _embeddings_head = _embeddings_head.reshape((-1, _embeddings_head.shape[-2], EMB))
+  print(_embeddings_head.shape)
+  _predictions = model.predict(_embeddings_head)
+
+  return _predictions[0]
 
 
 def set_conv_bi_LSTM_dropouts_training_params(dataset_manager: SubjectTrainsetManager):
@@ -87,6 +107,7 @@ def load_subject_detection_trained_model() -> Model:
   print(f'loading NN model from {file_name}')
 
   final_model.load_weights(file_name)
+  print(final_model.name)
   final_model.summary()
 
   return final_model

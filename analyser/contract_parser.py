@@ -8,6 +8,7 @@ from analyser.parsing import ParsingContext, AuditContext, find_value_sign_curre
 from analyser.patterns import AV_SOFT, AV_PREFIX, AbstractPatternFactory
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject, contract_subjects
+from tf_support.tf_subject_model import load_subject_detection_trained_model, predict_subject, decode_subj_prediction
 
 
 class ContractDocument(LegalDocument):
@@ -56,6 +57,7 @@ class ContractParser(ParsingContext):
       self.init_embedders(embedder, None)
 
     self.sections_finder = FocusingSectionsFinder(self)
+    self.subject_prediction_model = load_subject_detection_trained_model()
 
   def init_embedders(self, embedder, elmo_embedder_default):
     self.embedder = embedder
@@ -107,9 +109,18 @@ class ContractParser(ParsingContext):
     self._logstep("finding contract values")
 
     # -------------------------------subject
-    contract.subjects = self.find_contract_subject_region(contract)
+    nn_predictions_dist = predict_subject(self.subject_prediction_model, contract)
+    p_subj, p_confidence, _ = decode_subj_prediction(nn_predictions_dist)
+    self._logstep(f"detected Contract Subject using NN model: {p_subj} {p_confidence}")
+
+    contract.subjects = self.find_contract_subject_region(contract)  # SemanticTag
     if not contract.subjects:
       contract.warn(ParserWarnings.contract_subject_not_found)
+    else:
+      # TODO: Achtung:
+      contract.subjects.confidence = p_confidence
+      contract.subjects.value = p_subj.name
+
     self._logstep("detecting contract subject")
     # --------------------------------------
 
@@ -201,8 +212,8 @@ class ContractParser(ParsingContext):
 
     section.distances_per_pattern_dict['subject_headline_attention'] = subject_headline_attention  # for debug
 
-    max_confidence = 0
-    max_subject_kind = None
+    max_confidence: float = 0.
+    max_subject_kind: ContractSubject or None = None
     max_paragraph_span = None
 
     for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
@@ -219,13 +230,15 @@ class ContractParser(ParsingContext):
 
       if self.verbosity_level > 2:
         print(f'--------------------confidence {subject_kind}=', confidence)
+
       if confidence > max_confidence:
         max_confidence = confidence
         max_subject_kind = subject_kind
         max_paragraph_span = paragraph_span
 
     if max_subject_kind:
-      subject_tag = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
+      subject_tag = SemanticTag('subject', max_subject_kind.name,
+                                max_paragraph_span)  # TODO: check if it is OK to use enum value instead of just name
       subject_tag.confidence = max_confidence * denominator
       subject_tag.offset(section.start)
 
@@ -306,7 +319,7 @@ def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubj
 
 def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (
         ContractSubject, float, LegalDocument):
-  headers:[LegalDocument] = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
+  headers: [LegalDocument] = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
 
   max_confidence = 0
   best_subj = None

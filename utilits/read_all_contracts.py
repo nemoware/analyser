@@ -84,9 +84,7 @@ def read_all_docs(files_dir: str, doc_type='CONTRACT'):
 
 
 def _parse_doc(res, doc_id) -> LegalDocument:
-  # print(f'_parse_doc: doc_id: {doc_id}')
-  doc: ContractDocument = join_paragraphs(res, doc_id)
-  return doc
+  return join_paragraphs(res, doc_id)
 
 
 def _parse_contract(contract, row) -> ContractDocument:
