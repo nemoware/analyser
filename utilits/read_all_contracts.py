@@ -20,8 +20,7 @@ _files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
 def read_all_docs(files_dir: str, doc_type='CONTRACT'):
   db = get_mongodb_connection()
   collection = db['legaldocs']
-  # headers_collection = db['headers']
-  contracts_collection = db['contracts']
+
   wp = WordDocParser()
   filenames = wp.list_filenames(files_dir)
 
@@ -30,7 +29,6 @@ def read_all_docs(files_dir: str, doc_type='CONTRACT'):
   unknowns = 0
   nodate = 0
 
-  rows = []
 
   def stats():
     print(f'processed:{cnt};\t failures:\t{failures}\t unknown type: {unknowns}\t unknown date: {nodate}')

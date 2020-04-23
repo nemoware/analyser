@@ -15,6 +15,7 @@ def make_trainset():
   # -------------------------------
   docs = read_all_docs(_files_dir)
   # -------------------------------
+
   cntr = {}
   for n, doc in enumerate(docs):
     print(n, '👾 make_trainset\t', doc.filename)
