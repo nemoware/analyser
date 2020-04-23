@@ -16,10 +16,10 @@ class ContractDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-    self.subjects = []
+    self.subjects: SemanticTag or None = None
     self.contract_values: List[ContractValue] = []
 
-    self.agents_tags = []
+    self.agents_tags:[SemanticTag] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
@@ -118,7 +118,7 @@ class ContractParser(ParsingContext):
       contract.warn(ParserWarnings.contract_subject_not_found)
     else:
       # TODO: Achtung:
-      contract.subjects.confidence = p_confidence
+      contract.subjects.confidence = float(p_confidence)
       contract.subjects.value = p_subj.name
 
     self._logstep("detecting contract subject")
