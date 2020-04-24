@@ -60,6 +60,23 @@ def conv_bi_LSTM_dropouts_binary(name="new_model"):
   return model
 
 
+def conv_biLSTM_binary_dropouts05(name="new_model"):
+  CLASSES = 43
+  input_text = Input(shape=[None, EMB], dtype='float32', name="input_text_emb")
+
+  _out = input_text
+  _out = Dropout(0.5, name="drops")(_out)
+  _out = Conv1D(filters=16, kernel_size=(8), padding='same', activation='relu')(_out)
+  _out = MaxPooling1D(pool_size=2)(_out)
+  _out = Bidirectional(LSTM(16, return_sequences=False))(_out)
+  _out = Dense(CLASSES, activation='softmax')(_out)
+
+  model = Model(inputs=[input_text], outputs=_out, name=name)
+  model.compile(loss='binary_crossentropy', optimizer='Nadam', metrics=['accuracy', 'categorical_accuracy'])
+
+  return model
+
+
 def conv_bi_LSTM_dropouts(name="new_model") -> Model:
   '''
   Epoch 20
@@ -87,7 +104,7 @@ def conv_bi_LSTM_dropouts(name="new_model") -> Model:
   return model
 
 
-BEST_MODEL = conv_bi_LSTM_dropouts_binary
+BEST_MODEL = conv_biLSTM_binary_dropouts05
 
 
 def load_subject_detection_trained_model() -> Model:
