@@ -4,6 +4,9 @@
 Примеры документов/20200226/1. Договор_Солнце_Услуга Ген.подряд.doc:	value 
 	 expected: '45796632.2' 
 	   ACTUAL: '54040026.0'
+Примеры документов/20200226/1. Договор_Солнце_Услуга Ген.подряд.doc:	subject 
+	 expected: 'GeneralContract' 
+	   ACTUAL: 'Service'
 Примеры документов/20200226/3. ДОГОВОР аренда РИМ.docx:	value 
 	 expected: '3382750.0' 
 	   ACTUAL: '96650.0'
@@ -13,6 +16,9 @@
 Contracts/Договор купли-продажи_ООО Парацельс.doc:	value 
 	 expected: '20800000.0' 
 	   ACTUAL: '21666666.67'
+Contracts/Договор купли-продажи_ООО Парацельс.doc:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'Renting'
 Contracts/ГПН 1 договор к-п Н.docx:	value 
 	 expected: '124800000.0' 
 	   ACTUAL: '130000000.0'
@@ -25,6 +31,9 @@ Contracts/ДКП Половинной НБ и АЗС.docx:	org_2_name
 Contracts/ДКП Половинной НБ и АЗС.docx:	value 
 	 expected: '1234529.0' 
 	   ACTUAL: '10000000.0'
+Contracts/ДКП Половинной НБ и АЗС.docx:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'Renting'
 Contracts/4. Договор Собственник.docx:	value 
 	 expected: '1165510.0' 
 	   ACTUAL: '742100.0'
@@ -34,6 +43,9 @@ Contracts/1.1. Договор пожертвования.docx:	org_2_name
 Contracts/3 этап по правилам/Договор 15.doc:	org_2_name 
 	 expected: 'А' 
 	   ACTUAL: 'nan'
+Contracts/3 этап по правилам/Договор 15.doc:	subject 
+	 expected: 'Service' 
+	   ACTUAL: 'Other'
 Contracts/3 этап по правилам/Договор 7.docx:	value 
 	 expected: '73033898.66' 
 	   ACTUAL: '71666666.67'
@@ -57,7 +69,7 @@ Contracts/3 этап по правилам/Договор поставки_1_.do
 	   ACTUAL: '100000.0'
 Contracts/3 этап по правилам/Договор поставки_1_.docx:	subject 
 	 expected: 'DealЧТО??' 
-	   ACTUAL: 'Renting'
+	   ACTUAL: 'Service'
 Contracts/3 этап по правилам/договор.2.docx:	value 
 	 expected: '55000.0' 
 	   ACTUAL: '45833.33'
@@ -81,16 +93,13 @@ Contracts/3 этап по правилам/договор.5_.docx:	value
 	   ACTUAL: '50000000.0'
 Contracts/3 этап по правилам/договор.5_.docx:	subject 
 	 expected: 'AgencyContract' 
-	   ACTUAL: 'Service'
+	   ACTUAL: 'Other'
 Contracts/3 этап по правилам/договор.6.docx:	subject 
 	 expected: 'AgencyContract' 
 	   ACTUAL: 'Service'
 Contracts/3 этап по правилам/договор.7.docx:	value 
 	 expected: '1000000.0' 
 	   ACTUAL: '0.0'
-Contracts/3 этап по правилам/договор.9.docx:	subject 
-	 expected: 'Service' 
-	   ACTUAL: 'Renting'
 Contracts/3 этап по правилам/договор.9_.docx:	value 
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
@@ -118,6 +127,9 @@ Contracts/3 этап по правилам/договор.9_.docx:	value
 Примеры документов/Обезглавленные доки/Документы ред/ДЗ Марин Бункер Новый 2015_обезл.doc:	org_2_name 
 	 expected: 'Газпром нефть' 
 	   ACTUAL: 'Газпромнефть Марин Бункер'
+Примеры документов/Обезглавленные доки/Документы ред/ДЗ Марин Бункер Новый 2015_обезл.doc:	subject 
+	 expected: 'Loans' 
+	   ACTUAL: 'Renting'
 Примеры документов/Обезглавленные доки/Документы ред/Договор № 30912.docx:	org_1_name 
 	 expected: 'Газпромнефть - ГПН' 
 	   ACTUAL: 'Газпромнефть-ГПН'
@@ -126,6 +138,9 @@ Contracts/3 этап по правилам/договор.9_.docx:	value
 	   ACTUAL: '100000.0'
 Примеры документов/Обезглавленные доки/Документы ред/Договор № 30912.docx:	subject 
 	 expected: 'Service' 
+	   ACTUAL: 'Deal'
+Примеры документов/Недвижимость/4.договор.docx:	subject 
+	 expected: 'RealEstate' 
 	   ACTUAL: 'Renting'
 Примеры документов/Недвижимость/5.договор.docx:	org_1_name 
 	 expected: 'Газпромнефть-Новосибирск (НБ)' 
@@ -136,11 +151,14 @@ Contracts/3 этап по правилам/договор.9_.docx:	value
 Примеры документов/Недвижимость/5.договор.docx:	value 
 	 expected: '7627118.64' 
 	   ACTUAL: '9000000.0'
+Примеры документов/Недвижимость/5.договор.docx:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'Renting'
+Примеры документов/Недвижимость/6.договор.doc:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'Renting'
 Примеры документов/Недвижимость/7.договор.docx:	value 
 	 expected: '8474576.27' 
 	   ACTUAL: '10000000.0'
-Примеры документов/Недвижимость/8.договор.doc:	value 
-	 expected: '847457.63' 
-	   ACTUAL: '833333.33'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	48 of 78 docs
+ERRRORS: 	54 of 78 docs
