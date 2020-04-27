@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 from joblib import dump
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
 from analyser.headers_detector import line_features
@@ -98,15 +98,17 @@ if __name__ == '__main__':
   print('Testing Features Shape:', test_features.shape)
   print('Testing Labels Shape:', test_labels.shape)
 
-  rf = RandomForestRegressor(n_estimators=150, random_state=42, min_samples_split=8)
+  # rf = RandomForestRegressor(n_estimators=150, random_state=42, min_samples_split=8)
+  rf_class = RandomForestClassifier(n_estimators=150, random_state=42, min_samples_split=8)
   # Train the model
-  rf.fit(train_features, train_labels)
+  rf_class.fit(train_features, train_labels)
 
   # Use the forest's predict method on the test data
-  predictions = rf.predict(test_features)
+  predictions = rf_class.predict(test_features)
   # # Calculate the absolute errors
   errors = abs(predictions - test_labels)
   # # Print out the mean absolute error (mae)
   print('Mean Absolute Error:', round(np.mean(errors), 4), 'degrees.')
 
-  dump(rf, os.path.join(models_path, 'rf_headers_detector_model.joblib'))
+  # dump(rf, os.path.join(models_path, 'rf_headers_detector_model.joblib'))
+  dump(rf_class, os.path.join(models_path, 'rf_headers_detector_model_classifier.joblib'))
