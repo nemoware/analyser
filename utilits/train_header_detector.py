@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import os
-import sys
-import traceback
 
 import numpy as np
 import pandas as pd
@@ -13,30 +11,22 @@ from sklearn.model_selection import train_test_split
 
 from analyser.headers_detector import line_features
 from analyser.hyperparams import models_path
-from integration.db import _get_local_mongodb_connection
+from analyser.legal_docs import PARAGRAPH_DELIMITER, LegalDocument
+from integration.db import get_mongodb_connection
 from integration.word_document_parser import WordDocParser, join_paragraphs
-from analyser.legal_docs import PARAGRAPH_DELIMITER
 
-files_dirs = [
-  # '/Users/artem/Downloads/Telegram Desktop/X0/',
-              '/Users/artem/work/nemo/goil/IN/',
-              '/Users/artem/Google Drive/GazpromOil/Protocols', '/Users/artem/Google Drive/GazpromOil/Contracts',
-              '/Users/artem/Google Drive/GazpromOil/Charters']
-# MAX_DOCxS = 50 #0.0442
-# MAX_DOCS = 150 #0.0418
-MAX_DOCS = 500 #  0.0153 degrees.
-from random import shuffle
+MAX_DOCS = 500  # 0.0153 degrees.
 
 
-def doc_line_features(contract) -> []:
-  tmap = contract.tokens_map
+def doc_line_features(legal_doc: LegalDocument) -> []:
+  tmap = legal_doc.tokens_map
   features = []
-  ln = 0
+  ln: int = 0
   _prev_features = None
-  for p in contract.paragraphs:
+  for p in legal_doc.paragraphs:
 
     header_tokens = tmap[p.header.slice]
-    print('☢️', header_tokens)
+    # print('☢️', header_tokens)
 
     header_features = line_features(tmap, p.header.span, ln, _prev_features)
     if len(header_tokens) == 1 and header_tokens[0] == '\n':
@@ -63,68 +53,25 @@ def doc_line_features(contract) -> []:
   return features
 
 
-def read_all_contracts():
-  db = _get_local_mongodb_connection()
-  collection = db['legaldocs']
-
-  wp = WordDocParser()
-  filenames=[]
-  for dir in files_dirs:
-    filenames += wp.list_filenames(dir)
-
-  shuffle(filenames)
-  print(filenames)
-
-  cnt = 0
-  failures = 0
-  _version = wp.version
-  for fn in filenames:
-
-    shortfn = fn.split('/')[-1]
-    pth = '/'.join(fn.split('/')[5:-1])
-    _doc_id = pth + '/' + shortfn
-
-    cnt += 1
-    print(cnt, fn)
-
-    res = collection.find_one({"_id": _doc_id, 'version': _version})
-    if res is None:
-      try:
-        # parse and save to DB
-        res = wp.read_doc(fn)
-
-        res['short_filename'] = shortfn
-        res['path'] = pth
-        res['_id'] = _doc_id
-        res['version'] = _version
-
-        collection.delete_one({'_id': _doc_id})
-        collection.insert_one(res)
-
-        yield res
-
-      except Exception:
-        print(f"{fn}\nException in WordDocParser code:")
-        traceback.print_exc(file=sys.stdout)
-        failures += 1
-
-    else:
-      yield res
-      # print(cnt, res["documentDate"], res["documentType"], res["documentNumber"])
-
-
-
 if __name__ == '__main__':
 
   features_dicts = []
   count = 0
 
-  for resp in read_all_contracts():
+  db = get_mongodb_connection()
+  criterion = {
+    'version': WordDocParser.version
+  }
+
+  res = db['legaldocs'].find(criterion)
+
+  for resp in res:
     for d in resp['documents']:
       doctype = d['documentType']
-      if doctype == 'CONTRACT' or doctype== 'PROTOCOL'  or doctype== 'CHARTER':
-        contract = join_paragraphs(d, resp['_id'])
-        _doc_features = doc_line_features(contract)
+      if doctype == 'CONTRACT' or doctype == 'PROTOCOL' or doctype == 'CHARTER':
+        print(resp['_id'])
+        legal_doc = join_paragraphs(d, resp['_id'])
+        _doc_features = doc_line_features(legal_doc)
         features_dicts += _doc_features
 
         count += 1
@@ -132,6 +79,7 @@ if __name__ == '__main__':
     if count > MAX_DOCS: break
 
   featuresX_data = pd.DataFrame.from_records(features_dicts)
+  print(featuresX_data.head())
 
   labels = np.array(featuresX_data['actual'])
   # Remove the labels from the features

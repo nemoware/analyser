@@ -41,10 +41,10 @@ def export_contracts():
   arr = {}
   for docs in res:
 
+    k = 0
     for doc_json in docs['documents']:
-      k = 0
+      k += 1
       if doc_json['documentType'] == 'CONTRACT':
-        k += 1
         print(docs['_id'])
         key = f"{k}-{docs['_id']}"
         arr[key] = doc_json

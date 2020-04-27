@@ -10,6 +10,7 @@ from analyser.structures import ContractSubject
 from trainsets.trainset_tools import SubjectTrainsetManager
 
 VALIDATION_SET_PROPORTION = 0.25
+
 import urllib.request
 
 from keras.models import Model
