@@ -1,14 +1,14 @@
 # origin: charter_parser.py
 from analyser.contract_agents import find_org_names
 from analyser.doc_dates import find_document_date
-
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
-  embedd_sentences, map_headlines_to_patterns, ParserWarnings, tokenize_doc_into_sentences_map
+  embedd_sentences, ParserWarnings, tokenize_doc_into_sentences_map
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
   _find_most_relevant_paragraph
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
+from analyser.sections_finder import map_headlines_to_patterns
 from analyser.structures import *
 from analyser.transaction_values import number_re
 
@@ -234,7 +234,7 @@ class CharterParser(ParsingContext):
       _pattern_name = p_mapping[0][0]
       _paragraph_id = p_mapping[0][1]
 
-      paragraph_body:SemanticTag = _charter.paragraphs[_paragraph_id].body
+      paragraph_body: SemanticTag = _charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
@@ -264,12 +264,9 @@ class CharterParser(ParsingContext):
     _charter.margin_values = margin_values
     return _charter
 
-
-
-
   def find_attributes_in_sections(self, subdoc: LegalDocumentExt, parent_org_level_tag):
 
-    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings) #dictionary
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)  # dictionary
     subject_spans = collect_subjects_spans2(subdoc, subject_attentions_map)
 
     values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
@@ -282,7 +279,7 @@ class CharterParser(ParsingContext):
     for c in subject_spans:
       united_spans.append(c)
 
-    united_spans = merge_colliding_spans(united_spans, eps=-1)#XXX: check this
+    united_spans = merge_colliding_spans(united_spans, eps=-1)  # XXX: check this
 
     constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
                                                                                parent_org_level_tag,
@@ -385,19 +382,11 @@ def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contrac
   return unique_sentence_spans
 
 
-def put_if_better(destination: dict, key, x, is_better: staticmethod):
-  if key in destination:
-    if is_better(x, destination[key]):
-      destination[key] = x
-  else:
-    destination[key] = x
-
-
 def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
         List[List[str]], List[int], List[slice]):
   indexes = []
   last_token_is_number = False
-  for i, token in enumerate( tokens):
+  for i, token in enumerate(tokens):
 
     if attention[i] > threshold and len(number_re.findall(token)) > 0:
       if not last_token_is_number:
@@ -467,6 +456,7 @@ def collect_subjects_spans(subdoc, subject_attentions_map, min_len=20):
   unique_sentence_spans = merge_colliding_spans(spans, eps=1)
 
   return unique_sentence_spans
+
 
 def collect_subjects_spans2(subdoc, subject_attentions_map, min_len=20):
   spans = []

@@ -7,7 +7,6 @@ from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
 
 
-
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
   lens = []
@@ -32,10 +31,6 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
 
 
 class AbstractEmbedder:
-
-  @abstractmethod
-  def get_embedding_tensor(self, tokenized_sentences_list):
-    raise NotImplementedError()
 
   @abstractmethod
   def embedd_tokens(self, tokens: Tokens) -> Embeddings:
@@ -98,9 +93,7 @@ class AbstractEmbedder:
     patterns_emb = []
 
     if trim_padding:
-      for i in range(len(regions)):
-        start, end = regions[i]
-
+      for i, (start, end) in enumerate(regions):
         sentence_emb = sentences_emb[i]
         pattern_emb = sentence_emb[start:end]
 

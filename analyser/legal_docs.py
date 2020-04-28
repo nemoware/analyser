@@ -6,17 +6,14 @@
 # legal_docs.py
 import datetime
 import json
-from enum import Enum
 
 from bson import json_util
 
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
-from analyser.documents import TextMap, split_sentences_into_map
-from analyser.embedding_tools import AbstractEmbedder, Embeddings
-from analyser.hyperparams import HyperParameters
-from analyser.ml_tools import SemanticTag, conditional_p_sum, \
-  FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
+from analyser.documents import split_sentences_into_map
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.ml_tools import *
 from analyser.patterns import *
 from analyser.structures import ContractTags
 from analyser.text_normalize import *
@@ -89,6 +86,9 @@ class LegalDocument:
     w['code'] = msg.name
     self.warnings.append(w)
 
+  def get_headers_as_subdocs(self):
+    return [self.subdoc_slice(p.header.as_slice()) for p in self.paragraphs]
+
   def parse(self, txt=None):
     if txt is None:
       txt = self.original_text
@@ -138,6 +138,21 @@ class LegalDocument:
 
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
+
+  def get_semantic_map(self) -> DataFrame:
+    df = DataFrame()
+    tags = self.get_tags()
+    _attention = np.zeros((len(tags), self.__len__()))
+
+    for i, t in enumerate(tags):
+      df[t.kind] = 0
+      _attention[i][t.as_slice()] = t.confidence
+
+    for i, t in enumerate(tags):
+      df[t.kind] = 0
+      df[t.kind] = _attention[i]
+
+    return df
 
   def get_tags_attention(self) -> FixedVector:
     _attention = np.zeros(self.__len__())
@@ -251,7 +266,7 @@ class LegalDocument:
           return True
     return False
 
-  def get_tag_text(self, tag: SemanticTag)->str:
+  def get_tag_text(self, tag: SemanticTag) -> str:
     return self.tokens_map.text_range(tag.span)
 
   def substr(self, tag: SemanticTag) -> str:
@@ -413,7 +428,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 
 
 def find_value_sign(txt: TextMap) -> (int, (int, int)):
-
   a = next(txt.finditer(_re_greather_then_1), None)  # не менее, не превышающую
   if a:
     return +1, a
@@ -442,7 +456,7 @@ class ContractValue:
     else:
       return [self.value, self.currency, self.parent]
 
-  def __add__(self, addon:int)->'ContractValue':
+  def __add__(self, addon: int) -> 'ContractValue':
     for t in self.as_list():
       t.offset(addon)
     return self
@@ -584,20 +598,6 @@ def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True
     stripped.append(line)
 
   return stripped
-
-
-def map_headlines_to_patterns(doc: LegalDocument,
-                              patterns_named_embeddings,
-                              elmo_embedder_default: AbstractEmbedder):
-  headers: [str] = doc.headers_as_sentences()
-
-  if not headers:
-    return []
-
-  headers_embedding = elmo_embedder_default.embedd_strings(headers)
-
-  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
-  return attribute_patternmatch_to_index(header_to_pattern_distances)
 
 
 def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:

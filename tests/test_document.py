@@ -34,7 +34,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     self.assertEqual(1, len(d.tokens))
 
   def test_analyze_contract_0(self):
-    point1 = [1, 6, 4]
+    point1 = np.random.rand(1024)
     emb = FakeEmbedder(point1)
 
     ctx = ContractParser(emb)
