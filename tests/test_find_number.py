@@ -95,6 +95,12 @@ class NumbersTestCase(unittest.TestCase):
 
     self.assertEqual(0, len(findings))
 
+  def test_exclude_powerOfAttorney(self):
+    t = '''в лице Жерара Депардье , действующего на основании доверенности №XK834/34-2 от 01-01-2021 '''
+    findings = list(re.finditer(document_number_c, t))
+
+    self.assertEqual(0, len(findings))
+
 
 if __name__ == '__main__':
   unittest.main()
