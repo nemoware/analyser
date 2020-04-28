@@ -28,3 +28,5 @@ class HyperParameters:
 
   obligations_date_pattern_threshold = 0.4
   hdbscan_cluster_proximity=0.8
+
+  headers_detector_use_regressor=False ## regressor vs classifyer

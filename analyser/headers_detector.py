@@ -3,7 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 from joblib import load
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble._forest import BaseForest
 
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap
@@ -17,10 +18,15 @@ popular_headers = list(popular_headers['text'])
 
 from analyser.hyperparams import HyperParameters
 
+if HyperParameters.headers_detector_use_regressor:
+  model_path = os.path.join(models_path, 'rf_headers_detector_model.joblib')
+else:
+  model_path = os.path.join(models_path, 'rf_headers_detector_model_classifier.joblib')
 
-def load_model() -> RandomForestRegressor:
+
+def load_model() -> RandomForestClassifier or RandomForestRegressor:
   if 'rf_model' not in globals():
-    loaded_model = load(os.path.join(models_path, 'rf_headers_detector_model.joblib'))
+    loaded_model = load(model_path)
     globals()['rf_model'] = loaded_model
   return globals()['rf_model']
 

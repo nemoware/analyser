@@ -9,8 +9,8 @@ from joblib import dump
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
-from analyser.headers_detector import line_features
-from analyser.hyperparams import models_path
+from analyser.headers_detector import line_features, model_path
+from analyser.hyperparams import models_path, HyperParameters
 from analyser.legal_docs import PARAGRAPH_DELIMITER, LegalDocument
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import WordDocParser, join_paragraphs
@@ -98,8 +98,13 @@ if __name__ == '__main__':
   print('Testing Features Shape:', test_features.shape)
   print('Testing Labels Shape:', test_labels.shape)
 
+  if HyperParameters.headers_detector_use_regressor:
+    model_class=RandomForestRegressor
+  else:
+    model_class = RandomForestClassifier
+
   # rf = RandomForestRegressor(n_estimators=150, random_state=42, min_samples_split=8)
-  rf_class = RandomForestClassifier(n_estimators=150, random_state=42, min_samples_split=8)
+  rf_class = model_class(n_estimators=150, random_state=42, min_samples_split=8)
   # Train the model
   rf_class.fit(train_features, train_labels)
 
@@ -111,4 +116,4 @@ if __name__ == '__main__':
   print('Mean Absolute Error:', round(np.mean(errors), 4), 'degrees.')
 
   # dump(rf, os.path.join(models_path, 'rf_headers_detector_model.joblib'))
-  dump(rf_class, os.path.join(models_path, 'rf_headers_detector_model_classifier.joblib'))
+  dump(rf_class, model_path)
