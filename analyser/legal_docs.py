@@ -140,6 +140,10 @@ class LegalDocument:
     return headers_as_sentences(self)
 
   def get_semantic_map(self) -> DataFrame:
+    '''
+    used in jupyter notebooks
+    :return:
+    '''
     df = DataFrame()
     tags = self.get_tags()
     _attention = np.zeros((len(tags), self.__len__()))

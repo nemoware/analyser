@@ -142,7 +142,7 @@ class SubjectTrainsetManager:
 
     if filename not in self.embeddings_cache:
       with open(filename, "rb") as pickle_in:
-        self.load = pickle.load
+        self.load = pickle.load #TODO: wtf?
         doc: LegalDocument = self.load(pickle_in)
         self.embeddings_cache[filename] = doc.embeddings
         # todo: do not overload!!

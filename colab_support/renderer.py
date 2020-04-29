@@ -429,9 +429,12 @@ def render_doc(doc, semantic_map, default_color='#eeeeee', palette: [str] or Non
   h = ''
   for p in doc.paragraphs:
     s: slice = p.body.as_slice()
+    hs: slice = p.header.as_slice()
 
-    h += f'<h3>{doc.get_tag_text(p.header)}</h3>'
+    head_html = render_token_clusters(doc.tokens[hs], clusters[hs], _pal, wieghts[hs])
+    h += f'<h3>{head_html}</h3>'
     paragraph_html = render_token_clusters(doc.tokens[s], clusters[s], _pal, wieghts[s])
     h += f'<p style="padding:0.5cm 1cm">{paragraph_html}</p>'
 
   return h
+

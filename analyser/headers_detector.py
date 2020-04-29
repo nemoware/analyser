@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from joblib import load
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.ensemble._forest import BaseForest
 
 from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import TextMap
@@ -82,7 +81,7 @@ def _onehot(x: bool or int) -> float:
     return 0.0
 
 
-def line_features(tokens_map:TextMap, line_span:(int, int), line_number:int, prev_features):
+def line_features(tokens_map: TextMap, line_span: (int, int), line_number: int, prev_features):
   tokens: Tokens = tokens_map.tokens_by_range(line_span)
   # TODO: add previous and next lines features
   txt: str = tokens_map.text_range(line_span)
