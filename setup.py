@@ -30,6 +30,7 @@ setup(
 
   install_requires=reqs,
   packages=find_namespace_packages(exclude=["tests", "notebooks"]),
+  include_package_data=True,
   classifiers=[
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
