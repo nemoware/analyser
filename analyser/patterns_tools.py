@@ -1,6 +1,7 @@
-import hdbscan
+# import hdbscan
 import pandas as pd
 from pandas import DataFrame
+from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import cosine_similarity
 
 from analyser.documents import TextMap
@@ -59,13 +60,20 @@ class CentroidPattensBuilder:
       raise AssertionError('len(selected_embeddings) != len(resulting_df)')
 
     print('clustering with HDBSCAN....')
-    clusterer = hdbscan.HDBSCAN(metric="cosine", algorithm="generic", min_cluster_size=min_cluster_size)
-    clusterer.fit(selected_embeddings.astype(np.double))
 
-    resulting_df['hdbscan'] = clusterer.labels_
-    resulting_df['hdbscan_probabilities'] = clusterer.probabilities_
+    X_as_doubles = selected_embeddings.astype(np.double)
+    Xnorm = np.linalg.norm( X_as_doubles , axis=1)
+    Xnormed = np.divide(X_as_doubles, Xnorm.reshape(Xnorm.shape[0], 1))
 
-    return 'hdbscan'
+    clusterer = DBSCAN(eps=0.5, min_samples=2, metric='euclidean').fit(Xnormed)
+
+    # clusterer = hdbscan.HDBSCAN(metric="cosine", algorithm="generic", min_cluster_size=min_cluster_size)
+    # clusterer.fit(selected_embeddings.astype(np.double))
+
+    resulting_df['dbscan'] = clusterer.labels_
+    resulting_df['dbscan_probabilities'] = clusterer.probabilities_
+
+    return 'dbscan'
 
   def calc_patterns_centroids(self, patterns_dict):
     '''
