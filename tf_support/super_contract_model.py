@@ -23,7 +23,7 @@ def structure_detection_model_001(name, features=14):
 
   _out = LSTM(FEATURES * 4, return_sequences=True, activation="sigmoid")(_out)
   _out = LSTM(FEATURES, return_sequences=True, activation='sigmoid')(_out)
-  _out = ThresholdedReLU(0.2)(_out)
+  
 
   model = Model(inputs=[input_text_emb, input_headlines], outputs=_out, name=name)
 
