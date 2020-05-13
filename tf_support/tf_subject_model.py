@@ -1,5 +1,5 @@
 # see  /notebooks/TF_subjects.ipynb
-
+import warnings
 
 from keras.layers import Conv1D, LSTM, Dense, Bidirectional, Input, Dropout
 from keras.layers import MaxPooling1D
@@ -32,7 +32,7 @@ def predict_subject(model, doc) -> FixedVector:
   _embeddings_head = doc.embeddings[:1000]
   # reshaping to batch-like shape (1, ?, 1024)
   _embeddings_head = _embeddings_head.reshape((-1, _embeddings_head.shape[-2], EMB))
-  print(_embeddings_head.shape)
+  # print(_embeddings_head.shape)
   _predictions = model.predict(_embeddings_head)
 
   return _predictions[0]
@@ -45,6 +45,7 @@ def set_conv_bi_LSTM_dropouts_training_params(dataset_manager: SubjectTrainsetMa
 
 
 def conv_bi_LSTM_dropouts_binary(name="new_model"):
+  warnings.warn('not the best model, use uber', DeprecationWarning)
   CLASSES = 43
   input_text = Input(shape=[None, EMB], dtype='float32', name="input_text_emb")
 
@@ -62,6 +63,7 @@ def conv_bi_LSTM_dropouts_binary(name="new_model"):
 
 
 def conv_biLSTM_binary_dropouts05(name="new_model"):
+  warnings.warn('not the best model, use uber', DeprecationWarning)
   CLASSES = 43
   input_text = Input(shape=[None, EMB], dtype='float32', name="input_text_emb")
 
@@ -79,6 +81,7 @@ def conv_biLSTM_binary_dropouts05(name="new_model"):
 
 
 def conv_bi_LSTM_dropouts(name="new_model") -> Model:
+  warnings.warn('not the best model, use uber', DeprecationWarning)
   '''
   Epoch 20
   loss: 0.0206 - acc: 1.0000 - val_loss: 0.3490 - val_acc: 0.9417
@@ -109,6 +112,7 @@ BEST_MODEL = conv_biLSTM_binary_dropouts05
 
 
 def load_subject_detection_trained_model() -> Model:
+  warnings.warn('not the best model, use uber', DeprecationWarning)
   final_model = BEST_MODEL(BEST_MODEL.__name__ + '_final')
   cp_name = final_model.name + '.weights'
   url = f'https://github.com/nemoware/analyser/releases/download/checkpoint.0.0.1/{cp_name}'

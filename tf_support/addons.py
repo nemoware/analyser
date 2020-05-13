@@ -1,13 +1,18 @@
+import os
+
 import keras.backend as K
 import tensorflow as tf
-from keras import activations
+from keras import activations, Model
 from keras.engine import Layer
+
+from analyser.hyperparams import models_path
 
 
 class Mag(Layer):
   """
   computes magnitudes of channels vectors. Output shape is (b, x, e) --> (b, x, 1)
   """
+
   def __init__(self, **kwargs):
     super(Mag, self).__init__(**kwargs)
     self.supports_masking = False
@@ -70,6 +75,7 @@ def sigmoid_focal_crossentropy(
   # compute the final loss and return
   return tf.reduce_sum(alpha_factor * modulating_factor * ce, axis=-1)
 
+
 def crf_nll(y_true, y_pred):
   """
   https://github.com/keras-team/keras-contrib/blob/3fc5ef709e061416f4bc8a92ca3750c824b5d2b0/keras_contrib/losses/crf_losses.py#L6
@@ -84,3 +90,22 @@ def crf_nll(y_true, y_pred):
   mask = crf._inbound_nodes[idx].input_masks[0]
   nloglik = crf.get_negative_log_likelihood(y_true, X, mask)
   return activations.relu(nloglik)
+
+
+def init_model(model_factory_fn, model_name_override=None, weights_file_override=None, verbose=0) -> Model:
+  model_name = model_factory_fn.__name__
+  if model_name_override is not None:
+    model_name = model_name_override
+
+  model = model_factory_fn(model_name)
+  model.name = model_name
+  if verbose > 1:
+    model.summary()
+
+  ch_fn = os.path.join(models_path, model_name + ".weights")
+  if weights_file_override is not None:
+    ch_fn = os.path.join(models_path, weights_file_override + ".weights")
+
+  model.load_weights(ch_fn)
+
+  return model

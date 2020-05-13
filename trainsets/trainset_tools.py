@@ -155,6 +155,7 @@ class SubjectTrainsetManager:
     return self.embeddings_cache[filename]
 
   def get_embeddings(self, filename: str, subj: str, randomize=False):
+    warnings.warn('use just get_embeddings_raw& this is noisy', DeprecationWarning)
     embedding = self.get_embeddings_raw(filename)
 
     if randomize:
