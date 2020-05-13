@@ -5,6 +5,20 @@ from keras.layers import concatenate
 from analyser.headers_detector import TOKEN_FEATURES
 from tf_support.addons import sigmoid_focal_crossentropy, init_model
 
+seq_labels_contract_level_0 = [
+  'date', 'number',
+  'org-1-name', 'org-1-type', 'org-1-alias',
+  'org-2-name', 'org-2-type', 'org-2-alias',
+  'value', 'currency', 'sign'
+]
+
+seq_labels_contract_level_1 = [
+  'headline_h1',
+  'subject',
+  '_reserved'
+]
+
+seq_labels_contract = seq_labels_contract_level_1 + seq_labels_contract_level_0
 
 def structure_detection_model_001(name, features=14, embeddings_dim=1024):
   EMB = embeddings_dim
