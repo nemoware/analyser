@@ -21,7 +21,7 @@ class TrainsetBalancer:
 
   def get_indices_split(self, df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
           [int], [int]):
-
+    random.seed(42)
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
     subject_bags = {key: [] for key in cat_count.index}
@@ -47,10 +47,17 @@ class TrainsetBalancer:
     for subj_code in subject_bags:
       bag = subject_bags[subj_code]
       split_index: int = int(len(bag) * test_proportion)
-      # print(split_index)
 
       train_indices += bag[split_index:]
       test_indices += bag[:split_index]
+
+    #remove instesection
+    intersection = np.intersect1d(test_indices, train_indices)
+    test_indices = [e for e in test_indices if e not in intersection]
+
+    # shuffle
+    random.shuffle(test_indices)
+    random.shuffle(train_indices)
 
     return train_indices, test_indices
 
@@ -96,7 +103,6 @@ class SubjectTrainsetManager:
 
   @staticmethod
   def balance_trainset(trainset_dataframe: DataFrame):
-
     tb = TrainsetBalancer()
     return tb.get_indices_split(trainset_dataframe, 'subject')
 
@@ -142,12 +148,12 @@ class SubjectTrainsetManager:
   def get_embeddings_raw(self, _filename):
     # TODO:::
     filename = _filename
-    if self.pickle_resolver: ## unit tests hack
+    if self.pickle_resolver:  ## unit tests hack
       filename = self.pickle_resolver(_filename)
 
     if filename not in self.embeddings_cache:
       with open(filename, "rb") as pickle_in:
-        self.load = pickle.load #TODO: wtf?
+        self.load = pickle.load  # TODO: wtf?
         doc: LegalDocument = self.load(pickle_in)
         self.embeddings_cache[filename] = doc.embeddings
         # todo: do not overload!!
@@ -169,7 +175,6 @@ class SubjectTrainsetManager:
     warnings.warn('use pre-selected real doc outlies', DeprecationWarning)
     label = self.subject_name_1hot_map['Other']
     _mode = np.random.choice([1, 2, 3, 4])
-
 
     if _mode == 1:
       return emb * -1, label
@@ -269,8 +274,8 @@ class SubjectTrainsetManager:
     print(f'new len, {len(self.trainset_rows)}')
     return duplicates
 
-
     # pass
+
 
 if __name__ == '__main__':
   try_generator = False
@@ -279,9 +284,9 @@ if __name__ == '__main__':
   tsm: SubjectTrainsetManager = SubjectTrainsetManager(fn)
   # tsm.remove_duplicate_docs()
 
-
   if try_generator:
-    tsm.pickle_resolver = lambda f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
+    tsm.pickle_resolver = lambda \
+      f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
 
     gen = tsm.get_generator(batch_size=50, all_indices=[0, 1], randomize=True)
 

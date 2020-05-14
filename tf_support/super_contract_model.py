@@ -46,6 +46,21 @@ def structure_detection_model_001(name, features=14, embeddings_dim=1024):
 
 
 def uber_detection_model_001(name):
+  """
+  Evaluation:
+  > 0.0030140 	loss
+  > 0.0100294 	O1_tagging_loss
+  > 0.0059756 	O2_subject_loss
+  > 0.0309147 	O1_tagging_kullback_leibler_divergence
+  > 0.0008957 	O1_tagging_mse
+  > 0.0041201 	O1_tagging_binary_crossentropy
+  > 0.1952079 	O2_subject_kullback_leibler_divergence
+  > 0.0006385 	O2_subject_mse
+  > 0.0059756 	O2_subject_binary_crossentropy
+
+  :param name:
+  :return:
+  """
   CLASSES = 43
   FEATURES = 14
 

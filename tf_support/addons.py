@@ -17,7 +17,7 @@ class Mag(Layer):
     super(Mag, self).__init__(**kwargs)
     self.supports_masking = False
 
-  def call(self, inputs):
+  def call(self, inputs, **kwargs):
     _sum = K.sum(K.square(inputs), axis=-1)
     return K.expand_dims(K.sqrt(_sum), -1)
 
