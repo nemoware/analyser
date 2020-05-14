@@ -691,7 +691,7 @@ def estimate_subsidiary_name_match_min_jaro_similarity():
         similarity = compare_masked_strings(name1, name2, [])
         if similarity > top_similarity:
           top_similarity = similarity
-          print(top_similarity, name1, name2)
+          # print(top_similarity, name1, name2)
 
   return top_similarity
 
