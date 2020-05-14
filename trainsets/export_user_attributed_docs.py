@@ -56,9 +56,9 @@ def export_user_attributed_docs():
 
 
 if __name__ == '__main__':
-  # os.environ['GPN_DB_NAME'] = 'gpn'
-  # os.environ['GPN_DB_HOST'] = '192.168.10.36'
-  # os.environ['GPN_DB_PORT'] = '27017'
+  os.environ['GPN_DB_NAME'] = 'gpn'
+  os.environ['GPN_DB_HOST'] = '192.168.10.36'
+  os.environ['GPN_DB_PORT'] = '27017'
   db = get_mongodb_connection()
 
   export_user_attributed_docs()
