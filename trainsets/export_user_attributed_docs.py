@@ -1,3 +1,7 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# coding=utf-8
+
 import json
 import os
 
@@ -19,7 +23,7 @@ def export_docs(res):
     arr.append(d)
     print(k, d['_id'])
 
-  with open('exported_docs.json', 'w') as outfile:
+  with open('exported_docs.json', 'w', encoding='utf-8') as outfile:
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
 
@@ -52,9 +56,9 @@ def export_user_attributed_docs():
 
 
 if __name__ == '__main__':
-  os.environ['GPN_DB_NAME'] = 'gpn'
-  os.environ['GPN_DB_HOST'] = '192.168.10.36'
-  os.environ['GPN_DB_PORT'] = '27017'
+  # os.environ['GPN_DB_NAME'] = 'gpn'
+  # os.environ['GPN_DB_HOST'] = '192.168.10.36'
+  # os.environ['GPN_DB_PORT'] = '27017'
   db = get_mongodb_connection()
 
   export_user_attributed_docs()
