@@ -30,7 +30,7 @@ def get_docs():
   documents_collection = db['documents']
   print('linking documents collection: DONE')
 
-  query = {"user.attributes.date": {"$ne": None}}
+  query = {"user.attributes": {"$ne": None}}
 
   print('running DB query')
   res = documents_collection.find(query)
@@ -41,7 +41,7 @@ def get_docs():
   for doc in res:
     docs.append(doc)
 
-  print("number of documents:", len(docs))
+  print("---- Number of documents:", len(docs))
 
   return docs
 

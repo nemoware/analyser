@@ -684,7 +684,7 @@ def estimate_subsidiary_name_match_min_jaro_similarity():
   all_do_names_ = list(all_do_names())
   all_do_names_fixed = []
   for name1 in all_do_names_:
-    all_do_names_fixed.append(name1.replace('»', '').replace('«', '')).lower()
+    all_do_names_fixed.append(name1.replace('»', '').replace('«', '').lower())
 
   for name1 in all_do_names_fixed:
     for name2 in all_do_names_fixed:
@@ -694,7 +694,6 @@ def estimate_subsidiary_name_match_min_jaro_similarity():
         similarity = compare_masked_strings(name1, name2, [])
         if similarity > top_similarity:
           top_similarity = similarity
-          print(top_similarity, name1, name2)
 
   return top_similarity
 
