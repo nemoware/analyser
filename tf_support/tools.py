@@ -23,7 +23,7 @@ def get_lr_epoch_from_log(model_name, log_path) -> (float, int):
 class KerasTrainingContext:
 
   def __init__(self, checkpoints_path):
-    self.HISTORIES = []
+    self.HISTORIES = {}
     self.model_checkpoint_path = checkpoints_path
     self.EVALUATE_ONLY = True
     self.EPOCHS = 18
