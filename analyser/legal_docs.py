@@ -139,20 +139,25 @@ class LegalDocument:
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
-  def get_semantic_map(self) -> DataFrame:
+  def get_semantic_map(self, confidence_override=None) -> DataFrame:
     '''
     used in jupyter notebooks
     :return:
     '''
+
+    _tags = self.get_tags()
+    _attention = np.zeros((len(_tags), self.__len__()))
+
     df = DataFrame()
-    tags = self.get_tags()
-    _attention = np.zeros((len(tags), self.__len__()))
-
-    for i, t in enumerate(tags):
+    for i, t in enumerate(_tags):
       df[t.kind] = 0
-      _attention[i][t.as_slice()] = t.confidence
+      _conf = t.confidence
+      if confidence_override is not None:
+        _conf = confidence_override
 
-    for i, t in enumerate(tags):
+      _attention[i][t.as_slice()] = _conf
+
+    for i, t in enumerate(_tags):
       df[t.kind] = 0
       df[t.kind] = _attention[i]
 

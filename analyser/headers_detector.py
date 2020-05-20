@@ -81,6 +81,47 @@ def _onehot(x: bool or int) -> float:
     return 0.0
 
 
+def _has_symbols(txt: str, strange_symbols) -> int:
+  for c in strange_symbols:
+    if txt.count(c) > 0:
+      return 1.
+  return 0.
+
+
+def get_token_features(token: str):
+  features = {
+    'isdigit': _onehot(token.isdigit()),
+    'istitle': _onehot(token.istitle()),
+    'nl': _onehot(token == '\n' or token == '\r'),
+
+    'has_underscore': _has_symbols(token, '_'),
+
+    'isupper': _onehot(token.isupper()),
+    'has_quotes': _has_symbols(token, '«»"\'"'),
+    'has_trash': _has_symbols(token, '[]$@+^&(){}<>'),
+    'has_syntax': _has_symbols(token, '!.:;,'),
+
+    'isalpha': _onehot(token.isalpha()),
+    'len_lt3': _onehot(len(token) < 3),
+    'len_lt2': _onehot(len(token) < 2),
+    'islower': _onehot(token.islower()),
+    'isprintable': _onehot(token.isprintable()),
+
+  }
+  return features
+
+
+def get_tokens_features(tokens):
+  doc_features = []
+  for t in tokens:
+    _features = get_token_features(t)
+    doc_features.append(_features)
+
+  doc_featuresX_data = pd.DataFrame.from_records(doc_features)
+  doc_featuresX_data['_reserved'] = 0.0
+  return doc_featuresX_data
+
+
 def line_features(tokens_map: TextMap, line_span: (int, int), line_number: int, prev_features):
   tokens: Tokens = tokens_map.tokens_by_range(line_span)
   # TODO: add previous and next lines features
@@ -150,3 +191,6 @@ def _count_strange_symbols(txt, strange_symbols) -> int:
   for c in strange_symbols:
     res += txt.count(c)
   return res
+
+
+TOKEN_FEATURES = 2 + len(get_token_features("a"))

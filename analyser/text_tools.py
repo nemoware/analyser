@@ -12,6 +12,7 @@ import scipy.spatial.distance as distance
 from numpy.core.multiarray import ndarray
 from pyjarowinkler import distance as jaro
 
+
 Tokens = List[str] or ndarray
 
 
@@ -420,3 +421,25 @@ def compare_masked_strings(a, b, masked_substrings):
 
   # print(a1, '--', b1)
   return jaro.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
+
+
+def find_top_spans(paragraph_attention_vector, threshold=0.5, gap=2) -> []:
+  result = []
+  top_indices = [i for i, v in enumerate(paragraph_attention_vector) if v > threshold]
+  if len(top_indices) == 0:
+    return result
+
+  span_start = top_indices[0]
+
+  i_prev = span_start
+
+  for _p, i in enumerate(top_indices):
+    if i - i_prev > gap:  # break
+      sp = (span_start, i_prev + 1)
+      result.append(sp)
+      span_start = i
+
+    i_prev = i
+
+  result.append((span_start, top_indices[-1] + 1))
+  return result

@@ -1,5 +1,6 @@
 import pickle
 import random
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -20,7 +21,7 @@ class TrainsetBalancer:
 
   def get_indices_split(self, df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
           [int], [int]):
-
+    random.seed(42)
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
     subject_bags = {key: [] for key in cat_count.index}
@@ -46,10 +47,17 @@ class TrainsetBalancer:
     for subj_code in subject_bags:
       bag = subject_bags[subj_code]
       split_index: int = int(len(bag) * test_proportion)
-      # print(split_index)
 
       train_indices += bag[split_index:]
       test_indices += bag[:split_index]
+
+    #remove instesection
+    intersection = np.intersect1d(test_indices, train_indices)
+    test_indices = [e for e in test_indices if e not in intersection]
+
+    # shuffle
+    random.shuffle(test_indices)
+    random.shuffle(train_indices)
 
     return train_indices, test_indices
 
@@ -82,10 +90,12 @@ class SubjectTrainsetManager:
 
     self.csv_path = trainset_description_csv
 
-    self.picle_relosver = None  # hack for tests
+    self.pickle_resolver = None  # hack for tests
 
     # -------
     self.trainset_rows: DataFrame = self._read_trainset_meta()
+    self.remove_duplicate_docs()
+
     self.train_indices, self.test_indices = self.balance_trainset(self.trainset_rows)
     self.subject_name_1hot_map = self._encode_1_hot()
 
@@ -93,7 +103,6 @@ class SubjectTrainsetManager:
 
   @staticmethod
   def balance_trainset(trainset_dataframe: DataFrame):
-
     tb = TrainsetBalancer()
     return tb.get_indices_split(trainset_dataframe, 'subject')
 
@@ -124,12 +133,14 @@ class SubjectTrainsetManager:
     return subject_name_1hot_map
 
   def noise_embedding(self, emb, var=0.1):
+    warnings.warn('must be noised by keras model', DeprecationWarning)
     _mean = 0
     sigma = var ** 0.5
     gauss = np.random.normal(_mean, sigma, emb.shape)
     return emb + gauss
 
   def _noise_amount(self, subj):
+    warnings.warn('must be noised by keras model', DeprecationWarning)
     subj_popularity = self.subj_count[subj]
     max_pop = max(self.subj_count.values)
     return 1 - subj_popularity / max_pop
@@ -137,12 +148,12 @@ class SubjectTrainsetManager:
   def get_embeddings_raw(self, _filename):
     # TODO:::
     filename = _filename
-    if self.picle_relosver:
-      filename = self.picle_relosver(_filename)
+    if self.pickle_resolver:  ## unit tests hack
+      filename = self.pickle_resolver(_filename)
 
     if filename not in self.embeddings_cache:
       with open(filename, "rb") as pickle_in:
-        self.load = pickle.load #TODO: wtf?
+        self.load = pickle.load  # TODO: wtf?
         doc: LegalDocument = self.load(pickle_in)
         self.embeddings_cache[filename] = doc.embeddings
         # todo: do not overload!!
@@ -150,6 +161,7 @@ class SubjectTrainsetManager:
     return self.embeddings_cache[filename]
 
   def get_embeddings(self, filename: str, subj: str, randomize=False):
+    warnings.warn('use just get_embeddings_raw& this is noisy', DeprecationWarning)
     embedding = self.get_embeddings_raw(filename)
 
     if randomize:
@@ -160,10 +172,9 @@ class SubjectTrainsetManager:
     return embedding
 
   def make_fake_outlier(self, emb):
+    warnings.warn('use pre-selected real doc outlies', DeprecationWarning)
     label = self.subject_name_1hot_map['Other']
     _mode = np.random.choice([1, 2, 3, 4])
-
-    # print('make_fake_outlier mode', _mode)
 
     if _mode == 1:
       return emb * -1, label
@@ -240,22 +251,49 @@ class SubjectTrainsetManager:
 
       yield (batch_x, batch_y)
 
+  def remove_duplicate_docs(self, len_threshold=5):
+    print(f'sorting by len, {len(self.trainset_rows)}')
+    sorted_by_len = self.trainset_rows.sort_values(['confidence', 'len'])
+    # sorted_by_len = sorted_by_len [ ['confidence', 'len'] ]
+
+    duplicates = []
+    last_row = sorted_by_len.iloc[0]
+    for i in range(1, len(sorted_by_len)):
+      row = sorted_by_len.iloc[i]
+      deltalen = abs(row.len - last_row.len)
+      if deltalen < len_threshold:
+        # print(f'{row.header} is similar to {last_row.header}')
+        duplicates.append(row._id)
+
+      last_row = row
+
+    cleaned_up = self.trainset_rows[~self.trainset_rows['_id'].isin(duplicates)]
+    cleaned_up = cleaned_up.sort_values(['_id'])
+    self.trainset_rows = cleaned_up
+
+    print(f'new len, {len(self.trainset_rows)}')
+    return duplicates
+
+    # pass
+
 
 if __name__ == '__main__':
-  # print(sys.version)
-
-  pickle_resolver = lambda f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'
+  try_generator = False
 
   fn = '/Users/artem/Google Drive/GazpromOil/trainsets/meta_info/contracts.subjects-manually-filtered.csv'
   tsm: SubjectTrainsetManager = SubjectTrainsetManager(fn)
-  tsm.picle_relosver = pickle_resolver  # hack for tests
-  # for k, v in tsm.subject_name_1hot_map.items():
-  #   print(k, v)
-  gen = tsm.get_generator(batch_size=50, all_indices=[0, 1], randomize=True)
-  x, y = next(gen)
-  print('X->Y :', x.shape, '-->', y.shape)
-  print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
-  print("number_of_classes", tsm.number_of_classes)
+  # tsm.remove_duplicate_docs()
+
+  if try_generator:
+    tsm.pickle_resolver = lambda \
+      f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
+
+    gen = tsm.get_generator(batch_size=50, all_indices=[0, 1], randomize=True)
+
+    x, y = next(gen)
+    print('X->Y :', x.shape, '-->', y.shape)
+    print("subject_bags", len(tsm.train_indices), len(tsm.test_indices))
+    print("number_of_classes", tsm.number_of_classes)
 
   # model = load_subject_detection_trained_model()
 
