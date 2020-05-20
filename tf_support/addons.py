@@ -92,7 +92,7 @@ def crf_nll(y_true, y_pred):
   return activations.relu(nloglik)
 
 
-def init_model(model_factory_fn, model_name_override=None, weights_file_override=None, verbose=0) -> Model:
+def init_model(model_factory_fn, model_name_override=None, weights_file_override=None, verbose=0, trainable=True) -> Model:
   model_name = model_factory_fn.__name__
   if model_name_override is not None:
     model_name = model_name_override
@@ -107,5 +107,10 @@ def init_model(model_factory_fn, model_name_override=None, weights_file_override
     ch_fn = os.path.join(models_path, weights_file_override + ".weights")
 
   model.load_weights(ch_fn)
+
+  if not trainable:
+    model.trainable=False
+    for l in model.layers:
+      l.trainable=False
 
   return model
