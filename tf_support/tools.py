@@ -5,21 +5,6 @@ import pandas as pd
 from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 
 
-def get_lr_epoch_from_log(model_name, log_path) -> (float, int):
-  log_csv = os.path.join(log_path, model_name + '.log.csv')
-  try:
-    _log = pd.read_csv(log_csv)
-    lr = float(_log.iloc[-1]['lr'])
-    epoch = int(_log.iloc[-1]['epoch'])
-    epoch = max(epoch, len(_log))
-  except:
-    print(f'log is not available {log_csv}')
-    lr = None
-    epoch = 0
-
-  return lr, epoch
-
-
 class KerasTrainingContext:
 
   def __init__(self, checkpoints_path, session_index=0):
@@ -66,6 +51,24 @@ class KerasTrainingContext:
     stats.to_csv('stats.csv')
     return stats
 
+  def get_log(self, model_name) -> pd.DataFrame:
+    _log_fn = f'{model_name}.{self.session_index}.log.csv'
+    log_csv = os.path.join(self.model_checkpoint_path, _log_fn)
+    try:
+      return pd.read_csv(log_csv)
+    except:
+      print(f'log is not available {log_csv}')
+
+  def get_lr_epoch_from_log(self, model_name) -> (float, int):
+    _log = self.get_log(model_name)
+    if _log is not None:
+      lr = float(_log.iloc[-1]['lr'])
+      epoch = int(_log.iloc[-1]['epoch'])
+      epoch = max(epoch, len(_log))
+      return lr, epoch
+    else:
+      return None, 1
+
   def train_and_evaluate_model(self, model, generator, test_generator):
     if self.EVALUATE_ONLY:
       print(f'training skipped EVALUATE_ONLY = {self.EVALUATE_ONLY}')
@@ -85,8 +88,7 @@ class KerasTrainingContext:
                                          monitor='val_loss', mode='min', save_best_only=True, save_weights_only=True,
                                          verbose=1)
 
-    lr, epoch = get_lr_epoch_from_log(model.name, self.model_checkpoint_path)
-
+    lr, epoch = self.get_lr_epoch_from_log(model.name)
     print(f'... ===> continue: lr:{lr} \t epoch:{epoch} ')
 
     if lr is not None:
