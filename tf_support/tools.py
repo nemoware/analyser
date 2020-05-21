@@ -22,7 +22,8 @@ def get_lr_epoch_from_log(model_name, log_path) -> (float, int):
 
 class KerasTrainingContext:
 
-  def __init__(self, checkpoints_path):
+  def __init__(self, checkpoints_path, session_index=0):
+    self.session_index = session_index
     self.HISTORIES = {}
     self.model_checkpoint_path = checkpoints_path
     self.EVALUATE_ONLY = True
@@ -72,8 +73,9 @@ class KerasTrainingContext:
 
     print(f'model.name == {model.name}')
 
-    _logger1 = CSVLogger(os.path.join(self.model_checkpoint_path, model.name + '.log.csv'), separator=',', append=True)
-    _logger2 = CSVLogger(model.name + '.log.csv', separator=',', append=True)
+    _log_fn = f'{model.name}.{self.session_index}.log.csv'
+    _logger1 = CSVLogger(os.path.join(self.model_checkpoint_path, _log_fn), separator=',', append=True)
+    _logger2 = CSVLogger(_log_fn, separator=',', append=True)
 
     # checkpoint = ModelCheckpoint(os.path.join(self.model_checkpoint_path, model.name),
     #                              monitor='val_loss', mode='min', save_best_only=True,
