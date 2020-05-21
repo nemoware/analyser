@@ -3,7 +3,8 @@ from keras.layers import Input, Conv1D, Dropout, LSTM, Bidirectional, Dense, Max
 from keras.layers import concatenate
 
 from analyser.headers_detector import TOKEN_FEATURES
-from tf_support.addons import sigmoid_focal_crossentropy, init_model
+from tf_support.addons import sigmoid_focal_crossentropy
+from tf_support.tools import KerasTrainingContext
 
 seq_labels_contract_level_0 = [
   'date', 'number',
@@ -64,7 +65,8 @@ def uber_detection_model_001(name):
   CLASSES = 43
   FEATURES = 14
 
-  model_001 = init_model(structure_detection_model_001)
+  ctx = KerasTrainingContext()
+  model_001 = ctx.init_model(structure_detection_model_001)
 
   # BASE
   base_model = model_001.get_layer(name='embedding_reduced').output
@@ -96,4 +98,5 @@ def uber_detection_model_001(name):
 
 
 if __name__ == '__main__':
-  init_model(uber_detection_model_001, verbose=2)
+  ctx = KerasTrainingContext()
+  ctx.init_model(uber_detection_model_001, verbose=2)

@@ -7,9 +7,10 @@ import unittest
 
 import numpy as np
 
-from tf_support.addons import init_model
+
 from tf_support.super_contract_model import uber_detection_model_001
 from tf_support.tf_subject_model import load_subject_detection_trained_model
+from tf_support.tools import KerasTrainingContext
 
 
 class TestLoadTfModel(unittest.TestCase):
@@ -23,7 +24,8 @@ class TestLoadTfModel(unittest.TestCase):
     print(v)
 
   def test_load_uber_model_001(self):
-    model = init_model(uber_detection_model_001, verbose=2)
+    ctx = KerasTrainingContext()
+    model = ctx.init_model(uber_detection_model_001, verbose=2)
     self.assertIsNotNone(model)
 
     fake_emb = np.zeros((1, 100, 1024))

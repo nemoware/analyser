@@ -5,10 +5,12 @@ import keras.backend as K
 import pandas as pd
 from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 
+from analyser.hyperparams import models_path
+
 
 class KerasTrainingContext:
 
-  def __init__(self, checkpoints_path, session_index=0):
+  def __init__(self, checkpoints_path=models_path, session_index=0):
     self.session_index = session_index
     self.HISTORIES = {}
     self.model_checkpoint_path = checkpoints_path
