@@ -14,6 +14,7 @@ class ElmoEmbedder(AbstractEmbedder):
 
   @staticmethod
   def get_instance(layer):
+    global _instances
     if layer not in _instances:
       e = ElmoEmbedder(layer)
       _instances[layer] = e
