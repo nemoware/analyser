@@ -29,7 +29,7 @@ class BertEmbedder(AbstractEmbedder):
     self.tokenizer = bert.bert_tokenization.FullTokenizer(self.vocab_file, self.do_lower_case)
 
   def embedd_tokenized_sentences(self, tokenized_sentences):
-    max_seq_length: int = max(tokenized_sentences, key=len)
+    max_seq_length: int = len(max(tokenized_sentences, key=len))
 
     print('max_seq_length=', max_seq_length, 'sentences=', len(tokenized_sentences))
     input_ids_, input_masks_, input_segments_ = self.encode_tokens_for_embedding(tokenized_sentences, max_seq_length)
