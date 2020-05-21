@@ -28,7 +28,6 @@ class KerasTrainingContext:
     self.model_checkpoint_path = checkpoints_path
     self.EVALUATE_ONLY = True
     self.EPOCHS = 18
-    self.RESET_HISTORY = False
 
     self.validation_steps = 1
     self.steps_per_epoch = 1
@@ -87,11 +86,8 @@ class KerasTrainingContext:
                                          verbose=1)
 
     lr, epoch = get_lr_epoch_from_log(model.name, self.model_checkpoint_path)
-    if self.RESET_HISTORY:
-      lr = None
-      epoch = 1
 
-    print(f'continue: lr:{lr} \t epoch:{epoch} \t self.RESET_HISTORY={self.RESET_HISTORY}')
+    print(f'... ===> continue: lr:{lr} \t epoch:{epoch} ')
 
     if lr is not None:
       K.set_value(model.optimizer.lr, lr)
