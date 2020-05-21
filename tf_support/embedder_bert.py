@@ -1,10 +1,13 @@
 import bert
-import keras
+
 import tensorflow_hub as hub
-from keras import layers
+
 
 from analyser.embedding_tools import AbstractEmbedder
- 
+
+from tensorflow import keras
+from tensorflow.keras import layers
+
 b_instance = None
 
 
