@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import keras.backend as K
 import pandas as pd
@@ -68,6 +69,34 @@ class KerasTrainingContext:
       return lr, epoch
     else:
       return None, 1
+
+  def init_model(self, model_factory_fn, model_name_override=None, weights_file_override=None,
+                 verbose=0,
+                 trainable=True):
+    model_name = model_factory_fn.__name__
+    if model_name_override is not None:
+      model_name = model_name_override
+
+    model = model_factory_fn(model_name)
+    model.name = model_name
+    if verbose > 1:
+      model.summary()
+
+    ch_fn = os.path.join(self.model_checkpoint_path, model_name + ".weights")
+    if weights_file_override is not None:
+      ch_fn = os.path.join(self.model_checkpoint_path, weights_file_override + ".weights")
+
+    try:
+      model.load_weights(ch_fn)
+    except:
+      warnings.warn('cannot load ' + model_name + " from " + ch_fn)
+
+    if not trainable:
+      model.trainable = False
+      for l in model.layers:
+        l.trainable = False
+
+    return model
 
   def train_and_evaluate_model(self, model, generator, test_generator):
     if self.EVALUATE_ONLY:
