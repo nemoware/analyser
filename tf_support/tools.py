@@ -16,7 +16,7 @@ class KerasTrainingContext:
     self.model_checkpoint_path = checkpoints_path
     self.EVALUATE_ONLY = True
     self.EPOCHS = 18
-
+    self.trained_models = {}
     self.validation_steps = 1
     self.steps_per_epoch = 1
     self.reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=5, min_lr=1E-6, verbose=1)
@@ -125,6 +125,7 @@ class KerasTrainingContext:
     if lr is not None:
       K.set_value(model.optimizer.lr, lr)
 
+    self.trained_models[model.name] = model.name
     history = model.fit_generator(
       generator=generator,
       epochs=self.EPOCHS,
