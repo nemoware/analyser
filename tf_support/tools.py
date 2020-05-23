@@ -67,10 +67,10 @@ class KerasTrainingContext:
     if _log is not None:
       lr = float(_log.iloc[-1]['lr'])
       epoch = int(_log.iloc[-1]['epoch'])
-      epoch = max(epoch, len(_log))
+      epoch = max(epoch, len(_log)) + 1
       return lr, epoch
     else:
-      return None, 1
+      return None, 0
 
   def init_model(self, model_factory_fn, model_name_override=None, weights_file_override=None,
                  verbose=0,
@@ -101,11 +101,13 @@ class KerasTrainingContext:
     return model
 
   def train_and_evaluate_model(self, model, generator, test_generator):
+    print(f'model.name == {model.name}')
+    self.trained_models[model.name] = model.name
     if self.EVALUATE_ONLY:
       print(f'training skipped EVALUATE_ONLY = {self.EVALUATE_ONLY}')
       return
 
-    print(f'model.name == {model.name}')
+
 
     _log_fn = f'{model.name}.{self.session_index}.log.csv'
     _logger1 = CSVLogger(os.path.join(self.model_checkpoint_path, _log_fn), separator=',', append=True)
@@ -125,7 +127,7 @@ class KerasTrainingContext:
     if lr is not None:
       K.set_value(model.optimizer.lr, lr)
 
-    self.trained_models[model.name] = model.name
+
     history = model.fit_generator(
       generator=generator,
       epochs=self.EPOCHS,
