@@ -16,7 +16,13 @@ with open("README.md", "r") as fh:
 install_reqs = parse_requirements('requirements.txt', session='hack')
 
 # reqs is a list of requirement
-reqs = [str(ir.requirement) for ir in install_reqs]
+reqs = []
+for ir in install_reqs:
+  if 'rec' in ir.__dict__:
+    reqs.append(str(ir.req))
+  else:
+    reqs.append(str(ir.requirement))
+
 
 setup(
   name="nemoware-analyzer",
