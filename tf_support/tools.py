@@ -74,12 +74,12 @@ class KerasTrainingContext:
 
   def init_model(self, model_factory_fn, model_name_override=None, weights_file_override=None,
                  verbose=0,
-                 trainable=True):
+                 trainable=True, trained=False):
     model_name = model_factory_fn.__name__
     if model_name_override is not None:
       model_name = model_name_override
 
-    model = model_factory_fn(model_name)
+    model = model_factory_fn(name=model_name, ctx=self)
     model.name = model_name
     if verbose > 1:
       model.summary()
@@ -91,7 +91,10 @@ class KerasTrainingContext:
     try:
       model.load_weights(ch_fn)
     except:
-      warnings.warn('cannot load ' + model_name + " from " + ch_fn)
+      msg=f'cannot load  {model_name} from  {ch_fn}'
+      warnings.warn(msg)
+      if trained:
+        raise FileExistsError(msg)
 
     if not trainable:
       model.trainable = False
