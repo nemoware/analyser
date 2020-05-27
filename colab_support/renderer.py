@@ -441,7 +441,7 @@ def render_doc(doc, semantic_map, default_color='#eeeeee', palette: [str] or Non
   return h
 
 
-def plot_embedding(matrix, title=None, width=25, height=6, ):
+def plot_embedding(matrix, title=None, width=25, height=6 ):
   mt = matrix.T
   with sns.axes_style("white"):
     plt.figure(figsize=(width, height))

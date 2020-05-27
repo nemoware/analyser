@@ -51,7 +51,7 @@ class TrainsetBalancer:
       train_indices += bag[split_index:]
       test_indices += bag[:split_index]
 
-    #remove instesection
+    # remove instesection
     intersection = np.intersect1d(test_indices, train_indices)
     test_indices = [e for e in test_indices if e not in intersection]
 
@@ -212,7 +212,8 @@ class SubjectTrainsetManager:
 
       maxlen = 1000  # random.choice([700, 800, 900, 1000, 1100])
       batch_y = np.array(batch_output)
-      batch_x = np.array(pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post')).reshape(
+      batch_x = np.array(
+        pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post', dtype='float32')).reshape(
         (batch_size, maxlen, 1024))
 
       yield (batch_x, batch_y)
@@ -245,7 +246,8 @@ class SubjectTrainsetManager:
       # batch_x = np.array(batch_input)
       # TODO: "randomize" MAX_SEQUENCE_LENGTH
       maxlen = random.choice([700, 800, 900, 1000, 1100])
-      batch_x = np.array(pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post')).reshape(
+      batch_x = np.array(
+        pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post', dtype='float32')).reshape(
         (batch_size, maxlen, 1024))
       batch_y = np.array(batch_output)
 
@@ -286,7 +288,7 @@ if __name__ == '__main__':
 
   if try_generator:
     tsm.pickle_resolver = lambda \
-      f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
+        f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
 
     gen = tsm.get_generator(batch_size=50, all_indices=[0, 1], randomize=True)
 
