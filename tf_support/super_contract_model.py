@@ -143,11 +143,10 @@ def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN
   _out = LSTM(FEATURES, return_sequences=True, activation='sigmoid', name='O1_tagging')(_out)
 
   # OUT 2: subject detection
-  #
   pool_size = 2
-  _out2 = MaxPooling1D(pool_size=pool_size, name='emotions')(_out_d)
-  _out_mp = MaxPooling1D(pool_size=pool_size, name='insights')(_out)
-  _out2 = concatenate([_out2, _out_mp], axis=-1, name='bipolar_disorder')
+  emotions = MaxPooling1D(pool_size=pool_size, name='emotions')(_out_d)
+  insights = MaxPooling1D(pool_size=pool_size, name='insights')(_out)
+  _out2 = concatenate([emotions, insights], axis=-1, name='bipolar_disorder')
   _out2 = Dropout(0.3, name='alzheimer_3')(_out2)
   _out2 = Bidirectional(LSTM(16, return_sequences=False, name='narcissisism'), name='self_reflection_2')(_out2)
   _out2 = Dropout(0.1, name='alzheimer_1')(_out2)
@@ -155,7 +154,37 @@ def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN
   _out2 = Dense(CLASSES, activation='softmax', name='O2_subject')(_out2)
 
   losses = {
-    "O1_tagging": 'binary_crossentropy',
+    "O1_tagging": "binary_crossentropy",
+    "O2_subject": "binary_crossentropy",
+  }
+  model = Model(inputs=base_model_inputs, outputs=[_out, _out2], name=name)
+  model.compile(loss=losses, optimizer='Nadam', metrics=metrics)
+  return model
+
+
+def uber_detection_model_005_4_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX):
+  base_model, base_model_inputs = get_base_model(uber_detection_model_003, ctx=ctx)
+
+  # ---------------------
+
+  _out_d = Dropout(0.25, name='alzheimer')(base_model)  # small_drops_of_poison
+  _out = Bidirectional(LSTM(FEATURES * 2, return_sequences=True, name='paranoia'), name='self_reflection_1')(_out_d)
+  _out = Dropout(0.1, name='alzheimer_11')(_out)
+  _out = LSTM(FEATURES, return_sequences=True, activation='sigmoid', name='O1_tagging')(_out)
+
+  # OUT 2: subject detection
+  pool_size = 2
+  emotions = MaxPooling1D(pool_size=pool_size, name='emotions')(_out_d)
+  insights = MaxPooling1D(pool_size=pool_size, name='insights')(_out)
+  _out2 = concatenate([emotions, insights], axis=-1, name='bipolar_disorder')
+  _out2 = Dropout(0.3, name='alzheimer_3')(_out2)
+  _out2 = Bidirectional(LSTM(16, return_sequences=False, name='narcissisism'), name='self_reflection_2')(_out2)
+  _out2 = Dropout(0.1, name='alzheimer_1')(_out2)
+
+  _out2 = Dense(CLASSES, activation='softmax', name='O2_subject')(_out2)
+
+  losses = {
+    "O1_tagging": "binary_crossentropy",
     "O2_subject": "binary_crossentropy",
   }
   model = Model(inputs=base_model_inputs, outputs=[_out, _out2], name=name)
@@ -175,7 +204,6 @@ def uber_detection_model_005_3(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_C
   _out = LSTM(FEATURES, return_sequences=True, activation='sigmoid', name='O1_tagging')(_out)
 
   # OUT 2: subject detection
-  #
   pool_size = 2
   _base_emb_act = Activation('tanh')(_out_d)
   emotions = MaxPooling1D(pool_size=pool_size, name='emotions')(_base_emb_act)
