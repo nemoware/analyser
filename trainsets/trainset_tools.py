@@ -67,10 +67,6 @@ class SubjectTrainsetManager:
   OUTLIERS_PERCENT = 0.05
   NOISY_SAMPLES_AMOUNT = 0.5
 
-  def print_parameters(self):
-    print(f'outliers_percent={self.outliers_percent}')
-    print(f'noisy_samples_amount={self.noisy_samples_amount}')
-    print(f'noise_amount={self.noise_amount}')
 
   def __init__(self, trainset_description_csv: str):
     self.outliers_percent = SubjectTrainsetManager.OUTLIERS_PERCENT
@@ -100,6 +96,11 @@ class SubjectTrainsetManager:
     self.subject_name_1hot_map = self._encode_1_hot()
 
     self.number_of_classes = len(list(self.subject_name_1hot_map.values())[0])
+
+  def print_parameters(self):
+    print(f'outliers_percent={self.outliers_percent}')
+    print(f'noisy_samples_amount={self.noisy_samples_amount}')
+    print(f'noise_amount={self.noise_amount}')
 
   @staticmethod
   def balance_trainset(trainset_dataframe: DataFrame):
