@@ -25,13 +25,10 @@ DEFAULT_TRAIN_CTX = KerasTrainingContext()
 
 CLASSES = 43
 FEATURES = 14
+EMB = 1024
 
 
-def structure_detection_model_001(name, features=14, embeddings_dim=1024,
-                                  ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX):
-  EMB = embeddings_dim
-  FEATURES = features
-
+def structure_detection_model_001(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, trained=False):
   input_text_emb = Input(shape=[None, EMB], dtype='float32', name="input_text_emb")
   input_headlines = Input(shape=[None, TOKEN_FEATURES], dtype='float32', name="input_headlines_att")
 
@@ -53,8 +50,8 @@ def structure_detection_model_001(name, features=14, embeddings_dim=1024,
   return model
 
 
-def get_base_model(factory, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX):
-  model_001 = ctx.init_model(factory, trained=True, verbose=1)
+def get_base_model(factory, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, load_weights=True):
+  model_001 = ctx.init_model(factory, trained=True, verbose=1, load_weights=load_weights)
 
   # BASE
   base_model = model_001.get_layer(name='embedding_reduced').output
@@ -101,9 +98,9 @@ def uber_detection_model_001(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
   return model
 
 
-def uber_detection_model_003(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX) -> Model:
+def uber_detection_model_003(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, trained=False) -> Model:
   # BASE
-  base_model, base_model_inputs = get_base_model(structure_detection_model_001, ctx=ctx)
+  base_model, base_model_inputs = get_base_model(structure_detection_model_001, ctx=ctx, load_weights=not trained)
   # ---------------------
 
   _out_d = Dropout(0.5, name='alzheimer')(base_model)  # small_drops_of_poison
@@ -146,9 +143,9 @@ def uber_detection_model_004(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
   # OUT 2: subject detection
   #
   pool_size = 2
-  _out2 = MaxPooling1D(pool_size=pool_size, name='emotions')(_out_d)
-  _out_mp = MaxPooling1D(pool_size=pool_size, name='insights')(_out)
-  _out2 = concatenate([_out2, _out_mp], axis=-1, name='bipolar_disorder')
+  emotions = MaxPooling1D(pool_size=pool_size, name='emotions')(_out_d)
+  insights = MaxPooling1D(pool_size=pool_size, name='insights')(_out)
+  _out2 = concatenate([emotions, insights], axis=-1, name='bipolar_disorder')
   _out2 = Dropout(0.3, name='alzheimer_3')(_out2)
   _out2 = Bidirectional(LSTM(16, return_sequences=False, name='narcissisism'), name='self_reflection')(_out2)
 
@@ -163,8 +160,8 @@ def uber_detection_model_004(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
   return model
 
 
-def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX):
-  base_model, base_model_inputs = get_base_model(uber_detection_model_003, ctx=ctx)
+def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, trained=False):
+  base_model, base_model_inputs = get_base_model(uber_detection_model_003, ctx=ctx, load_weights=not trained)
 
   # ---------------------
 

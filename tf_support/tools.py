@@ -74,12 +74,13 @@ class KerasTrainingContext:
 
   def init_model(self, model_factory_fn, model_name_override=None, weights_file_override=None,
                  verbose=0,
-                 trainable=True, trained=False):
+                 trainable=True, trained=False, load_weights=True):
+
     model_name = model_factory_fn.__name__
     if model_name_override is not None:
       model_name = model_name_override
 
-    model = model_factory_fn(name=model_name, ctx=self)
+    model = model_factory_fn(name=model_name, ctx=self, trained=trained)
     model.name = model_name
     if verbose > 1:
       model.summary()
@@ -88,13 +89,15 @@ class KerasTrainingContext:
     if weights_file_override is not None:
       ch_fn = os.path.join(self.model_checkpoint_path, weights_file_override + ".weights")
 
-    try:
-      model.load_weights(ch_fn)
-    except:
-      msg=f'cannot load  {model_name} from  {ch_fn}'
-      warnings.warn(msg)
-      if trained:
-        raise FileExistsError(msg)
+    if load_weights:
+      try:
+        model.load_weights(ch_fn)
+        print(f'weights loaded: {ch_fn}')
+      except:
+        msg = f'cannot load  {model_name} from  {ch_fn}'
+        warnings.warn(msg)
+        if trained:
+          raise FileExistsError(msg)
 
     if not trainable:
       model.trainable = False
@@ -109,8 +112,6 @@ class KerasTrainingContext:
     if self.EVALUATE_ONLY:
       print(f'training skipped EVALUATE_ONLY = {self.EVALUATE_ONLY}')
       return
-
-
 
     _log_fn = f'{model.name}.{self.session_index}.log.csv'
     _logger1 = CSVLogger(os.path.join(self.model_checkpoint_path, _log_fn), separator=',', append=True)
@@ -129,7 +130,6 @@ class KerasTrainingContext:
 
     if lr is not None:
       K.set_value(model.optimizer.lr, lr)
-
 
     history = model.fit_generator(
       generator=generator,
