@@ -192,4 +192,4 @@ def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN
 
 if __name__ == '__main__':
   ctx = KerasTrainingContext()
-  ctx.init_model(uber_detection_model_005_1_1, verbose=2, trained=True, trainable=False)
+  ctx.init_model(uber_detection_model_005_1_1, verbose=2, trained=False, trainable=False)

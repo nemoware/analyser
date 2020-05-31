@@ -65,3 +65,4 @@ utilits/parsed_docs.json.zip
 *.checkpoint
 
 trainsets/exported_docs.json
+/work/exported_docs.json

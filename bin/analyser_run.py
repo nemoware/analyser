@@ -7,7 +7,7 @@ import schedule
 from analyser import runner
 from analyser.dictionaries import update_db_dictionaries
 
-
+import tensorflow as tf
 def main():
   update_db_dictionaries()
 
@@ -24,4 +24,5 @@ def main():
 
 
 if __name__ == '__main__':
+
   main()
