@@ -9,18 +9,21 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import pymongo
 from bson import json_util
 from pandas import DataFrame
 
 from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import work_dir
 from analyser.legal_docs import LegalDocument
+from analyser.structures import ContractSubject
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
 
 SAVE_PICKLES = False
 _DEV_MODE = False
+_EMBEDD = True
 
 
 def _get_semantic_map(doc, confidence_override=None) -> DataFrame:
@@ -50,89 +53,250 @@ def _get_semantic_map(doc, confidence_override=None) -> DataFrame:
   return df
 
 
-def _get_subject(d):
-  if 'user' in d and 'attributes' in d['user'] and 'subject' in d['user']['attributes']:
-    return d['user']['attributes']['subject']['value']
+def _get_attribute_value(d, attr):
+  if 'user' in d and 'attributes' in d['user'] and attr in d['user']['attributes']:
+    return d['user']['attributes'][attr]['value']
 
   else:
-    if 'attributes' in d['analysis'] and 'subject' in d['analysis']['attributes']:
-      return d['analysis']['attributes']['subject']['value']
+    if 'attributes' in d['analysis'] and attr in d['analysis']['attributes']:
+      return d['analysis']['attributes'][attr]['value']
 
 
-def save_contract_datapoint(d, stats):
-  id = str(d['_id'])
-
-  doc: LegalDocument = join_paragraphs(d['parse'], id)
-
-  if not _DEV_MODE:
-    embedder = ElmoEmbedder.get_instance('elmo')
-    doc.embedd_tokens(embedder)
-    fn = os.path.join(work_dir, f'{id}-datapoint-embeddings')
-    np.save(fn, doc.embeddings)
-
-  _dict = doc.__dict__
-  _dict['analysis'] = d['analysis']
-  if 'user' in d:
-    _dict['user'] = d['user']
-  _dict['semantic_map'] = _get_semantic_map(doc, 1.0)
-
-  token_features = get_tokens_features(doc.tokens)
-  token_features['h'] = 0
-
-  _dict['token_features'] = token_features
-
-  if SAVE_PICKLES:
-    fn = os.path.join(work_dir, f'datapoint-{id}.pickle')
-    with open(fn, 'wb') as f:
-      pickle.dump(doc, f)
-      print('PICKLED: ', fn)
-
-  fn = os.path.join(work_dir, f'{id}-datapoint-token_features')
-  np.save(fn, _dict['token_features'])
-
-  fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map')
-  np.save(fn, _dict['semantic_map'])
-
-  stats.at[id, 'checksum'] = doc.get_checksum()
-  stats.at[id, 'version'] = d['analysis']['version']
-
-  stats.at[id, 'export_date'] = datetime.now()
-  stats.at[id, 'subject'] = _get_subject(d)
-  stats.at[id, 'analyze_date'] = d['analysis']['analyze_timestamp']
-
-  if 'user' in d:
-    stats.at[id, 'user_correction_date'] = d['user']['updateDate']
+def _get_subject(d):
+  return _get_attribute_value(d, 'subject')
 
 
-def get_updated_contracts(lastdate):
-  print('obtaining DB connection...')
-  db = get_mongodb_connection()
+class UberModelTrainsetManager:
 
-  print('obtaining DB connection: DONE')
-  documents_collection = db['documents']
-  print('linking documents collection: DONE')
+  def __init__(self, work_dir: str):
 
-  query = {
-    '$and': [
-      {"parse.documentType": "CONTRACT"},
-      # {"analysis.attributes": {"$ne": None}},
-      {'$or': [{"analysis.attributes.subject": {"$ne": None}}, {"user.attributes.subject": {"$ne": None}}]},
+    self.work_dir: str = work_dir
+    self.stats: DataFrame = self._get_contract_trainset_meta(work_dir)
 
-      {'$or': [
-        {'analysis.analyze_timestamp': {'$gt': lastdate}},
-        {'user.updateDate': {'$gt': lastdate}}
-      ]}
-    ]
-  }
+    if len(self.stats) > 0:
+      self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
+      self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
+    else:
+      self.lastdate = datetime(1900, 1, 1)
 
-  print('running DB query')
-  res = documents_collection.find(query).limit(2)
-  if _DEV_MODE:
-    res.limit(5)
+    print(f'latest export_date: [{self.lastdate}]')
 
-  print('running DB query: DONE')
+    self.embedder=None
 
-  return res
+  def save_contract_datapoint(self, d):
+    id = str(d['_id'])
+
+    doc: LegalDocument = join_paragraphs(d['parse'], id)
+
+    if not _DEV_MODE and _EMBEDD:
+      print(f'embedding doc {id}....')
+      doc.embedd_tokens(self.embedder)
+      fn = os.path.join(work_dir, f'{id}-datapoint-embeddings')
+      np.save(fn, doc.embeddings)
+
+    _dict = doc.__dict__
+    _dict['analysis'] = d['analysis']
+    if 'user' in d:
+      _dict['user'] = d['user']
+    _dict['semantic_map'] = _get_semantic_map(doc, 1.0)
+
+    token_features = get_tokens_features(doc.tokens)
+    token_features['h'] = 0
+
+    _dict['token_features'] = token_features
+
+    if SAVE_PICKLES:
+      fn = os.path.join(work_dir, f'datapoint-{id}.pickle')
+      with open(fn, 'wb') as f:
+        pickle.dump(doc, f)
+        print('PICKLED: ', fn)
+
+    fn = os.path.join(work_dir, f'{id}-datapoint-token_features')
+    np.save(fn, _dict['token_features'])
+
+    fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map')
+    np.save(fn, _dict['semantic_map'])
+
+    stats = self.stats  # shortcut
+    stats.at[id, 'checksum'] = doc.get_checksum()
+    stats.at[id, 'version'] = d['analysis']['version']
+
+    stats.at[id, 'export_date'] = datetime.now()
+    stats.at[id, 'subject'] = _get_subject(d)
+    stats.at[id, 'analyze_date'] = d['analysis']['analyze_timestamp']
+
+    if 'user' in d:
+      stats.at[id, 'user_correction_date'] = d['user']['updateDate']
+
+  def get_updated_contracts(self):
+    print('obtaining DB connection...')
+    db = get_mongodb_connection()
+
+    print('obtaining DB connection: DONE')
+    documents_collection = db['documents']
+    print('linking documents collection: DONE')
+
+    # TODO: filter by version
+    query = {
+      '$and': [
+        {"parse.documentType": "CONTRACT"},
+        # {"analysis.attributes": {"$ne": None}},
+        {'$or': [{"analysis.attributes.subject": {"$ne": None}}, {"user.attributes.subject": {"$ne": None}}]},
+
+        {'$or': [
+          {'analysis.analyze_timestamp': {'$gt': self.lastdate}},
+          {'user.updateDate': {'$gt': self.lastdate}}
+        ]}
+      ]
+    }
+
+    print(f'running DB query {query}')
+    res = documents_collection.find(filter=query, sort=[('analysis.analyze_timestamp', pymongo.ASCENDING),
+                                                        ('user.updateDate', pymongo.ASCENDING)])
+
+    if _DEV_MODE:
+      res.limit(5)
+
+    print('running DB query: DONE')
+
+    return res
+
+  def _get_contract_trainset_meta(self, work_dir):
+    try:
+      df = pd.read_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index_col='_id')
+      df['user_correction_date'] = pd.to_datetime(df['user_correction_date'])
+      df['analyze_date'] = pd.to_datetime(df['analyze_date'])
+
+    except FileNotFoundError:
+      df = DataFrame(columns=['export_date'])
+    df.index.name = '_id'
+    return df
+
+  def export_recent_contracts(self):
+    if _EMBEDD:
+      self.embedder = ElmoEmbedder.get_instance('elmo')
+
+    docs = self.get_updated_contracts()  # Cursor, not list
+
+    # export_docs_to_single_json(docs)
+
+    for d in docs:
+      self.save_contract_datapoint(d)
+
+      self.stats.sort_values(["user_correction_date", 'analyze_date'], inplace=True, ascending=False)
+      self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
+
+      self.stats.to_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index=True)
+
+  def get_xyw(self, id):
+    weight = 1.0
+    row = self.stats.loc[id]
+    if row['user_correction_date'] is not None:
+      weight *= 10.0
+
+    subj = row['subject']
+    subject_one_hot = ContractSubject.encode_1_hot()[subj]
+
+    fn = os.path.join(self.work_dir, f'{id}-datapoint-embeddings.npy')
+    embeddings = np.load(fn)
+
+    fn = os.path.join(self.work_dir, f'{id}-datapoint-token_features.npy')
+    token_features = np.load(fn)
+
+    fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map.npy')
+    semantic_map = np.load(fn)
+
+    print(embeddings.shape)
+    print(token_features.shape)
+    print(semantic_map.shape)
+    print(subject_one_hot.shape)
+
+    return (embeddings, token_features), (semantic_map, subject_one_hot), weight
+
+  def get_indices_split(self, category_column_name: str = 'subject', test_proportion=0.25) -> (
+          [int], [int]):
+    np.random.seed(42)
+    df = self.stats
+    cat_count = df[category_column_name].value_counts()  # distribution by category
+
+    _bags = {key: [] for key in cat_count.index}
+
+    for index, row in df.iterrows():
+      subj_code = row[category_column_name]
+      _bags[subj_code].append(index)
+
+    print('_bags', _bags)
+
+    train_indices = []
+    test_indices = []
+
+    for subj_code in _bags:
+      bag = _bags[subj_code]
+      split_index: int = int(len(bag) * test_proportion)
+
+      train_indices += bag[split_index:]
+      test_indices += bag[:split_index]
+
+    # remove instesection
+    intersection = np.intersect1d(test_indices, train_indices)
+    test_indices = [e for e in test_indices if e not in intersection]
+
+    # shuffle
+
+    np.random.shuffle(test_indices)
+    np.random.shuffle(train_indices)
+
+    return train_indices, test_indices
+
+  # def make_generator(self, indices:[int], batch_size:int ):
+  #
+  #   random.seed(42)
+  #   np.random.seed(42)
+  #
+  #   while True:
+  #     maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+  #     cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
+  #
+  #     # Select files (paths/indices) for the batch
+  #     batch_indices = np.random.choice(a=indices, size=batch_size)
+  #
+  #     batch_input_e = []
+  #     batch_input_h = []
+  #     batch_output_a = []
+  #     batch_output_b = []
+  #
+  #     # Read in each input, perform preprocessing and get labels
+  #     for i in batch_indices:
+  #       if i in _CACHE_SUBJ:
+  #         x, y = _CACHE_SUBJ[i]
+  #       else:
+  #         x, y = make_xy_subj(i)
+  #         _CACHE_SUBJ[i] = (x, y)
+  #
+  #       padded = list(pad_things([x[0], x[1], y[0]], maxlen))
+  #       if CUT_EMB_PRE:
+  #         padded = list(pad_things(padded, maxlen - cutoff, padding='pre'))
+  #
+  #       # padded = list(padded)
+  #
+  #       if noisy_embeddings:
+  #         subj_name = dataset_manager.trainset_rows.iloc[i]['subject']
+  #         padded[0] = randomize_embeddings_for_rare_subjects(padded[0], subj_name)
+  #
+  #       batch_input_e.append(padded[0])
+  #       batch_input_h.append(padded[1])
+  #
+  #       batch_output_a.append(padded[2])
+  #       batch_output_b.append(y[1])
+  #
+  #     batch_x_e = np.array(batch_input_e, dtype=np.float32)
+  #     batch_x_h = np.array(batch_input_h)
+  #
+  #     batch_y_1 = np.array(batch_output_a)
+  #     batch_y_2 = np.array(batch_output_b)
+  #
+  #     # Return a tuple of (input, output) to feed the network
+  #     yield [[batch_x_e, batch_x_h], [batch_y_1, batch_y_2]]
 
 
 def export_docs_to_single_json(documents):
@@ -153,39 +317,6 @@ def export_docs_to_single_json(documents):
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
 
-def export_recent_contracts():
-  stats: DataFrame = _get_contract_trainset_meta()
-  stats = stats.sort_values('export_date')
-  lastdate = datetime(1900, 1, 1)
-
-  if len(stats) > 0:
-    lastdate = stats.iloc[0]['export_date']
-
-  print('latest export_date:', lastdate)
-  docs = get_updated_contracts(lastdate)  # Cursor, not list
-
-  # export_docs_to_single_json(docs)
-
-  for d in docs:
-    if d['parse']['documentType'] == 'CONTRACT':
-      save_contract_datapoint(d, stats)
-
-  stats.sort_values(["user_correction_date", 'analyze_date'], inplace=True, ascending=False)
-  stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
-
-  stats.to_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index=True)
-
-
-def _get_contract_trainset_meta():
-  try:
-    df = pd.read_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index_col='_id')
-  except FileNotFoundError:
-    df = DataFrame(columns=['export_date'])
-
-  df.index.name = '_id'
-  return df
-
-
 if __name__ == '__main__':
   '''
   0. Read 'contract_trainset_meta.csv CSV, find the last datetime of export
@@ -198,4 +329,14 @@ if __name__ == '__main__':
   # os.environ['GPN_DB_PORT'] = '27017'
   # db = get_mongodb_connection()
   #
-  export_recent_contracts()
+
+  umtm = UberModelTrainsetManager(work_dir)
+  umtm.export_recent_contracts()
+
+  print('umtm.get_indices_split:', umtm.get_indices_split())
+
+  #
+  # if1 = umtm.stats.index[0]
+  #
+  # _xyw = umtm.get_xyw(if1)
+  # print(_xyw[2])

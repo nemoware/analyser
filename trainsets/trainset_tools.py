@@ -5,7 +5,6 @@ import warnings
 import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
 from pandas import DataFrame
 
 from analyser.legal_docs import LegalDocument
@@ -24,28 +23,28 @@ class TrainsetBalancer:
     random.seed(42)
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
-    subject_bags = {key: [] for key in cat_count.index}
+    _bags = {key: [] for key in cat_count.index}
 
     _idx: int = 0
     for index, row in df.iterrows():
       subj_code = row[category_column_name]
-      subject_bags[subj_code].append(_idx)
+      _bags[subj_code].append(_idx)
 
       _idx += 1
 
     _desired_number_of_samples = max(cat_count.values)
-    for subj_code in subject_bags:
-      bag = subject_bags[subj_code]
+    for subj_code in _bags:
+      bag = _bags[subj_code]
       if len(bag) < _desired_number_of_samples:
         repeats = int(_desired_number_of_samples / len(bag))
         bag = sorted(np.tile(bag, repeats))
-        subject_bags[subj_code] = bag
+        _bags[subj_code] = bag
 
     train_indices = []
     test_indices = []
 
-    for subj_code in subject_bags:
-      bag = subject_bags[subj_code]
+    for subj_code in _bags:
+      bag = _bags[subj_code]
       split_index: int = int(len(bag) * test_proportion)
 
       train_indices += bag[split_index:]
@@ -66,7 +65,6 @@ class SubjectTrainsetManager:
   EMB_NOISE_AMOUNT = 0.05
   OUTLIERS_PERCENT = 0.05
   NOISY_SAMPLES_AMOUNT = 0.5
-
 
   def __init__(self, trainset_description_csv: str):
     self.outliers_percent = SubjectTrainsetManager.OUTLIERS_PERCENT
@@ -119,19 +117,7 @@ class SubjectTrainsetManager:
 
   @staticmethod
   def _encode_1_hot():
-    '''
-    bit of paranoia to reserve order
-    :return:
-    '''
-    all_subjects_map = ContractSubject.as_matrix()
-    values = all_subjects_map[:, 1]
-
-    # encoding integer subject codes in one-hot vectors
-    _cats = to_categorical(values)
-
-    subject_name_1hot_map = {all_subjects_map[i][0]: _cats[i] for i, k in enumerate(all_subjects_map)}
-
-    return subject_name_1hot_map
+    return ContractSubject.encode_1_hot()
 
   def noise_embedding(self, emb, var=0.1):
     warnings.warn('must be noised by keras model', DeprecationWarning)
