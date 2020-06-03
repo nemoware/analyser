@@ -66,3 +66,8 @@ utilits/parsed_docs.json.zip
 
 trainsets/exported_docs.json
 /work/exported_docs.json
+
+work/*.pickle
+work/*.npy
+
+work/contract_trainset_meta.csv

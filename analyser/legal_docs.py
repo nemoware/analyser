@@ -21,6 +21,8 @@ from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
 
+import hashlib
+
 REPORTED_DEPRECATED = {}
 
 
@@ -140,7 +142,9 @@ class LegalDocument:
     return headers_as_sentences(self)
 
   def get_semantic_map(self, confidence_override=None) -> DataFrame:
+
     '''
+    #TODO: do not ignore user corrections
     used in jupyter notebooks
     :return:
     '''
@@ -194,7 +198,8 @@ class LegalDocument:
     return self.tokens_map.text
 
   def get_checksum(self):
-    return hash(self._normal_text)
+    return hashlib.md5(self._normal_text.encode('utf-8')).hexdigest()
+    # return hash(self._normal_text)
 
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
