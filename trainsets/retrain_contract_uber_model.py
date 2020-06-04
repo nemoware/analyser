@@ -116,10 +116,13 @@ class UberModelTrainsetManager:
     doc: LegalDocument = join_paragraphs(d['parse'], id)
 
     if not _DEV_MODE and _EMBEDD:
-      print(f'embedding doc {id}....')
-      doc.embedd_tokens(self.embedder)
       fn = os.path.join(work_dir, f'{id}-datapoint-embeddings')
-      np.save(fn, doc.embeddings)
+      if os.path.isfile(fn + '.npy'):
+        print(f'skipping embedding doc {id}...., {fn} exits')
+      else:
+        print(f'embedding doc {id}....')
+        doc.embedd_tokens(self.embedder)
+        np.save(fn, doc.embeddings)
 
     _dict = doc.__dict__
     _dict['analysis'] = d['analysis']
@@ -194,7 +197,8 @@ class UberModelTrainsetManager:
       df['user_correction_date'] = pd.to_datetime(df['user_correction_date'])
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
 
-      df = df[df['valid'] != False]
+      if 'valid' in df:
+        df = df[df['valid'] != False]
 
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
@@ -212,9 +216,14 @@ class UberModelTrainsetManager:
 
     for d in docs:
       self.save_contract_datapoint(d)
-
-      self.stats.sort_values(["user_correction_date", 'analyze_date'], inplace=True, ascending=False)
-      self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
+      so = []
+      if 'user_correction_date' in self.stats:
+        so.append('user_correction_date')
+      if 'analyze_date' in self.stats:
+        so.append('analyze_date')
+      if len(so) > 0:
+        self.stats.sort_values(["user_correction_date", 'analyze_date'], inplace=True, ascending=False)
+        self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
 
       self._save_stats()
 
