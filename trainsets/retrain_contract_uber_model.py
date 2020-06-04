@@ -341,7 +341,7 @@ class UberModelTrainsetManager:
     ######################
 
     ctx.EPOCHS = 25
-    ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(test_indices))
+    ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(train_indices))
 
     test_gen = generator_factory_method(test_indices, batch_size)
     train_gen = generator_factory_method(train_indices, batch_size)

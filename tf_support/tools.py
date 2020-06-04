@@ -24,8 +24,15 @@ class KerasTrainingContext:
     self.reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=5, min_lr=1E-6, verbose=1)
 
   def set_batch_size_and_trainset_size(self, batch_size: int, test_samples: int, train_samples: int) -> None:
-    self.validation_steps = max(1, int(test_samples / batch_size))
-    self.steps_per_epoch = max(1, int(train_samples / batch_size / 2.))
+    self.steps_per_epoch = max(1, int(train_samples / batch_size))
+    self.validation_steps = max(1, self.steps_per_epoch // 2)
+
+    print(f'batch_size:\t{batch_size}')
+    print(f'train_samples:\t{train_samples}')
+    print(f'test_samples:\t{test_samples}')
+    print(f'steps_per_epoch:\t{self.steps_per_epoch}')
+    print(f'validation_steps:\t{self.validation_steps}')
+
 
   def get_stats_df(self) -> (DataFrame, str):
     stats_path = os.path.join(self.model_checkpoint_path, 'train_statistics0.csv')
