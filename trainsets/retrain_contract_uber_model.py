@@ -321,16 +321,13 @@ class UberModelTrainsetManager:
     # frozen bottom layers
     ######################
 
-    ctx.EPOCHS = 20
+    ctx.EPOCHS = 25
     ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(test_indices))
 
     test_gen = generator_factory_method(test_indices, batch_size)
     train_gen = generator_factory_method(train_indices, batch_size)
 
-
     ctx.train_and_evaluate_model(model, train_gen, test_gen, retrain=True)
-
-
 
     ######################
     ## Phase II finetuning
@@ -344,8 +341,6 @@ class UberModelTrainsetManager:
     train_gen = generator_factory_method(train_indices + test_indices, batch_size)
     test_gen = generator_factory_method(test_indices, batch_size)
     ctx.train_and_evaluate_model(model, train_gen, test_generator=test_gen, retrain=False, lr=1e-4)
-
-
 
     ## plot results
     _metrics = ctx.get_log(model.name).keys()
@@ -448,13 +443,6 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
           # plt.legend(loc='upper right')
     else:
       print('cannot plot')
-
-  # plt.title(title)
-  # plt.grid()
-  # plt.show()
-  # plt.savefig('foo.png')
-
-  # plt.show()
 
 
 if __name__ == '__main__':
