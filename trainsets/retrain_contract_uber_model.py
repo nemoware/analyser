@@ -8,7 +8,9 @@ import pickle
 import random
 import warnings
 from datetime import datetime
+
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,8 +31,6 @@ from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
 from tf_support.tools import KerasTrainingContext
-
-
 
 SAVE_PICKLES = False
 _DEV_MODE = False
@@ -344,9 +344,9 @@ class UberModelTrainsetManager:
     ctx.EPOCHS *= 2
     train_gen = generator_factory_method(train_indices + test_indices, batch_size)
     test_gen = generator_factory_method(test_indices, batch_size)
-    ctx.train_and_evaluate_model(model, train_gen, test_generator=test_gen, retrain=False, lr=1e-4)
+    ctx.train_and_evaluate_model(model, train_gen, test_generator=test_gen, retrain=False, lr=2e-5)
 
-    self.make_training_report(ctx, model.name)
+    self.make_training_report(ctx, model)
 
   def make_training_report(self, ctx: KerasTrainingContext, model: Model):
     ## plot results
@@ -422,32 +422,39 @@ def export_docs_to_single_json(documents):
 
 
 def plot_compare_models(ctx, models: [str], metrics, image_save_path):
+  _metrics = [m for m in metrics if not m.startswith('val_')]
+
   for i, m in enumerate(models):
+
     data: pd.DataFrame = ctx.get_log(m)
+
     if data is not None:
       data.set_index('epoch')
-      for metric in metrics:
 
-        key = metric
-        if key in data:
-          fig = plt.figure(figsize=(16, 6))
-          plt.grid()
+      for metric in _metrics:
+        fig = plt.figure(figsize=(16, 6))
+        plt.grid()
+        plt.title(f'{metric}')
+        for metric_variant in ['', 'val_']:
+          key = metric_variant + metric
+          if key in data:
 
-          x = data['epoch'][-100:]
-          y = data[key][-100:]
-          c = 'red'  # plt.cm.jet_r(i * colorstep)
+            x = data['epoch'][-100:]
+            y = data[key][-100:]
 
-          plt.plot(x, y, label=f'{m} {key}', alpha=0.2, color=c)
+            c = 'red'  # plt.cm.jet_r(i * colorstep)
+            if metric_variant == '':
+              c = 'blue'
+            plt.plot(x, y, label=f'{key}', alpha=0.2, color=c)
 
-          y = y.rolling(4, win_type='gaussian').mean(std=4)
-          print(f'plotting {i} {m} {len(x)} {len(y)}')
+            y = y.rolling(4, win_type='gaussian').mean(std=4)
+            plt.plot(x, y, label=f'{key} SMOOTH', color=c)
 
-          plt.plot(x, y, label=f'{m} {key}', color=c)
-          plt.title(f'{m} - {metric}')
+            plt.legend(loc='upper right')
 
-          img_path = os.path.join(image_save_path, f'{m}-{metric}.png')
-          plt.savefig(img_path, bbox_inches='tight')
-          # plt.legend(loc='upper right')
+        img_path = os.path.join(image_save_path, f'{m}-{metric}.png')
+        plt.savefig(img_path, bbox_inches='tight')
+
     else:
       print('cannot plot')
 
@@ -466,15 +473,12 @@ if __name__ == '__main__':
   #
 
   umtm = UberModelTrainsetManager(work_dir)
-  # # umtm.export_recent_contracts()
+
+  umtm.export_recent_contracts()
+  umtm.train(umtm.make_generator)
+
   #
-  # umtm.train(umtm.make_generator)
-  ctx = KerasTrainingContext(work_dir)
-  model = ctx.init_model(uber_detection_model_005_1_1, trainable=False, trained=True)
-  umtm.make_training_report(ctx, model)
-  # try plot:
-  # ctx = KerasTrainingContext(work_dir)
-  # _log:DataFrame = ctx.get_log('uber_detection_model_005_1_1')
-  # print(_log.keys())
-  # _metrics=_log.keys() #['O2_subject_kullback_leibler_divergence', 'O1_tagging_binary_crossentropy']
-  # plot_compare_models(ctx, ['uber_detection_model_005_1_1'], _metrics, title = "metric/epoch")
+  # if False:
+  #   ctx = KerasTrainingContext(work_dir)
+  #   model = ctx.init_model(uber_detection_model_005_1_1, trainable=False, trained=True)
+  #   umtm.make_training_report(ctx, model)
