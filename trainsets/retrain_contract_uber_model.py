@@ -8,12 +8,14 @@ import pickle
 import random
 import warnings
 from datetime import datetime
-
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pymongo
 from bson import json_util
+from keras import Model
 from keras.preprocessing.sequence import pad_sequences
 from pandas import DataFrame
 
@@ -27,6 +29,8 @@ from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
 from tf_support.tools import KerasTrainingContext
+
+
 
 SAVE_PICKLES = False
 _DEV_MODE = False
@@ -273,7 +277,7 @@ class UberModelTrainsetManager:
 
     return train_indices, test_indices
 
-  def init_model(self):
+  def init_model(self) -> (Model, KerasTrainingContext):
     ctx = KerasTrainingContext(work_dir)
 
     model_factory_fn = uber_detection_model_005_1_1
@@ -342,6 +346,9 @@ class UberModelTrainsetManager:
     test_gen = generator_factory_method(test_indices, batch_size)
     ctx.train_and_evaluate_model(model, train_gen, test_generator=test_gen, retrain=False, lr=1e-4)
 
+    self.make_training_report(ctx, model.name)
+
+  def make_training_report(self, ctx: KerasTrainingContext, model: Model):
     ## plot results
     _metrics = ctx.get_log(model.name).keys()
     plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
@@ -439,7 +446,7 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
           plt.title(f'{m} - {metric}')
 
           img_path = os.path.join(image_save_path, f'{m}-{metric}.png')
-          plt.savefig(img_path)
+          plt.savefig(img_path, bbox_inches='tight')
           # plt.legend(loc='upper right')
     else:
       print('cannot plot')
@@ -461,8 +468,10 @@ if __name__ == '__main__':
   umtm = UberModelTrainsetManager(work_dir)
   # # umtm.export_recent_contracts()
   #
-  umtm.train(umtm.make_generator)
-
+  # umtm.train(umtm.make_generator)
+  ctx = KerasTrainingContext(work_dir)
+  model = ctx.init_model(uber_detection_model_005_1_1, trainable=False, trained=True)
+  umtm.make_training_report(ctx, model)
   # try plot:
   # ctx = KerasTrainingContext(work_dir)
   # _log:DataFrame = ctx.get_log('uber_detection_model_005_1_1')
