@@ -39,19 +39,20 @@ class KerasTrainingContext:
     return stats, stats_path
 
   def save_stats(self, model_name):
-    h = self.HISTORIES[model_name]
+    # h = self.HISTORIES[model_name]
     stats, stats_path = self.get_stats_df()
-
-    for m in h.params['metrics']:
-      if m not in stats:
-        stats[m] = float('nan')
-    for m in h.params['metrics']:
-      stats.at[model_name, m] = h.history[m][-1]
-
-    stats.at[model_name, 'epoch'] = h.epoch[-1]
-
-    stats.to_csv(stats_path)
-    stats.to_csv('stats.csv')
+    #
+    # for m in h.params['metrics']:
+    #   if m not in stats:
+    #     stats[m] = float('nan')
+    # for m in h.params['metrics']:
+    #   if m in h.history:
+    #     stats.at[model_name, m] = h.history[m][-1]
+    #
+    # stats.at[model_name, 'epoch'] = h.epoch[-1]
+    #
+    # stats.to_csv(stats_path)
+    # stats.to_csv('stats.csv')
     return stats
 
   def get_log(self, model_name) -> pd.DataFrame:
@@ -106,7 +107,7 @@ class KerasTrainingContext:
 
     return model
 
-  def train_and_evaluate_model(self, model, generator, test_generator):
+  def train_and_evaluate_model(self, model, generator, test_generator, retrain=False):
     print(f'model.name == {model.name}')
     self.trained_models[model.name] = model.name
     if self.EVALUATE_ONLY:
@@ -125,7 +126,11 @@ class KerasTrainingContext:
                                          monitor='val_loss', mode='min', save_best_only=True, save_weights_only=True,
                                          verbose=1)
 
-    lr, epoch = self.get_lr_epoch_from_log(model.name)
+    if not retrain:
+      lr, epoch = self.get_lr_epoch_from_log(model.name)
+    else:
+      lr=None
+      epoch = 0;
     print(f'continue: lr:{lr}, epoch:{epoch}')
 
     if lr is not None:

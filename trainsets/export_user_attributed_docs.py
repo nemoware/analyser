@@ -5,28 +5,39 @@
 import json
 import os
 import pickle
+import random
+import warnings
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import pymongo
 from bson import json_util
+from keras.preprocessing.sequence import pad_sequences
 from pandas import DataFrame
 
 from analyser.headers_detector import get_tokens_features
-from analyser.hyperparams import work_dir
-from analyser.legal_docs import LegalDocument
+from analyser.hyperparams import work_dir, models_path
+from analyser.legal_docs import LegalDocument, make_headline_attention_vector
 from analyser.structures import ContractSubject
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
+from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
+from tf_support.tools import KerasTrainingContext
 
 SAVE_PICKLES = False
 _DEV_MODE = False
 _EMBEDD = True
 
 
-def _get_semantic_map(doc, confidence_override=None) -> DataFrame:
+def pad_things(xx, maxlen, padding='post'):
+  for x in xx:
+    _v = x.mean()
+    yield pad_sequences([x], maxlen=maxlen, padding=padding, truncating=padding, value=_v, dtype='float32')[0]
+
+
+def _get_semantic_map(doc: LegalDocument, confidence_override=None) -> DataFrame:
   if 'user' in doc.__dict__:
     _tags = doc.__dict__['user']['attributes']
   else:
@@ -50,7 +61,14 @@ def _get_semantic_map(doc, confidence_override=None) -> DataFrame:
     df[_kind] = 0
     df[_kind] = _attention[i]
 
-  return df
+  # add missing columns
+  for sl in seq_labels_contract:
+    if sl not in df:
+      df[sl] = np.zeros(len(doc))
+
+  df['headline_h1'] = make_headline_attention_vector(doc)  ##adding headers
+
+  return df[seq_labels_contract]  # re-order columns
 
 
 def _get_attribute_value(d, attr):
@@ -81,7 +99,7 @@ class UberModelTrainsetManager:
 
     print(f'latest export_date: [{self.lastdate}]')
 
-    self.embedder=None
+    self.embedder = None
 
   def save_contract_datapoint(self, d):
     id = str(d['_id'])
@@ -186,37 +204,44 @@ class UberModelTrainsetManager:
       self.stats.sort_values(["user_correction_date", 'analyze_date'], inplace=True, ascending=False)
       self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
 
-      self.stats.to_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index=True)
+      self._save_stats()
+
+  def _save_stats(self):
+    self.stats.to_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index=True)
 
   def get_xyw(self, id):
-    weight = 1.0
+
     row = self.stats.loc[id]
-    if row['user_correction_date'] is not None:
-      weight *= 10.0
 
-    subj = row['subject']
-    subject_one_hot = ContractSubject.encode_1_hot()[subj]
+    try:
 
-    fn = os.path.join(self.work_dir, f'{id}-datapoint-embeddings.npy')
-    embeddings = np.load(fn)
+      weight = 0.5
+      if row['user_correction_date'] is not None:  # more weight to user-corrected datapoints
+        weight *= 10.0
 
-    fn = os.path.join(self.work_dir, f'{id}-datapoint-token_features.npy')
-    token_features = np.load(fn)
+      subj = row['subject']
+      subject_one_hot = ContractSubject.encode_1_hot()[subj]
 
-    fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map.npy')
-    semantic_map = np.load(fn)
+      fn = os.path.join(self.work_dir, f'{id}-datapoint-embeddings.npy')
+      embeddings = np.load(fn)
 
-    print(embeddings.shape)
-    print(token_features.shape)
-    print(semantic_map.shape)
-    print(subject_one_hot.shape)
+      fn = os.path.join(self.work_dir, f'{id}-datapoint-token_features.npy')
+      token_features = np.load(fn)
 
-    return (embeddings, token_features), (semantic_map, subject_one_hot), weight
+      fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map.npy')
+      semantic_map = np.load(fn)
+
+      return ((embeddings, token_features), (semantic_map, subject_one_hot), weight)
+    except:
+      self.stats.at[id, 'valid'] = False
+      self._save_stats()
+      return ((None, None), (None, None), None)
 
   def get_indices_split(self, category_column_name: str = 'subject', test_proportion=0.25) -> (
           [int], [int]):
     np.random.seed(42)
-    df = self.stats
+    df = self.stats[self.stats['valid'] != False]
+    print(df.head)
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
     _bags = {key: [] for key in cat_count.index}
@@ -224,8 +249,6 @@ class UberModelTrainsetManager:
     for index, row in df.iterrows():
       subj_code = row[category_column_name]
       _bags[subj_code].append(index)
-
-    print('_bags', _bags)
 
     train_indices = []
     test_indices = []
@@ -248,55 +271,99 @@ class UberModelTrainsetManager:
 
     return train_indices, test_indices
 
-  # def make_generator(self, indices:[int], batch_size:int ):
-  #
-  #   random.seed(42)
-  #   np.random.seed(42)
-  #
-  #   while True:
-  #     maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
-  #     cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
-  #
-  #     # Select files (paths/indices) for the batch
-  #     batch_indices = np.random.choice(a=indices, size=batch_size)
-  #
-  #     batch_input_e = []
-  #     batch_input_h = []
-  #     batch_output_a = []
-  #     batch_output_b = []
-  #
-  #     # Read in each input, perform preprocessing and get labels
-  #     for i in batch_indices:
-  #       if i in _CACHE_SUBJ:
-  #         x, y = _CACHE_SUBJ[i]
-  #       else:
-  #         x, y = make_xy_subj(i)
-  #         _CACHE_SUBJ[i] = (x, y)
-  #
-  #       padded = list(pad_things([x[0], x[1], y[0]], maxlen))
-  #       if CUT_EMB_PRE:
-  #         padded = list(pad_things(padded, maxlen - cutoff, padding='pre'))
-  #
-  #       # padded = list(padded)
-  #
-  #       if noisy_embeddings:
-  #         subj_name = dataset_manager.trainset_rows.iloc[i]['subject']
-  #         padded[0] = randomize_embeddings_for_rare_subjects(padded[0], subj_name)
-  #
-  #       batch_input_e.append(padded[0])
-  #       batch_input_h.append(padded[1])
-  #
-  #       batch_output_a.append(padded[2])
-  #       batch_output_b.append(y[1])
-  #
-  #     batch_x_e = np.array(batch_input_e, dtype=np.float32)
-  #     batch_x_h = np.array(batch_input_h)
-  #
-  #     batch_y_1 = np.array(batch_output_a)
-  #     batch_y_2 = np.array(batch_output_b)
-  #
-  #     # Return a tuple of (input, output) to feed the network
-  #     yield [[batch_x_e, batch_x_h], [batch_y_1, batch_y_2]]
+  def init_model(self):
+    ctx = KerasTrainingContext(work_dir)
+
+    model_factory_fn = uber_detection_model_005_1_1
+    model_name = model_factory_fn.__name__
+
+    model = model_factory_fn(name=model_name, ctx=ctx, trained=True)
+    model.name = model_name
+
+    weights_file_old = os.path.join(models_path, model_name + ".weights")
+    weights_file_new = os.path.join(work_dir, model_name + ".uptrained.weights")
+
+    try:
+      model.load_weights(weights_file_new)
+      print(f'weights loaded: {weights_file_new}')
+
+    except:
+      msg = f'cannot load  {model_name} from  {weights_file_new}'
+      warnings.warn(msg)
+      model.load_weights(weights_file_old)
+      print(f'weights loaded: {weights_file_old}')
+
+    # freeze bottom 6 layers, including 'embedding_reduced'
+    for l in model.layers[0:6]:
+      # print('init_model: Layer:', l.name, l.trainable)
+      l.trainable = False
+
+    model.summary()
+    return model, ctx
+
+  def train(self):
+    train_indices, test_indices = self.get_indices_split()
+    model, ctx = self.init_model()
+
+    test_gen = self.make_generator(test_indices, 3)
+    train_gen = self.make_generator(train_indices, 3)
+    # model.fit_generator()
+    ctx.EVALUATE_ONLY = False
+    ctx.EPOCHS = 20
+    ctx.train_and_evaluate_model(model, train_gen, test_gen, retrain=True)
+
+    # ctx = KerasTrainingContext(work_dir)
+    # ctx.init_model(uber_detection_model_005_1_1)
+
+  def make_generator(self, indices: [int], batch_size: int):
+
+    # random.seed(42)
+    np.random.seed(42)
+
+    while True:
+      maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+      cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
+
+      # Select files (paths/indices) for the batch
+      batch_indices = np.random.choice(a=indices, size=batch_size)
+
+      batch_input_e = []
+      batch_input_h = []
+      batch_output_a = []
+      batch_output_b = []
+
+      weights = []
+
+      # Read in each input, perform preprocessing and get labels
+      for i in batch_indices:
+        (emb, tok_f), (sm, subj), w = self.get_xyw(i)
+        if emb is not None:
+          _padded = list(pad_things([emb, tok_f, sm], maxlen))
+          # if CUT_EMB_PRE:
+          # padded = list(pad_things(padded, maxlen - cutoff, padding='pre'))
+          emb = _padded[0]
+          tok_f = _padded[1]
+          sm = _padded[2]
+
+          batch_input_e.append(emb)
+          batch_input_h.append(tok_f)
+
+          batch_output_a.append(sm)
+          batch_output_b.append(subj)
+
+          weights.append(w)
+
+      batch_x_e = np.array(batch_input_e, dtype=np.float32)
+      batch_x_h = np.array(batch_input_h)
+
+      batch_y_1 = np.array(batch_output_a)
+      batch_y_2 = np.array(batch_output_b)
+
+      ww = np.array(weights)
+
+      # Return a tuple of (input, output, weights) to feed the network
+
+      yield ([batch_x_e, batch_x_h], [batch_y_1, batch_y_2], [ww, ww])
 
 
 def export_docs_to_single_json(documents):
@@ -333,7 +400,7 @@ if __name__ == '__main__':
   umtm = UberModelTrainsetManager(work_dir)
   umtm.export_recent_contracts()
 
-  print('umtm.get_indices_split:', umtm.get_indices_split())
+  umtm.train()
 
   #
   # if1 = umtm.stats.index[0]
