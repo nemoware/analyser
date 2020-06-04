@@ -9,6 +9,7 @@ import random
 import warnings
 from datetime import datetime
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pymongo
@@ -22,6 +23,7 @@ from analyser.legal_docs import LegalDocument, make_headline_attention_vector
 from analyser.structures import ContractSubject
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
+from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
 from tf_support.tools import KerasTrainingContext
@@ -241,7 +243,7 @@ class UberModelTrainsetManager:
           [int], [int]):
     np.random.seed(42)
     df = self.stats[self.stats['valid'] != False]
-    print(df.head)
+
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
     _bags = {key: [] for key in cat_count.index}
@@ -281,7 +283,7 @@ class UberModelTrainsetManager:
     model.name = model_name
 
     weights_file_old = os.path.join(models_path, model_name + ".weights")
-    weights_file_new = os.path.join(work_dir, model_name + ".uptrained.weights")
+    weights_file_new = os.path.join(work_dir, model_name + ".weights")
 
     try:
       model.load_weights(weights_file_new)
@@ -295,29 +297,62 @@ class UberModelTrainsetManager:
 
     # freeze bottom 6 layers, including 'embedding_reduced'
     for l in model.layers[0:6]:
-      # print('init_model: Layer:', l.name, l.trainable)
       l.trainable = False
 
+    model.compile(loss=super_contract_model.losses, optimizer='Nadam', metrics=super_contract_model.metrics)
     model.summary()
+
     return model, ctx
 
-  def train(self):
+  def train(self, generator_factory_method):
+    '''
+    Phase I: frozen bottom 6 common layers
+    Phase 2: all unfrozen, entire trainset, low LR
+    :return:
+    '''
+
+    batch_size = 24  # TODO: make a param
     train_indices, test_indices = self.get_indices_split()
     model, ctx = self.init_model()
-
-    test_gen = self.make_generator(test_indices, 3)
-    train_gen = self.make_generator(train_indices, 3)
-    # model.fit_generator()
     ctx.EVALUATE_ONLY = False
+
+    ######################
+    ## Phase I retraining
+    # frozen bottom layers
+    ######################
+
     ctx.EPOCHS = 20
+    ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(test_indices))
+
+    test_gen = generator_factory_method(test_indices, batch_size)
+    train_gen = generator_factory_method(train_indices, batch_size)
+
+
     ctx.train_and_evaluate_model(model, train_gen, test_gen, retrain=True)
 
-    # ctx = KerasTrainingContext(work_dir)
-    # ctx.init_model(uber_detection_model_005_1_1)
+
+
+    ######################
+    ## Phase II finetuning
+    #  all unfrozen, entire trainset, low LR
+    ######################
+    ctx.unfreezeModel(model)
+    model.compile(loss=super_contract_model.losses, optimizer='Nadam', metrics=super_contract_model.metrics)
+    model.summary()
+
+    ctx.EPOCHS *= 2
+    train_gen = generator_factory_method(train_indices + test_indices, batch_size)
+    test_gen = generator_factory_method(test_indices, batch_size)
+    ctx.train_and_evaluate_model(model, train_gen, test_generator=test_gen, retrain=False, lr=1e-4)
+
+
+
+    ## plot results
+    _metrics = ctx.get_log(model.name).keys()
+    plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
 
   def make_generator(self, indices: [int], batch_size: int):
 
-    # random.seed(42)
     np.random.seed(42)
 
     while True:
@@ -340,7 +375,7 @@ class UberModelTrainsetManager:
         if emb is not None:
           _padded = list(pad_things([emb, tok_f, sm], maxlen))
           # if CUT_EMB_PRE:
-          # padded = list(pad_things(padded, maxlen - cutoff, padding='pre'))
+          padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
           emb = _padded[0]
           tok_f = _padded[1]
           sm = _padded[2]
@@ -384,6 +419,44 @@ def export_docs_to_single_json(documents):
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
 
+def plot_compare_models(ctx, models: [str], metrics, image_save_path):
+  for i, m in enumerate(models):
+    data: pd.DataFrame = ctx.get_log(m)
+    if data is not None:
+      data.set_index('epoch')
+      for metric in metrics:
+
+        key = metric
+        if key in data:
+          fig = plt.figure(figsize=(16, 6))
+          plt.grid()
+
+          x = data['epoch'][-100:]
+          y = data[key][-100:]
+          c = 'red'  # plt.cm.jet_r(i * colorstep)
+
+          plt.plot(x, y, label=f'{m} {key}', alpha=0.2, color=c)
+
+          y = y.rolling(4, win_type='gaussian').mean(std=4)
+          print(f'plotting {i} {m} {len(x)} {len(y)}')
+
+          plt.plot(x, y, label=f'{m} {key}', color=c)
+          plt.title(f'{m} - {metric}')
+
+          img_path = os.path.join(image_save_path, f'{m}-{metric}.png')
+          plt.savefig(img_path)
+          # plt.legend(loc='upper right')
+    else:
+      print('cannot plot')
+
+  # plt.title(title)
+  # plt.grid()
+  # plt.show()
+  # plt.savefig('foo.png')
+
+  # plt.show()
+
+
 if __name__ == '__main__':
   '''
   0. Read 'contract_trainset_meta.csv CSV, find the last datetime of export
@@ -398,12 +471,13 @@ if __name__ == '__main__':
   #
 
   umtm = UberModelTrainsetManager(work_dir)
-  umtm.export_recent_contracts()
-
-  umtm.train()
-
+  # # umtm.export_recent_contracts()
   #
-  # if1 = umtm.stats.index[0]
-  #
-  # _xyw = umtm.get_xyw(if1)
-  # print(_xyw[2])
+  umtm.train(umtm.make_generator)
+
+  # try plot:
+  # ctx = KerasTrainingContext(work_dir)
+  # _log:DataFrame = ctx.get_log('uber_detection_model_005_1_1')
+  # print(_log.keys())
+  # _metrics=_log.keys() #['O2_subject_kullback_leibler_divergence', 'O1_tagging_binary_crossentropy']
+  # plot_compare_models(ctx, ['uber_detection_model_005_1_1'], _metrics, title = "metric/epoch")

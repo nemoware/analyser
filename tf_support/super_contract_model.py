@@ -18,7 +18,14 @@ seq_labels_contract_level_1 = [
   'subject',
   '_reserved'
 ]
+
 metrics = ['kullback_leibler_divergence', 'mse', 'binary_crossentropy']
+losses = {
+    "O1_tagging": "binary_crossentropy",
+    "O2_subject": "binary_crossentropy",
+  }
+
+
 seq_labels_contract = seq_labels_contract_level_1 + seq_labels_contract_level_0
 
 DEFAULT_TRAIN_CTX = KerasTrainingContext()
@@ -181,10 +188,7 @@ def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN
 
   _out2 = Dense(CLASSES, activation='softmax', name='O2_subject')(_out2)
 
-  losses = {
-    "O1_tagging": "binary_crossentropy",
-    "O2_subject": "binary_crossentropy",
-  }
+
   model = Model(inputs=base_model_inputs, outputs=[_out, _out2], name=name)
   model.compile(loss=losses, optimizer='Nadam', metrics=metrics)
   return model

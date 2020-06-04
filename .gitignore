@@ -69,6 +69,7 @@ trainsets/exported_docs.json
 
 work/*.pickle
 work/*.npy
+work/*.png
 
 work/contract_trainset_meta.csv
 
@@ -83,3 +84,5 @@ trainsets/uber_detection_model_005_1_1.0.log.csv
 trainsets/stats.csv
 
 work/contract_trainset_meta.bak.csv
+
+
