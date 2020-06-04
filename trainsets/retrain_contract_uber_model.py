@@ -11,6 +11,8 @@ from datetime import datetime
 
 import matplotlib
 
+from colab_support.renderer import plot_cm
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,6 +34,7 @@ from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
 from tf_support.tools import KerasTrainingContext
 
+# from mlxtend.plotting import plot_confusion_matrix
 SAVE_PICKLES = False
 _DEV_MODE = False
 _EMBEDD = True
@@ -191,8 +194,11 @@ class UberModelTrainsetManager:
       df['user_correction_date'] = pd.to_datetime(df['user_correction_date'])
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
 
+      df = df[df['valid'] != False]
+
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
+
     df.index.name = '_id'
     return df
 
@@ -246,8 +252,8 @@ class UberModelTrainsetManager:
   def get_indices_split(self, category_column_name: str = 'subject', test_proportion=0.25) -> (
           [int], [int]):
     np.random.seed(42)
-    df = self.stats[self.stats['valid'] != False]
 
+    df = self.stats  # shortcut
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
     _bags = {key: [] for key in cat_count.index}
@@ -353,6 +359,9 @@ class UberModelTrainsetManager:
     _metrics = ctx.get_log(model.name).keys()
     plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
 
+    gen = self.make_generator(self.stats.index, 20)
+    plot_subject_confusion_matrix(self.work_dir, model, steps=12, generator=gen)
+
   def make_generator(self, indices: [int], batch_size: int):
 
     np.random.seed(42)
@@ -421,6 +430,33 @@ def export_docs_to_single_json(documents):
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
 
+def onehots2labels(preds):
+  _x = np.argmax(preds, axis=-1)
+  return [ContractSubject(k).name for k in _x]
+
+
+def plot_subject_confusion_matrix(image_save_path, model, steps=12, generator=None):
+  all_predictions = []
+  all_originals = []
+
+  # _labels = []
+  for i in range(steps):
+    x, y, w = next(generator)
+
+    orig_test_labels = onehots2labels(y[1])
+
+    _preds = onehots2labels(model.predict(x)[1])
+    # _labels = sorted(np.unique(orig_test_labels + _preds))
+
+    all_predictions += _preds
+    all_originals += orig_test_labels
+
+  plot_cm(all_originals, all_predictions)
+
+  img_path = os.path.join(image_save_path, f'subjects-confusion-matrix-{model.name}.png')
+  plt.savefig(img_path, bbox_inches='tight')
+
+
 def plot_compare_models(ctx, models: [str], metrics, image_save_path):
   _metrics = [m for m in metrics if not m.startswith('val_')]
 
@@ -476,9 +512,3 @@ if __name__ == '__main__':
 
   umtm.export_recent_contracts()
   umtm.train(umtm.make_generator)
-
-  #
-  # if False:
-  #   ctx = KerasTrainingContext(work_dir)
-  #   model = ctx.init_model(uber_detection_model_005_1_1, trainable=False, trained=True)
-  #   umtm.make_training_report(ctx, model)
