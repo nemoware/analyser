@@ -61,7 +61,7 @@ def get_base_model(factory, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, load_
   return base_model, [in1, in2]
 
 
-def uber_detection_model_001(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX):
+def uber_detection_model_001(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, trained=False):
   """
   Evaluation:
   > 0.0030140 	loss
@@ -73,7 +73,7 @@ def uber_detection_model_001(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
   :return:
   """
 
-  base_model, base_model_inputs = get_base_model(structure_detection_model_001, ctx=ctx)
+  base_model, base_model_inputs = get_base_model(structure_detection_model_001, ctx=ctx, load_weights=not trained)
 
   _out_d = Dropout(0.1, name='alzheimer')(base_model)  # small_drops_of_poison
   _out = LSTM(FEATURES * 4, return_sequences=True, activation="sigmoid", name='paranoia')(_out_d)
