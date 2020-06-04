@@ -222,7 +222,7 @@ class UberModelTrainsetManager:
       if 'analyze_date' in self.stats:
         so.append('analyze_date')
       if len(so) > 0:
-        self.stats.sort_values(["user_correction_date", 'analyze_date'], inplace=True, ascending=False)
+        self.stats.sort_values(so, inplace=True, ascending=False)
         self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
 
       self._save_stats()
