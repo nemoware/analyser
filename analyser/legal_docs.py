@@ -5,6 +5,7 @@
 
 # legal_docs.py
 import datetime
+import hashlib
 import json
 
 from bson import json_util
@@ -20,8 +21,6 @@ from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
-
-import hashlib
 
 REPORTED_DEPRECATED = {}
 

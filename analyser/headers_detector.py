@@ -119,6 +119,8 @@ def get_tokens_features(tokens):
 
   doc_featuresX_data = pd.DataFrame.from_records(doc_features)
   doc_featuresX_data['_reserved'] = 0.0
+  doc_featuresX_data['h'] = 0.0
+
   return doc_featuresX_data
 
 

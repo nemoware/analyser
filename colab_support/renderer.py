@@ -453,8 +453,6 @@ def plot_embedding(matrix, title=None, width=25, height=6):
     plt.show()
 
 
-
-
 def plot_cm(y_true, y_pred, figsize=(10, 10)):
   cm = confusion_matrix(y_true, y_pred, labels=np.unique(y_true))
   cm_sum = np.sum(cm, axis=1, keepdims=True)

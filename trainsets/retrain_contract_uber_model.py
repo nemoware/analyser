@@ -4,12 +4,12 @@
 
 import json
 import os
-import pickle
 import random
 import warnings
 from datetime import datetime
 
 import matplotlib
+from sklearn.metrics import classification_report
 
 from colab_support.renderer import plot_cm
 from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weights
@@ -109,6 +109,24 @@ class UberModelTrainsetManager:
 
     print(f'latest export_date: [{self.lastdate}]')
 
+  def save_contract_data_arrays(self, doc: LegalDocument, id_override=None):
+    id_ = doc._id
+    if id_override is not None:
+      id_ = id_override
+
+    token_features = get_tokens_features(doc.tokens)
+    semantic_map = _get_semantic_map(doc, 1.0)
+    embeddings = doc.embeddings
+
+    fn = os.path.join(self.work_dir, f'{id_}-datapoint-token_features')
+    np.save(fn, token_features)
+
+    fn = os.path.join(self.work_dir, f'{id_}-datapoint-semantic_map')
+    np.save(fn, semantic_map)
+
+    fn = os.path.join(self.work_dir, f'{id_}-datapoint-embeddings')
+    np.save(fn, embeddings)
+
   def save_contract_datapoint(self, d):
     id = str(d['_id'])
 
@@ -118,34 +136,18 @@ class UberModelTrainsetManager:
       fn = os.path.join(work_dir, f'{id}-datapoint-embeddings')
       if os.path.isfile(fn + '.npy'):
         print(f'skipping embedding doc {id}...., {fn} exits')
+        doc.embeddings = np.load(fn)
       else:
         print(f'embedding doc {id}....')
         embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
         doc.embedd_tokens(embedder)
-        np.save(fn, doc.embeddings)
 
-    _dict = doc.__dict__
+    _dict = doc.__dict__  # shortcut
     _dict['analysis'] = d['analysis']
     if 'user' in d:
       _dict['user'] = d['user']
-    _dict['semantic_map'] = _get_semantic_map(doc, 1.0)
 
-    token_features = get_tokens_features(doc.tokens)
-    token_features['h'] = 0
-
-    _dict['token_features'] = token_features
-
-    if SAVE_PICKLES:
-      fn = os.path.join(work_dir, f'datapoint-{id}.pickle')
-      with open(fn, 'wb') as f:
-        pickle.dump(doc, f)
-        print('PICKLED: ', fn)
-
-    fn = os.path.join(work_dir, f'{id}-datapoint-token_features')
-    np.save(fn, _dict['token_features'])
-
-    fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map')
-    np.save(fn, _dict['semantic_map'])
+    self.save_contract_data_arrays(doc)
 
     stats = self.stats  # shortcut
     stats.at[id, 'checksum'] = doc.get_checksum()
@@ -214,6 +216,9 @@ class UberModelTrainsetManager:
 
     for d in docs:
       self.save_contract_datapoint(d)
+
+      # TODO are you sure, you need to drop_duplicates on every step?
+      # todo: might be .. move this code to self._save_stats()
       so = []
       if 'user_correction_date' in self.stats:
         so.append('user_correction_date')
@@ -364,7 +369,7 @@ class UberModelTrainsetManager:
         (emb, tok_f), (sm, subj), w = self.get_xyw(i)
         w *= subject_weights[subj_name]
 
-        if emb is not None: #paranoia, TODO: fail execution, because trainset mut be verifyded in advance
+        if emb is not None:  # paranoia, TODO: fail execution, because trainset mut be verifyded in advance
 
           _padded = list(pad_things([emb, tok_f, sm], maxlen))
           _padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
@@ -438,6 +443,12 @@ def plot_subject_confusion_matrix(image_save_path, model, steps=12, generator=No
   img_path = os.path.join(image_save_path, f'subjects-confusion-matrix-{model.name}.png')
   plt.savefig(img_path, bbox_inches='tight')
 
+  report = classification_report(all_originals, all_predictions, digits=3)
+
+  print(report)
+  with open(os.path.join(image_save_path, f'subjects-classification_report-{model.name}.txt'), "w") as text_file:
+    text_file.write(report)
+
 
 def plot_compare_models(ctx, models: [str], metrics, image_save_path):
   _metrics = [m for m in metrics if not m.startswith('val_')]
@@ -494,3 +505,4 @@ if __name__ == '__main__':
 
   umtm.export_recent_contracts()
   umtm.train(umtm.make_generator)
+
