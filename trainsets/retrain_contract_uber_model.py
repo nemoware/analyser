@@ -123,17 +123,17 @@ class UberModelTrainsetManager:
     np.save(fn, embeddings)
 
   def save_contract_datapoint(self, d):
-    id = str(d['_id'])
+    _id = str(d['_id'])
 
-    doc: LegalDocument = join_paragraphs(d['parse'], id)
+    doc: LegalDocument = join_paragraphs(d['parse'], _id)
 
     if not _DEV_MODE and _EMBEDD:
-      fn = os.path.join(self.work_dir, f'{id}-datapoint-embeddings')
+      fn = os.path.join(self.work_dir, f'{_id}-datapoint-embeddings')
       if os.path.isfile(fn + '.npy'):
-        print(f'skipping embedding doc {id}...., {fn} exits')
-        doc.embeddings = np.load(fn+ '.npy')
+        print(f'skipping embedding doc {_id}...., {fn} exits')
+        doc.embeddings = np.load(fn + '.npy')
       else:
-        print(f'embedding doc {id}....')
+        print(f'embedding doc {_id}....')
         embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
         doc.embedd_tokens(embedder)
 
@@ -145,15 +145,15 @@ class UberModelTrainsetManager:
     self.save_contract_data_arrays(doc)
 
     stats = self.stats  # shortcut
-    stats.at[id, 'checksum'] = doc.get_checksum()
-    stats.at[id, 'version'] = d['analysis']['version']
+    stats.at[_id, 'checksum'] = doc.get_checksum()
+    stats.at[_id, 'version'] = d['analysis']['version']
 
-    stats.at[id, 'export_date'] = datetime.now()
-    stats.at[id, 'subject'] = _get_subject(d)
-    stats.at[id, 'analyze_date'] = d['analysis']['analyze_timestamp']
+    stats.at[_id, 'export_date'] = datetime.now()
+    stats.at[_id, 'subject'] = _get_subject(d)
+    stats.at[_id, 'analyze_date'] = d['analysis']['analyze_timestamp']
 
     if 'user' in d:
-      stats.at[id, 'user_correction_date'] = d['user']['updateDate']
+      stats.at[_id, 'user_correction_date'] = d['user']['updateDate']
 
   def get_updated_contracts(self):
     print('obtaining DB connection...')
@@ -188,7 +188,8 @@ class UberModelTrainsetManager:
 
     return res
 
-  def _remove_obsolete_datapoints(self, df: DataFrame):
+  @staticmethod
+  def _remove_obsolete_datapoints(df: DataFrame):
     if 'valid' not in df:
       df['valid'] = True
 
@@ -196,8 +197,7 @@ class UberModelTrainsetManager:
 
       int_v = split_version(row['version'])
 
-
-      if pd.isna(row['user_correction_date'] ):
+      if pd.isna(row['user_correction_date']):
         if not (int_v[0] >= 1 and int_v[1] >= 6):
           df.at[i, 'valid'] = False
 
@@ -208,7 +208,7 @@ class UberModelTrainsetManager:
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
       df.index.name = '_id'
 
-      self._remove_obsolete_datapoints(df)
+      UberModelTrainsetManager._remove_obsolete_datapoints(df)
 
       if 'valid' in df:
         df = df[df['valid'] != False]
@@ -251,12 +251,11 @@ class UberModelTrainsetManager:
 
     self.stats.to_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index=True)
 
-  def get_xyw(self, id):
+  def get_xyw(self, doc_id):
 
-    row = self.stats.loc[id]
+    row = self.stats.loc[doc_id]
 
     try:
-
       weight = 0.5
       if row['user_correction_date'] is not None:  # more weight to user-corrected datapoints
         weight *= 10.0
@@ -264,18 +263,20 @@ class UberModelTrainsetManager:
       subj = row['subject']
       subject_one_hot = ContractSubject.encode_1_hot()[subj]
 
-      fn = os.path.join(self.work_dir, f'{id}-datapoint-embeddings.npy')
+      fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-embeddings.npy')
       embeddings = np.load(fn)
 
-      fn = os.path.join(self.work_dir, f'{id}-datapoint-token_features.npy')
+      fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-token_features.npy')
       token_features = np.load(fn)
 
-      fn = os.path.join(self.work_dir, f'{id}-datapoint-semantic_map.npy')
+      fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-semantic_map.npy')
       semantic_map = np.load(fn)
-
+      self.stats.at[doc_id, 'error'] = None
       return ((embeddings, token_features), (semantic_map, subject_one_hot), weight)
-    except:
-      self.stats.at[id, 'valid'] = False
+    except Exception as e:
+      print(e)
+      self.stats.at[doc_id, 'valid'] = False
+      self.stats.at[doc_id, 'error'] = str(e)
       self._save_stats()
       return ((None, None), (None, None), None)
 
@@ -309,6 +310,12 @@ class UberModelTrainsetManager:
     model.summary()
 
     return model, ctx
+
+  def validate_trainset(self):
+    self.stats: DataFrame = self.load_contract_trainset_meta()
+    for i in self.stats.index:
+      self.get_xyw(i)
+    self._save_stats()
 
   def train(self, generator_factory_method):
     self.stats: DataFrame = self.load_contract_trainset_meta()
@@ -445,9 +452,8 @@ def plot_subject_confusion_matrix(image_save_path, model, steps=12, generator=No
   all_predictions = []
   all_originals = []
 
-  # _labels = []
-  for i in range(steps):
-    x, y, w = next(generator)
+  for _ in range(steps):
+    x, y, _ = next(generator)
 
     orig_test_labels = onehots2labels(y[1])
 
@@ -480,7 +486,7 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
       data.set_index('epoch')
 
       for metric in _metrics:
-        fig = plt.figure(figsize=(16, 6))
+        plt.figure(figsize=(16, 6))
         plt.grid()
         plt.title(f'{metric}')
         for metric_variant in ['', 'val_']:
@@ -523,4 +529,5 @@ if __name__ == '__main__':
   umtm = UberModelTrainsetManager(default_work_dir)
 
   umtm.export_recent_contracts()
+  umtm.validate_trainset()
   umtm.train(umtm.make_generator)
