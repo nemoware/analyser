@@ -11,6 +11,7 @@ from datetime import datetime
 import matplotlib
 from sklearn.metrics import classification_report
 
+from analyser.text_tools import split_version
 from colab_support.renderer import plot_cm
 from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weights
 
@@ -25,7 +26,9 @@ from keras.preprocessing.sequence import pad_sequences
 from pandas import DataFrame
 
 from analyser.headers_detector import get_tokens_features
-from analyser.hyperparams import work_dir, models_path
+from analyser.hyperparams import models_path
+
+from analyser.hyperparams import work_dir as default_work_dir
 from analyser.legal_docs import LegalDocument, make_headline_attention_vector
 from analyser.structures import ContractSubject
 from integration.db import get_mongodb_connection
@@ -99,15 +102,7 @@ class UberModelTrainsetManager:
   def __init__(self, work_dir: str):
 
     self.work_dir: str = work_dir
-    self.stats: DataFrame = self._get_contract_trainset_meta(work_dir)
-
-    if len(self.stats) > 0:
-      self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
-      self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
-    else:
-      self.lastdate = datetime(1900, 1, 1)
-
-    print(f'latest export_date: [{self.lastdate}]')
+    self.stats: DataFrame = self.load_contract_trainset_meta()
 
   def save_contract_data_arrays(self, doc: LegalDocument, id_override=None):
     id_ = doc._id
@@ -133,10 +128,10 @@ class UberModelTrainsetManager:
     doc: LegalDocument = join_paragraphs(d['parse'], id)
 
     if not _DEV_MODE and _EMBEDD:
-      fn = os.path.join(work_dir, f'{id}-datapoint-embeddings')
+      fn = os.path.join(self.work_dir, f'{id}-datapoint-embeddings')
       if os.path.isfile(fn + '.npy'):
         print(f'skipping embedding doc {id}...., {fn} exits')
-        doc.embeddings = np.load(fn)
+        doc.embeddings = np.load(fn+ '.npy')
       else:
         print(f'embedding doc {id}....')
         embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
@@ -193,45 +188,68 @@ class UberModelTrainsetManager:
 
     return res
 
-  def _get_contract_trainset_meta(self, work_dir):
+  def _remove_obsolete_datapoints(self, df: DataFrame):
+    if 'valid' not in df:
+      df['valid'] = True
+
+    for i, row in df.iterrows():
+
+      int_v = split_version(row['version'])
+
+
+      if pd.isna(row['user_correction_date'] ):
+        if not (int_v[0] >= 1 and int_v[1] >= 6):
+          df.at[i, 'valid'] = False
+
+  def load_contract_trainset_meta(self):
     try:
-      df = pd.read_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index_col='_id')
+      df = pd.read_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index_col='_id')
       df['user_correction_date'] = pd.to_datetime(df['user_correction_date'])
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
+      df.index.name = '_id'
+
+      self._remove_obsolete_datapoints(df)
 
       if 'valid' in df:
         df = df[df['valid'] != False]
 
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
+      df.index.name = '_id'
 
-    df.index.name = '_id'
+    print(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
     return df
 
   def export_recent_contracts(self):
+    self.stats: DataFrame = self.load_contract_trainset_meta()
 
+    self.lastdate = datetime(1900, 1, 1)
+    if len(self.stats) > 0:
+      self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
+      self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
+    print(f'latest export_date: [{self.lastdate}]')
     docs = self.get_updated_contracts()  # Cursor, not list
 
     # export_docs_to_single_json(docs)
 
     for d in docs:
       self.save_contract_datapoint(d)
-
-      # TODO are you sure, you need to drop_duplicates on every step?
-      # todo: might be .. move this code to self._save_stats()
-      so = []
-      if 'user_correction_date' in self.stats:
-        so.append('user_correction_date')
-      if 'analyze_date' in self.stats:
-        so.append('analyze_date')
-      if len(so) > 0:
-        self.stats.sort_values(so, inplace=True, ascending=False)
-        self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
-
       self._save_stats()
 
   def _save_stats(self):
-    self.stats.to_csv(os.path.join(work_dir, 'contract_trainset_meta.csv'), index=True)
+
+    # TODO are you sure, you need to drop_duplicates on every step?
+    # todo: might be .. move this code to self._save_stats()
+    so = []
+    if 'user_correction_date' in self.stats:
+      so.append('user_correction_date')
+    if 'analyze_date' in self.stats:
+      so.append('analyze_date')
+    if len(so) > 0:
+      self.stats.sort_values(so, inplace=True, ascending=False)
+      self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
+
+    self.stats.to_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index=True)
 
   def get_xyw(self, id):
 
@@ -252,7 +270,7 @@ class UberModelTrainsetManager:
       fn = os.path.join(self.work_dir, f'{id}-datapoint-token_features.npy')
       token_features = np.load(fn)
 
-      fn = os.path.join(work_dir, f'{id}-datapoint-semantic_map.npy')
+      fn = os.path.join(self.work_dir, f'{id}-datapoint-semantic_map.npy')
       semantic_map = np.load(fn)
 
       return ((embeddings, token_features), (semantic_map, subject_one_hot), weight)
@@ -262,7 +280,7 @@ class UberModelTrainsetManager:
       return ((None, None), (None, None), None)
 
   def init_model(self) -> (Model, KerasTrainingContext):
-    ctx = KerasTrainingContext(work_dir)
+    ctx = KerasTrainingContext(self.work_dir)
 
     model_factory_fn = uber_detection_model_005_1_1
     model_name = model_factory_fn.__name__
@@ -271,7 +289,7 @@ class UberModelTrainsetManager:
     model.name = model_name
 
     weights_file_old = os.path.join(models_path, model_name + ".weights")
-    weights_file_new = os.path.join(work_dir, model_name + ".weights")
+    weights_file_new = os.path.join(self.work_dir, model_name + ".weights")
 
     try:
       model.load_weights(weights_file_new)
@@ -293,6 +311,7 @@ class UberModelTrainsetManager:
     return model, ctx
 
   def train(self, generator_factory_method):
+    self.stats: DataFrame = self.load_contract_trainset_meta()
     '''
     Phase I: frozen bottom 6 common layers
     Phase 2: all unfrozen, entire trainset, low LR
@@ -399,7 +418,7 @@ class UberModelTrainsetManager:
       yield ([batch_x_e, batch_x_h], [batch_y_1, batch_y_2], [ww, ww])
 
 
-def export_docs_to_single_json(documents):
+def export_docs_to_single_json(documents, work_dir):
   arr = {}
   for k, d in enumerate(documents):
 
@@ -501,8 +520,7 @@ if __name__ == '__main__':
   # db = get_mongodb_connection()
   #
 
-  umtm = UberModelTrainsetManager(work_dir)
+  umtm = UberModelTrainsetManager(default_work_dir)
 
   umtm.export_recent_contracts()
   umtm.train(umtm.make_generator)
-

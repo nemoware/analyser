@@ -179,8 +179,9 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
             tag.confidence = confidence
             tag.offset(doc.start)
             ca.__dict__[kind] = tag
-      except:
+      except Exception as e:
         print('find_org_names_raw_by_re: exception')
+        print(e)
 
   # normalize org_name names by find_closest_org_name
   for ca in all:

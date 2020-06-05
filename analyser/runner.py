@@ -189,7 +189,7 @@ def run(run_pahse_2=True, kind=None):
       for document in documents:
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
-          print(f'........processing  {document["parse"]["documentType"]}')
+          print(f'........processing  {document["parse"]["documentType"]} {document["_id"]}')
           processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
