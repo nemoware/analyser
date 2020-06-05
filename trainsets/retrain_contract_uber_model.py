@@ -12,6 +12,7 @@ from datetime import datetime
 import matplotlib
 
 from colab_support.renderer import plot_cm
+from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weights
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -108,8 +109,6 @@ class UberModelTrainsetManager:
 
     print(f'latest export_date: [{self.lastdate}]')
 
-    self.embedder = None
-
   def save_contract_datapoint(self, d):
     id = str(d['_id'])
 
@@ -121,7 +120,8 @@ class UberModelTrainsetManager:
         print(f'skipping embedding doc {id}...., {fn} exits')
       else:
         print(f'embedding doc {id}....')
-        doc.embedd_tokens(self.embedder)
+        embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
+        doc.embedd_tokens(embedder)
         np.save(fn, doc.embeddings)
 
     _dict = doc.__dict__
@@ -207,8 +207,6 @@ class UberModelTrainsetManager:
     return df
 
   def export_recent_contracts(self):
-    if _EMBEDD:
-      self.embedder = ElmoEmbedder.get_instance('elmo')
 
     docs = self.get_updated_contracts()  # Cursor, not list
 
@@ -258,40 +256,6 @@ class UberModelTrainsetManager:
       self._save_stats()
       return ((None, None), (None, None), None)
 
-  def get_indices_split(self, category_column_name: str = 'subject', test_proportion=0.25) -> (
-          [int], [int]):
-    np.random.seed(42)
-
-    df = self.stats  # shortcut
-    cat_count = df[category_column_name].value_counts()  # distribution by category
-
-    _bags = {key: [] for key in cat_count.index}
-
-    for index, row in df.iterrows():
-      subj_code = row[category_column_name]
-      _bags[subj_code].append(index)
-
-    train_indices = []
-    test_indices = []
-
-    for subj_code in _bags:
-      bag = _bags[subj_code]
-      split_index: int = int(len(bag) * test_proportion)
-
-      train_indices += bag[split_index:]
-      test_indices += bag[:split_index]
-
-    # remove instesection
-    intersection = np.intersect1d(test_indices, train_indices)
-    test_indices = [e for e in test_indices if e not in intersection]
-
-    # shuffle
-
-    np.random.shuffle(test_indices)
-    np.random.shuffle(train_indices)
-
-    return train_indices, test_indices
-
   def init_model(self) -> (Model, KerasTrainingContext):
     ctx = KerasTrainingContext(work_dir)
 
@@ -331,7 +295,7 @@ class UberModelTrainsetManager:
     '''
 
     batch_size = 24  # TODO: make a param
-    train_indices, test_indices = self.get_indices_split()
+    train_indices, test_indices = split_trainset_evenly(self.stats, 'subject')
     model, ctx = self.init_model()
     ctx.EVALUATE_ONLY = False
 
@@ -372,6 +336,9 @@ class UberModelTrainsetManager:
     plot_subject_confusion_matrix(self.work_dir, model, steps=12, generator=gen)
 
   def make_generator(self, indices: [int], batch_size: int):
+    subject_weights = get_feature_log_weights(self.stats, 'subject')
+
+    print('subject_weights:', subject_weights)
 
     np.random.seed(42)
 
@@ -391,11 +358,17 @@ class UberModelTrainsetManager:
 
       # Read in each input, perform preprocessing and get labels
       for i in batch_indices:
+        row = self.stats.loc[i]
+        subj_name = row['subject']
+
         (emb, tok_f), (sm, subj), w = self.get_xyw(i)
-        if emb is not None:
+        w *= subject_weights[subj_name]
+
+        if emb is not None: #paranoia, TODO: fail execution, because trainset mut be verifyded in advance
+
           _padded = list(pad_things([emb, tok_f, sm], maxlen))
-          # if CUT_EMB_PRE:
-          padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
+          _padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
+
           emb = _padded[0]
           tok_f = _padded[1]
           sm = _padded[2]

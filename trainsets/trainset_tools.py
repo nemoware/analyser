@@ -13,6 +13,51 @@ from analyser.structures import ContractSubject
 VALIDATION_SET_PROPORTION = 0.25
 
 
+def get_feature_log_weights(trainset_rows, category_column_name):
+  subj_count = trainset_rows[category_column_name].value_counts()
+
+  subjects_weights = 1. / np.log(1. + subj_count)
+
+  subjects_weights /= subjects_weights.sum()
+  subjects_weights *= len(subjects_weights)
+
+  return subjects_weights
+
+
+def split_trainset_evenly(df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
+        [int], [int]):
+  np.random.seed(42)
+
+  cat_count = df[category_column_name].value_counts()  # distribution by category
+
+  _bags = {key: [] for key in cat_count.index}
+
+  for index, row in df.iterrows():
+    subj_code = row[category_column_name]
+    _bags[subj_code].append(index)
+
+  train_indices = []
+  test_indices = []
+
+  for subj_code in _bags:
+    bag = _bags[subj_code]
+    split_index: int = int(len(bag) * test_proportion)
+
+    train_indices += bag[split_index:]
+    test_indices += bag[:split_index]
+
+  # remove instesection
+  intersection = np.intersect1d(test_indices, train_indices)
+  test_indices = [e for e in test_indices if e not in intersection]
+
+  # shuffle
+
+  np.random.shuffle(test_indices)
+  np.random.shuffle(train_indices)
+
+  return train_indices, test_indices
+
+
 class TrainsetBalancer:
 
   def __init__(self):
