@@ -192,12 +192,12 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     meaninful_sums = sums
 
     min_i = min_index(meaninful_sums)
-    min = sums[min_i]
-    mean = meaninful_sums.mean()
+    _min = sums[min_i]
+    _mean = meaninful_sums.mean()
 
     # confidence = sums[min_i] / mean
     sandard_deviation = np.std(meaninful_sums)
-    deviation_from_mean = abs(min - mean)
+    deviation_from_mean = abs(_min - _mean)
     confidence = sandard_deviation / deviation_from_mean
     return min_i, sums, confidence
 
