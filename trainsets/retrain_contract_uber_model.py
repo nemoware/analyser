@@ -35,7 +35,7 @@ from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
-from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
+from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract, uber_detection_model_003
 from tf_support.tools import KerasTrainingContext
 
 # from mlxtend.plotting import plot_confusion_matrix
@@ -56,7 +56,6 @@ def _get_semantic_map(doc: LegalDocument, confidence_override=None) -> DataFrame
   else:
     _tags = doc.__dict__['analysis']['attributes']
 
-  _tags = _tags
   _attention = np.zeros((len(_tags), doc.__len__()))
 
   df = DataFrame()
@@ -86,21 +85,23 @@ def _get_semantic_map(doc: LegalDocument, confidence_override=None) -> DataFrame
 
 def _get_attribute_value(d, attr):
   if 'user' in d and 'attributes' in d['user'] and attr in d['user']['attributes']:
-    return d['user']['attributes'][attr]['value']
+    return d['user']['attributes'][attr]
 
   else:
     if 'attributes' in d['analysis'] and attr in d['analysis']['attributes']:
-      return d['analysis']['attributes'][attr]['value']
+      return d['analysis']['attributes'][attr]
 
 
 def _get_subject(d):
-  return _get_attribute_value(d, 'subject')
+  att= _get_attribute_value(d, 'subject')
+
+  return att
 
 
 class UberModelTrainsetManager:
 
-  def __init__(self, work_dir: str):
-
+  def __init__(self, work_dir: str, model_variant_fn=uber_detection_model_005_1_1):
+    self.model_variant_fn=model_variant_fn
     self.work_dir: str = work_dir
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
@@ -149,8 +150,11 @@ class UberModelTrainsetManager:
     stats.at[_id, 'version'] = d['analysis']['version']
 
     stats.at[_id, 'export_date'] = datetime.now()
-    stats.at[_id, 'subject'] = _get_subject(d)
-    stats.at[_id, 'analyze_date'] = d['analysis']['analyze_timestamp']
+    stats.at[_id, 'analyze_date'] = d ['analysis']['analyze_timestamp']
+
+    subj_att =_get_subject(d)
+    stats.at[_id, 'subject'] = subj_att['value']
+    stats.at[_id, 'subject confidence'] = subj_att['confidence']
 
     if 'user' in d:
       stats.at[_id, 'user_correction_date'] = d['user']['updateDate']
@@ -225,7 +229,7 @@ class UberModelTrainsetManager:
 
     self.lastdate = datetime(1900, 1, 1)
     if len(self.stats) > 0:
-      self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
+      # self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
       self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
     print(f'latest export_date: [{self.lastdate}]')
     docs = self.get_updated_contracts()  # Cursor, not list
@@ -256,9 +260,9 @@ class UberModelTrainsetManager:
     row = self.stats.loc[doc_id]
 
     try:
-      weight = 0.5
+      weight = row['subject confidence']
       if row['user_correction_date'] is not None:  # more weight to user-corrected datapoints
-        weight *= 10.0
+        weight = 10.0
 
       subj = row['subject']
       subject_one_hot = ContractSubject.encode_1_hot()[subj]
@@ -283,10 +287,10 @@ class UberModelTrainsetManager:
   def init_model(self) -> (Model, KerasTrainingContext):
     ctx = KerasTrainingContext(self.work_dir)
 
-    model_factory_fn = uber_detection_model_005_1_1
-    model_name = model_factory_fn.__name__
 
-    model = model_factory_fn(name=model_name, ctx=ctx, trained=True)
+    model_name = self.model_variant_fn.__name__
+
+    model = self.model_variant_fn(name=model_name, ctx=ctx, trained=True)
     model.name = model_name
 
     weights_file_old = os.path.join(models_path, model_name + ".weights")
@@ -360,8 +364,10 @@ class UberModelTrainsetManager:
 
   def make_training_report(self, ctx: KerasTrainingContext, model: Model):
     ## plot results
-    _metrics = ctx.get_log(model.name).keys()
-    plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
+    _log = ctx.get_log(model.name)
+    if _log is not None:
+      _metrics = _log.keys()
+      plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
 
     gen = self.make_generator(self.stats.index, 20)
     plot_subject_confusion_matrix(self.work_dir, model, steps=12, generator=gen)
@@ -375,7 +381,7 @@ class UberModelTrainsetManager:
 
     while True:
       maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
-      cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
+      # cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
 
       # Select files (paths/indices) for the batch
       batch_indices = np.random.choice(a=indices, size=batch_size)
@@ -398,7 +404,7 @@ class UberModelTrainsetManager:
         if emb is not None:  # paranoia, TODO: fail execution, because trainset mut be verifyded in advance
 
           _padded = list(pad_things([emb, tok_f, sm], maxlen))
-          _padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
+          # _padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
 
           emb = _padded[0]
           tok_f = _padded[1]
