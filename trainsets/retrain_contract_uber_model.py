@@ -38,11 +38,14 @@ from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
 from tf_support.tools import KerasTrainingContext
 
-# from mlxtend.plotting import plot_confusion_matrix
 SAVE_PICKLES = False
 _DEV_MODE = False
 _EMBEDD = True
 
+
+# TODO: sort org1 and org2 by span start
+# TODO: use averaged tags confidence for sample weighting
+# TODO: cache embeddings on analysis phase
 
 def pad_things(xx, maxlen, padding='post'):
   for x in xx:
@@ -112,7 +115,6 @@ class UberModelTrainsetManager:
 
     token_features = get_tokens_features(doc.tokens)
     semantic_map = _get_semantic_map(doc, 1.0)
-    embeddings = doc.embeddings
 
     fn = os.path.join(self.work_dir, f'{id_}-datapoint-token_features')
     np.save(fn, token_features)
@@ -121,7 +123,7 @@ class UberModelTrainsetManager:
     np.save(fn, semantic_map)
 
     fn = os.path.join(self.work_dir, f'{id_}-datapoint-embeddings')
-    np.save(fn, embeddings)
+    np.save(fn, doc.embeddings)
 
   def save_contract_datapoint(self, d):
     _id = str(d['_id'])
@@ -381,7 +383,7 @@ class UberModelTrainsetManager:
 
       sample_weight = row['subject confidence']
       if not pd.isna(row['user_correction_date']):  # more weight for user-corrected datapoints
-        sample_weight = 10.0 #TODO: must be estimated anyhow smartly
+        sample_weight = 10.0  # TODO: must be estimated anyhow smartly
 
       subject_weight = sample_weight * subject_weights[subj_name]
       self.stats.at[i, 'subject_weight'] = subject_weight
@@ -390,7 +392,6 @@ class UberModelTrainsetManager:
     # normalize weights, so the sum == Number of samples
     self.stats.sample_weight /= self.stats.sample_weight.mean()
     self.stats.subject_weight /= self.stats.subject_weight.mean()
-
 
     self._save_stats()
 
