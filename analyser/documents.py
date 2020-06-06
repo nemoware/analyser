@@ -1,3 +1,4 @@
+import hashlib
 import os
 import pickle
 import sys
@@ -207,13 +208,17 @@ class TextMap:
     else:
       raise TypeError("Invalid argument type.")
 
-  def get_tokens(self)->Tokens:
+  def get_tokens(self) -> Tokens:
     return [
       self._full_text[tr[0]:tr[1]] for tr in self.map
     ]
 
   tokens = property(get_tokens, None)
   text = property(get_text, None)
+
+  def get_checksum(self):
+    _reconstructed = '|'.join(self.tokens).encode('utf-8')
+    return hashlib.md5(_reconstructed).hexdigest()
 
 
 def split_sentences_into_map(substr, max_len_chars=150) -> TextMap:

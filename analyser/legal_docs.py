@@ -5,10 +5,10 @@
 
 # legal_docs.py
 import datetime
-import hashlib
 import json
 
 from bson import json_util
+from overrides import final
 
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
@@ -197,8 +197,7 @@ class LegalDocument:
     return self.tokens_map.text
 
   def get_checksum(self):
-    return hashlib.md5(self._normal_text.encode('utf-8')).hexdigest()
-    # return hash(self._normal_text)
+    return self.tokens_map_norm.get_checksum()
 
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
@@ -260,16 +259,23 @@ class LegalDocument:
     _s = slice(max(0, start), end)
     return self.subdoc_slice(_s)
 
+  @final
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
-    warnings.warn("use embedd_words", DeprecationWarning)
-    if self.tokens:
-      max_tokens = max_tokens
-      if len(self.tokens_map_norm) > max_tokens:
-        self.embeddings = _embedd_large(self.tokens_map_norm, embedder, max_tokens, verbosity)
-      else:
-        self.embeddings = embedder.embedd_tokens(self.tokens)
+    ch = self.checksum
+    _cached = embedder.get_cached_embedding(ch)
+    if _cached is not None:
+      self.embeddings = _cached
     else:
-      raise ValueError(f'cannot embed doc {self.filename}, no tokens')
+      if self.tokens:
+        max_tokens = max_tokens
+        if len(self.tokens_map_norm) > max_tokens:
+          self.embeddings = embedder.embedd_large(self.tokens_map_norm, max_tokens, verbosity)
+        else:
+          self.embeddings = embedder.embedd_tokens(self.tokens)
+
+        embedder.cache_embedding(ch, self.embeddings)
+      else:
+        raise ValueError(f'cannot embedd doc {self.filename}, no tokens')
 
   def is_same_org(self, org_name: str) -> bool:
     tags: [SemanticTag] = self.get_tags()
@@ -542,44 +548,12 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 PARAGRAPH_DELIMITER = '\n'
 
 
-def _embedd_large(text_map, embedder, max_tokens=8000, verbosity=2):
-  overlap = max_tokens // 20
-
-  number_of_windows = 1 + len(text_map) // max_tokens
-  window = max_tokens
-
-  if verbosity > 1:
-    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
-    warnings.warn(msg)
-
-  start = 0
-  embeddings = None
-  # tokens = []
-  while start < len(text_map):
-
-    subtokens: Tokens = text_map[start:start + window + overlap]
-    if verbosity > 2:
-      print("Embedding region:", start, len(subtokens))
-
-    sub_embeddings = embedder.embedd_tokens(subtokens)[0:window]
-
-    if embeddings is None:
-      embeddings = sub_embeddings
-    else:
-      embeddings = np.concatenate([embeddings, sub_embeddings])
-
-    start += window
-
-  return embeddings
-  # self.tokens = tokens
-
-
 def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
   warnings.warn("use embedd_words", DeprecationWarning)
 
   max_tokens = max_tokens
   if len(text_map) > max_tokens:
-    return _embedd_large(text_map, embedder, max_tokens, verbosity)
+    return embedder.embedd_large(text_map, max_tokens, verbosity)
   else:
     return embedder.embedd_tokens(text_map.tokens)
 

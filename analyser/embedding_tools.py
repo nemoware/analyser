@@ -1,8 +1,10 @@
+import warnings
 from abc import abstractmethod
 
 import numpy as np
 
 from analyser.documents import TextMap
+from analyser.hyperparams import work_dir
 from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
 
@@ -30,7 +32,27 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   return sentences_emb, None, lens
 
 
+import os
+
+
 class AbstractEmbedder:
+
+  def __cache_fn(self, checksum):
+    return os.path.join(work_dir, f'cache-{checksum}-embeddings-{type(self).__name__}.npy')
+
+  def get_cached_embedding(self, checksum) -> Embeddings or None:
+    fn = self.__cache_fn(checksum)
+    if os.path.isfile(fn):
+      print(f'skipping embedding doc {checksum} ...., {fn} exits, loading')
+      e = np.load(fn)
+      print('loaded embedding shape is:', e.shape)
+      return e
+
+    return None
+
+  def cache_embedding(self, checksum, embeddings):
+    fn = self.__cache_fn(checksum)
+    np.save(fn, embeddings)
 
   @abstractmethod
   def embedd_tokens(self, tokens: Tokens) -> Embeddings:
@@ -103,3 +125,34 @@ class AbstractEmbedder:
       patterns_emb = sentences_emb
 
     return patterns_emb, regions
+
+  def embedd_large(self, text_map, max_tokens=8000, verbosity=2):
+    overlap = max_tokens // 20
+
+    number_of_windows = 1 + len(text_map) // max_tokens
+    window = max_tokens
+
+    if verbosity > 1:
+      msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
+      warnings.warn(msg)
+
+    start = 0
+    embeddings = None
+    # tokens = []
+    while start < len(text_map):
+
+      subtokens: Tokens = text_map[start:start + window + overlap]
+      if verbosity > 2:
+        print("Embedding region:", start, len(subtokens))
+
+      sub_embeddings = self.embedd_tokens(subtokens)[0:window]
+
+      if embeddings is None:
+        embeddings = sub_embeddings
+      else:
+        embeddings = np.concatenate([embeddings, sub_embeddings])
+
+      start += window
+
+    return embeddings
+    # self.tokens = tokens
