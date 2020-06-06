@@ -86,8 +86,6 @@ class AbstractEmbedder:
 
       sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
-      # print('embedd_contextualized_patterns', (sentence, start, end))
-
       regions.append((start, end))
       tokenized_sentences_list.append(sentence_tokens)
       lens.append(len(sentence_tokens))
@@ -96,21 +94,16 @@ class AbstractEmbedder:
 
       i = i + 1
 
-    # print('maxlen=', maxlen)
     _strings = []
 
     for s in tokenized_sentences_list:
       s.extend([' '] * (maxlen - len(s)))
       _strings.append(s)
-      # print(s)
     _strings = np.array(_strings)
 
     # ======== call TENSORFLOW -----==================
     sentences_emb = self.embedd_tokenized_text(_strings, lens)
     # ================================================
-
-    # print(sentences_emb.shape)
-    #     assert len(sentence_tokens) == sentences_emb
 
     patterns_emb = []
 

@@ -438,8 +438,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
       distances_per_pattern_dict[pat.name] = dists
       c += 1
 
-  # if verbosity > 0:
-  #   print(distances_per_pattern_dict.keys())
   if c == 0:
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 

@@ -252,7 +252,6 @@ def normalize_legal_entity_type(txt) -> (str, str, float):
       finding = '', '', 0
       for k in knowns:
         d = distance.get_jaro_distance(k[0], txt, winkler=True, scaling=0.1)
-        # print( k, d )
         if d > finding[2]:
           finding = k[0], k[1], d
       return finding

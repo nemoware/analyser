@@ -68,7 +68,7 @@ class BaseProcessor:
       if self.is_valid(legal_doc, audit):
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
-        print(legal_doc._id)
+        print('analysys saved, doc._id=',legal_doc._id)
       else:
         save_analysis(db_document, legal_doc, 12)
     except:
@@ -170,7 +170,7 @@ def run(run_pahse_2=True, kind=None):
     for document in documents:
       processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
-        print(f'........pre-processing  {document["parse"]["documentType"]}')
+        print(f'........pre-processing  {document["parse"]["documentType"]} {document["_id"]}')
         processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:

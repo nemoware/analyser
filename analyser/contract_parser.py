@@ -338,7 +338,7 @@ def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFact
           max_confidence = _confidence
           best_subj = subject_kind
           subj_header = header
-        # print (subject_kind, _confidence)
+
 
   return best_subj, max_confidence, subj_header
 

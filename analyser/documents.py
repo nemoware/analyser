@@ -203,7 +203,6 @@ class TextMap:
     elif isinstance(key, int):
 
       r = self.map[key]
-      # print('__getitem__', key)
       return self._full_text[r[0]:r[1]]
     else:
       raise TypeError("Invalid argument type.")
@@ -234,7 +233,7 @@ class CaseNormalizer:
     self.__dict__ = self.__shared_state
     if 'replacements_map' not in self.__dict__:
       p = os.path.join(models_path, 'word_cases_stats.pickle')
-      print('loading word cases stats model', p)
+      print('loading word cases stats model from:', p)
 
       with open(p, 'rb') as handle:
         self.replacements_map = pickle.load(handle)
