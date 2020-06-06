@@ -199,12 +199,28 @@ def check_contract(contract, charters, protocols, audit):
         for charter in charters:
             charter_attrs = get_attrs(charter)
             json_charters.append({"id": charter["_id"], "date": charter_attrs["date"]["value"]})
-        violations.append(create_violation({"id": contract["_id"], "number": contract_number, "type": contract["parse"]["documentType"]},
-                                           None,
-                                           None,
-                                           "charter_not_found",
-                                           {"contract": {"id": contract["_id"], "number": contract_number, "type": contract["parse"]["documentType"], "date": contract_attrs["date"]["value"]},
-                                            "charters": json_charters}))
+
+        violation_reason = {"contract":
+                              {"id": contract["_id"],
+                               "number": contract_number,
+                               "type": contract["parse"]["documentType"]
+                               },
+                            "charters": json_charters
+                            }
+        if 'date' in contract_attrs:
+          violation_reason["contract"]["date"] = contract_attrs["date"]["value"]
+
+        violations.append(create_violation(
+          document_id={
+            "id": contract["_id"],
+            "number": contract_number,
+            "type": contract["parse"]["documentType"]
+          },
+          founding_document_id = None,
+          reference = None,
+          violation_type = "charter_not_found",
+          violation_reason=violation_reason)
+        )
         return violations
     else:
         charter_subject_map, min_constraint = get_charter_diapasons(eligible_charter)
