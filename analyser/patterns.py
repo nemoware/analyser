@@ -50,9 +50,6 @@ class FuzzyPattern():
     _pat = self.embeddings
 
     window_size = wnd_mult * len(_pat) + whd_padding
-    # if window_size > len(_text):
-    #   print('---ERROR: pattern: "{}" window:{} > len(_text):{} (padding={} mult={})'.format(self.name, window_size, len(_text), whd_padding, wnd_mult)  )
-    #   return None
 
     for word_index in range(0, len(_text)):
       _fragment = _text[word_index: word_index + window_size]
@@ -195,12 +192,12 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     meaninful_sums = sums
 
     min_i = min_index(meaninful_sums)
-    min = sums[min_i]
-    mean = meaninful_sums.mean()
+    _min = sums[min_i]
+    _mean = meaninful_sums.mean()
 
     # confidence = sums[min_i] / mean
     sandard_deviation = np.std(meaninful_sums)
-    deviation_from_mean = abs(min - mean)
+    deviation_from_mean = abs(_min - _mean)
     confidence = sandard_deviation / deviation_from_mean
     return min_i, sums, confidence
 
@@ -208,7 +205,6 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     sums = np.zeros(len(text_ebd))
     total_weight = 0
     for p in self.patterns:
-      # print('CoumpoundFuzzyPattern, finding', str(p))
       weight = self.patterns[p]
       sp = p._find_patterns(text_ebd)
 

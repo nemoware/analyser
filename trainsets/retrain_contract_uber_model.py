@@ -372,7 +372,7 @@ class UberModelTrainsetManager:
       plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
 
     gen = self.make_generator(self.stats.index, 20)
-    plot_subject_confusion_matrix(self.work_dir, model, steps=12, generator=gen)
+    plot_subject_confusion_matrix(self.work_dir, model, steps=20, generator=gen)
 
   def calculate_samples_weights(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()

@@ -236,7 +236,7 @@ class ProtocolParser(ParsingContext):
     values = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
-      # print(subdoc.text)
+
       numbers = find_document_number_in_subdoc(subdoc, tagname='number', parent=agenda_question_tag)
 
       for k, v in enumerate(numbers):

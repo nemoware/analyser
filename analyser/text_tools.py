@@ -339,7 +339,6 @@ def compare_masked_strings(a, b, masked_substrings):
       a1 = a1.replace(masked, '')
       b1 = b1.replace(masked, '')
 
-  # print(a1, '--', b1)
   return jaro.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
 
 

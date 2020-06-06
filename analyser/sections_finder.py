@@ -128,8 +128,6 @@ def map_headers(doc: LegalDocument, centroids: DataFrame, relu_threshold=0.45) -
     patters_emb = centroids[centroids.key == section_type][centroids.columns[0:1024]].values
     headers_df[section_type] = 0.0  # seed
 
-    print(section_type, patters_emb.shape)
-
     for header_index, header in enumerate(headers):
       _embedding = header.embeddings
       distances = np.array(cosine_similarity(patters_emb, _embedding)).T
@@ -137,7 +135,7 @@ def map_headers(doc: LegalDocument, centroids: DataFrame, relu_threshold=0.45) -
       # distances = relu(distances,  0.4666)
       # vv = max_exclusive_pattern(distances)
       vv = rectifyed_sum(distances, relu_threshold)
-      # print(vv.shape, distances[0])
+
       _confidence = max(vv)
 
       headers_df.at[header_index, section_type] = _confidence
