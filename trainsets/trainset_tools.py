@@ -24,8 +24,10 @@ def get_feature_log_weights(trainset_rows, category_column_name):
   return subjects_weights
 
 
-def split_trainset_evenly(df: DataFrame, category_column_name: str, test_proportion=VALIDATION_SET_PROPORTION) -> (
-        [int], [int]):
+def split_trainset_evenly(df: DataFrame,
+                          category_column_name: str,
+                          test_proportion=VALIDATION_SET_PROPORTION,
+                          no_intersections=False) -> ([int], [int]):
   np.random.seed(42)
 
   cat_count = df[category_column_name].value_counts()  # distribution by category
@@ -35,6 +37,7 @@ def split_trainset_evenly(df: DataFrame, category_column_name: str, test_proport
   for index, row in df.iterrows():
     subj_code = row[category_column_name]
     _bags[subj_code].append(index)
+
 
   train_indices = []
   test_indices = []
@@ -46,9 +49,15 @@ def split_trainset_evenly(df: DataFrame, category_column_name: str, test_proport
     train_indices += bag[split_index:]
     test_indices += bag[:split_index]
 
+    if(len(bag)==1): #just to manage small very small outlier classes
+      test_indices.append( bag[0])
+
+
   # remove instesection
   intersection = np.intersect1d(test_indices, train_indices)
-  test_indices = [e for e in test_indices if e not in intersection]
+  print('test and train samples itersection: ', intersection)
+  if no_intersections:
+    test_indices = [e for e in test_indices if e not in intersection]
 
   # shuffle
 

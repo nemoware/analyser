@@ -35,7 +35,7 @@ from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
-from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract, uber_detection_model_003
+from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
 from tf_support.tools import KerasTrainingContext
 
 # from mlxtend.plotting import plot_confusion_matrix
@@ -93,7 +93,7 @@ def _get_attribute_value(d, attr):
 
 
 def _get_subject(d):
-  att= _get_attribute_value(d, 'subject')
+  att = _get_attribute_value(d, 'subject')
 
   return att
 
@@ -101,7 +101,7 @@ def _get_subject(d):
 class UberModelTrainsetManager:
 
   def __init__(self, work_dir: str, model_variant_fn=uber_detection_model_005_1_1):
-    self.model_variant_fn=model_variant_fn
+    self.model_variant_fn = model_variant_fn
     self.work_dir: str = work_dir
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
@@ -150,9 +150,9 @@ class UberModelTrainsetManager:
     stats.at[_id, 'version'] = d['analysis']['version']
 
     stats.at[_id, 'export_date'] = datetime.now()
-    stats.at[_id, 'analyze_date'] = d ['analysis']['analyze_timestamp']
+    stats.at[_id, 'analyze_date'] = d['analysis']['analyze_timestamp']
 
-    subj_att =_get_subject(d)
+    subj_att = _get_subject(d)
     stats.at[_id, 'subject'] = subj_att['value']
     stats.at[_id, 'subject confidence'] = subj_att['confidence']
 
@@ -260,12 +260,9 @@ class UberModelTrainsetManager:
     row = self.stats.loc[doc_id]
 
     try:
-      weight = row['subject confidence']
-      if row['user_correction_date'] is not None:  # more weight to user-corrected datapoints
-        weight = 10.0
 
-      subj = row['subject']
-      subject_one_hot = ContractSubject.encode_1_hot()[subj]
+      _subj = row['subject']
+      subject_one_hot = ContractSubject.encode_1_hot()[_subj]
 
       fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-embeddings.npy')
       embeddings = np.load(fn)
@@ -276,17 +273,20 @@ class UberModelTrainsetManager:
       fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-semantic_map.npy')
       semantic_map = np.load(fn)
       self.stats.at[doc_id, 'error'] = None
-      return ((embeddings, token_features), (semantic_map, subject_one_hot), weight)
+      return (
+        (embeddings, token_features),
+        (semantic_map, subject_one_hot),
+        (row['sample_weight'], row['subject_weight']))
+
     except Exception as e:
       print(e)
       self.stats.at[doc_id, 'valid'] = False
       self.stats.at[doc_id, 'error'] = str(e)
       self._save_stats()
-      return ((None, None), (None, None), None)
+      return ((None, None), (None, None), (None, None))
 
   def init_model(self) -> (Model, KerasTrainingContext):
     ctx = KerasTrainingContext(self.work_dir)
-
 
     model_name = self.model_variant_fn.__name__
 
@@ -372,10 +372,29 @@ class UberModelTrainsetManager:
     gen = self.make_generator(self.stats.index, 20)
     plot_subject_confusion_matrix(self.work_dir, model, steps=12, generator=gen)
 
-  def make_generator(self, indices: [int], batch_size: int):
+  def calculate_samples_weights(self):
+    self.stats: DataFrame = self.load_contract_trainset_meta()
     subject_weights = get_feature_log_weights(self.stats, 'subject')
 
-    print('subject_weights:', subject_weights)
+    for i, row in self.stats.iterrows():
+      subj_name = row['subject']
+
+      sample_weight = row['subject confidence']
+      if not pd.isna(row['user_correction_date']):  # more weight for user-corrected datapoints
+        sample_weight = 10.0 #TODO: must be estimated anyhow smartly
+
+      subject_weight = sample_weight * subject_weights[subj_name]
+      self.stats.at[i, 'subject_weight'] = subject_weight
+      self.stats.at[i, 'sample_weight'] = sample_weight
+
+    # normalize weights, so the sum == Number of samples
+    self.stats.sample_weight /= self.stats.sample_weight.mean()
+    self.stats.subject_weight /= self.stats.subject_weight.mean()
+
+
+    self._save_stats()
+
+  def make_generator(self, indices: [int], batch_size: int):
 
     np.random.seed(42)
 
@@ -386,20 +405,20 @@ class UberModelTrainsetManager:
       # Select files (paths/indices) for the batch
       batch_indices = np.random.choice(a=indices, size=batch_size)
 
-      batch_input_e = []
-      batch_input_h = []
-      batch_output_a = []
-      batch_output_b = []
+      batch_input_emb = []
+      batch_input_token_f = []
+      batch_output_sm = []
+      batch_output_subj = []
 
       weights = []
+      weights_subj = []
 
       # Read in each input, perform preprocessing and get labels
       for i in batch_indices:
         row = self.stats.loc[i]
         subj_name = row['subject']
 
-        (emb, tok_f), (sm, subj), w = self.get_xyw(i)
-        w *= subject_weights[subj_name]
+        (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = self.get_xyw(i)
 
         if emb is not None:  # paranoia, TODO: fail execution, because trainset mut be verifyded in advance
 
@@ -410,25 +429,21 @@ class UberModelTrainsetManager:
           tok_f = _padded[1]
           sm = _padded[2]
 
-          batch_input_e.append(emb)
-          batch_input_h.append(tok_f)
+          batch_input_emb.append(emb)
+          batch_input_token_f.append(tok_f)
 
-          batch_output_a.append(sm)
-          batch_output_b.append(subj)
+          batch_output_sm.append(sm)
+          batch_output_subj.append(subj)
 
-          weights.append(w)
-
-      batch_x_e = np.array(batch_input_e, dtype=np.float32)
-      batch_x_h = np.array(batch_input_h)
-
-      batch_y_1 = np.array(batch_output_a)
-      batch_y_2 = np.array(batch_output_b)
-
-      ww = np.array(weights)
+          weights.append(sample_weight)
+          weights_subj.append(subject_weight)
+        # end if emb
+      # end for loop
 
       # Return a tuple of (input, output, weights) to feed the network
-
-      yield ([batch_x_e, batch_x_h], [batch_y_1, batch_y_2], [ww, ww])
+      yield ([np.array(batch_input_emb), np.array(batch_input_token_f)],
+             [np.array(batch_output_sm), np.array(batch_output_subj)],
+             [np.array(weights), np.array(weights_subj)])
 
 
 def export_docs_to_single_json(documents, work_dir):
@@ -535,5 +550,6 @@ if __name__ == '__main__':
   umtm = UberModelTrainsetManager(default_work_dir)
 
   umtm.export_recent_contracts()
+  umtm.calculate_samples_weights()
   umtm.validate_trainset()
   umtm.train(umtm.make_generator)
