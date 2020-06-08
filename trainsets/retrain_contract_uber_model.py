@@ -19,7 +19,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pymongo
 from bson import json_util
 from keras import Model
 from keras.preprocessing.sequence import pad_sequences
@@ -116,14 +115,9 @@ class UberModelTrainsetManager:
     token_features = get_tokens_features(doc.tokens)
     semantic_map = _get_semantic_map(doc, 1.0)
 
-    fn = os.path.join(self.work_dir, f'{id_}-datapoint-token_features')
-    np.save(fn, token_features)
-
-    fn = os.path.join(self.work_dir, f'{id_}-datapoint-semantic_map')
-    np.save(fn, semantic_map)
-
-    fn = os.path.join(self.work_dir, f'{id_}-datapoint-embeddings')
-    np.save(fn, doc.embeddings)
+    np.save(self._dp_fn(id_, 'token_features'), token_features)
+    np.save(self._dp_fn(id_, 'semantic_map'), semantic_map)
+    np.save(self._dp_fn(id_, 'embeddings'), doc.embeddings)
 
   def save_contract_datapoint(self, d):
     _id = str(d['_id'])
@@ -131,10 +125,11 @@ class UberModelTrainsetManager:
     doc: LegalDocument = join_paragraphs(d['parse'], _id)
 
     if not _DEV_MODE and _EMBEDD:
-      fn = os.path.join(self.work_dir, f'{_id}-datapoint-embeddings')
-      if os.path.isfile(fn + '.npy'):
+      fn = self._dp_fn(_id, 'embeddings')
+      # fn = os.path.join(self.work_dir, f'{_id}-datapoint-embeddings')
+      if os.path.isfile(fn):
         print(f'skipping embedding doc {_id}...., {fn} exits')
-        doc.embeddings = np.load(fn + '.npy')
+        doc.embeddings = np.load(fn)
       else:
         print(f'embedding doc {_id}....')
         embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
@@ -156,6 +151,7 @@ class UberModelTrainsetManager:
 
     subj_att = _get_subject(d)
     stats.at[_id, 'subject'] = subj_att['value']
+    
     stats.at[_id, 'subject confidence'] = subj_att['confidence']
 
     if 'user' in d:
@@ -184,9 +180,13 @@ class UberModelTrainsetManager:
     }
 
     print(f'running DB query {query}')
-    res = documents_collection.find(filter=query, sort=[('analysis.analyze_timestamp', pymongo.ASCENDING),
-                                                        ('user.updateDate', pymongo.ASCENDING)])
+    # sorting = [('analysis.analyze_timestamp', pymongo.ASCENDING),
+    #         ('user.updateDate', pymongo.ASCENDING)]
+    # sorting = [
+    #            ('user.updateDate', pymongo.ASCENDING)]
+    res = documents_collection.find(filter=query, sort=None)
 
+    res.limit(200)
     if _DEV_MODE:
       res.limit(5)
 
@@ -226,7 +226,7 @@ class UberModelTrainsetManager:
     print(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
     return df
 
-  def export_recent_contracts(self):
+  def import_recent_contracts(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
     self.lastdate = datetime(1900, 1, 1)
@@ -246,6 +246,8 @@ class UberModelTrainsetManager:
 
     # TODO are you sure, you need to drop_duplicates on every step?
     # todo: might be .. move this code to self._save_stats()
+    # todo: print trainset stats
+
     so = []
     if 'user_correction_date' in self.stats:
       so.append('user_correction_date')
@@ -256,36 +258,6 @@ class UberModelTrainsetManager:
       self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
 
     self.stats.to_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index=True)
-
-  def get_xyw(self, doc_id):
-
-    row = self.stats.loc[doc_id]
-
-    try:
-
-      _subj = row['subject']
-      subject_one_hot = ContractSubject.encode_1_hot()[_subj]
-
-      fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-embeddings.npy')
-      embeddings = np.load(fn)
-
-      fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-token_features.npy')
-      token_features = np.load(fn)
-
-      fn = os.path.join(self.work_dir, f'{doc_id}-datapoint-semantic_map.npy')
-      semantic_map = np.load(fn)
-      self.stats.at[doc_id, 'error'] = None
-      return (
-        (embeddings, token_features),
-        (semantic_map, subject_one_hot),
-        (row['sample_weight'], row['subject_weight']))
-
-    except Exception as e:
-      print(e)
-      self.stats.at[doc_id, 'valid'] = False
-      self.stats.at[doc_id, 'error'] = str(e)
-      self._save_stats()
-      return ((None, None), (None, None), (None, None))
 
   def init_model(self) -> (Model, KerasTrainingContext):
     ctx = KerasTrainingContext(self.work_dir)
@@ -320,7 +292,16 @@ class UberModelTrainsetManager:
   def validate_trainset(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
     for i in self.stats.index:
-      self.get_xyw(i)
+      try:
+        self.make_xyw(i)
+
+      except Exception as e:
+        print(e)
+        self.stats.at[i, 'valid'] = False
+        self.stats.at[i, 'error'] = str(e)
+        self._save_stats()
+        return ((None, None), (None, None), (None, None))
+
     self._save_stats()
 
   def train(self, generator_factory_method):
@@ -345,7 +326,7 @@ class UberModelTrainsetManager:
     ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(train_indices))
 
     test_gen = generator_factory_method(test_indices, batch_size)
-    train_gen = generator_factory_method(train_indices, batch_size)
+    train_gen = generator_factory_method(train_indices, batch_size, augment_samples=True)
 
     ctx.train_and_evaluate_model(model, train_gen, test_gen, retrain=True)
 
@@ -395,16 +376,69 @@ class UberModelTrainsetManager:
 
     self._save_stats()
 
-  def make_generator(self, indices: [int], batch_size: int):
+  def _dp_fn(self, doc_id, suffix):
+    return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
+
+  def make_xyw(self, doc_id):
+
+    row = self.stats.loc[doc_id]
+
+    # try:
+    _subj = row['subject']
+    subject_one_hot = ContractSubject.encode_1_hot()[_subj]
+
+    embeddings = np.load(self._dp_fn(doc_id, 'embeddings'))
+    token_features = np.load(self._dp_fn(doc_id, 'token_features'))
+    semantic_map = np.load(self._dp_fn(doc_id, 'semantic_map'))
+
+    self.stats.at[doc_id, 'error'] = None
+    return (
+      (embeddings, token_features),
+      (semantic_map, subject_one_hot),
+      (row['sample_weight'], row['subject_weight']))
+
+    # except Exception as e:
+    #   print(e)
+    #   self.stats.at[doc_id, 'valid'] = False
+    #   self.stats.at[doc_id, 'error'] = str(e)
+    #   self._save_stats()
+    #   return ((None, None), (None, None), (None, None))
+
+  def augment_datapoint(self, dp):
+    maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+    cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
+
+    return self.trim_maxlen(dp, cutoff, maxlen)
+
+  def trim_maxlen(self, dp, start_cut, maxlen):
+    (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = dp
+
+    # if emb is not None:  # paranoia, TODO: fail execution, because trainset mut be verifyed in advance
+
+    _padded = list(pad_things([emb, tok_f, sm], maxlen))
+    if start_cut > 0:
+      _padded = list(pad_things(_padded, maxlen - start_cut, padding='pre'))
+
+    emb = _padded[0]
+    tok_f = _padded[1]
+    sm = _padded[2]
+
+    return (emb, tok_f), (sm, subj), (sample_weight, subject_weight)
+
+  def make_generator(self, indices: [int], batch_size: int, augment_samples=False):
 
     np.random.seed(42)
 
-    while True:
-      maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
-      # cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
+    maxlen = 128 * 12
+    cutoff = 0
 
-      # Select files (paths/indices) for the batch
+    while True:
+
       batch_indices = np.random.choice(a=indices, size=batch_size)
+
+      if augment_samples:
+        maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+        cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
 
       batch_input_emb = []
       batch_input_token_f = []
@@ -416,28 +450,20 @@ class UberModelTrainsetManager:
 
       # Read in each input, perform preprocessing and get labels
       for i in batch_indices:
-        row = self.stats.loc[i]
-        subj_name = row['subject']
+        dp = self.make_xyw(i)
+        dp = self.trim_maxlen(dp, cutoff, maxlen)
+        # TODO: find samples maxlen
 
-        (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = self.get_xyw(i)
+        (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = dp
 
-        if emb is not None:  # paranoia, TODO: fail execution, because trainset mut be verifyded in advance
+        batch_input_emb.append(emb)
+        batch_input_token_f.append(tok_f)
 
-          _padded = list(pad_things([emb, tok_f, sm], maxlen))
-          # _padded = list(pad_things(_padded, maxlen - cutoff, padding='pre'))
+        batch_output_sm.append(sm)
+        batch_output_subj.append(subj)
 
-          emb = _padded[0]
-          tok_f = _padded[1]
-          sm = _padded[2]
-
-          batch_input_emb.append(emb)
-          batch_input_token_f.append(tok_f)
-
-          batch_output_sm.append(sm)
-          batch_output_subj.append(subj)
-
-          weights.append(sample_weight)
-          weights_subj.append(subject_weight)
+        weights.append(sample_weight)
+        weights_subj.append(subject_weight)
         # end if emb
       # end for loop
 
@@ -550,7 +576,7 @@ if __name__ == '__main__':
 
   umtm = UberModelTrainsetManager(default_work_dir)
 
-  umtm.export_recent_contracts()
+  umtm.import_recent_contracts()
   umtm.calculate_samples_weights()
   umtm.validate_trainset()
   umtm.train(umtm.make_generator)
