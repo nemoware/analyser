@@ -42,9 +42,9 @@ _DEV_MODE = False
 _EMBEDD = True
 
 
-# TODO: sort org1 and org2 by span start
-# TODO: use averaged tags confidence for sample weighting
-# TODO: cache embeddings on analysis phase
+# TODO: 1. sort org1 and org2 by span start
+# TODO: 2. use averaged tags confidence for sample weighting
+# TODO: 3. evaluate on user-marked documents only
 
 def pad_things(xx, maxlen, padding='post'):
   for x in xx:
@@ -443,16 +443,15 @@ class UberModelTrainsetManager:
 
     np.random.seed(42)
 
-    max_len = 128 * 12
-    start_from = 0
-
     while True:
-
+      # next batch
       batch_indices = np.random.choice(a=indices, size=batch_size)
+
+      max_len = 128 * 12
+      start_from = 0
 
       if augment_samples:
         max_len = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
-        start_from = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
 
       batch_input_emb = []
       batch_input_token_f = []
@@ -463,8 +462,18 @@ class UberModelTrainsetManager:
       weights_subj = []
 
       # Read in each input, perform preprocessing and get labels
-      for i in batch_indices:
-        dp = self.make_xyw(i)
+      for doc_id in batch_indices:
+
+        dp = self.make_xyw(doc_id)
+
+        if augment_samples:
+          start_from = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])  # cut beginning of the doc off
+          row = self.stats.loc[doc_id]
+          if not pd.isna(row['value_span']):
+            if random.randint(1, 3) == 1:  # 33% of samples
+              value_token_center = int(row['value_span'])
+              start_from = max(0, value_token_center - random.randint(max_len // 4, max_len - max_len // 4))
+
         dp = self.trim_maxlen(dp, start_from, max_len)
         # TODO: find samples maxlen
 
