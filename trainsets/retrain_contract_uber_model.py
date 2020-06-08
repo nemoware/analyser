@@ -93,6 +93,12 @@ def _get_attribute_value(d, attr):
     if 'attributes' in d['analysis'] and attr in d['analysis']['attributes']:
       return d['analysis']['attributes'][attr]
 
+  return {
+    'value': None,
+    'confidence': 0.0,
+    'span': [np.nan, np.nan]
+  }  ## fallback for safety
+
 
 def _get_subject(d):
   att = _get_attribute_value(d, 'subject')
@@ -142,6 +148,7 @@ class UberModelTrainsetManager:
 
     self.save_contract_data_arrays(doc)
 
+    # sign_value_currency/value
     stats = self.stats  # shortcut
     stats.at[_id, 'checksum'] = doc.get_checksum()
     stats.at[_id, 'version'] = d['analysis']['version']
@@ -151,13 +158,21 @@ class UberModelTrainsetManager:
 
     subj_att = _get_subject(d)
     stats.at[_id, 'subject'] = subj_att['value']
-    
+    stats.at[_id, 'value'] = _get_attribute_value(d, 'sign_value_currency/value')['value']
+    stats.at[_id, 'value_span'] = _get_attribute_value(d, 'sign_value_currency/value')['span'][0]
+
     stats.at[_id, 'subject confidence'] = subj_att['confidence']
 
     if 'user' in d:
       stats.at[_id, 'user_correction_date'] = d['user']['updateDate']
 
   def get_updated_contracts(self):
+    self.lastdate = datetime(1900, 1, 1)
+    if len(self.stats) > 0:
+      # self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
+      self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
+    print(f'latest export_date: [{self.lastdate}]')
+
     print('obtaining DB connection...')
     db = get_mongodb_connection()
 
@@ -186,7 +201,7 @@ class UberModelTrainsetManager:
     #            ('user.updateDate', pymongo.ASCENDING)]
     res = documents_collection.find(filter=query, sort=None)
 
-    res.limit(200)
+    res.limit(2000)
     if _DEV_MODE:
       res.limit(5)
 
@@ -229,11 +244,6 @@ class UberModelTrainsetManager:
   def import_recent_contracts(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
-    self.lastdate = datetime(1900, 1, 1)
-    if len(self.stats) > 0:
-      # self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
-      self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
-    print(f'latest export_date: [{self.lastdate}]')
     docs = self.get_updated_contracts()  # Cursor, not list
 
     # export_docs_to_single_json(docs)
@@ -280,7 +290,7 @@ class UberModelTrainsetManager:
       model.load_weights(weights_file_old)
       print(f'weights loaded: {weights_file_old}')
 
-    # freeze bottom 6 layers, including 'embedding_reduced'
+    # freeze bottom 6 layers, including 'embedding_reduced' #TODO: this must be model-specific parameter
     for l in model.layers[0:6]:
       l.trainable = False
 
@@ -410,14 +420,18 @@ class UberModelTrainsetManager:
 
     return self.trim_maxlen(dp, cutoff, maxlen)
 
-  def trim_maxlen(self, dp, start_cut, maxlen):
+  def trim_maxlen(self, dp, start_from, maxlen):
     (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = dp
 
     # if emb is not None:  # paranoia, TODO: fail execution, because trainset mut be verifyed in advance
 
-    _padded = list(pad_things([emb, tok_f, sm], maxlen))
-    if start_cut > 0:
-      _padded = list(pad_things(_padded, maxlen - start_cut, padding='pre'))
+    _padded = [emb, tok_f, sm]
+
+    if start_from > 0:
+      _padded = [p[start_from:] for p in _padded]
+
+      # _padded = list(pad_things(_padded, maxlen - start_from, padding='pre'))
+    _padded = list(pad_things(_padded, maxlen))
 
     emb = _padded[0]
     tok_f = _padded[1]
@@ -429,16 +443,16 @@ class UberModelTrainsetManager:
 
     np.random.seed(42)
 
-    maxlen = 128 * 12
-    cutoff = 0
+    max_len = 128 * 12
+    start_from = 0
 
     while True:
 
       batch_indices = np.random.choice(a=indices, size=batch_size)
 
       if augment_samples:
-        maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
-        cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
+        max_len = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+        start_from = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
 
       batch_input_emb = []
       batch_input_token_f = []
@@ -451,7 +465,7 @@ class UberModelTrainsetManager:
       # Read in each input, perform preprocessing and get labels
       for i in batch_indices:
         dp = self.make_xyw(i)
-        dp = self.trim_maxlen(dp, cutoff, maxlen)
+        dp = self.trim_maxlen(dp, start_from, max_len)
         # TODO: find samples maxlen
 
         (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = dp
@@ -575,8 +589,14 @@ if __name__ == '__main__':
   #
 
   umtm = UberModelTrainsetManager(default_work_dir)
-
   umtm.import_recent_contracts()
   umtm.calculate_samples_weights()
   umtm.validate_trainset()
+
+  # model, ctx = umtm.init_model()
+  # umtm.make_training_report(ctx, model)
+
+  # umtm.import_recent_contracts()
+  #
+
   umtm.train(umtm.make_generator)
