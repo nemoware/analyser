@@ -6,12 +6,10 @@ from analyser.headers_detector import TOKEN_FEATURES
 from tf_support.addons import sigmoid_focal_crossentropy
 from tf_support.tools import KerasTrainingContext
 
-seq_labels_contract_level_0 = [
-  'date', 'number',
-  'org-1-name', 'org-1-type', 'org-1-alias',
-  'org-2-name', 'org-2-type', 'org-2-alias',
-  'value', 'currency', 'sign'
-]
+seq_labels_dn = ['date', 'number']
+seq_labels_org_1 = ['org-1-name', 'org-1-type', 'org-1-alias']
+seq_labels_org_2 = ['org-2-name', 'org-2-type', 'org-2-alias']
+seq_labels_val = ['value', 'currency', 'sign']
 
 seq_labels_contract_level_1 = [
   'headline_h1',
@@ -21,12 +19,12 @@ seq_labels_contract_level_1 = [
 
 metrics = ['kullback_leibler_divergence', 'mse', 'binary_crossentropy']
 losses = {
-    "O1_tagging": "binary_crossentropy",
-    "O2_subject": "binary_crossentropy",
-  }
+  "O1_tagging": "binary_crossentropy",
+  "O2_subject": "binary_crossentropy",
+}
 
-
-seq_labels_contract = seq_labels_contract_level_1 + seq_labels_contract_level_0
+seq_labels_contract           = seq_labels_contract_level_1 + seq_labels_dn + seq_labels_org_1 + seq_labels_org_2 + seq_labels_val
+seq_labels_contract_swap_orgs = seq_labels_contract_level_1 + seq_labels_dn + seq_labels_org_2 + seq_labels_org_1 + seq_labels_val
 
 DEFAULT_TRAIN_CTX = KerasTrainingContext()
 
@@ -134,9 +132,6 @@ def uber_detection_model_003(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
   return model
 
 
-
-
-
 def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX, trained=False):
   base_model, base_model_inputs = get_base_model(uber_detection_model_003, ctx=ctx, load_weights=not trained)
 
@@ -157,7 +152,6 @@ def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN
   _out2 = Dropout(0.1, name='alzheimer_1')(_out2)
 
   _out2 = Dense(CLASSES, activation='softmax', name='O2_subject')(_out2)
-
 
   model = Model(inputs=base_model_inputs, outputs=[_out, _out2], name=name)
   model.compile(loss=losses, optimizer='Nadam', metrics=metrics)

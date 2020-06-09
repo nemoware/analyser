@@ -7,13 +7,20 @@ import unittest
 
 import numpy as np
 
-
+from tests.test_utilits import load_json_sample
 from tf_support.super_contract_model import uber_detection_model_001
 from tf_support.tf_subject_model import load_subject_detection_trained_model
 from tf_support.tools import KerasTrainingContext
+from trainsets.retrain_contract_uber_model import _get_semantic_map, DbJsonDoc
 
 
 class TestLoadTfModel(unittest.TestCase):
+
+  def test_get_semantic_map(self):
+    json_dict = load_json_sample('contract_db_1.json')
+
+    sm = _get_semantic_map(DbJsonDoc(json_dict))
+    print(sm.shape)
 
   def test_load_model(self):
     model = load_subject_detection_trained_model()

@@ -334,9 +334,16 @@ class LegalDocumentExt(LegalDocument):
 
 
 class DocumentJson:
+  @staticmethod
+  def from_json_dict(json_dict: dict) -> 'DocumentJson':
+
+    c = DocumentJson(None)
+    c.__dict__ = json_dict
+
+    return c
 
   @staticmethod
-  def from_json(json_string: str) -> 'DocumentJson':
+  def from_json_str(json_string: str) -> 'DocumentJson':
     jsondata = json.loads(json_string, object_hook=json_util.object_hook)
 
     c = DocumentJson(None)
@@ -351,6 +358,7 @@ class DocumentJson:
     self.original_text = None
     self.normal_text = None
     self.warnings: [str] = []
+
 
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
@@ -376,32 +384,16 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-      key, attr = self.__tag_to_attribute(t)
+      key, attr = t.as_json_attribute()
       attributes.append(attr)
 
     return attributes
-
-  def __tag_to_attribute(self, t: SemanticTag):
-
-    key = t.get_key()
-    attribute = t.__dict__.copy()
-
-    if isinstance(t.value, Enum):
-      attribute['value'] = t.value.name
-
-    del attribute['kind']
-    if '_parent_tag' in attribute:
-      if t.parent is not None:
-        attribute['parent'] = t.parent
-      del attribute['_parent_tag']
-
-    return key, attribute
 
   def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
 
     attributes = {}
     for t in _tags:
-      key, attr = self.__tag_to_attribute(t)
+      key, attr = t.as_json_attribute()
 
       if key in attributes:
         raise RuntimeError(key + ' duplicated key')
@@ -559,7 +551,7 @@ def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2,
 
 
 def make_headline_attention_vector(doc):
-  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+  parser_headline_attention_vector = np.zeros(len(doc))
 
   for p in doc.paragraphs:
     parser_headline_attention_vector[p.header.slice] = 1

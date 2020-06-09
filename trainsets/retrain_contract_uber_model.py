@@ -28,13 +28,14 @@ from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
 
 from analyser.hyperparams import work_dir as default_work_dir
-from analyser.legal_docs import LegalDocument, make_headline_attention_vector
+from analyser.legal_docs import LegalDocument
 from analyser.structures import ContractSubject
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
-from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract
+from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract, \
+  seq_labels_contract_swap_orgs
 from tf_support.tools import KerasTrainingContext
 
 SAVE_PICKLES = False
@@ -42,9 +43,49 @@ _DEV_MODE = False
 _EMBEDD = True
 
 
-# TODO: 1. sort org1 and org2 by span start
+# TODO: 1. sort org1 and org2 by span start kjhfaskjdh
 # TODO: 2. use averaged tags confidence for sample weighting
 # TODO: 3. evaluate on user-marked documents only
+
+class DbJsonDoc:
+
+  def __init__(self, j: dict):
+    self.analysis = None
+    self.parse = None
+    self.user = None
+    self._id = None
+    self.__dict__.update(j)
+
+  def __len__(self):
+    arrr = self.analysis['tokenization_maps']['words']
+    return len(arrr)
+
+  def get_attributes(self) -> dict:
+    if self.user is not None:
+      attributes = self.user['attributes']
+    else:
+      attributes = self.analysis['attributes']
+    return attributes
+
+  def get_subject(d):
+    return d.get_attribute('subject')
+
+  def get_attribute(d, attr):
+    atts = d.get_attributes()
+    if attr in atts:
+      return atts[attr]
+    else:
+      return {
+        'value': None,
+        'confidence': 0.0,
+        'span': [np.nan, np.nan]
+      }  ## fallback for safety
+
+  def get_attr_span_start(self, a):
+    att = self.get_attributes()
+    if a in att:
+      return att[a]['span'][0]
+
 
 def pad_things(xx, maxlen, padding='post'):
   for x in xx:
@@ -52,58 +93,41 @@ def pad_things(xx, maxlen, padding='post'):
     yield pad_sequences([x], maxlen=maxlen, padding=padding, truncating=padding, value=_v, dtype='float32')[0]
 
 
-def _get_semantic_map(doc: LegalDocument, confidence_override=None) -> DataFrame:
-  if 'user' in doc.__dict__:
-    _tags = doc.__dict__['user']['attributes']
-  else:
-    _tags = doc.__dict__['analysis']['attributes']
-
-  _attention = np.zeros((len(_tags), doc.__len__()))
+def _get_semantic_map(doc: DbJsonDoc, confidence_override=None) -> DataFrame:
+  _len = len(doc)
 
   df = DataFrame()
-  for i, _kind in enumerate(_tags):
-    t = _tags[_kind]
-    df[_kind] = 0
-    _conf = t['confidence']
+  attributes = doc.get_attributes()
+  for _kind, tag in attributes.items():
+
+    _span = tag['span']
+    _conf = tag['confidence']
     if confidence_override is not None:
       _conf = confidence_override
 
-    _span = t['span']
-    _attention[i][_span[0]:_span[1]] = _conf
-
-  for i, _kind in enumerate(_tags):
-    df[_kind] = 0
-    df[_kind] = _attention[i]
+    av = np.zeros(_len)  # attention_vector
+    av[_span[0]:_span[1]] = _conf
+    df[_kind] = av
 
   # add missing columns
   for sl in seq_labels_contract:
     if sl not in df:
-      df[sl] = np.zeros(len(doc))
+      df[sl] = np.zeros(_len)
 
-  df['headline_h1'] = make_headline_attention_vector(doc)  ##adding headers
+  order = seq_labels_contract
+  s1 = doc.get_attr_span_start('org-1-name')
+  s2 = doc.get_attr_span_start('org-2-name')
+  if s1 is None or (s2 is not None and s2 < s1):
+    order = seq_labels_contract_swap_orgs
 
-  return df[seq_labels_contract]  # re-order columns
+  av = np.zeros(_len)  # attention_vector
+  headers = doc.analysis['headers']
+  for h in headers:
+    av[h['span'][0]:h['span'][1]] = 1.0
 
+  df['headline_h1'] = av  # make_headline_attention_vector(doc)  ##adding headers
 
-def _get_attribute_value(d, attr):
-  if 'user' in d and 'attributes' in d['user'] and attr in d['user']['attributes']:
-    return d['user']['attributes'][attr]
-
-  else:
-    if 'attributes' in d['analysis'] and attr in d['analysis']['attributes']:
-      return d['analysis']['attributes'][attr]
-
-  return {
-    'value': None,
-    'confidence': 0.0,
-    'span': [np.nan, np.nan]
-  }  ## fallback for safety
-
-
-def _get_subject(d):
-  att = _get_attribute_value(d, 'subject')
-
-  return att
+  return df[order]  # re-order columns
 
 
 class UberModelTrainsetManager:
@@ -113,22 +137,23 @@ class UberModelTrainsetManager:
     self.work_dir: str = work_dir
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
-  def save_contract_data_arrays(self, doc: LegalDocument, id_override=None):
+  def save_contract_data_arrays(self, doc: LegalDocument, db_json_doc: DbJsonDoc, id_override=None):
     id_ = doc._id
     if id_override is not None:
       id_ = id_override
 
     token_features = get_tokens_features(doc.tokens)
-    semantic_map = _get_semantic_map(doc, 1.0)
+
+    semantic_map = _get_semantic_map(db_json_doc, 1.0)
 
     np.save(self._dp_fn(id_, 'token_features'), token_features)
     np.save(self._dp_fn(id_, 'semantic_map'), semantic_map)
     np.save(self._dp_fn(id_, 'embeddings'), doc.embeddings)
 
-  def save_contract_datapoint(self, d):
-    _id = str(d['_id'])
+  def save_contract_datapoint(self, d: DbJsonDoc):
+    _id = str(d._id)
 
-    doc: LegalDocument = join_paragraphs(d['parse'], _id)
+    doc: LegalDocument = join_paragraphs(d.parse, _id)
 
     if not _DEV_MODE and _EMBEDD:
       fn = self._dp_fn(_id, 'embeddings')
@@ -141,30 +166,30 @@ class UberModelTrainsetManager:
         embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
         doc.embedd_tokens(embedder)
 
-    _dict = doc.__dict__  # shortcut
-    _dict['analysis'] = d['analysis']
-    if 'user' in d:
-      _dict['user'] = d['user']
+    # _dict = doc.__dict__  # shortcut
+    # _dict['analysis'] = d['analysis']
+    # if 'user' in d:
+    #   _dict['user'] = d['user']
 
-    self.save_contract_data_arrays(doc)
+    self.save_contract_data_arrays(doc, d)
 
     # sign_value_currency/value
     stats = self.stats  # shortcut
     stats.at[_id, 'checksum'] = doc.get_checksum()
-    stats.at[_id, 'version'] = d['analysis']['version']
+    stats.at[_id, 'version'] = d.analysis['version']
 
     stats.at[_id, 'export_date'] = datetime.now()
-    stats.at[_id, 'analyze_date'] = d['analysis']['analyze_timestamp']
+    stats.at[_id, 'analyze_date'] = d.analysis['analyze_timestamp']
 
-    subj_att = _get_subject(d)
+    subj_att = d.get_subject()
     stats.at[_id, 'subject'] = subj_att['value']
-    stats.at[_id, 'value'] = _get_attribute_value(d, 'sign_value_currency/value')['value']
-    stats.at[_id, 'value_span'] = _get_attribute_value(d, 'sign_value_currency/value')['span'][0]
+    stats.at[_id, 'value'] = d.get_attribute('sign_value_currency/value')['value']
+    stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
 
     stats.at[_id, 'subject confidence'] = subj_att['confidence']
 
-    if 'user' in d:
-      stats.at[_id, 'user_correction_date'] = d['user']['updateDate']
+    if d.user is not None:
+      stats.at[_id, 'user_correction_date'] = d.user['updateDate']
 
   def get_updated_contracts(self):
     self.lastdate = datetime(1900, 1, 1)
@@ -246,11 +271,11 @@ class UberModelTrainsetManager:
 
     docs = self.get_updated_contracts()  # Cursor, not list
 
-    # export_docs_to_single_json(docs)
-
     for d in docs:
-      self.save_contract_datapoint(d)
+      self.save_contract_datapoint(DbJsonDoc(d))
       self._save_stats()
+
+    export_docs_to_single_json(docs, self.work_dir)
 
   def _save_stats(self):
 
@@ -500,8 +525,8 @@ def export_docs_to_single_json(documents, work_dir):
   arr = {}
   for k, d in enumerate(documents):
 
-    if '_id' not in d['user']['author']:
-      print(f'error: user attributes doc {d["_id"]} is not linked to any user')
+    # if '_id' not in d['user']['author']:
+    #   print(f'error: user attributes doc {d["_id"]} is not linked to any user')
 
     if 'auditId' not in d:
       print(f'error: doc {d["_id"]} is not linked to any audit')
@@ -604,8 +629,5 @@ if __name__ == '__main__':
 
   # model, ctx = umtm.init_model()
   # umtm.make_training_report(ctx, model)
-
-  # umtm.import_recent_contracts()
-  #
 
   umtm.train(umtm.make_generator)

@@ -400,6 +400,25 @@ class SemanticTag:
     self.span_map = span_map
     self.confidence = 1.0
 
+
+  def as_json_attribute(self):
+
+    key = self.get_key()
+    attribute = self.__dict__.copy()
+
+    if isinstance(self.value, Enum):
+      attribute['value'] = self.value.name
+
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if self.parent is not None:
+        attribute['parent'] = self.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
+
+
+
   @staticmethod
   def number_key(base: str or Enum, number: int) -> str:
     if isinstance(base, Enum):
