@@ -57,7 +57,7 @@ def get_docs_by_audit_id(id: str, state, kind=None):
         'parse.documentType': kind,
         "state": state,
         "$or": [
-            {"analysis.attributes.date": {"$ne": None}},
+            {"$and": [{"analysis.attributes.date": {"$ne": None}}, {"user": None}]},
             {"user.attributes.date": {"$ne": None}}
         ]
     }
