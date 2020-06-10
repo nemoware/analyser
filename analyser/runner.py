@@ -21,16 +21,16 @@ class Runner:
     self.elmo_embedder: ElmoEmbedder = None
     self.elmo_embedder_default: ElmoEmbedder = None
     if init_embedder:
-      self.elmo_embedder = ElmoEmbedder()
-      self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+      self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
+      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
 
     self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
     self.contract_parser = ContractParser(self.elmo_embedder)
     self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
 
   def init_embedders(self):
-    self.elmo_embedder = ElmoEmbedder()
-    self.elmo_embedder_default = ElmoEmbedder(layer_name="default")
+    self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
+    self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
     self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
     self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
     self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
@@ -68,7 +68,7 @@ class BaseProcessor:
       if self.is_valid(legal_doc, audit, db_document):
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
-        print(legal_doc._id)
+        print('analysys saved, doc._id=',legal_doc._id)
       else:
         save_analysis(db_document, legal_doc, 12)
     except:
@@ -83,7 +83,8 @@ class BaseProcessor:
     else:
       date_is_ok = True
 
-    return ("Все ДО" == audit["subsidiary"]["name"] or self.is_same_org(legal_doc, db_document, audit["subsidiary"]["name"]) and date_is_ok)
+    return ("* Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(
+      audit["subsidiary"]["name"])) and date_is_ok
 
   def is_same_org(self, legal_doc, db_doc, subsidiary):
     if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"]["attributes"].get("org-1-name") is not None:
@@ -176,9 +177,9 @@ def run(run_pahse_2=True, kind=None):
     print(f'.....processing audit {audit["_id"]}')
     documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
     for document in documents:
-      processor:BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
+      processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
-        print(f'........pre-processing  {document["parse"]["documentType"]}')
+        print(f'........pre-processing  {document["parse"]["documentType"]} {document["_id"]}')
         processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:
@@ -197,7 +198,7 @@ def run(run_pahse_2=True, kind=None):
       for document in documents:
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
-          print(f'........processing  {document["parse"]["documentType"]}')
+          print(f'........processing  {document["parse"]["documentType"]} {document["_id"]}')
           processor.process(document, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
@@ -205,6 +206,7 @@ def run(run_pahse_2=True, kind=None):
     warnings.warn("phase 2 is skipped")
 
   finalizer.finalize()
+
 
 if __name__ == '__main__':
   run()

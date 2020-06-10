@@ -7,11 +7,21 @@ import tensorflow_hub as hub
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.text_tools import Tokens
 
+_instances = {}
+
 
 class ElmoEmbedder(AbstractEmbedder):
 
+  @staticmethod
+  def get_instance(layer):
+    if layer not in _instances:
+      e = ElmoEmbedder(layer)
+      _instances[layer] = e
+    return _instances[layer]
+
   def __init__(self, layer_name="elmo",
                module_url: str = 'https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
+
     self.layer_name = layer_name
     self.module_url = module_url
     self.elmo = None
@@ -98,5 +108,5 @@ class ElmoEmbedder(AbstractEmbedder):
 
 
 if __name__ == '__main__':
-  ee = ElmoEmbedder(layer_name='default')
+  ee = ElmoEmbedder.get_instance( 'default')
   ee.embedd_tokenized_text([['просто', 'одно', 'предложение']], [3])

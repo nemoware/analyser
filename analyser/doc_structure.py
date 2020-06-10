@@ -70,17 +70,17 @@ def remove_similar_indexes_considering_weights(indexes: List[int], weights: Fixe
     return indexes[i] - indexes[i - 1] > 1
 
   def is_bigger_confidence(i):
-    id = indexes[i]
+    id_ = indexes[i]
     id_p = hif[-1]
-    return weights[id] > weights[id_p]
+    return weights[id_] > weights[id_p]
 
   for i in range(len(indexes)):
-    id = indexes[i]
+    id_ = indexes[i]
 
     if is_index_far(i):
-      hif.append(id)
+      hif.append(id_)
     elif is_bigger_confidence(i):
       # replace
-      hif[-1] = id
+      hif[-1] = id_
 
   return hif

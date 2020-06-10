@@ -100,14 +100,14 @@ def find_org_names(doc: LegalDocument,
                    decay_confidence=True,
                    audit_subsidiary_name=None, regex=complete_re,
                    re_ignore_case=complete_re_ignore_case) -> [SemanticTag]:
-  all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
+  _all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
                                             re_ignore_case=re_ignore_case)
   if audit_subsidiary_name:
-    all = sorted(all, key=lambda a: a.name.value != audit_subsidiary_name)
+    _all = sorted(_all, key=lambda a: a.name.value != audit_subsidiary_name)
   else:
-    all = sorted(all, key=lambda a: a.name.value)
+    _all = sorted(_all, key=lambda a: a.name.value)
 
-  return _rename_org_tags(all, tag_kind_prefix, start_from=1)
+  return _rename_org_tags(_all, tag_kind_prefix, start_from=1)
 
 
 def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [SemanticTag]:
@@ -123,7 +123,7 @@ def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [Semantic
 
 def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True, regex=complete_re,
                        re_ignore_case=complete_re_ignore_case) -> [ContractAgent]:
-  all = find_org_names_raw_by_re(doc,
+  all_org_names = find_org_names_raw_by_re(doc,
                                  regex=regex,
                                  confidence_base=1,
                                  parent=parent,
@@ -131,7 +131,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
 
   # if len(all) < 200:
   # falling back to case-agnostic regexp
-  all += find_org_names_raw_by_re(doc,
+  all_org_names += find_org_names_raw_by_re(doc,
                                   regex=re_ignore_case,  # case-agnostic
                                   confidence_base=0.75,
                                   parent=parent,
@@ -139,7 +139,7 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
 
   # filter, keep unique names
   _map = {}
-  for ca in all:
+  for ca in all_org_names:
     if ca.name is not None:
       if ca.confidence() > 0.2:
         put_if_better(_map, ca.name.value, ca, lambda a, b: a.confidence() > b.confidence())
@@ -179,8 +179,9 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
             tag.confidence = confidence
             tag.offset(doc.start)
             ca.__dict__[kind] = tag
-      except:
-        pass
+      except Exception as e:
+        print('find_org_names_raw_by_re: exception')
+        print(e)
 
   # normalize org_name names by find_closest_org_name
   for ca in all:
@@ -251,7 +252,6 @@ def normalize_legal_entity_type(txt) -> (str, str, float):
       finding = '', '', 0
       for k in knowns:
         d = distance.get_jaro_distance(k[0], txt, winkler=True, scaling=0.1)
-        # print( k, d )
         if d > finding[2]:
           finding = k[0], k[1], d
       return finding

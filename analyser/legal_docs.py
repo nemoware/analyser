@@ -6,17 +6,15 @@
 # legal_docs.py
 import datetime
 import json
-from enum import Enum
 
 from bson import json_util
+from overrides import final
 
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
-from analyser.documents import TextMap, split_sentences_into_map
-from analyser.embedding_tools import AbstractEmbedder, Embeddings
-from analyser.hyperparams import HyperParameters
-from analyser.ml_tools import SemanticTag, conditional_p_sum, \
-  FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
+from analyser.documents import split_sentences_into_map, TextMap
+from analyser.embedding_tools import AbstractEmbedder
+from analyser.ml_tools import *
 from analyser.patterns import *
 from analyser.structures import ContractTags
 from analyser.text_normalize import *
@@ -89,6 +87,9 @@ class LegalDocument:
     w['code'] = msg.name
     self.warnings.append(w)
 
+  def get_headers_as_subdocs(self):
+    return [self.subdoc_slice(p.header.as_slice()) for p in self.paragraphs]
+
   def parse(self, txt=None):
     if txt is None:
       txt = self.original_text
@@ -139,6 +140,32 @@ class LegalDocument:
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
+  def get_semantic_map(self, confidence_override=None) -> DataFrame:
+
+    '''
+    #TODO: do not ignore user corrections
+    used in jupyter notebooks
+    :return:
+    '''
+
+    _tags = self.get_tags()
+    _attention = np.zeros((len(_tags), self.__len__()))
+
+    df = DataFrame()
+    for i, t in enumerate(_tags):
+      df[t.kind] = 0
+      _conf = t.confidence
+      if confidence_override is not None:
+        _conf = confidence_override
+
+      _attention[i][t.as_slice()] = _conf
+
+    for i, t in enumerate(_tags):
+      df[t.kind] = 0
+      df[t.kind] = _attention[i]
+
+    return df
+
   def get_tags_attention(self) -> FixedVector:
     _attention = np.zeros(self.__len__())
 
@@ -170,7 +197,7 @@ class LegalDocument:
     return self.tokens_map.text
 
   def get_checksum(self):
-    return hash(self._normal_text)
+    return self.tokens_map_norm.get_checksum()
 
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
@@ -189,7 +216,9 @@ class LegalDocument:
   # @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
                                       verbosity=1, merge=False, pattern_prefix=None):
-    assert self.embeddings is not None
+    if self.embeddings is None:
+      raise UnboundLocalError(f'Embedd document first, {self._id}')
+
     self.distances_per_pattern_dict = calculate_distances_per_pattern(self, pattern_factory, dist_function, merge=merge,
                                                                       verbosity=verbosity,
                                                                       pattern_prefix=pattern_prefix)
@@ -232,16 +261,23 @@ class LegalDocument:
     _s = slice(max(0, start), end)
     return self.subdoc_slice(_s)
 
+  @final
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
-    warnings.warn("use embedd_words", DeprecationWarning)
-    if self.tokens:
-      max_tokens = max_tokens
-      if len(self.tokens_map_norm) > max_tokens:
-        self.embeddings = _embedd_large(self.tokens_map_norm, embedder, max_tokens, verbosity)
-      else:
-        self.embeddings = embedder.embedd_tokens(self.tokens)
+    ch = self.checksum
+    _cached = embedder.get_cached_embedding(ch)
+    if _cached is not None:
+      self.embeddings = _cached
     else:
-      raise ValueError(f'cannot embed doc {self.filename}, no tokens')
+      if self.tokens:
+        max_tokens = max_tokens
+        if len(self.tokens_map_norm) > max_tokens:
+          self.embeddings = embedder.embedd_large(self.tokens_map_norm, max_tokens, verbosity)
+        else:
+          self.embeddings = embedder.embedd_tokens(self.tokens)
+
+        embedder.cache_embedding(ch, self.embeddings)
+      else:
+        raise ValueError(f'cannot embedd doc {self.filename}, no tokens')
 
   def is_same_org(self, org_name: str) -> bool:
     tags: [SemanticTag] = self.get_tags()
@@ -251,7 +287,7 @@ class LegalDocument:
           return True
     return False
 
-  def get_tag_text(self, tag: SemanticTag)->str:
+  def get_tag_text(self, tag: SemanticTag) -> str:
     return self.tokens_map.text_range(tag.span)
 
   def substr(self, tag: SemanticTag) -> str:
@@ -298,9 +334,16 @@ class LegalDocumentExt(LegalDocument):
 
 
 class DocumentJson:
+  @staticmethod
+  def from_json_dict(json_dict: dict) -> 'DocumentJson':
+
+    c = DocumentJson(None)
+    c.__dict__ = json_dict
+
+    return c
 
   @staticmethod
-  def from_json(json_string: str) -> 'DocumentJson':
+  def from_json_str(json_string: str) -> 'DocumentJson':
     jsondata = json.loads(json_string, object_hook=json_util.object_hook)
 
     c = DocumentJson(None)
@@ -315,6 +358,7 @@ class DocumentJson:
     self.original_text = None
     self.normal_text = None
     self.warnings: [str] = []
+
 
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
@@ -340,32 +384,16 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-      key, attr = self.__tag_to_attribute(t)
+      key, attr = t.as_json_attribute()
       attributes.append(attr)
 
     return attributes
-
-  def __tag_to_attribute(self, t: SemanticTag):
-
-    key = t.get_key()
-    attribute = t.__dict__.copy()
-
-    if isinstance(t.value, Enum):
-      attribute['value'] = t.value.name
-
-    del attribute['kind']
-    if '_parent_tag' in attribute:
-      if t.parent is not None:
-        attribute['parent'] = t.parent
-      del attribute['_parent_tag']
-
-    return key, attribute
 
   def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
 
     attributes = {}
     for t in _tags:
-      key, attr = self.__tag_to_attribute(t)
+      key, attr = t.as_json_attribute()
 
       if key in attributes:
         raise RuntimeError(key + ' duplicated key')
@@ -404,8 +432,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
       distances_per_pattern_dict[pat.name] = dists
       c += 1
 
-  # if verbosity > 0:
-  #   print(distances_per_pattern_dict.keys())
   if c == 0:
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
@@ -413,7 +439,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 
 
 def find_value_sign(txt: TextMap) -> (int, (int, int)):
-
   a = next(txt.finditer(_re_greather_then_1), None)  # не менее, не превышающую
   if a:
     return +1, a
@@ -442,7 +467,7 @@ class ContractValue:
     else:
       return [self.value, self.currency, self.parent]
 
-  def __add__(self, addon:int)->'ContractValue':
+  def __add__(self, addon: int) -> 'ContractValue':
     for t in self.as_list():
       t.offset(addon)
     return self
@@ -515,50 +540,18 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 PARAGRAPH_DELIMITER = '\n'
 
 
-def _embedd_large(text_map, embedder, max_tokens=8000, verbosity=2):
-  overlap = max_tokens // 20
-
-  number_of_windows = 1 + len(text_map) // max_tokens
-  window = max_tokens
-
-  if verbosity > 1:
-    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
-    warnings.warn(msg)
-
-  start = 0
-  embeddings = None
-  # tokens = []
-  while start < len(text_map):
-
-    subtokens: Tokens = text_map[start:start + window + overlap]
-    if verbosity > 2:
-      print("Embedding region:", start, len(subtokens))
-
-    sub_embeddings = embedder.embedd_tokens(subtokens)[0:window]
-
-    if embeddings is None:
-      embeddings = sub_embeddings
-    else:
-      embeddings = np.concatenate([embeddings, sub_embeddings])
-
-    start += window
-
-  return embeddings
-  # self.tokens = tokens
-
-
 def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
   warnings.warn("use embedd_words", DeprecationWarning)
 
   max_tokens = max_tokens
   if len(text_map) > max_tokens:
-    return _embedd_large(text_map, embedder, max_tokens, verbosity)
+    return embedder.embedd_large(text_map, max_tokens, verbosity)
   else:
     return embedder.embedd_tokens(text_map.tokens)
 
 
 def make_headline_attention_vector(doc):
-  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+  parser_headline_attention_vector = np.zeros(len(doc))
 
   for p in doc.paragraphs:
     parser_headline_attention_vector[p.header.slice] = 1
@@ -584,20 +577,6 @@ def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True
     stripped.append(line)
 
   return stripped
-
-
-def map_headlines_to_patterns(doc: LegalDocument,
-                              patterns_named_embeddings,
-                              elmo_embedder_default: AbstractEmbedder):
-  headers: [str] = doc.headers_as_sentences()
-
-  if not headers:
-    return []
-
-  headers_embedding = elmo_embedder_default.embedd_strings(headers)
-
-  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
-  return attribute_patternmatch_to_index(header_to_pattern_distances)
 
 
 def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:

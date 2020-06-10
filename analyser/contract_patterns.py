@@ -8,7 +8,9 @@ contract_headlines_patterns = {
   'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОГО ИМУЩЕСТВА': ContractSubject.RealEstate,
   'КУПЛИ-ПРОДАЖИ НЕДВИЖИМОСТИ': ContractSubject.RealEstate,
 
-  'поставки': ContractSubject.Deal,
+  'ПОСТАВКИ': ContractSubject.Deal,
+  'ЛИЦЕНЗИОННЫЙ': ContractSubject.Deal,
+  'СУБЛИЦЕНЗИОННЫЙ': ContractSubject.Deal,
 
   'займа': ContractSubject.Loans,
 
@@ -20,15 +22,25 @@ contract_headlines_patterns = {
   'ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ': ContractSubject.Service,
   'на выполнение работ по разработке информационных систем': ContractSubject.Service,
   'НА ВЫПОЛНЕНИЕ ИНЖЕНЕРНО-ИЗЫСКАТЕЛЬСКИХ РАБОТ': ContractSubject.Service,
+  'НА ТЕХНИЧЕСКОЕ ОБСЛУЖИВАНИЕ И РЕМОНТ': ContractSubject.Service,
+  'НА Разработку': ContractSubject.Service,
 
   'залога': ContractSubject.PledgeEncumbrance,
 
   'о безвозмездной помощи ( Пожертвование )': ContractSubject.Charity,
   'пожертвования': ContractSubject.Charity,
-
+  'целевого пожертвования': ContractSubject.Charity,
+  'благотворительной помощи': ContractSubject.Charity,
+  'ДАРЕНИЯ': ContractSubject.Charity,
+  'дарения движимого имущества': ContractSubject.Charity,
   'безвозмездного пользования нежилым помещением': ContractSubject.Charity,
+
+
   'генерального подряда': ContractSubject.GeneralContract,
+  'подряда': ContractSubject.GeneralContract,
+
   'аренды недвижимого имущества': ContractSubject.Renting,
+  'аренды': ContractSubject.Renting,
 
   'страхования': ContractSubject.Insurance
 }
@@ -40,10 +52,10 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
   def __init__(self, embedder=None):
     AbstractPatternFactoryLowCase.__init__(self, embedder)
     # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
-    #                   'resp', 'forcemajor', 'confidence', 'special', 'appl', 'addresses', 'conficts']
+    #                   'resp', 'forcemajor', 'security', 'special', 'appl', 'addresses', 'conficts']
 
     self.headlines = ['subj', 'contract', 'cvalue', 'pricecond', 'dates',
-                      'resp', 'forcemajor', 'confidence', 'appl', 'addresses', 'conficts']
+                      'resp', 'forcemajor', 'security', 'appl', 'addresses', 'conficts', 'obl']
 
     self._build_head_patterns()
     self._build_head_subject_patterns()
@@ -70,6 +82,7 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
                              '\n город, месяц, год \n общество с ограниченной ответственностью, в лице, действующего на основании, именуемое далее, заключили настоящий договор о нижеследующем'))
     cp('headline.def', (p_r_f_x, 'Термины и определения', 'толкования'))
 
+
     cp('headline.subj.1', ('договора заключили настоящий Договор нижеследующем:', 'Предмет ',
                            'договора:\n Исполнитель обязуется, заказчик поручает'))
     cp('headline.subj.2', (p_r_f_x, 'ПРЕДМЕТ', 'ДОГОВОРА'))
@@ -87,29 +100,41 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     cp('headline.pricecond.4', (p_r_f_x, 'СТОИМОСТЬ', 'УСЛУГ, ПОРЯДОК ИХ ПРИЕМКИ И РАСЧЕТОВ'))
     cp('headline.pricecond.5', (' АРЕНДНАЯ', 'ПЛАТА', 'ПОРЯДОК ВНЕСЕНИЯ АРЕНДНОЙ ПЛАТЫ'))
 
-    cp('headline.dates.1', (p_r_f_x, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ.Порядок выполнения работ.'))
+    cp('headline.dates.1', (p_r_f_x, 'СРОКИ.', 'ВЫПОЛНЕНИЯ РАБОТ. Порядок выполнения работ.'))
 
     cp('headline.dates.2', (p_r_f_x, 'СРОК',
                             'ДЕЙСТВИЯ. \n настоящий договор вступает в силу с момента подписания сторонами, изменения и дополнения к договору оформляются письменным соглашением сторон, продленным на каждый последующий год'))
+
     cp('headline.break', (p_r_f_x, 'Расторжение',
                           'договора. \n досрочное расторжение договора, предупреждением о прекращении, расторгается в случаях, предусмотренных действующим законодательством, в одностороннем порядке'))
 
-    cp('headline.rights.1', (p_r_f_x, 'права и обязанности', 'сторон.\n'))
-    cp('headline.obl.1', (p_r_f_x, 'ОБЯЗАТЕЛЬСТВА', 'сторон.\n'))
-    cp('headline.obl.2', (p_r_f_x, 'ГАРАНТИЙНЫЕ', 'ОБЯЗАТЕЛЬСТВА.'))
+    # обязанности сторон
+    cp('headline.obl.1', (p_r_f_x, 'права и обязанности', 'сторон.\n'))
+
+    cp('headline.obl.2', (p_r_f_x, 'ОБЯЗАТЕЛЬСТВА', 'сторон.\n'))
+    cp('headline.obl.3', (p_r_f_x, 'обязанности', 'сторон'))
+
+    cp('headline.obl.4', (p_r_f_x, 'ГАРАНТИЙНЫЕ', 'ОБЯЗАТЕЛЬСТВА.'))
+
 
     cp('headline.resp', (p_r_f_x, 'Ответственность сторон.\n',
                          'невыполнения или ненадлежащего выполнения своих обязательств, несут ответственность в соответствии с действующим законодательством'))
 
+    # ФОРС - МАЖОР
     cp('headline.forcemajor.1', (p_r_f_x, 'НЕПРЕОДОЛИМАЯ СИЛА.', 'ФОРС-МАЖОРНЫЕ ОБСТОЯТЕЛЬСТВА'))
     cp('headline.forcemajor.2', (p_r_f_x, 'ОБСТОЯТЕЛЬСТВА НЕПРЕОДОЛИМОЙ СИЛЫ', ''))
 
-    cp('headline.confidence', (p_r_f_x, 'КОНФИДЕНЦИАЛЬНОСТЬ ИНФОРМАЦИИ.', ''))
+    # КОНФИДЕНЦИАЛЬНОСТЬ
+    cp('headline.security.1', (p_r_f_x, 'КОНФИДЕНЦИАЛЬНОСТЬ ИНФОРМАЦИИ.', ''))
+    cp('headline.security.2', (p_r_f_x, 'КОНФИДЕНЦИАЛЬНОСТЬ', ''))
+
 
     cp('headline.special.1', (p_r_f_x + 'ОСОБЫЕ, дополнительные', ' УСЛОВИЯ.', ''))
     cp('headline.special.2', (p_r_f_x, 'ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ.', ''))
 
     cp('headline.appl', (p_r_f_x, 'ПРИЛОЖЕНИЯ', 'К ДОГОВОРУ'))
+
+    # РЕКВИЗИТЫ СТОРОН
     cp('headline.addresses.1', (p_r_f_x, 'РЕКВИЗИТЫ СТОРОН', 'ЮРИДИЧЕСКИЕ АДРЕСА'))
     cp('headline.addresses.2', (p_r_f_x, 'ЮРИДИЧЕСКИЕ АДРЕСА', 'РЕКВИЗИТЫ СТОРОН'))
 
@@ -254,7 +279,7 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     if True:
       cp('Арендодатель передает, а', 'Арендатор принимает в аренду', '(во временное владение и пользование) здание')
       cp('', 'Арендодатель',
-         'обязуется передать Арендатору во временное владение и пользование (аренду) следующее недвижимое имущество')
+         'обязуется передать Арендатору во временное владение и пользование (аренду) недвижимое имущество')
 
     subj = ContractSubject.AgencyContract
     if True:
@@ -262,6 +287,6 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
 
 
 if __name__ == '__main__':
-  CPF = ContractPatternFactory(ElmoEmbedder())
+  CPF = ContractPatternFactory(ElmoEmbedder.get_instance('elmo'))
   for p in CPF.patterns:
     print(p.prefix_pattern_suffix_tuple)

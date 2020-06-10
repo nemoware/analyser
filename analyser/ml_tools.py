@@ -6,6 +6,7 @@ from typing import List, TypeVar, Iterable, Generic
 import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
+from scipy import special as scs
 
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
@@ -133,7 +134,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
     raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
   s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-  # print(len(s))
+
   if window == 'flat':  # moving average
     w = np.ones(window_len, 'd')
   else:
@@ -147,6 +148,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
 
 
 def relu(x: np.ndarray, relu_th: float = 0.0) -> np.ndarray:
+  """deprecated: use np.maximum( )"""
   assert type(x) is np.ndarray
 
   _relu = x * (x > relu_th)
@@ -182,8 +184,8 @@ def make_echo(av: FixedVector, k=0.5) -> np.ndarray:
 def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
-  for i in range(len(x)):
-    m += x[i]
+  for i, xi in enumerate(x):
+    m += xi
     innertia[i] = m
     m *= decay
 
@@ -193,8 +195,8 @@ def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
 def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
-  for i in range(len(x)):
-    m = max(m, x[i])
+  for i, xi in enumerate(x):
+    m = max(m, xi)
     innertia[i] = m
     m *= decay
 
@@ -397,6 +399,25 @@ class SemanticTag:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
     self.confidence = 1.0
+
+
+  def as_json_attribute(self):
+
+    key = self.get_key()
+    attribute = self.__dict__.copy()
+
+    if isinstance(self.value, Enum):
+      attribute['value'] = self.value.name
+
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if self.parent is not None:
+        attribute['parent'] = self.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
+
+
 
   @staticmethod
   def number_key(base: str or Enum, number: int) -> str:
@@ -724,3 +745,21 @@ def best_window(attention_vector, wnd_len) -> (int, float, float):
       max_sum = _sum
       best_index = k
   return best_index, max_sum, max_sum / wnd_len
+
+
+def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column: str) -> Embeddings:
+  centroids = []
+  for cn in np.unique(clustered[labels_column]):
+    items = clustered[clustered[labels_column] == cn]
+    m = embeddings[items.index].mean(axis=0)
+    centroids.append(m)
+
+  return np.array(centroids)
+
+
+def softmax_rows(headers_df: DataFrame, columns):
+  _x = headers_df[columns]
+  _x = scs.softmax(_x, axis=1)
+  headers_df[columns] = _x
+
+  return headers_df

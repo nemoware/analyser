@@ -12,10 +12,9 @@ from integration.doc_providers import DirDocProvider
 
 
 class WordDocParser(DirDocProvider):
+  version = '1.1.19'
 
   def __init__(self):
-
-    self.version = '1.1.18'
 
     x = os.system("java -version")
     assert x == 0
@@ -108,6 +107,7 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
     last = len(doc.tokens_map)
 
   doc._id = doc_id
+  doc.filename = doc_id
   return doc
 
 

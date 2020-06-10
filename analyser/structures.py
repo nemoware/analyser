@@ -3,13 +3,15 @@
 # coding=utf-8
 from enum import Enum, unique, EnumMeta
 
+import numpy as np
+from keras.utils import to_categorical
+
 legal_entity_types = {
   'Акционерное общество': 'АО',
   'Публичное акционерное общество': 'ПАО',
   'Общество с ограниченной ответственностью': 'ООО',
   'Иностранное общество с ограниченной ответственностью': 'ИООО',
   'Товарищество с ограниченной ответственностью': 'ТОО',
-  'Товарищество с ограниченной ответственностью и какашками': 'ТОО',
   'Закрытое акционерное общество': 'ЗАО',
   'Открытое акционерное общество': 'ОАО',
   'Государственное автономное учреждение': 'ГАУ',
@@ -63,6 +65,10 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
         return x.name
     return None
 
+  @staticmethod
+  def as_db_json():
+    return [{"_id": x.name, "number": x.value, "alias": x.display_string} for x in OrgStructuralLevel]
+
 
 ORG_LEVELS_names = [x.display_string for x in OrgStructuralLevel]
 
@@ -89,14 +95,11 @@ class ContractTags(Enum, metaclass=DisplayStringEnumMeta):
 
 @unique
 class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
-  Other = -1, 'Другое'
+  Other = 0, 'Другое'
 
-  Deal = 0, 'Сделка'
   Charity = 1, 'Благотворительность'
   RealEstate = 4, 'Сделки с недвижимым имуществом'
   Loans = 7, 'Займы, кредиты и др. обязательста'
-
-  BigDeal = 10, ' Крупная сделка'
 
   # Other = 2, 'Другое'
   Lawsuit = 3, 'Судебные издержки'
@@ -105,7 +108,14 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   Consulting = 6, 'Консультационные услуги'
   RentingOut = 8, 'Передача в аренду'
   Renting = 9, 'Получение в аренду недвижимого имущества'
-
+  BigDeal = 10, ' Крупная сделка'
+  Deal = 11, 'Сделка'
+  # 12
+  # 13
+  # 14
+  # 15
+  # 16
+  # 17
   AgencyContract = 21, 'Агентский договор'
   BankGuarantees = 22, ''
   RelatedTransactions = 23, ''
@@ -125,8 +135,38 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   AssetTransactions = 36, ''
   DealIntellectualProperty = 37, ''
   RealEstateTransactions = 38, ''
-
   SecuritiesTransactions = 39, ''
   RegisteredCapital = 40, ''
+
   ParticipationInOtherOrganizations = 41, ''
   DecisionsForSubsidiary = 42, ''
+
+  @staticmethod
+  def as_matrix():
+    return np.array([[s.name, s.value] for s in ContractSubject])
+
+  @staticmethod
+  def encode_1_hot():
+    '''
+    bit of paranoia to reserve order
+    :return:
+    '''
+    all_subjects_map = ContractSubject.as_matrix()
+    values = all_subjects_map[:, 1]
+
+    # encoding integer subject codes in one-hot vectors
+    _cats = to_categorical(values)
+
+    subject_name_1hot_map = {all_subjects_map[i][0]: _cats[i] for i, k in enumerate(all_subjects_map)}
+
+    return subject_name_1hot_map
+
+
+contract_subjects = [
+  ContractSubject.Charity,
+  ContractSubject.RealEstate,
+  ContractSubject.Renting,
+  ContractSubject.Deal,
+  ContractSubject.Service,
+  ContractSubject.Loans,
+  ContractSubject.PledgeEncumbrance]
