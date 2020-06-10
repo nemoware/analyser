@@ -9,7 +9,7 @@ from tf_support.tools import KerasTrainingContext
 seq_labels_dn = ['date', 'number']
 seq_labels_org_1 = ['org-1-name', 'org-1-type', 'org-1-alias']
 seq_labels_org_2 = ['org-2-name', 'org-2-type', 'org-2-alias']
-seq_labels_val = ['value', 'currency', 'sign']
+seq_labels_val = ['sign_value_currency/value', 'sign_value_currency/currency', 'sign_value_currency/sign']
 
 seq_labels_contract_level_1 = [
   'headline_h1',
