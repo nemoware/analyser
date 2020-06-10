@@ -65,7 +65,7 @@ class BaseProcessor:
       # todo: remove find_org_date_number call
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(db_document, legal_doc, state=10)
-      if self.is_valid(legal_doc, audit):
+      if self.is_valid(legal_doc, audit, db_document):
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
         print('analysys saved, doc._id=',legal_doc._id)
@@ -76,7 +76,7 @@ class BaseProcessor:
       save_analysis(db_document, legal_doc, 11, db_document["retry_number"] + 1)
     return legal_doc
 
-  def is_valid(self, legal_doc, audit):
+  def is_valid(self, legal_doc, audit, db_document):
     if legal_doc.date is not None:
       _date = legal_doc.date.value
       date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
@@ -86,6 +86,12 @@ class BaseProcessor:
     return ("* Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(
       audit["subsidiary"]["name"])) and date_is_ok
 
+  def is_same_org(self, legal_doc, db_doc, subsidiary):
+    if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"]["attributes"].get("org-1-name") is not None:
+      if subsidiary == db_doc["user"]["attributes"]["org-1-name"]["value"]:
+        return True
+    else:
+      return legal_doc.is_same_org(subsidiary)
 
 class ProtocolProcessor(BaseProcessor):
   def __init__(self):
@@ -134,7 +140,10 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
 
-  res = documents_collection.find(query)
+  cursor = documents_collection.find(query)
+  res = []
+  for doc in cursor:
+    res.append(doc)
   return res
 
 
