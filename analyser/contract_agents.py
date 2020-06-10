@@ -159,7 +159,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
   for m in iter:
     ca = ContractAgent()
     all.append(ca)
-    for re_kind in org_pieces:
+    for re_kind in org_pieces: # like 'type', 'name', 'human_name', 'alt_name', 'alias' ...
       try:
         char_span = m.span(re_kind)
         if span_len(char_span) > 1:
@@ -179,9 +179,9 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
             tag.confidence = confidence
             tag.offset(doc.start)
             ca.__dict__[kind] = tag
-      except Exception as e:
-        print('find_org_names_raw_by_re: exception')
-        print(e)
+      except IndexError as e:
+        print(f'find_org_names_raw_by_re: exception {type(e)}, {e}')
+
 
   # normalize org_name names by find_closest_org_name
   for ca in all:

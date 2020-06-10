@@ -7,6 +7,7 @@ import os
 import random
 import warnings
 from datetime import datetime
+from functools import lru_cache
 
 import matplotlib
 from sklearn.metrics import classification_report
@@ -157,7 +158,6 @@ class UberModelTrainsetManager:
 
     if not _DEV_MODE and _EMBEDD:
       fn = self._dp_fn(_id, 'embeddings')
-      # fn = os.path.join(self.work_dir, f'{_id}-datapoint-embeddings')
       if os.path.isfile(fn):
         print(f'skipping embedding doc {_id}...., {fn} exits')
         doc.embeddings = np.load(fn)
@@ -166,15 +166,10 @@ class UberModelTrainsetManager:
         embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
         doc.embedd_tokens(embedder)
 
-    # _dict = doc.__dict__  # shortcut
-    # _dict['analysis'] = d['analysis']
-    # if 'user' in d:
-    #   _dict['user'] = d['user']
-
     self.save_contract_data_arrays(doc, d)
 
-    # sign_value_currency/value
     stats = self.stats  # shortcut
+
     stats.at[_id, 'checksum'] = doc.get_checksum()
     stats.at[_id, 'version'] = d.analysis['version']
 
@@ -194,6 +189,7 @@ class UberModelTrainsetManager:
   def get_updated_contracts(self):
     self.lastdate = datetime(1900, 1, 1)
     if len(self.stats) > 0:
+
       # self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
       self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
     print(f'latest export_date: [{self.lastdate}]')
@@ -220,6 +216,7 @@ class UberModelTrainsetManager:
     }
 
     print(f'running DB query {query}')
+    #TODO: sorting fails in MONGO
     # sorting = [('analysis.analyze_timestamp', pymongo.ASCENDING),
     #         ('user.updateDate', pymongo.ASCENDING)]
     # sorting = [
@@ -420,6 +417,7 @@ class UberModelTrainsetManager:
   def _dp_fn(self, doc_id, suffix):
     return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
 
+  @lru_cache(maxsize=None)
   def make_xyw(self, doc_id):
 
     row = self.stats.loc[doc_id]
@@ -532,7 +530,7 @@ class UberModelTrainsetManager:
 
 def export_updated_contracts_to_json(documents, work_dir):
   arr = {}
-  n=0
+  n = 0
   for k, d in enumerate(documents):
 
     # if '_id' not in d['user']['author']:
@@ -550,6 +548,7 @@ def export_updated_contracts_to_json(documents, work_dir):
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
   print(f'EXPORTED {n} docs')
+
 
 def onehots2labels(preds):
   _x = np.argmax(preds, axis=-1)
@@ -637,7 +636,6 @@ if __name__ == '__main__':
   umtm = UberModelTrainsetManager(default_work_dir)
   umtm.export_docs_to_json()
   umtm.import_recent_contracts()
-
 
   umtm.calculate_samples_weights()
   umtm.validate_trainset()
