@@ -94,3 +94,5 @@ trainsets/uber_detection_model_003.0.log.csv
 work/*.txt
 
 work/*.weights
+
+work/contracts_mongo.json

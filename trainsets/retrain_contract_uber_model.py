@@ -275,7 +275,7 @@ class UberModelTrainsetManager:
       self.save_contract_datapoint(DbJsonDoc(d))
       self._save_stats()
 
-    export_docs_to_single_json(docs, self.work_dir)
+    # export_docs_to_single_json(docs, self.work_dir)
 
   def _save_stats(self):
 
@@ -411,6 +411,12 @@ class UberModelTrainsetManager:
 
     self._save_stats()
 
+  def export_docs_to_json(self):
+    self.stats: DataFrame = self.load_contract_trainset_meta()
+    docs = self.get_updated_contracts()  # Cursor, not list
+
+    export_updated_contracts_to_json(docs, self.work_dir)
+
   def _dp_fn(self, doc_id, suffix):
     return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
 
@@ -497,7 +503,10 @@ class UberModelTrainsetManager:
           if not pd.isna(row['value_span']):
             if random.randint(1, 3) == 1:  # 33% of samples
               value_token_center = int(row['value_span'])
-              start_from = max(0, value_token_center - random.randint(max_len // 4, max_len - max_len // 4))
+              _off = random.randint(max_len // 4, max_len // 2)
+              start_from = value_token_center - _off
+              if start_from < 0:
+                start_from = 0
 
         dp = self.trim_maxlen(dp, start_from, max_len)
         # TODO: find samples maxlen
@@ -521,8 +530,9 @@ class UberModelTrainsetManager:
              [np.array(weights), np.array(weights_subj)])
 
 
-def export_docs_to_single_json(documents, work_dir):
+def export_updated_contracts_to_json(documents, work_dir):
   arr = {}
+  n=0
   for k, d in enumerate(documents):
 
     # if '_id' not in d['user']['author']:
@@ -533,11 +543,13 @@ def export_docs_to_single_json(documents, work_dir):
 
     arr[str(d['_id'])] = d
     # arr.append(d)
-    print(k, d['_id'])
+    print('exporting JSON ', k, d['_id'])
+    n = k
 
-  with open(os.path.join(work_dir, 'exported_docs.json'), 'w', encoding='utf-8') as outfile:
+  with open(os.path.join(work_dir, 'contracts_mongo.json'), 'w', encoding='utf-8') as outfile:
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
+  print(f'EXPORTED {n} docs')
 
 def onehots2labels(preds):
   _x = np.argmax(preds, axis=-1)
@@ -623,11 +635,11 @@ if __name__ == '__main__':
   #
 
   umtm = UberModelTrainsetManager(default_work_dir)
+  umtm.export_docs_to_json()
   umtm.import_recent_contracts()
+
+
   umtm.calculate_samples_weights()
   umtm.validate_trainset()
-
-  # model, ctx = umtm.init_model()
-  # umtm.make_training_report(ctx, model)
 
   umtm.train(umtm.make_generator)
