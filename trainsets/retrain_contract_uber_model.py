@@ -256,6 +256,9 @@ class UberModelTrainsetManager:
       if 'valid' in df:
         df = df[df['valid'] != False]
 
+      df['subject'] = df['subject'].fillna('Other')
+
+
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
       df.index.name = '_id'
