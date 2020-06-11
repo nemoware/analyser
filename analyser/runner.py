@@ -1,6 +1,7 @@
 import warnings
 
 import pymongo
+from pymongo import CursorType
 
 import analyser
 from analyser import finalizer
@@ -114,7 +115,7 @@ def get_audits():
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  res = audits_collection.find({'status': 'InWork'}).sort([("createDate", pymongo.ASCENDING)])
+  res = audits_collection.find({'status': 'InWork'}, cursor_type=CursorType.EXHAUST).sort([("createDate", pymongo.ASCENDING)])
   return res
 
 
@@ -139,7 +140,7 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
 
-  cursor = documents_collection.find(query)
+  cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST)
   res = []
   for doc in cursor:
     res.append(doc)
@@ -205,6 +206,7 @@ def run(run_pahse_2=True, kind=None):
     warnings.warn("phase 2 is skipped")
 
   finalizer.finalize()
+
 
 if __name__ == '__main__':
   run()
