@@ -95,6 +95,8 @@ work/*.txt
 
 work/*.weights
 
-work/contracts_mongo.json
+work/*.json
 
-work/contracts_mongo.json.zip
+work/*.zip
+
+

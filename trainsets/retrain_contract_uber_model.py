@@ -417,7 +417,7 @@ class UberModelTrainsetManager:
   def _dp_fn(self, doc_id, suffix):
     return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
 
-  @lru_cache(maxsize=None)
+  @lru_cache
   def make_xyw(self, doc_id):
 
     row = self.stats.loc[doc_id]
