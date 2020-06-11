@@ -62,11 +62,11 @@ def get_docs_by_audit_id(id: str, state, kind=None):
         ]
     }
 
-    res = documents_collection.find(query).sort([("analysis.attributes.date.value", pymongo.ASCENDING)])
+    res = documents_collection.find(query)
     docs = []
     for doc in res:
         docs.append(doc)
-    return docs
+    return sorted(docs, key=lambda document: get_attrs(document)["date"]["value"])
 
 
 def save_violations(audit, violations):
@@ -372,7 +372,7 @@ def finalize():
         print(f'.....finalizing audit {audit["_id"]}')
         violations = []
         contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
-        charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
+        charters = get_docs_by_audit_id(audit["_id"], 15, "CHARTER")
         protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
 
         for contract in contracts:
