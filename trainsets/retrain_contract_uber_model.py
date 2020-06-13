@@ -8,6 +8,7 @@ import random
 import warnings
 from datetime import datetime
 from functools import lru_cache
+from math import log1p
 
 import matplotlib
 from sklearn.metrics import classification_report
@@ -178,7 +179,12 @@ class UberModelTrainsetManager:
 
     subj_att = d.get_subject()
     stats.at[_id, 'subject'] = subj_att['value']
-    stats.at[_id, 'value'] = d.get_attribute('sign_value_currency/value')['value']
+    _value = d.get_attribute('sign_value_currency/value')['value']
+    stats.at[_id, 'value'] = _value
+    if _value is not None:
+      stats.at[_id, 'value_log1p'] = log1p( _value)
+    stats.at[_id, 'org-1-alias'] = d.get_attribute('org-1-alias')['value']
+    stats.at[_id, 'org-2-alias'] = d.get_attribute('org-2-alias')['value']
     stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
 
     stats.at[_id, 'subject confidence'] = subj_att['confidence']
@@ -224,8 +230,6 @@ class UberModelTrainsetManager:
     res = documents_collection.find(filter=query, sort=None)
 
     res.limit(2000)
-    if _DEV_MODE:
-      res.limit(5)
 
     print('running DB query: DONE')
 
@@ -253,15 +257,19 @@ class UberModelTrainsetManager:
 
       UberModelTrainsetManager._remove_obsolete_datapoints(df)
 
-      if 'valid' in df:
-        df = df[df['valid'] != False]
+      # if 'valid' in df:
+      #   df = df[df['valid'] != False]
 
       df['subject'] = df['subject'].fillna('Other')
 
+      df['org-1-alias'] = df['org-1-alias'].fillna('')
+      df['org-2-alias'] = df['org-2-alias'].fillna('')
 
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
       df.index.name = '_id'
+      df['org-1-alias'] = ''
+      df['org-2-alias'] = ''
 
     print(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
     return df
@@ -288,10 +296,14 @@ class UberModelTrainsetManager:
       so.append('user_correction_date')
     if 'analyze_date' in self.stats:
       so.append('analyze_date')
+
     if len(so) > 0:
+      print(f'docs in meta: {len(self.stats)}')
       self.stats.sort_values(so, inplace=True, ascending=False)
       self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
+      print(f'docs in meta after drop_duplicates: {len(self.stats)}')
 
+    self.stats.sort_values('value', inplace=True, ascending=False)
     self.stats.to_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index=True)
 
   def init_model(self) -> (Model, KerasTrainingContext):
@@ -391,6 +403,7 @@ class UberModelTrainsetManager:
     plot_subject_confusion_matrix(self.work_dir, model, steps=20, generator=gen)
 
   def calculate_samples_weights(self):
+    #TODO: add more weight to contracts with bigger log(value)
     self.stats: DataFrame = self.load_contract_trainset_meta()
     subject_weights = get_feature_log_weights(self.stats, 'subject')
 
@@ -401,6 +414,11 @@ class UberModelTrainsetManager:
       if not pd.isna(row['user_correction_date']):  # more weight for user-corrected datapoints
         sample_weight = 10.0  # TODO: must be estimated anyhow smartly
 
+      value_weight = 1.0
+      if not pd.isna(row['value_log1p']):
+        value_weight = row['value_log1p']
+
+      sample_weight *= value_weight
       subject_weight = sample_weight * subject_weights[subj_name]
       self.stats.at[i, 'subject_weight'] = subject_weight
       self.stats.at[i, 'sample_weight'] = sample_weight
@@ -531,6 +549,16 @@ class UberModelTrainsetManager:
              [np.array(weights), np.array(weights_subj)])
 
 
+  def run(umtm):
+    umtm.export_docs_to_json()
+    umtm.import_recent_contracts()
+
+    umtm.calculate_samples_weights()
+    umtm.validate_trainset()
+
+    umtm.train(umtm.make_generator)
+
+
 def export_updated_contracts_to_json(documents, work_dir):
   arr = {}
   n = 0
@@ -637,10 +665,7 @@ if __name__ == '__main__':
   #
 
   umtm = UberModelTrainsetManager(default_work_dir)
-  umtm.export_docs_to_json()
-  umtm.import_recent_contracts()
+  umtm.run()
 
-  umtm.calculate_samples_weights()
-  umtm.validate_trainset()
-
-  umtm.train(umtm.make_generator)
+  # umtm.import_recent_contracts()
+  # umtm.calculate_samples_weights()
