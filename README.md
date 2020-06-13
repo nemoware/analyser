@@ -1,3 +1,5 @@
+![action_release](https://github.com/nemoware/analyser/workflows/Publish%20new%20release/badge.svg)
+
 # Analyser core & nlp_tools
 
 ## Интерактивный анализ
