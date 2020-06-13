@@ -1,3 +1,5 @@
+from pymongo import DESCENDING
+
 import analyser
 from analyser.charter_parser import CharterParser
 from analyser.structures import OrgStructuralLevel, ContractSubject, contract_subjects, \
@@ -45,6 +47,15 @@ def update_db_dictionaries():
   coll = db["analyser"]
   coll.delete_many({})
   coll.insert_one({'version': analyser.__version__})
+
+  #indexing
+  coll = db["documents"]
+  idx = [
+    ("analysis.analyze_timestamp", DESCENDING),
+    ("user.updateDate", DESCENDING)
+  ]
+  resp = coll.create_index(idx)
+  print("index response:", resp)
 
 
 if __name__ == '__main__':
