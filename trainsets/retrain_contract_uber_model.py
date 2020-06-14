@@ -261,13 +261,19 @@ class UberModelTrainsetManager:
 
       df['subject'] = df['subject'].fillna('Other')
 
-      df['org-1-alias'] = df['org-1-alias'].fillna('')
-      df['org-2-alias'] = df['org-2-alias'].fillna('')
 
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
       df.index.name = '_id'
+
+    if 'org-1-alias' in df:
+      df['org-1-alias'] = df['org-1-alias'].fillna('')
+    else:
       df['org-1-alias'] = ''
+
+    if 'org-2-alias' in df:
+      df['org-2-alias'] = df['org-2-alias'].fillna('')
+    else:
       df['org-2-alias'] = ''
 
     print(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
