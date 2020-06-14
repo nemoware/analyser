@@ -182,7 +182,7 @@ class UberModelTrainsetManager:
     _value = d.get_attribute('sign_value_currency/value')['value']
     stats.at[_id, 'value'] = _value
     if _value is not None:
-      stats.at[_id, 'value_log1p'] = log1p( _value)
+      stats.at[_id, 'value_log1p'] = log1p(_value)
     stats.at[_id, 'org-1-alias'] = d.get_attribute('org-1-alias')['value']
     stats.at[_id, 'org-2-alias'] = d.get_attribute('org-2-alias')['value']
     stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
@@ -195,7 +195,6 @@ class UberModelTrainsetManager:
   def get_updated_contracts(self):
     self.lastdate = datetime(1900, 1, 1)
     if len(self.stats) > 0:
-
       # self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
       self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
     print(f'latest export_date: [{self.lastdate}]')
@@ -222,7 +221,7 @@ class UberModelTrainsetManager:
     }
 
     print(f'running DB query {query}')
-    #TODO: sorting fails in MONGO
+    # TODO: sorting fails in MONGO
     # sorting = [('analysis.analyze_timestamp', pymongo.ASCENDING),
     #         ('user.updateDate', pymongo.ASCENDING)]
     # sorting = [
@@ -403,7 +402,7 @@ class UberModelTrainsetManager:
     plot_subject_confusion_matrix(self.work_dir, model, steps=20, generator=gen)
 
   def calculate_samples_weights(self):
-    #TODO: add more weight to contracts with bigger log(value)
+    # TODO: add more weight to contracts with bigger log(value)
     self.stats: DataFrame = self.load_contract_trainset_meta()
     subject_weights = get_feature_log_weights(self.stats, 'subject')
 
@@ -438,7 +437,7 @@ class UberModelTrainsetManager:
   def _dp_fn(self, doc_id, suffix):
     return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
 
-  @lru_cache()
+  @lru_cache(maxsize=72)
   def make_xyw(self, doc_id):
 
     row = self.stats.loc[doc_id]
@@ -547,7 +546,6 @@ class UberModelTrainsetManager:
       yield ([np.array(batch_input_emb), np.array(batch_input_token_f)],
              [np.array(batch_output_sm), np.array(batch_output_subj)],
              [np.array(weights), np.array(weights_subj)])
-
 
   def run(umtm):
     umtm.export_docs_to_json()
@@ -669,3 +667,6 @@ if __name__ == '__main__':
 
   # umtm.import_recent_contracts()
   # umtm.calculate_samples_weights()
+  #
+  # model, ctx = umtm.init_model()
+  # umtm.make_training_report(ctx, model)
