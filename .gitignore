@@ -100,3 +100,10 @@ work/*.json
 work/*.zip
 
 
+
+!.idea/
+.idea/workspace.xml
+
+.idea/vcs.xml
+
+.idea/.DS_Store
