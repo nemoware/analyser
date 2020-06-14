@@ -19,7 +19,7 @@ class ContractDocument(LegalDocument):
     self.subjects: SemanticTag or None = None
     self.contract_values: List[ContractValue] = []
 
-    self.agents_tags:[SemanticTag] = []
+    self.agents_tags: [SemanticTag] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
@@ -76,10 +76,27 @@ class ContractParser(ParsingContext):
     contract.date = find_document_date(contract)
     contract.number = find_document_number(contract)
 
-    if not contract.number:
-      contract.warn(ParserWarnings.number_not_found)
+    # validating date & number position, date must go before any agents
+    
+    if contract.date is not None:
+      date_start = contract.date.span[0]
+      for at in contract.agents_tags:
+        if at.span[0] < date_start:
+          # date must go before companies names
+          contract.date = None
+
+    if contract.number is not None:
+      number_start = contract.number.span[0]
+      for at in contract.agents_tags:
+        if at.span[0] < number_start:
+          # doc number must go before companies names
+          contract.number = None
+
     if not contract.date:
       contract.warn(ParserWarnings.date_not_found)
+
+    if not contract.number:
+      contract.warn(ParserWarnings.number_not_found)
 
     return contract
 
