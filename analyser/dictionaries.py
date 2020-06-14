@@ -1,11 +1,10 @@
-from pymongo import DESCENDING
-
 import analyser
 from analyser.charter_parser import CharterParser
 from analyser.structures import OrgStructuralLevel, ContractSubject, contract_subjects, \
   legal_entity_types
 from gpn.gpn import subsidiaries
 from integration.db import get_mongodb_connection
+from pymongo import DESCENDING
 
 
 def contract_subject_as_db_json():
@@ -48,13 +47,15 @@ def update_db_dictionaries():
   coll.delete_many({})
   coll.insert_one({'version': analyser.__version__})
 
-  #indexing
+  # indexing
+  print('creating db indices')
   coll = db["documents"]
-  idx = [
-    ("analysis.analyze_timestamp", DESCENDING),
-    ("user.updateDate", DESCENDING)
-  ]
-  resp = coll.create_index(idx)
+
+  resp = coll.create_index([("analysis.analyze_timestamp", DESCENDING)])
+  print("index response:", resp)
+  resp = coll.create_index([("user.updateDate", DESCENDING)])
+  print("index response:", resp)
+  resp = coll.create_index([("analysis.attributes.date.value", DESCENDING)])
   print("index response:", resp)
 
 
