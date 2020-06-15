@@ -256,25 +256,22 @@ class UberModelTrainsetManager:
 
       UberModelTrainsetManager._remove_obsolete_datapoints(df)
 
-      # if 'valid' in df:
-      #   df = df[df['valid'] != False]
-
-      df['subject'] = df['subject'].fillna('Other')
-
-
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
       df.index.name = '_id'
 
-    if 'org-1-alias' in df:
-      df['org-1-alias'] = df['org-1-alias'].fillna('')
-    else:
+    if 'subject' not in df:
+      df['subject'] = 'Other'
+
+    if 'org-1-alias' not in df:
       df['org-1-alias'] = ''
 
-    if 'org-2-alias' in df:
-      df['org-2-alias'] = df['org-2-alias'].fillna('')
-    else:
+    if 'org-2-alias' not in df:
       df['org-2-alias'] = ''
+
+    df['org-1-alias'] = df['org-1-alias'].fillna('')
+    df['org-2-alias'] = df['org-2-alias'].fillna('')
+    df['subject'] = df['subject'].fillna('Other')
 
     print(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
     return df
