@@ -110,9 +110,9 @@ def find_org_names(doc: LegalDocument,
   return _rename_org_tags(_all, tag_kind_prefix, start_from=1)
 
 
-def _rename_org_tags(all: [ContractAgent], prefix='', start_from=1) -> [SemanticTag]:
+def _rename_org_tags(all_: [ContractAgent], prefix='', start_from=1) -> [SemanticTag]:
   tags = []
-  for group, agent in enumerate(all):
+  for group, agent in enumerate(all_):
     for tag in agent.as_list():
       tagname = f'{prefix}org-{group + start_from}-{tag.kind}'
       tag.kind = tagname
@@ -152,13 +152,13 @@ def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confi
 
 def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, parent=None,
                              decay_confidence=True) -> [ContractAgent]:
-  all: [ContractAgent] = []
+  all_: [ContractAgent] = []
 
   iter = [m for m in re.finditer(regex, doc.text)]
 
   for m in iter:
     ca = ContractAgent()
-    all.append(ca)
+    all_.append(ca)
     for re_kind in org_pieces: # like 'type', 'name', 'human_name', 'alt_name', 'alias' ...
       try:
         char_span = m.span(re_kind)
@@ -184,7 +184,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
 
 
   # normalize org_name names by find_closest_org_name
-  for ca in all:
+  for ca in all_:
     if ca.name is not None:
       legal_entity_type, val = normalize_company_name(ca.name.value)
       ca.name.value = val
@@ -200,7 +200,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
       ca.type.value = long_
       ca.type.confidence *= confidence_
 
-  return all
+  return all_
 
 
 def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
