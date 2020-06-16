@@ -11,6 +11,7 @@ from functools import lru_cache
 from math import log1p
 
 import matplotlib
+from pymongo import ASCENDING
 from sklearn.metrics import classification_report
 
 from analyser.text_tools import split_version
@@ -222,8 +223,8 @@ class UberModelTrainsetManager:
 
     print(f'running DB query {query}')
     # TODO: sorting fails in MONGO
-    # sorting = [('analysis.analyze_timestamp', pymongo.ASCENDING),
-    #         ('user.updateDate', pymongo.ASCENDING)]
+    sorting = [('analysis.analyze_timestamp', ASCENDING),
+            ('user.updateDate', ASCENDING)]
     # sorting = [
     #            ('user.updateDate', pymongo.ASCENDING)]
     res = documents_collection.find(filter=query, sort=None)
@@ -517,7 +518,7 @@ class UberModelTrainsetManager:
       for doc_id in batch_indices:
 
         dp = self.make_xyw(doc_id)
-
+        subject_weight_K=1.0
         if augment_samples:
           start_from = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])  # cut beginning of the doc off
           row = self.stats.loc[doc_id]
@@ -528,11 +529,13 @@ class UberModelTrainsetManager:
               start_from = value_token_center - _off
               if start_from < 0:
                 start_from = 0
+              subject_weight_K = 0.01 #lower subject weight because there migh be no information about subject around doc. value
 
         dp = self.trim_maxlen(dp, start_from, max_len)
         # TODO: find samples maxlen
 
         (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = dp
+        subject_weight *= subject_weight_K
 
         batch_input_emb.append(emb)
         batch_input_token_f.append(tok_f)
