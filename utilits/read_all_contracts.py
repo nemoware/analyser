@@ -14,7 +14,6 @@ from analyser.documents import TOKENIZER_DEFAULT
 from analyser.legal_docs import LegalDocument
 from integration.word_document_parser import WordDocParser, join_paragraphs
 
-_files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
 
 
 def read_all_docs(files_dir: str, doc_type='CONTRACT'):
@@ -192,5 +191,5 @@ def find_top_headers():
 if __name__ == '__main__':
   # find_top_headers()
   # analyse_headers()
-  read_all_docs(_files_dir)
+  read_all_docs('_files_dir')
   # dump_contracts_from_db_to_jsons('/Users/artem/work/nemo/goil/OUT/jsons')
