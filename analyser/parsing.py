@@ -29,11 +29,11 @@ class ParsingSimpleContext:
 
   def _logstep(self, name: str) -> None:
     s = self.__step
-    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
+    print(f'{s}.\t❤️ ACCOMPLISHED:\t {name}')
     self.__step += 1
 
   def warning(self, text):
-    t_ = '⚠️ WARNING: - ' + text
+    t_ = '\t - ⚠️ WARNING: - ' + text
     self.warnings.append(t_)
     print(t_)
 

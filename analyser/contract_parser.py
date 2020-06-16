@@ -280,7 +280,7 @@ class ContractParser(ParsingContext):
           _section_name = 'entire contract'
 
         if self.verbosity_level > 1:
-          self._logstep(f'searching for transaction values in section ["{section}"] "{_section_name}"')
+          self._logstep(f'Searching for transaction values in section ["{section}"] "{_section_name}"')
 
         values_list: List[ContractValue] = find_value_sign_currency(value_section, self.pattern_factory)
 
@@ -355,7 +355,7 @@ def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFact
           max_confidence = _confidence
           best_subj = subject_kind
           subj_header = header
-        # print (subject_kind, _confidence)
+
 
   return best_subj, max_confidence, subj_header
 

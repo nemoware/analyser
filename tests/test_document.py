@@ -8,7 +8,6 @@ import unittest
 from analyser.charter_parser import CharterParser, CharterDocument
 from analyser.contract_parser import ContractParser, ContractDocument
 from analyser.legal_docs import *
-from analyser.legal_docs import _embedd_large
 from analyser.parsing import AuditContext
 from tests.test_utilits import FakeEmbedder
 
@@ -22,7 +21,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     ld = LegalDocument('a b c d e f g h').parse()
     print(ld.tokens)
 
-    _embedd_large(ld.tokens_map_norm, emb, 5)
+    emb.embedd_large(ld.tokens_map_norm, 5)
 
     # print(ld.embeddings)
     print(ld.tokens)
@@ -47,14 +46,10 @@ class LegalDocumentTestCase(unittest.TestCase):
     ctx._logstep("analyze_contract")
 
   def test_checksum(self):
-    d0 = LegalDocument("aasasasasas aasasas")
-    d0.parse()
+    d0 = LegalDocument("aasasasasas aasasas").parse()
+    d = LegalDocument("aasasasasas aasasas").parse()
+    d1 = LegalDocument("bgfgjfgdfg dfgj d gj").parse()
 
-    d1 = LegalDocument("bgfgjfgdfg dfgj d gj")
-    d1.parse()
-
-    d = LegalDocument("aasasasasas aasasas")
-    d.parse()
     print(d.checksum)
     self.assertIsNotNone(d.checksum)
     self.assertTrue(d.checksum != 0)

@@ -4,6 +4,7 @@
 from enum import Enum, unique, EnumMeta
 
 import numpy as np
+from keras.utils import to_categorical
 
 legal_entity_types = {
   'Акционерное общество': 'АО',
@@ -143,6 +144,22 @@ class ContractSubject(Enum, metaclass=DisplayStringEnumMeta):
   @staticmethod
   def as_matrix():
     return np.array([[s.name, s.value] for s in ContractSubject])
+
+  @staticmethod
+  def encode_1_hot():
+    '''
+    bit of paranoia to reserve order
+    :return:
+    '''
+    all_subjects_map = ContractSubject.as_matrix()
+    values = all_subjects_map[:, 1]
+
+    # encoding integer subject codes in one-hot vectors
+    _cats = to_categorical(values)
+
+    subject_name_1hot_map = {all_subjects_map[i][0]: _cats[i] for i, k in enumerate(all_subjects_map)}
+
+    return subject_name_1hot_map
 
 
 contract_subjects = [
