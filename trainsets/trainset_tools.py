@@ -27,8 +27,8 @@ def get_feature_log_weights(trainset_rows, category_column_name):
 def split_trainset_evenly(df: DataFrame,
                           category_column_name: str,
                           test_proportion=VALIDATION_SET_PROPORTION,
-                          no_intersections=False) -> ([int], [int]):
-  np.random.seed(42)
+                          no_intersections=False, seed=42) -> ([int], [int]):
+  np.random.seed(seed)
 
   cat_count = df[category_column_name].value_counts()  # distribution by category
 
