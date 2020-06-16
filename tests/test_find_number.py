@@ -4,10 +4,19 @@
 import re
 import unittest
 
-from analyser.doc_numbers import document_number_c
+from analyser.doc_numbers import document_number_c, find_document_number_span
 
 
 class NumbersTestCase(unittest.TestCase):
+
+  def test_find_doc_number_underscores(self):
+    t = '''ДОГОВОР ПОСТАВКИ № ДП_79305_69072_30912
+    
+    г. Санкт-Петербург 15-11-2048 год.'''
+
+    _number, finding_span = find_document_number_span(t)
+
+    self.assertEqual('ДП_79305_69072_30912', _number)
 
   def test_find_doc_number(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №3 к Договору о выдаче банковских гарантий №3256-5/876 от 06-02-2013 год, заключенному между '''
@@ -23,17 +32,22 @@ class NumbersTestCase(unittest.TestCase):
     self.assertEqual(0, len(findings))
 
   def test_find_doc_number_N(self):
-    t = 'Договор чего-то-там N 16-89/44 г. Санкт-Петербург    '
-    findings = list(re.finditer(document_number_c, t))
+    t = 'ДОГОВОР чего-то-там N 16-89/44 г. Санкт-Петербург    '
 
-    self.assertEqual(1, len(findings))
-    self.assertEqual('16-89/44', findings[0]['number'])
+    _number, finding_span = find_document_number_span(t)
+    self.assertEqual('16-89/44', _number)
+
+  def test_find_doc_number_N_g(self):
+    t = 'ДОГОВОР чего-то-там N \n г. Санкт-Петербург    '
+
+    _number, finding_span = find_document_number_span(t)
+    self.assertEqual(None, _number)
 
   def test_find_doc_number_missing___(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения № ____ на ыдаче'''
-    findings = list(re.finditer(document_number_c, t))
 
-    self.assertEqual(0, len(findings))
+    _number, finding_span = find_document_number_span(t)
+    self.assertEqual(None, _number)
 
   def test_find_doc_number_no_dot(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения №343434.'''
