@@ -46,7 +46,7 @@ _DEV_MODE = False
 _EMBEDD = True
 
 
-# TODO: 1. sort org1 and org2 by span start kjhfaskjdh
+
 # TODO: 2. use averaged tags confidence for sample weighting
 # TODO: 3. evaluate on user-marked documents only
 
@@ -88,6 +88,10 @@ class DbJsonDoc:
     att = self.get_attributes()
     if a in att:
       return att[a]['span'][0]
+
+  def asLegalDoc(self):
+    doc: LegalDocument = join_paragraphs(self.parse, self._id)
+    return doc
 
 
 def pad_things(xx, maxlen, padding='post'):
@@ -141,12 +145,12 @@ class UberModelTrainsetManager:
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
   def save_contract_data_arrays(self, doc: LegalDocument, db_json_doc: DbJsonDoc, id_override=None):
+    #TODO: why same doc twice in arguments??
     id_ = doc._id
     if id_override is not None:
       id_ = id_override
 
     token_features = get_tokens_features(doc.tokens)
-
     semantic_map = _get_semantic_map(db_json_doc, 1.0)
 
     np.save(self._dp_fn(id_, 'token_features'), token_features)
@@ -211,8 +215,11 @@ class UberModelTrainsetManager:
     query = {
       '$and': [
         {"parse.documentType": "CONTRACT"},
-        # {"analysis.attributes": {"$ne": None}},
-        {'$or': [{"analysis.attributes.subject": {"$ne": None}}, {"user.attributes.subject": {"$ne": None}}]},
+        {"state": 15},
+        {'$or': [
+          {"analysis.attributes": {"$ne": None}},
+          {"user.attributes": {"$ne": None}}
+        ]},
 
         {'$or': [
           {'analysis.analyze_timestamp': {'$gt': self.lastdate}},
@@ -227,7 +234,7 @@ class UberModelTrainsetManager:
             ('user.updateDate', ASCENDING)]
     # sorting = [
     #            ('user.updateDate', pymongo.ASCENDING)]
-    res = documents_collection.find(filter=query, sort=None)
+    res = documents_collection.find(filter=query, sort=sorting)
 
     res.limit(2000)
 
@@ -446,7 +453,6 @@ class UberModelTrainsetManager:
 
     row = self.stats.loc[doc_id]
 
-    # try:
     _subj = row['subject']
     subject_one_hot = ContractSubject.encode_1_hot()[_subj]
 
@@ -460,12 +466,7 @@ class UberModelTrainsetManager:
       (semantic_map, subject_one_hot),
       (row['sample_weight'], row['subject_weight']))
 
-    # except Exception as e:
-    #   print(e)
-    #   self.stats.at[doc_id, 'valid'] = False
-    #   self.stats.at[doc_id, 'error'] = str(e)
-    #   self._save_stats()
-    #   return ((None, None), (None, None), (None, None))
+
 
   def augment_datapoint(self, dp):
     maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])

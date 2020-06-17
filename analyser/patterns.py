@@ -280,7 +280,7 @@ class AbstractPatternFactoryLowCase(AbstractPatternFactory):
     AbstractPatternFactory.__init__(self, embedder)
     self.patterns_dict = {}
 
-  def create_pattern(self, pattern_name, ppp):
+  def create_pattern(self, pattern_name, ppp: [str]):
     _ppp = (_case_normalizer.normalize_text(ppp[0]),
             _case_normalizer.normalize_text(ppp[1]),
             _case_normalizer.normalize_text(ppp[2]))

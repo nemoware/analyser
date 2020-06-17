@@ -342,23 +342,32 @@ def compare_masked_strings(a, b, masked_substrings):
   return jaro.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
 
 
-def find_top_spans(paragraph_attention_vector, threshold=0.5, gap=2) -> []:
+def find_top_spans(paragraph_attention_vector, threshold=0.5, maxgap=2, limit=None) -> []:
   result = []
   top_indices = [i for i, v in enumerate(paragraph_attention_vector) if v > threshold]
   if len(top_indices) == 0:
     return result
 
   span_start = top_indices[0]
-
+  averages = []
   i_prev = span_start
 
   for _p, i in enumerate(top_indices):
-    if i - i_prev > gap:  # break
-      sp = (span_start, i_prev + 1)
+    if i - i_prev > maxgap:  # break
+      sp = slice(span_start, i_prev + 1)
       result.append(sp)
+      averages.append(np.mean(paragraph_attention_vector[sp]))
       span_start = i
 
     i_prev = i
 
-  result.append((span_start, top_indices[-1] + 1))
+  sp = slice(span_start, top_indices[-1] + 1)
+  averages.append(np.mean(paragraph_attention_vector[sp]))
+  result.append(sp)
+
+  tops = np.argsort(averages, )[::-1]
+  result = [result[i] for i in tops]
+  if limit is not None:
+    result = result[:limit]
+
   return result

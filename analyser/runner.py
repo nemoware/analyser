@@ -119,7 +119,7 @@ def get_audits():
   return res
 
 
-def get_docs_by_audit_id(id: str, states=None, kind=None):
+def get_docs_by_audit_id(id: str, states=None, kind=None, limit=None):
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
@@ -141,6 +141,8 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
     query["$and"].append({'parse.documentType': kind})
 
   cursor = documents_collection.find(query)
+  if limit is not None:
+    cursor.limit(limit)
   res = []
   for doc in cursor:
     res.append(doc)

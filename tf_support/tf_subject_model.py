@@ -22,7 +22,6 @@ EMB = 1024  # embedding dimentionality
 
 def decode_subj_prediction(result: FixedVector) -> (ContractSubject, float, int):
   max_i = result.argmax()
-  print(max_i)
   predicted_subj_name = ContractSubject(max_i)
   confidence = result[max_i]
   return predicted_subj_name, confidence, max_i

@@ -10,10 +10,12 @@ import numpy as np
 
 from analyser.hyperparams import models_path
 from analyser.ml_tools import spans_to_attention
-from analyser.text_tools import Tokens, untokenize, replace_tokens, tokenize_text, split_into_sentences
+from analyser.text_tools import Tokens, untokenize, replace_tokens, split_into_sentences
 
 TEXT_PADDING_SYMBOL = ' '
-nltk.download('punkt')
+
+
+# nltk.download('punkt')
 
 
 class TextMap:
@@ -259,7 +261,8 @@ class CaseNormalizer:
     warnings.warn(
       "Deprecated, because this class must not perform tokenization. Use normalize_tokens or  normalize_tokens_map_case",
       DeprecationWarning)
-    tokens = tokenize_text(text)
+    tm = TextMap(text)
+    tokens = tm.tokens
     tokens = self.normalize_tokens(tokens)
     return untokenize(tokens)
 

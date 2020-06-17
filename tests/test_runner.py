@@ -40,7 +40,7 @@ class TestRunner(unittest.TestCase):
   def _get_doc_from_db(self, kind):
     audits = get_mongodb_connection()['audits'].find().sort([("createDate", pymongo.ASCENDING)]).limit(1)
     for audit in audits:
-      for doc in get_docs_by_audit_id(audit['_id'], kind=kind, states=[15]).limit(1):
+      for doc in get_docs_by_audit_id(audit['_id'], kind=kind, states=[15], limit=1):
         print(doc['_id'])
         yield doc
 
