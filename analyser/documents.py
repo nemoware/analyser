@@ -4,14 +4,10 @@ import pickle
 import sys
 import traceback
 import warnings
-
 from analyser.hyperparams import models_path
 import nltk
-nltk.data.load(f'file:{models_path}/nltk/tokenizers/punkt/english.pickle', verbose=True)
-nltk.data.load(f'file:{models_path}/nltk/tokenizers/punkt/russian.pickle', verbose=True)
-
+nltk.data.path.append(os.path.join(models_path, 'nltk'))
 import numpy as np
-
 
 from analyser.ml_tools import spans_to_attention
 from analyser.text_tools import Tokens, untokenize, replace_tokens, split_into_sentences
@@ -285,13 +281,9 @@ class GTokenizer:
     raise NotImplementedError()
 
 
-
-
-
 class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
-
 
     # pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
     # nltk.download('punkt', download_dir=pth)
