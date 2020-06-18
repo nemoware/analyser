@@ -186,7 +186,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
   # normalize org_name names by find_closest_org_name
   for ca in all_:
     if ca.name is not None:
-      legal_entity_type, val = normalize_company_name(ca.name.value)
+      _, val = normalize_company_name(ca.name.value)
       ca.name.value = val
       known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
                                                               HyperParameters.subsidiary_name_match_min_jaro_similarity)

@@ -8,6 +8,7 @@ from analyser.parsing import ParsingContext, AuditContext, find_value_sign_curre
 from analyser.patterns import AV_SOFT, AV_PREFIX, AbstractPatternFactory
 from analyser.sections_finder import FocusingSectionsFinder
 from analyser.structures import ContractSubject, contract_subjects
+from analyser.text_tools import find_top_spans
 from tf_support.tf_subject_model import load_subject_detection_trained_model, predict_subject, decode_subj_prediction
 
 
@@ -77,7 +78,7 @@ class ContractParser(ParsingContext):
     contract.number = find_document_number(contract)
 
     # validating date & number position, date must go before any agents
-    
+
     if contract.date is not None:
       date_start = contract.date.span[0]
       for at in contract.agents_tags:
@@ -126,17 +127,11 @@ class ContractParser(ParsingContext):
     self._logstep("finding contract values")
 
     # -------------------------------subject
-    nn_predictions_dist = predict_subject(self.subject_prediction_model, contract)
-    p_subj, p_confidence, _ = decode_subj_prediction(nn_predictions_dist)
-    self._logstep(f"detected Contract Subject using NN model: {p_subj} {p_confidence}")
+    semantic_map, subj_1hot = predict_subject(self.subject_prediction_model, contract)
+    contract.subjects = self.get_predicted_subject(semantic_map, subj_1hot)
 
-    contract.subjects = self.find_contract_subject_region(contract)  # SemanticTag
     if not contract.subjects:
       contract.warn(ParserWarnings.contract_subject_not_found)
-    else:
-      # TODO: Achtung:
-      contract.subjects.confidence = float(p_confidence)
-      contract.subjects.value = p_subj.name
 
     self._logstep("detecting contract subject")
     # --------------------------------------
@@ -145,6 +140,18 @@ class ContractParser(ParsingContext):
 
     return contract
     # , self.contract.contract_values
+
+  def get_predicted_subject(self, semantic_map, subj_1hot) -> SemanticTag:
+
+    predicted_subj_name, confidence, _ = decode_subj_prediction(subj_1hot)
+
+    tag = SemanticTag('subject', predicted_subj_name.name, span=None)
+    tag.confidence = confidence
+
+    slices = find_top_spans(semantic_map['subject'].values, threshold=0.5, limit=1)
+    if len(slices) == 1:
+      tag.span = slices[0].start, slices[0].stop
+    return tag
 
   def select_most_confident_if_almost_equal(self, a: ProbableValue, alternative: ProbableValue, m_convert,
                                             equality_range=0.0):
@@ -355,7 +362,6 @@ def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFact
           max_confidence = _confidence
           best_subj = subject_kind
           subj_header = header
-
 
   return best_subj, max_confidence, subj_header
 
