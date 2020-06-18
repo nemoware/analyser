@@ -9,6 +9,11 @@ tests/~
 
 
 nltk_data_download/**/*
+/analyser/vocab/nltk/**/*
+!/analyser/vocab/nltk/tokenizers/punkt/PY3/russian.pickle
+!/analyser/vocab/nltk/tokenizers/punkt/PY3/english.pickle
+!/analyser/vocab/nltk/tokenizers/punkt/russian.pickle
+!/analyser/vocab/nltk/tokenizers/punkt/english.pickle
 
 tests/contracts-stats.csv
 
@@ -61,6 +66,5 @@ work/*.weights
 work/*.json
 
 work/*.zip
-
 
 

@@ -6,7 +6,6 @@
 import warnings
 from typing import List
 
-import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 from numpy.core.multiarray import ndarray
@@ -138,20 +137,6 @@ my_punctuation = r"""!"#$%&'*+,-./:;<=>?@[\]^_`{|}~"""
 def untokenize(tokens: Tokens) -> str:
   warnings.warn("deprecated", DeprecationWarning)
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
-
-
-def tokenize_text(text):
-  warnings.warn("deprecated, use TextMap(text)", DeprecationWarning)
-
-  sentences = text.split('\n')
-  result = []
-  for i in range(len(sentences)):
-    sentence = sentences[i]
-    result += nltk.word_tokenize(sentence)
-    if i < len(sentences) - 1:
-      result += ['\n']
-
-  return result
 
 
 def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):

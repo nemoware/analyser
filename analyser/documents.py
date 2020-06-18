@@ -306,6 +306,8 @@ class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
 
+    nltk.data.load(f'file:{models_path}/nltk/tokenizers/punkt/english.pickle', verbose=True)
+    nltk.data.load(f'file:{models_path}/nltk/tokenizers/punkt/russian.pickle', verbose=True)
     # pth = os.path.join(os.path.dirname(__file__), 'nltk_data_download')
     # nltk.download('punkt', download_dir=pth)
     pass
