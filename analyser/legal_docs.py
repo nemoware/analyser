@@ -359,7 +359,6 @@ class DocumentJson:
     self.normal_text = None
     self.warnings: [str] = []
 
-
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
 
@@ -456,10 +455,10 @@ def find_value_sign(txt: TextMap) -> (int, (int, int)):
 
 class ContractValue:
   def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
-    self.value = value
-    self.sign = sign
-    self.currency = currency
-    self.parent = parent
+    self.value: SemanticTag = value
+    self.sign: SemanticTag = sign
+    self.currency: SemanticTag = currency
+    self.parent: SemanticTag = parent
 
   def as_list(self) -> [SemanticTag]:
     if self.sign.value != 0:
@@ -501,7 +500,7 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     value_span = subdoc.tokens_map.token_indices_by_char_range(value_char_span)
     currency_span = subdoc.tokens_map.token_indices_by_char_range(currency_char_span)
 
-    group = SemanticTag('sign_value_currency', None, region)
+    group = SemanticTag('sign_value_currency', value=None, span=region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
     sign.offset(subdoc.start)
@@ -511,6 +510,11 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
 
     currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span, parent=group)
     currency.offset(subdoc.start)
+
+    groupspan = [0, 0]
+    groupspan[0] = min(sign.span[0], sign.span[0], sign.span[0], group.span[0])
+    groupspan[1] = max(sign.span[1], sign.span[1], sign.span[1], group.span[1])
+    group.span = groupspan
 
     return ContractValue(sign, value_tag, currency, group)
   else:
