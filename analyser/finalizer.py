@@ -202,10 +202,14 @@ def check_contract(contract, charters, protocols, audit):
     eligible_charter = None
     for charter in charters:
         charter_attrs = get_attrs(charter)
-        if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
+        try:
+          if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
             eligible_charter = charter
             add_link(audit["_id"], contract["_id"], eligible_charter["_id"])
             break
+        except Exception as e:
+          msg = f'audit {audit["_id"]} charter {charter["_id"]} contract{contract["_id"]}'
+          print('ERROR: ', e, msg)
 
     if eligible_charter is None:
         json_charters = []
