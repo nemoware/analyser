@@ -10,7 +10,8 @@ import numpy as np
 from tests.test_utilits import load_json_sample
 from tf_support.super_contract_model import uber_detection_model_001
 from tf_support.tools import KerasTrainingContext
-from trainsets.retrain_contract_uber_model import _get_semantic_map, DbJsonDoc
+from trainsets.retrain_contract_uber_model import _get_semantic_map
+from analyser.legal_docs import DbJsonDoc
 
 
 class TestLoadTfModel(unittest.TestCase):

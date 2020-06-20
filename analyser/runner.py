@@ -6,13 +6,12 @@ import analyser
 from analyser import finalizer
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractParser
-from analyser.legal_docs import LegalDocument
+from analyser.legal_docs import LegalDocument, DbJsonDoc
 from analyser.parsing import AuditContext
 from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
-from trainsets.retrain_contract_uber_model import DbJsonDoc
 
 
 class Runner:
@@ -42,9 +41,9 @@ class Runner:
       Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
-  def make_legal_doc(self, db_document):
-    parsed_p_json = db_document['parse']
-    legal_doc = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
+  def make_legal_doc(self, db_document: DbJsonDoc):
+    parsed_p_json = db_document.parse
+    legal_doc = join_paragraphs(parsed_p_json, doc_id=db_document._id)
     # save_analysis(db_document, legal_doc)
     # TODO: do not ignore user-corrected attributes here
     return legal_doc
@@ -53,7 +52,7 @@ class Runner:
 class BaseProcessor:
   parser = None
 
-  def preprocess(self, db_document, context: AuditContext):
+  def preprocess(self, db_document: DbJsonDoc, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     self.parser.find_org_date_number(legal_doc, context)
     save_analysis(db_document, legal_doc, state=5)
@@ -65,7 +64,7 @@ class BaseProcessor:
     if db_document.retry_number > 2:
       print(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
       return None
-    legal_doc = db_document.asLegalDoc()
+    legal_doc = Runner.get_instance().make_legal_doc(db_document)
     try:
       # todo: remove find_org_date_number call
       self.parser.find_org_date_number(legal_doc, context)
@@ -127,7 +126,7 @@ def get_audits():
   return res
 
 
-def get_docs_by_audit_id(id: str, states=None, kind=None, limit=None) -> []:
+def get_docs_by_audit_id(id: str, states=None, kind=None, limit=None) -> [dict]:
   db = get_mongodb_connection()
   documents_collection = db['documents']
 

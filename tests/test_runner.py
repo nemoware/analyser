@@ -7,6 +7,7 @@ import unittest
 
 import pymongo
 
+from analyser.legal_docs import DbJsonDoc
 from analyser.parsing import AuditContext
 from analyser.runner import Runner, get_audits, get_docs_by_audit_id, document_processors, save_analysis
 from integration.db import get_mongodb_connection
@@ -37,7 +38,7 @@ class TestRunner(unittest.TestCase):
     for a in docs:
       print(a['_id'], a['filename'])
 
-  def _get_doc_from_db(self, kind):
+  def _get_doc_from_db(self, kind) -> dict:
     audits = get_mongodb_connection()['audits'].find().sort([("createDate", pymongo.ASCENDING)]).limit(1)
     for audit in audits:
       for doc in get_docs_by_audit_id(audit['_id'], kind=kind, states=[15], limit=1):
@@ -46,8 +47,9 @@ class TestRunner(unittest.TestCase):
 
   def _preprocess_single_doc(self, kind):
     for doc in self._get_doc_from_db(kind):
+      jdoc = DbJsonDoc(doc)
       processor = document_processors.get(kind, None)
-      processor.preprocess(doc, AuditContext())
+      processor.preprocess(jdoc, AuditContext())
 
   # @unittest.skipIf(SKIP_TF, "requires TF")
 
@@ -67,7 +69,8 @@ class TestRunner(unittest.TestCase):
     docs = get_docs_by_audit_id(audit_id, kind='CONTRACT')
     for doc in docs:
       processor = document_processors.get('CONTRACT', None)
-      processor.preprocess(doc, AuditContext())
+      jdoc = DbJsonDoc(doc)
+      processor.preprocess(jdoc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_charters_phase_1(self):

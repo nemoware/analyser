@@ -31,7 +31,7 @@ from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
 
 from analyser.hyperparams import work_dir as default_work_dir
-from analyser.legal_docs import LegalDocument
+from analyser.legal_docs import LegalDocument, DbJsonDoc
 from analyser.structures import ContractSubject
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
@@ -48,54 +48,6 @@ _EMBEDD = True
 
 # TODO: 2. use averaged tags confidence for sample weighting
 # TODO: 3. evaluate on user-marked documents only
-
-class DbJsonDoc:
-
-  def __init__(self, j: dict):
-    self.analysis = None
-    self.state: int = -1
-    self.parse = None
-    self.user = None
-    self._id = None
-    self.retry_number: int = 0
-    self.__dict__.update(j)
-
-  def as_dict(self):
-    return self.__dict__
-
-  def __len__(self):
-    arrr = self.analysis['tokenization_maps']['words']
-    return len(arrr)
-
-  def get_attributes(self) -> dict:
-    if self.user is not None:
-      attributes = self.user['attributes']
-    else:
-      attributes = self.analysis['attributes']
-    return attributes
-
-  def get_subject(d):
-    return d.get_attribute('subject')
-
-  def get_attribute(d, attr):
-    atts = d.get_attributes()
-    if attr in atts:
-      return atts[attr]
-    else:
-      return {
-        'value': None,
-        'confidence': 0.0,
-        'span': [np.nan, np.nan]
-      }  ## fallback for safety
-
-  def get_attr_span_start(self, a):
-    att = self.get_attributes()
-    if a in att:
-      return att[a]['span'][0]
-
-  def asLegalDoc(self):
-    doc: LegalDocument = join_paragraphs(self.parse, self._id)
-    return doc
 
 
 def pad_things(xx, maxlen, padding='post'):
