@@ -46,7 +46,6 @@ _DEV_MODE = False
 _EMBEDD = True
 
 
-
 # TODO: 2. use averaged tags confidence for sample weighting
 # TODO: 3. evaluate on user-marked documents only
 
@@ -54,10 +53,15 @@ class DbJsonDoc:
 
   def __init__(self, j: dict):
     self.analysis = None
+    self.state: int = -1
     self.parse = None
     self.user = None
     self._id = None
+    self.retry_number: int = 0
     self.__dict__.update(j)
+
+  def as_dict(self):
+    return self.__dict__
 
   def __len__(self):
     arrr = self.analysis['tokenization_maps']['words']
@@ -145,7 +149,7 @@ class UberModelTrainsetManager:
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
   def save_contract_data_arrays(self, doc: LegalDocument, db_json_doc: DbJsonDoc, id_override=None):
-    #TODO: why same doc twice in arguments??
+    # TODO: why same doc twice in arguments??
     id_ = doc._id
     if id_override is not None:
       id_ = id_override
@@ -231,7 +235,7 @@ class UberModelTrainsetManager:
     print(f'running DB query {query}')
     # TODO: sorting fails in MONGO
     sorting = [('analysis.analyze_timestamp', ASCENDING),
-            ('user.updateDate', ASCENDING)]
+               ('user.updateDate', ASCENDING)]
     # sorting = [
     #            ('user.updateDate', pymongo.ASCENDING)]
     res = documents_collection.find(filter=query, sort=sorting)
@@ -370,7 +374,7 @@ class UberModelTrainsetManager:
     '''
 
     batch_size = 24  # TODO: make a param
-    train_indices, test_indices = split_trainset_evenly(self.stats, 'subject')
+    train_indices, test_indices = split_trainset_evenly(self.stats, 'subject', seed=55)
     model, ctx = self.init_model()
     ctx.EVALUATE_ONLY = False
 
@@ -466,8 +470,6 @@ class UberModelTrainsetManager:
       (semantic_map, subject_one_hot),
       (row['sample_weight'], row['subject_weight']))
 
-
-
   def augment_datapoint(self, dp):
     maxlen = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
     cutoff = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])
@@ -519,7 +521,7 @@ class UberModelTrainsetManager:
       for doc_id in batch_indices:
 
         dp = self.make_xyw(doc_id)
-        subject_weight_K=1.0
+        subject_weight_K = 1.0
         if augment_samples:
           start_from = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])  # cut beginning of the doc off
           row = self.stats.loc[doc_id]
@@ -530,7 +532,7 @@ class UberModelTrainsetManager:
               start_from = value_token_center - _off
               if start_from < 0:
                 start_from = 0
-              subject_weight_K = 0.01 #lower subject weight because there migh be no information about subject around doc. value
+              subject_weight_K = 0.01  # lower subject weight because there migh be no information about subject around doc. value
 
         dp = self.trim_maxlen(dp, start_from, max_len)
         # TODO: find samples maxlen
