@@ -16,7 +16,7 @@ def print_predictions(contract, predictions, body_lines_ranges):
   for i in range(len(predictions)):
     if predictions[i] > 0.1:
       headlines_cnt += 1
-      # //print(f'{predictions[i]} \t {i}\t🎖{contract.tokens_map.text_range(body_lines_ranges[i])}❗')
+      # print(f'{predictions[i]} \t {i}\t🎖{contract.tokens_map.text_range(body_lines_ranges[i])}❗')
   return headlines_cnt
 
 
@@ -58,10 +58,10 @@ class TestHeaderDetector(unittest.TestCase):
     predictions = model.predict(features)
 
     headlines_cnt = print_predictions(contract, predictions, body_lines_ranges)
-    self.assertLess(headlines_cnt, 12)
-    self.assertGreater(headlines_cnt, 8)
+    self.assertLess(headlines_cnt, 15)
+    self.assertGreater(headlines_cnt, 7)
 
-  @unittest.skip("headers detector should be retrained")
+  # @unittest.skip("headers detector should be retrained")
   def test_doc_features_predict_3(self):
     with open(os.path.join(os.path.dirname(__file__), 'Договор _2_.docx.pickle'), 'rb') as handle:
       contract: LegalDocument = pickle.load(handle)
@@ -72,8 +72,8 @@ class TestHeaderDetector(unittest.TestCase):
     predictions = model.predict(features)
 
     headlines_cnt = print_predictions(contract, predictions, body_lines_ranges)
-    self.assertLess(headlines_cnt, 39)
-    self.assertGreater(headlines_cnt, 20)
+    self.assertLess(headlines_cnt, 16)
+    self.assertGreater(headlines_cnt, 10)
 
   @unittest.skip("headers detector should be retrained")
   def test_doc_features_predict_4(self):

@@ -76,7 +76,7 @@ def _onehot(x: bool or int) -> float:
     return 0.0
 
 
-def line_features(tokens_map, line_span, line_number, prev_features):
+def line_features(tokens_map:TextMap, line_span:(int, int), line_number:int, prev_features):
   tokens: Tokens = tokens_map.tokens_by_range(line_span)
   # TODO: add previous and next lines features
   txt: str = tokens_map.text_range(line_span)

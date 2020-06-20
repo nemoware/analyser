@@ -5,17 +5,11 @@ import time
 import schedule
 
 from analyser import runner
-from gpn.gpn import update_subsidiaries_in_db
-from integration.db import get_mongodb_connection
+from analyser.dictionaries import update_db_dictionaries
 
-def prepare_db():
-  db = get_mongodb_connection()
-  audit_collection = db['audits']
-  audit_collection.create_index("createDate")
 
 def main():
-  update_subsidiaries_in_db()
-  prepare_db()
+  update_db_dictionaries()
 
   check_interval = os.environ.get("GPN_DB_CHECK_INTERVAL")
   if check_interval is None:
