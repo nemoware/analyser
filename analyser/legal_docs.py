@@ -190,7 +190,7 @@ class LegalDocument:
   def get_original_text(self):
     return self._original_text
 
-  def get_normal_text(self):
+  def get_normal_text(self) -> str:
     return self._normal_text
 
   def get_text(self):
