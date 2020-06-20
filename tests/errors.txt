@@ -4,6 +4,9 @@
 Примеры документов/20200226/1. Договор_Солнце_Услуга Ген.подряд.doc:	value 
 	 expected: '45796632.2' 
 	   ACTUAL: '54040026.0'
+Примеры документов/20200226/1. Договор_Солнце_Услуга Ген.подряд.doc:	subject 
+	 expected: 'GeneralContract' 
+	   ACTUAL: 'Renting'
 Примеры документов/20200226/3. ДОГОВОР аренда РИМ.docx:	value 
 	 expected: '3382750.0' 
 	   ACTUAL: '96650.0'
@@ -57,7 +60,7 @@ Contracts/3 этап по правилам/Договор поставки_1_.do
 	   ACTUAL: '100000.0'
 Contracts/3 этап по правилам/Договор поставки_1_.docx:	subject 
 	 expected: 'DealЧТО??' 
-	   ACTUAL: 'Renting'
+	   ACTUAL: 'Service'
 Contracts/3 этап по правилам/договор.2.docx:	value 
 	 expected: '55000.0' 
 	   ACTUAL: '45833.33'
@@ -81,16 +84,13 @@ Contracts/3 этап по правилам/договор.5_.docx:	value
 	   ACTUAL: '50000000.0'
 Contracts/3 этап по правилам/договор.5_.docx:	subject 
 	 expected: 'AgencyContract' 
-	   ACTUAL: 'Service'
+	   ACTUAL: 'Loans'
 Contracts/3 этап по правилам/договор.6.docx:	subject 
 	 expected: 'AgencyContract' 
 	   ACTUAL: 'Service'
 Contracts/3 этап по правилам/договор.7.docx:	value 
 	 expected: '1000000.0' 
 	   ACTUAL: '0.0'
-Contracts/3 этап по правилам/договор.9.docx:	subject 
-	 expected: 'Service' 
-	   ACTUAL: 'Renting'
 Contracts/3 этап по правилам/договор.9_.docx:	value 
 	 expected: '100000.0' 
 	   ACTUAL: '1000.0'
@@ -126,6 +126,9 @@ Contracts/3 этап по правилам/договор.9_.docx:	value
 	   ACTUAL: '100000.0'
 Примеры документов/Обезглавленные доки/Документы ред/Договор № 30912.docx:	subject 
 	 expected: 'Service' 
+	   ACTUAL: 'Deal'
+Примеры документов/Недвижимость/2.договор.docx:	subject 
+	 expected: 'RealEstate' 
 	   ACTUAL: 'Renting'
 Примеры документов/Недвижимость/5.договор.docx:	org_1_name 
 	 expected: 'Газпромнефть-Новосибирск (НБ)' 
@@ -136,11 +139,14 @@ Contracts/3 этап по правилам/договор.9_.docx:	value
 Примеры документов/Недвижимость/5.договор.docx:	value 
 	 expected: '7627118.64' 
 	   ACTUAL: '9000000.0'
+Примеры документов/Недвижимость/5.договор.docx:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'PledgeEncumbrance'
+Примеры документов/Недвижимость/6.договор.doc:	subject 
+	 expected: 'RealEstate' 
+	   ACTUAL: 'Renting'
 Примеры документов/Недвижимость/7.договор.docx:	value 
 	 expected: '8474576.27' 
 	   ACTUAL: '10000000.0'
-Примеры документов/Недвижимость/8.договор.doc:	value 
-	 expected: '847457.63' 
-	   ACTUAL: '833333.33'
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ERRRORS: 	48 of 78 docs
+ERRRORS: 	50 of 79 docs
