@@ -123,7 +123,7 @@ def get_audits():
   return res
 
 
-def get_docs_by_audit_id(id: str, states=None, kind=None):
+def get_docs_by_audit_id(id: str, states=None, kind=None, id_only=False):
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
@@ -144,7 +144,11 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
 
-  cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST)
+  if id_only:
+    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST, projection={'_id': True})
+  else:
+    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST)
+
   res = []
   for doc in cursor:
     res.append(doc)
@@ -179,8 +183,9 @@ def run(run_pahse_2=True, kind=None):
 
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
-    for document in documents:
+    document_ids = get_docs_by_audit_id(audit["_id"], [0], kind=kind, id_only=True)
+    for document_id in document_ids:
+      document = finalizer.get_doc_by_id(document_id["_id"])
       processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
         print(f'........pre-processing  {document["parse"]["documentType"]}')
@@ -198,8 +203,9 @@ def run(run_pahse_2=True, kind=None):
 
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
-      documents = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind)
-      for document in documents:
+      document_ids = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind, id_only=True)
+      for document_id in document_ids:
+        document = finalizer.get_doc_by_id(document_id["_id"])
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
           print(f'........processing  {document["parse"]["documentType"]}')
