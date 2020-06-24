@@ -48,7 +48,7 @@ def get_attrs(document):
     return attrs
 
 
-def get_docs_by_audit_id(id: str, state, kind=None):
+def get_docs_by_audit_id(id: str, state, kind=None, id_only=False, without_large_fields=False):
     db = get_mongodb_connection()
     documents_collection = db['documents']
 
@@ -61,12 +61,27 @@ def get_docs_by_audit_id(id: str, state, kind=None):
             {"user.attributes.date": {"$ne": None}}
         ]
     }
-
-    res = documents_collection.find(query).sort([("analysis.attributes.date.value", pymongo.ASCENDING)])
+    if id_only :
+        res = documents_collection.find(query, projection={'_id': True})
+    else:
+        if without_large_fields:
+            res = documents_collection.find(query, projection={'analysis.original_text': False,
+                                                               'analysis.normal_text': False,
+                                                               'analysis.tokenization_maps': False,
+                                                               'analysis.headers': False,
+                                                               'parse.paragraphs': False})
+        else:
+            res = documents_collection.find(query)
     docs = []
     for doc in res:
         docs.append(doc)
     return docs
+
+
+def get_doc_by_id(doc_id):
+    db = get_mongodb_connection()
+    documents_collection = db['documents']
+    return documents_collection.find_one({'_id': doc_id})
 
 
 def save_violations(audit, violations):
@@ -203,13 +218,13 @@ def check_contract(contract, charters, protocols, audit):
     for charter in charters:
         charter_attrs = get_attrs(charter)
         try:
-          if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
-              eligible_charter = charter
-              add_link(audit["_id"], contract["_id"], eligible_charter["_id"])
-              break
+            if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
+                eligible_charter = charter
+                add_link(audit["_id"], contract["_id"], eligible_charter["_id"])
+                break
         except Exception as e:
-          msg = f'audit {audit["_id"]} charter {charter["_id"]} contract{contract["_id"]}'
-          print('ERROR: ', e, msg )
+            msg = f'audit {audit["_id"]} charter {charter["_id"]} contract{contract["_id"]}'
+            print('ERROR: ', e, msg )
 
 
     if eligible_charter is None:
@@ -392,74 +407,16 @@ def finalize():
             continue
         print(f'.....finalizing audit {audit["_id"]}')
         violations = []
-        contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
+        contract_ids = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT", id_only=True)
         charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
-        protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
+        protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL", without_large_fields=True)
 
-        for contract in contracts:
+        for contract_id in contract_ids:
+            contract = get_doc_by_id(contract_id["_id"])
             violations.extend(check_contract(contract, charters, protocols, audit))
 
         save_violations(audit, violations)
         print(f'.....audit {audit["_id"]} is waiting for approval')
-
-
-def create_fake_finalization(audit):
-    violations = []
-    contracts = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT")
-    charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
-    protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL")
-
-    for contract in contracts:
-        eligible_protocol = next(protocols)
-        eligible_charter = charters[0]
-        contract_attrs = get_attrs(contract)
-        eligible_charter_attrs = get_attrs(eligible_charter)
-        eligible_protocol_attrs = get_attrs(eligible_protocol)
-        violations.append(create_violation({"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"]},
-                                           None,
-                                           None,
-                                           "charter_not_found",
-                                           {"contract": {"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"], "date": contract_attrs["date"]["value"]},
-                                            "charters": [{"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]}]}))
-        violations.append(create_violation({"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"]},
-                                           {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
-                                           {"id": eligible_charter["_id"], "attribute": "BoardOfDirectors/Deal-3",
-                                            "text": extract_text(eligible_charter_attrs["BoardOfDirectors/Deal-3"]["span"], eligible_charter["analysis"]["tokenization_maps"]["words"], eligible_charter["analysis"]["normal_text"])},
-                                           "contract_date_less_than_protocol_date",
-                                           {"contract": {"number": contract_attrs["number"]["value"], "date": contract_attrs["date"]["value"],
-                                            "org_type": contract_attrs["org-2-type"]["value"], "org_name": contract_attrs["org-2-name"]["value"]},
-                                            "protocol": {"org_structural_level": eligible_protocol_attrs["org_structural_level"]["value"], "date": eligible_protocol_attrs["date"]["value"]}}))
-        violations.append(create_violation({"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"]},
-                                           {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
-                                           {"id": eligible_charter["_id"], "attribute": "BoardOfDirectors/Deal-3",
-                                            "text": extract_text(eligible_charter_attrs["BoardOfDirectors/Deal-3"]["span"], eligible_charter["analysis"]["tokenization_maps"]["words"], eligible_charter["analysis"]["normal_text"])},
-                                           "contract_value_great_than_protocol_value",
-                                           {"contract": {"number": contract_attrs["number"]["value"],
-                                                         "date": contract_attrs["date"]["value"],
-                                                         "org_type": contract_attrs["org-2-type"]["value"],
-                                                         "org_name": contract_attrs["org-2-name"]["value"],
-                                                         "value": contract_attrs["sign_value_currency/value"]["value"],
-                                                         "currency": contract_attrs["sign_value_currency/currency"]["value"]},
-                                            "protocol": {
-                                                "org_structural_level": eligible_protocol_attrs["org_structural_level"][
-                                                    "value"], "date": eligible_protocol_attrs["date"]["value"]}}))
-        violations.append(create_violation({"id": contract["_id"], "number": contract_attrs["number"]["value"], "type": contract["parse"]["documentType"]},
-                                           {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
-                                           {"id": eligible_charter["_id"], "attribute": "BoardOfDirectors/Deal-3",
-                                            "text": extract_text(eligible_charter_attrs["BoardOfDirectors/Deal-3"]["span"], eligible_charter["analysis"]["tokenization_maps"]["words"], eligible_charter["analysis"]["normal_text"])},
-                                           {"type": "protocol_not_found", "subject": contract_attrs["subject"]["value"], "org_structural_level": eligible_protocol_attrs["org_structural_level"]["value"],
-                                            "min": {"value": eligible_protocol_attrs["agenda_item_1/sign_value_currency-2/value"]["value"],
-                                            "currency": eligible_protocol_attrs["agenda_item_1/sign_value_currency-2/currency"]["value"]},
-                                            "max": {"value": eligible_protocol_attrs["agenda_item_1/sign_value_currency-2/value"]["value"],
-                                                    "currency": eligible_protocol_attrs["agenda_item_1/sign_value_currency-2/currency"]["value"]}
-                                            },
-                                           {"contract": {"number": contract_attrs["number"]["value"],
-                                                         "date": contract_attrs["date"]["value"],
-                                                         "org_type": contract_attrs["org-2-type"]["value"],
-                                                         "org_name": contract_attrs["org-2-name"]["value"],
-                                                         "value": contract_attrs["sign_value_currency/value"]["value"],
-                                                         "currency": contract_attrs["sign_value_currency/currency"]["value"]}}))
-    save_violations(audit, violations)
 
 
 if __name__ == '__main__':

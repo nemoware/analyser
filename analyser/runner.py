@@ -1,6 +1,7 @@
 import warnings
 
 import pymongo
+from pymongo import CursorType
 
 import analyser
 from analyser import finalizer
@@ -53,10 +54,10 @@ class Runner:
 class BaseProcessor:
   parser = None
 
-  def preprocess(self, db_document, context: AuditContext):
+  def preprocess(self, db_document: dict, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(db_document, legal_doc, state=5)
+    save_analysis(DbJsonDoc(db_document), legal_doc, state=5)
 
   def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
     if db_document.retry_number is None:
@@ -70,7 +71,7 @@ class BaseProcessor:
       # todo: remove find_org_date_number call
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(db_document, legal_doc, state=10)
-      if self.is_valid(legal_doc, audit, db_document):
+      if self.is_valid(legal_doc, audit, db_document.as_dict()):  # TODO: do not use as_dict
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
         print('analysis saved, doc._id=', legal_doc._id)
@@ -89,8 +90,8 @@ class BaseProcessor:
     else:
       date_is_ok = True
 
-    return ("* Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(
-      audit["subsidiary"]["name"])) and date_is_ok
+    return ("* Все ДО" == audit["subsidiary"]["name"] or self.is_same_org(legal_doc, db_document,
+                                                                          audit["subsidiary"]["name"]) and date_is_ok)
 
   def is_same_org(self, legal_doc, db_doc, subsidiary):
     if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"][
@@ -123,11 +124,12 @@ def get_audits():
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  res = audits_collection.find({'status': 'InWork'}).sort([("createDate", pymongo.ASCENDING)])
+  res = audits_collection.find({'status': 'InWork'}, cursor_type=CursorType.EXHAUST).sort(
+    [("createDate", pymongo.ASCENDING)])
   return res
 
 
-def get_docs_by_audit_id(id: str, states=None, kind=None, limit=None) -> []:
+def get_docs_by_audit_id(id: str, states=None, kind=None, id_only=False) -> []:
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
@@ -148,9 +150,11 @@ def get_docs_by_audit_id(id: str, states=None, kind=None, limit=None) -> []:
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
 
-  cursor = documents_collection.find(query)
-  if limit is not None:
-    cursor.limit(limit)
+  if id_only:
+    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST, projection={'_id': True})
+  else:
+    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST)
+
   res = []
   # TODO there may be too many docs, might be we should fetch ids only
   for doc in cursor:
@@ -186,11 +190,13 @@ def run(run_pahse_2=True, kind=None):
 
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)  # TODO: fetch IDs only
-    for k, document in enumerate(documents):
+
+    document_ids = get_docs_by_audit_id(audit["_id"], [0], kind=kind, id_only=True)
+    for k, document_id in enumerate(document_ids):
+      document = finalizer.get_doc_by_id(document_id["_id"])
       processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
-        print(f'........pre-processing {k} of {len(documents)}  {document["parse"]["documentType"]} {document["_id"]}')
+        print(f'......pre-processing {k} of {len(document_ids)}  {document["parse"]["documentType"]} {document["_id"]}')
         processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:
@@ -205,12 +211,15 @@ def run(run_pahse_2=True, kind=None):
 
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
-      documents = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind)  # TODO: fetch IDs only
-      for k, document in enumerate(documents):
+
+      document_ids = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind, id_only=True)
+      for k, document_id in enumerate(document_ids):
+        document = finalizer.get_doc_by_id(document_id["_id"])
+
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
           jdoc = DbJsonDoc(document)
-          print(f'........processing  {k} of {len(documents)}   {document["parse"]["documentType"]} {document["_id"]}')
+          print(f'......processing  {k} of {len(document_ids)}   {document["parse"]["documentType"]} {document["_id"]}')
           processor.process(jdoc, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
