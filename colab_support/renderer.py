@@ -364,6 +364,7 @@ def render_spans(spans, subdoc, attention_v, ht='') -> str:
 
   return ht
 
+
 def render_slices(slices, subdoc, attention_v, ht='') -> str:
   ht += '<ol>'
   for _s in slices:
@@ -466,7 +467,7 @@ def plot_embedding(matrix, title=None, width=25, height=6):
     plt.show()
 
 
-def plot_cm(y_true, y_pred, figsize=(10, 10)):
+def plot_cm(y_true, y_pred, figsize=(12, 12)):
   cm = confusion_matrix(y_true, y_pred, labels=np.unique(y_true))
   cm_sum = np.sum(cm, axis=1, keepdims=True)
   cm_perc = cm / cm_sum.astype(float) * 100
@@ -483,7 +484,7 @@ def plot_cm(y_true, y_pred, figsize=(10, 10)):
         annot[i, j] = ''
       else:
         annot[i, j] = '%.1f%%\n%d' % (p, c)
-  cm = pd.DataFrame(cm, index=np.unique(y_true), columns=np.unique(y_true))
+  cm = pd.DataFrame(cm_perc, index=np.unique(y_true), columns=np.unique(y_true))
   cm.index.name = 'Actual'
   cm.columns.name = 'Predicted'
   fig, ax = plt.subplots(figsize=figsize)

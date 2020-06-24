@@ -332,13 +332,13 @@ class UberModelTrainsetManager:
     weights_file_new = os.path.join(self.work_dir, model_name + ".weights")
 
     try:
-      model.load_weights(weights_file_new)
+      model.load_weights(weights_file_new, by_name=True, skip_mismatch=True)
       print(f'weights loaded: {weights_file_new}')
 
     except:
       msg = f'cannot load  {model_name} from  {weights_file_new}'
       warnings.warn(msg)
-      model.load_weights(weights_file_old)
+      model.load_weights(weights_file_old, by_name=True, skip_mismatch=True)
       print(f'weights loaded: {weights_file_old}')
 
     # freeze bottom 6 layers, including 'embedding_reduced' #TODO: this must be model-specific parameter
@@ -417,7 +417,7 @@ class UberModelTrainsetManager:
     plot_subject_confusion_matrix(self.work_dir, model, steps=20, generator=gen)
 
   def calculate_samples_weights(self):
-    # TODO: add more weight to contracts with bigger log(value)
+
     self.stats: DataFrame = self.load_contract_trainset_meta()
     subject_weights = get_feature_log_weights(self.stats, 'subject')
 
@@ -430,6 +430,8 @@ class UberModelTrainsetManager:
 
       value_weight = 1.0
       if not pd.isna(row['value_log1p']):
+        #чтобы всех запутать, вес пропорционален логорифму цены контракта
+        # (чтобы было меньше ошибок в контрактах на большие суммы)
         value_weight = row['value_log1p']
 
       sample_weight *= value_weight

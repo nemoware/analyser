@@ -28,6 +28,7 @@ def split_trainset_evenly(df: DataFrame,
                           category_column_name: str,
                           test_proportion=VALIDATION_SET_PROPORTION,
                           no_intersections=False, seed=42) -> ([int], [int]):
+  warnings.warn('use sklearn.model_selection . train_test_split', DeprecationWarning)
   np.random.seed(seed)
 
   cat_count = df[category_column_name].value_counts()  # distribution by category
