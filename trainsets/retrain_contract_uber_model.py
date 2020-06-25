@@ -156,6 +156,12 @@ class UberModelTrainsetManager:
 
     token_features = get_tokens_features(doc.tokens)
     semantic_map = _get_semantic_map(db_json_doc, 1.0)
+    embeddings = doc.embeddings
+
+    assert embeddings.shape[0] == token_features.shape[
+      0], f'embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
+    assert embeddings.shape[0] == semantic_map.shape[
+      0], f'embeddings.shape {embeddings.shape} is incompatible with semantic_map.shape {semantic_map.shape}'
 
     np.save(self._dp_fn(id_, 'token_features'), token_features)
     np.save(self._dp_fn(id_, 'semantic_map'), semantic_map)
@@ -166,15 +172,15 @@ class UberModelTrainsetManager:
 
     doc: LegalDocument = join_paragraphs(d.parse, _id)
 
-    if not _DEV_MODE and _EMBEDD:
-      fn = self._dp_fn(_id, 'embeddings')
-      if os.path.isfile(fn):
-        print(f'skipping embedding doc {_id}...., {fn} exits')
-        doc.embeddings = np.load(fn)
-      else:
-        print(f'embedding doc {_id}....')
-        embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
-        doc.embedd_tokens(embedder)
+    # if not _DEV_MODE and _EMBEDD:
+    #   fn = self._dp_fn(_id, 'embeddings')
+    #   if os.path.isfile(fn):
+    #     print(f'skipping embedding doc {_id}...., {fn} exits')
+    #     doc.embeddings = np.load(fn)
+    #   else:
+    #     print(f'embedding doc {_id}....')
+    embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
+    doc.embedd_tokens(embedder)
 
     self.save_contract_data_arrays(doc, d)
 
@@ -465,6 +471,9 @@ class UberModelTrainsetManager:
     embeddings = np.load(self._dp_fn(doc_id, 'embeddings'))
     token_features = np.load(self._dp_fn(doc_id, 'token_features'))
     semantic_map = np.load(self._dp_fn(doc_id, 'semantic_map'))
+
+    assert embeddings.shape[0] == token_features.shape[0], f'embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
+    assert embeddings.shape[0] == semantic_map.shape[0], f'embeddings.shape {embeddings.shape} is incompatible with semantic_map.shape {semantic_map.shape}'
 
     self.stats.at[doc_id, 'error'] = None
     return (

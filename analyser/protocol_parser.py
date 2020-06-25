@@ -341,12 +341,12 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     return fp
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+    AbstractPatternFactory.__init__(self)
 
     create_value_negation_patterns(self)
     create_value_patterns(self)
 
-    self.embedd()
+    self.embedd(embedder)
 
 
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:

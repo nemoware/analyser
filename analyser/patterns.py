@@ -217,8 +217,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
 
 class AbstractPatternFactory:
 
-  def __init__(self, embedder):
-    self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
+  def __init__(self):
     self.patterns: List[FuzzyPattern] = []
     self.patterns_dict = {}
 
@@ -228,19 +227,21 @@ class AbstractPatternFactory:
     self.patterns_dict[pattern_name] = fp
     return fp
 
-  def embedd(self):
+  def embedd(self, embedder):
     # collect patterns texts
     arr = []
     for p in self.patterns:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb, regions = self.embedder.embedd_contextualized_patterns(arr)
+    patterns_emb, regions = embedder.embedd_contextualized_patterns(arr)
     assert len(patterns_emb) == len(self.patterns)
     # =========
 
     for i in range(len(patterns_emb)):
       self.patterns[i].set_embeddings(patterns_emb[i], regions[i])
+
+
 
   def average_embedding_pattern(self, pattern_prefix):
     av_emb = None
@@ -276,8 +277,8 @@ _case_normalizer = CaseNormalizer()
 
 
 class AbstractPatternFactoryLowCase(AbstractPatternFactory):
-  def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+  def __init__(self):
+    AbstractPatternFactory.__init__(self)
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, ppp: [str]):

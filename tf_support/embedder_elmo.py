@@ -32,9 +32,9 @@ class ElmoEmbedder(AbstractEmbedder):
 
     self.session = None
 
-    self.__build_graph()
 
   def __build_graph(self):
+    print('ELMO: building graph')
     embedding_graph = tf.Graph()
 
     signature = "tokens"
@@ -42,6 +42,7 @@ class ElmoEmbedder(AbstractEmbedder):
       signature = "default"
 
     with embedding_graph.as_default():
+      print(f'ELMO: loading module {self.module_url}')
       self.elmo = hub.Module(self.module_url, trainable=False)
 
       # inputs:--------------------------------------------------------------------
@@ -74,12 +75,18 @@ class ElmoEmbedder(AbstractEmbedder):
     return embedding_graph
 
   def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
+    if self.embedded_out is None:
+      self.__build_graph() #lazy init
+
     if self.layer_name == 'elmo':
       return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
     else:
       return self.embedd_strings(tokens)
 
   def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> np.ndarray:
+    if self.embedded_out is None:
+      self.__build_graph() #lazy init
+
     assert self.layer_name == 'elmo', "this method works with elmo layer only"
     feed_dict = {
       self.text_input: words,  # text_input
@@ -91,6 +98,9 @@ class ElmoEmbedder(AbstractEmbedder):
     return out
 
   def embedd_strings(self, strings: Tokens) -> np.ndarray:
+    if self.embedded_out is None:
+      self.__build_graph() #lazy init
+
     _strings = []
     for s in strings:
       if s == '':

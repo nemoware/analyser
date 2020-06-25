@@ -266,8 +266,10 @@ class LegalDocument:
     ch = self.checksum
     _cached = embedder.get_cached_embedding(ch)
     if _cached is not None:
+      print(f'getting embedding from cache {self._id}')
       self.embeddings = _cached
     else:
+      print(f'embedding doc {self._id}')
       if self.tokens:
         max_tokens = max_tokens
         if len(self.tokens_map_norm) > max_tokens:
