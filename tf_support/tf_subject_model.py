@@ -1,8 +1,11 @@
 # see  /notebooks/TF_subjects.ipynb
 
 
-from keras.layers import Conv1D, LSTM, Dense, Bidirectional, Input, Dropout
-from keras.layers import MaxPooling1D
+import urllib.request
+
+from tensorflow.keras.layers import Conv1D, LSTM, Dense, Bidirectional, Input, Dropout
+from tensorflow.keras.layers import MaxPooling1D
+from tensorflow.keras.models import Model
 
 from analyser.hyperparams import models_path
 from analyser.ml_tools import FixedVector
@@ -10,10 +13,6 @@ from analyser.structures import ContractSubject
 from trainsets.trainset_tools import SubjectTrainsetManager
 
 VALIDATION_SET_PROPORTION = 0.25
-
-import urllib.request
-
-from keras.models import Model
 
 import os
 
