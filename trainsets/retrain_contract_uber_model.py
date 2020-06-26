@@ -11,14 +11,6 @@ from functools import lru_cache
 from math import log1p
 
 import matplotlib
-from pymongo import ASCENDING
-from sklearn.metrics import classification_report
-
-from analyser.text_tools import split_version
-from colab_support.renderer import plot_cm
-from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weights
-
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,20 +18,26 @@ from bson import json_util
 from keras import Model
 from keras.preprocessing.sequence import pad_sequences
 from pandas import DataFrame
+from pymongo import ASCENDING
+from sklearn.metrics import classification_report
 
+from analyser.documents import TextMap, CaseNormalizer
 from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
-
 from analyser.hyperparams import work_dir as default_work_dir
-from analyser.legal_docs import LegalDocument
+from analyser.legal_docs import embedd_tokens
 from analyser.structures import ContractSubject
+from analyser.text_tools import split_version
+from colab_support.renderer import plot_cm
 from integration.db import get_mongodb_connection
-from integration.word_document_parser import join_paragraphs
 from tf_support import super_contract_model
 from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.super_contract_model import uber_detection_model_005_1_1, seq_labels_contract, \
   seq_labels_contract_swap_orgs
 from tf_support.tools import KerasTrainingContext
+from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weights
+
+matplotlib.use('Agg')
 
 SAVE_PICKLES = False
 _DEV_MODE = False
@@ -59,6 +57,17 @@ class DbJsonDoc:
     self._id = None
     self.retry_number: int = 0
     self.__dict__.update(j)
+
+  def get_tokens_map_unchaged(self):
+    _map = self.analysis['tokenization_maps']['words']
+    tokens_map = TextMap(self.analysis['normal_text'], _map)
+    return tokens_map
+
+  def get_tokens_for_embedding(self):
+    tokens_map = self.get_tokens_map_unchaged()
+    tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(tokens_map)
+
+    return tokens_map_norm
 
   def as_dict(self):
     return self.__dict__
@@ -92,10 +101,6 @@ class DbJsonDoc:
     att = self.get_attributes()
     if a in att:
       return att[a]['span'][0]
-
-  def asLegalDoc(self):
-    doc: LegalDocument = join_paragraphs(self.parse, self._id)
-    return doc
 
 
 def pad_things(xx, maxlen, padding='post'):
@@ -148,45 +153,51 @@ class UberModelTrainsetManager:
     self.work_dir: str = work_dir
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
-  def save_contract_data_arrays(self, doc: LegalDocument, db_json_doc: DbJsonDoc, id_override=None):
+  def save_contract_data_arrays(self, db_json_doc: DbJsonDoc, embeddings, id_override=None):
     # TODO: why same doc twice in arguments??
-    id_ = doc._id
+    id_ = db_json_doc._id
     if id_override is not None:
       id_ = id_override
 
-    token_features = get_tokens_features(doc.tokens)
+    token_features = get_tokens_features(db_json_doc.get_tokens_map_unchaged().tokens)
     semantic_map = _get_semantic_map(db_json_doc, 1.0)
-    embeddings = doc.embeddings
 
-    assert embeddings.shape[0] == token_features.shape[
-      0], f'embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
-    assert embeddings.shape[0] == semantic_map.shape[
-      0], f'embeddings.shape {embeddings.shape} is incompatible with semantic_map.shape {semantic_map.shape}'
+    if embeddings.shape[0] != token_features.shape[0]:
+      msg = f'{id_} embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
+      raise AssertionError(msg)
+
+    if embeddings.shape[0] != semantic_map.shape[0]:
+      msg = f'{id_} embeddings.shape {embeddings.shape} is incompatible with semantic_map.shape {semantic_map.shape}'
+      raise AssertionError(msg)
 
     np.save(self._dp_fn(id_, 'token_features'), token_features)
     np.save(self._dp_fn(id_, 'semantic_map'), semantic_map)
-    np.save(self._dp_fn(id_, 'embeddings'), doc.embeddings)
+    np.save(self._dp_fn(id_, 'embeddings'), embeddings)
 
   def save_contract_datapoint(self, d: DbJsonDoc):
     _id = str(d._id)
 
-    doc: LegalDocument = join_paragraphs(d.parse, _id)
-
     # if not _DEV_MODE and _EMBEDD:
-    #   fn = self._dp_fn(_id, 'embeddings')
-    #   if os.path.isfile(fn):
-    #     print(f'skipping embedding doc {_id}...., {fn} exits')
-    #     doc.embeddings = np.load(fn)
-    #   else:
-    #     print(f'embedding doc {_id}....')
+    fn = self._dp_fn(_id, 'embeddings')
+    # if os.path.isfile(fn):
+    #   print(f'skipping embedding doc {_id} ...., {fn} exits')
+    #   embeddings = np.load(fn)
+    # else:
+    #   print(f'embedding doc {_id} ....')
     embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
-    doc.embedd_tokens(embedder)
+    tokens_map = d.get_tokens_for_embedding()
+    embeddings = embedd_tokens(tokens_map,
+                             embedder,
+                             verbosity=2,
+                             log_key=f'id={_id} chs={tokens_map.get_checksum()}')
 
-    self.save_contract_data_arrays(doc, d)
+    # doc.embedd_tokens(embedder)
+
+    self.save_contract_data_arrays(d, embeddings)
 
     stats = self.stats  # shortcut
 
-    stats.at[_id, 'checksum'] = doc.get_checksum()
+    stats.at[_id, 'checksum'] = d.get_tokens_for_embedding().get_checksum()
     stats.at[_id, 'version'] = d.analysis['version']
 
     stats.at[_id, 'export_date'] = datetime.now()
@@ -436,7 +447,7 @@ class UberModelTrainsetManager:
 
       value_weight = 1.0
       if not pd.isna(row['value_log1p']):
-        #чтобы всех запутать, вес пропорционален логорифму цены контракта
+        # чтобы всех запутать, вес пропорционален логорифму цены контракта
         # (чтобы было меньше ошибок в контрактах на большие суммы)
         value_weight = row['value_log1p']
 
@@ -472,8 +483,13 @@ class UberModelTrainsetManager:
     token_features = np.load(self._dp_fn(doc_id, 'token_features'))
     semantic_map = np.load(self._dp_fn(doc_id, 'semantic_map'))
 
-    assert embeddings.shape[0] == token_features.shape[0], f'embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
-    assert embeddings.shape[0] == semantic_map.shape[0], f'embeddings.shape {embeddings.shape} is incompatible with semantic_map.shape {semantic_map.shape}'
+    if embeddings.shape[0] != token_features.shape[0]:
+      msg = f'{doc_id} embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
+      raise AssertionError(msg)
+
+    if embeddings.shape[0] != semantic_map.shape[0]:
+      msg = f'{doc_id} embeddings.shape {embeddings.shape} is incompatible with semantic_map.shape {semantic_map.shape}'
+      raise AssertionError(msg)
 
     self.stats.at[doc_id, 'error'] = None
     return (

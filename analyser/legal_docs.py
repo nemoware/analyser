@@ -263,23 +263,11 @@ class LegalDocument:
 
   @final
   def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
-    ch = self.checksum
-    _cached = embedder.get_cached_embedding(ch)
-    if _cached is not None:
-      print(f'getting embedding from cache {self._id}')
-      self.embeddings = _cached
-    else:
-      print(f'embedding doc {self._id}')
-      if self.tokens:
-        max_tokens = max_tokens
-        if len(self.tokens_map_norm) > max_tokens:
-          self.embeddings = embedder.embedd_large(self.tokens_map_norm, max_tokens, verbosity)
-        else:
-          self.embeddings = embedder.embedd_tokens(self.tokens)
-
-        embedder.cache_embedding(ch, self.embeddings)
-      else:
-        raise ValueError(f'cannot embedd doc {self.filename}, no tokens')
+    self.embeddings = embedd_tokens(self.tokens_map_norm,
+                                    embedder,
+                                    verbosity=verbosity,
+                                    max_tokens=max_tokens,
+                                    log_key=self._id)
 
   def is_same_org(self, org_name: str) -> bool:
     tags: [SemanticTag] = self.get_tags()
@@ -594,3 +582,25 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
     t_span = source_map.remap_span(span, target_map)
     av[t_span[0]:t_span[1]] = v[i]
   return av
+
+
+def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000, log_key=''):
+  ch = tokens_map_norm.get_checksum()
+
+  _cached = embedder.get_cached_embedding(ch)
+  if _cached is not None:
+    print(f'getting embedding from cache {log_key}')
+    return _cached
+  else:
+    print(f'embedding doc {log_key}')
+    if tokens_map_norm.tokens:
+      max_tokens = max_tokens
+      if len(tokens_map_norm) > max_tokens:
+        embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, verbosity)
+      else:
+        embeddings = embedder.embedd_tokens(tokens_map_norm.tokens)
+
+      embedder.cache_embedding(ch, embeddings)
+      return embeddings
+    else:
+      raise ValueError(f'cannot embedd doc {log_key}, no tokens')

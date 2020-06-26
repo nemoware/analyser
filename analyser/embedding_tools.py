@@ -38,12 +38,13 @@ import os
 class AbstractEmbedder:
 
   def __cache_fn(self, checksum):
-    return os.path.join(work_dir, f'cache-{checksum}-embeddings-{type(self).__name__}.npy')
+    return os.path.join(work_dir, f'cache-{checksum}-embeddings-ElmoEmbedder.npy')
 
   def get_cached_embedding(self, checksum) -> Embeddings or None:
     fn = self.__cache_fn(checksum)
+    # print(f'checking for existence {fn}')
     if os.path.isfile(fn):
-      print(f'skipping embedding doc {checksum} ...., {fn} exits, loading')
+      print(f'skipping embedding doc {checksum} ...., {fn} exists, loading')
       e = np.load(fn)
       print('loaded embedding shape is:', e.shape)
       return e
