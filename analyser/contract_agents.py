@@ -180,8 +180,8 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
             tag.offset(doc.start)
             ca.__dict__[kind] = tag
       except IndexError as e:
-        print(f'find_org_names_raw_by_re: exception {type(e)}, {e}')
-
+        # print(f'find_org_names_raw_by_re: exception {type(e)}, {e}')
+        pass
 
   # normalize org_name names by find_closest_org_name
   for ca in all_:
