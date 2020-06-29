@@ -1,5 +1,5 @@
 import warnings
-
+import logging
 import pymongo
 from pymongo import CursorType
 
@@ -9,12 +9,20 @@ from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractParser
 from analyser.legal_docs import LegalDocument
 from analyser.parsing import AuditContext
+from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
-from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
-from trainsets.retrain_contract_uber_model import DbJsonDoc
 
+logger = logging.getLogger('runner')
+
+
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 class Runner:
   default_instance: 'Runner' = None
@@ -43,12 +51,12 @@ class Runner:
       Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
-  def make_legal_doc(self, db_document):
+  def make_legal_doc(self, db_document: dict):
     parsed_p_json = db_document['parse']
-    legal_doc = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
+    jdoc = DbJsonDoc(db_document)
     # save_analysis(db_document, legal_doc)
     # TODO: do not ignore user-corrected attributes here
-    return legal_doc
+    return jdoc.asLegalDoc()
 
 
 class BaseProcessor:
@@ -64,7 +72,7 @@ class BaseProcessor:
       db_document.retry_number = 0
 
     if db_document.retry_number > 2:
-      print(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
+      logger.error(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
       return None
     legal_doc = db_document.asLegalDoc()
     try:
@@ -74,11 +82,11 @@ class BaseProcessor:
       if self.is_valid(legal_doc, audit, db_document.as_dict()):  # TODO: do not use as_dict
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
-        print('analysis saved, doc._id=', legal_doc._id)
+        logger.info(f'analysis saved, doc._id={legal_doc._id}' )
       else:
         save_analysis(db_document, legal_doc, 12)
     except:
-      print(f'cant process document {db_document._id}')
+      logger.critical(f'cant process document {db_document._id}')
 
       save_analysis(db_document, legal_doc, 11, db_document.retry_number + 1)
     return legal_doc

@@ -7,7 +7,10 @@ from analyser.documents import TextMap
 from analyser.hyperparams import work_dir
 from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
+import logging
 
+
+elmo_logger = logging.getLogger('elmo')
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
@@ -44,9 +47,9 @@ class AbstractEmbedder:
     fn = self.__cache_fn(checksum)
     # print(f'checking for existence {fn}')
     if os.path.isfile(fn):
-      print(f'skipping embedding doc {checksum} ...., {fn} exists, loading')
+      elmo_logger.debug(f'skipping embedding doc {checksum} ...., {fn} exists, loading')
       e = np.load(fn)
-      print('loaded embedding shape is:', e.shape)
+      elmo_logger.debug(f'loaded embedding shape is: {e.shape}')
       return e
 
     return None
@@ -126,9 +129,8 @@ class AbstractEmbedder:
     number_of_windows = 1 + len(text_map) // max_tokens
     window = max_tokens
 
-    if verbosity > 1:
-      msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
-      warnings.warn(msg)
+    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
+    elmo_logger.warning(msg)
 
     start = 0
     embeddings = None
@@ -136,8 +138,7 @@ class AbstractEmbedder:
     while start < len(text_map):
 
       subtokens: Tokens = text_map[start:start + window + overlap]
-      if verbosity > 2:
-        print("Embedding region:", start, len(subtokens))
+      elmo_logger.debug(f"Embedding region: {start}, {len(subtokens)}")
 
       sub_embeddings = self.embedd_tokens(subtokens)[0:window]
 

@@ -584,15 +584,18 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
   return av
 
 
+import logging
+
+elmo_logger = logging.getLogger('elmo')
 def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000, log_key=''):
   ch = tokens_map_norm.get_checksum()
 
   _cached = embedder.get_cached_embedding(ch)
   if _cached is not None:
-    print(f'getting embedding from cache {log_key}')
+    elmo_logger.debug(f'getting embedding from cache {log_key}')
     return _cached
   else:
-    print(f'embedding doc {log_key}')
+    elmo_logger.debug(f'embedding doc {log_key}')
     if tokens_map_norm.tokens:
       max_tokens = max_tokens
       if len(tokens_map_norm) > max_tokens:

@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
+
 import json
+import logging
 import os
 import random
 import warnings
@@ -21,11 +23,11 @@ from pandas import DataFrame
 from pymongo import ASCENDING
 from sklearn.metrics import classification_report
 
-from analyser.documents import TextMap, CaseNormalizer
 from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
 from analyser.hyperparams import work_dir as default_work_dir
 from analyser.legal_docs import embedd_tokens
+from analyser.persistence import DbJsonDoc
 from analyser.structures import ContractSubject
 from analyser.text_tools import split_version
 from colab_support.renderer import plot_cm
@@ -38,6 +40,16 @@ from tf_support.tools import KerasTrainingContext
 from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weights
 
 matplotlib.use('Agg')
+logger = logging.getLogger('retrain_contract_uber_model')
+
+
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
 
 SAVE_PICKLES = False
 _DEV_MODE = False
@@ -46,61 +58,6 @@ _EMBEDD = True
 
 # TODO: 2. use averaged tags confidence for sample weighting
 # TODO: 3. evaluate on user-marked documents only
-
-class DbJsonDoc:
-
-  def __init__(self, j: dict):
-    self.analysis = None
-    self.state: int = -1
-    self.parse = None
-    self.user = None
-    self._id = None
-    self.retry_number: int = 0
-    self.__dict__.update(j)
-
-  def get_tokens_map_unchaged(self):
-    _map = self.analysis['tokenization_maps']['words']
-    tokens_map = TextMap(self.analysis['normal_text'], _map)
-    return tokens_map
-
-  def get_tokens_for_embedding(self):
-    tokens_map = self.get_tokens_map_unchaged()
-    tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(tokens_map)
-
-    return tokens_map_norm
-
-  def as_dict(self):
-    return self.__dict__
-
-  def __len__(self):
-    arrr = self.analysis['tokenization_maps']['words']
-    return len(arrr)
-
-  def get_attributes(self) -> dict:
-    if self.user is not None:
-      attributes = self.user['attributes']
-    else:
-      attributes = self.analysis['attributes']
-    return attributes
-
-  def get_subject(d):
-    return d.get_attribute('subject')
-
-  def get_attribute(d, attr):
-    atts = d.get_attributes()
-    if attr in atts:
-      return atts[attr]
-    else:
-      return {
-        'value': None,
-        'confidence': 0.0,
-        'span': [np.nan, np.nan]
-      }  ## fallback for safety
-
-  def get_attr_span_start(self, a):
-    att = self.get_attributes()
-    if a in att:
-      return att[a]['span'][0]
 
 
 def pad_things(xx, maxlen, padding='post'):
@@ -223,14 +180,14 @@ class UberModelTrainsetManager:
     if len(self.stats) > 0:
       # self.stats.sort_values(["user_correction_date", 'analyze_date', 'export_date'], inplace=True, ascending=False)
       self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
-    print(f'latest export_date: [{self.lastdate}]')
+    logger.info(f'latest export_date: [{self.lastdate}]')
 
-    print('obtaining DB connection...')
+    logger.info('obtaining DB connection...')
     db = get_mongodb_connection()
 
-    print('obtaining DB connection: DONE')
+    logger.info('obtaining DB connection: DONE')
     documents_collection = db['documents']
-    print('linking documents collection: DONE')
+
 
     # TODO: filter by version
     query = {
@@ -249,7 +206,7 @@ class UberModelTrainsetManager:
       ]
     }
 
-    print(f'running DB query {query}')
+    logger.debug(f'running DB query {query}')
     # TODO: sorting fails in MONGO
     sorting = [('analysis.analyze_timestamp', ASCENDING),
                ('user.updateDate', ASCENDING)]
@@ -259,7 +216,7 @@ class UberModelTrainsetManager:
 
     res.limit(2000)
 
-    print('running DB query: DONE')
+    logger.info('running DB query: DONE')
 
     return res
 
@@ -302,7 +259,7 @@ class UberModelTrainsetManager:
     df['org-2-alias'] = df['org-2-alias'].fillna('')
     df['subject'] = df['subject'].fillna('Other')
 
-    print(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
+    logger.info(f'TOTAL DATAPOINTS IN TRAINSET: {len(df)}')
     return df
 
   def import_recent_contracts(self):
@@ -329,10 +286,10 @@ class UberModelTrainsetManager:
       so.append('analyze_date')
 
     if len(so) > 0:
-      print(f'docs in meta: {len(self.stats)}')
+      logger.info(f'docs in meta: {len(self.stats)}')
       self.stats.sort_values(so, inplace=True, ascending=False)
       self.stats.drop_duplicates(subset="checksum", keep='first', inplace=True)
-      print(f'docs in meta after drop_duplicates: {len(self.stats)}')
+      logger.info(f'docs in meta after drop_duplicates: {len(self.stats)}')
 
     self.stats.sort_values('value', inplace=True, ascending=False)
     self.stats.to_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index=True)
@@ -350,13 +307,13 @@ class UberModelTrainsetManager:
 
     try:
       model.load_weights(weights_file_new, by_name=True, skip_mismatch=True)
-      print(f'weights loaded: {weights_file_new}')
+      logger.info(f'weights loaded: {weights_file_new}')
 
     except:
       msg = f'cannot load  {model_name} from  {weights_file_new}'
       warnings.warn(msg)
       model.load_weights(weights_file_old, by_name=True, skip_mismatch=True)
-      print(f'weights loaded: {weights_file_old}')
+      logger.info(f'weights loaded: {weights_file_old}')
 
     # freeze bottom 6 layers, including 'embedding_reduced' #TODO: this must be model-specific parameter
     for l in model.layers[0:6]:
@@ -374,7 +331,7 @@ class UberModelTrainsetManager:
         self.make_xyw(i)
 
       except Exception as e:
-        print(e)
+        logger.error(e)
         self.stats.at[i, 'valid'] = False
         self.stats.at[i, 'error'] = str(e)
         self._save_stats()
@@ -391,7 +348,7 @@ class UberModelTrainsetManager:
     '''
 
     batch_size = 24  # TODO: make a param
-    train_indices, test_indices = split_trainset_evenly(self.stats, 'subject', seed=55)
+    train_indices, test_indices = split_trainset_evenly(self.stats, 'subject', seed=66)
     model, ctx = self.init_model()
     ctx.EVALUATE_ONLY = False
 
@@ -612,7 +569,7 @@ def export_updated_contracts_to_json(documents, work_dir):
   with open(os.path.join(work_dir, 'contracts_mongo.json'), 'w', encoding='utf-8') as outfile:
     json.dump(arr, outfile, indent=2, ensure_ascii=False, default=json_util.default)
 
-  print(f'EXPORTED {n} docs')
+  logger.info(f'EXPORTED {n} docs')
 
 
 def onehots2labels(preds):
@@ -668,6 +625,7 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
             x = data['epoch'][-100:]
             y = data[key][-100:]
 
+
             c = 'red'  # plt.cm.jet_r(i * colorstep)
             if metric_variant == '':
               c = 'blue'
@@ -682,7 +640,7 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
         plt.savefig(img_path, bbox_inches='tight')
 
     else:
-      print('cannot plot')
+      logger.error('cannot plot')
 
 
 if __name__ == '__main__':
@@ -692,6 +650,14 @@ if __name__ == '__main__':
   2. Embedd them, save embeddings, save other features
   
   '''
+
+  ch = logging.StreamHandler()
+  ch.setLevel(logging.DEBUG)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  ch.setFormatter(formatter)
+  logger.addHandler(ch)
+  logger.info('logging started')
+
   # os.environ['GPN_DB_NAME'] = 'gpn'
   # os.environ['GPN_DB_HOST'] = '192.168.10.36'
   # os.environ['GPN_DB_PORT'] = '27017'
