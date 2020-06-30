@@ -1,6 +1,7 @@
 import warnings
-
+import logging
 import pymongo
+from pymongo import CursorType
 
 import analyser
 from analyser import finalizer
@@ -8,11 +9,20 @@ from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractParser
 from analyser.legal_docs import LegalDocument
 from analyser.parsing import AuditContext
+from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import ProtocolParser
 from integration.db import get_mongodb_connection
-from integration.word_document_parser import join_paragraphs
 from tf_support.embedder_elmo import ElmoEmbedder
 
+logger = logging.getLogger('runner')
+
+
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 class Runner:
   default_instance: 'Runner' = None
@@ -41,50 +51,63 @@ class Runner:
       Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
-  def make_legal_doc(self, db_document):
+  def make_legal_doc(self, db_document: dict):
     parsed_p_json = db_document['parse']
-    legal_doc = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
+    jdoc = DbJsonDoc(db_document)
     # save_analysis(db_document, legal_doc)
-    return legal_doc
+    # TODO: do not ignore user-corrected attributes here
+    return jdoc.asLegalDoc()
 
 
 class BaseProcessor:
   parser = None
 
-  def preprocess(self, db_document, context: AuditContext):
+  def preprocess(self, db_document: dict, context: AuditContext):
     legal_doc = Runner.get_instance().make_legal_doc(db_document)
     self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(db_document, legal_doc, state=5)
+    save_analysis(DbJsonDoc(db_document), legal_doc, state=5)
 
-  def process(self, db_document, audit, context: AuditContext):
-    if db_document.get("retry_number") is not None and db_document["retry_number"] > 2:
-      print(f'document {db_document["_id"]} exceeds maximum retries for analysis and is skipped')
+  def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
+    if db_document.retry_number is None:
+      db_document.retry_number = 0
+
+    if db_document.retry_number > 2:
+      logger.error(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
       return None
-    legal_doc = Runner.get_instance().make_legal_doc(db_document)
+    legal_doc = db_document.asLegalDoc()
     try:
       # todo: remove find_org_date_number call
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(db_document, legal_doc, state=10)
-      if self.is_valid(legal_doc, audit):
+      if self.is_valid(legal_doc, audit, db_document.as_dict()):  # TODO: do not use as_dict
         self.parser.find_attributes(legal_doc, context)
         save_analysis(db_document, legal_doc, state=15)
-        print(legal_doc._id)
+        logger.info(f'analysis saved, doc._id={legal_doc._id}' )
       else:
         save_analysis(db_document, legal_doc, 12)
     except:
-      print(f'cant process document {db_document["_id"]}')
-      save_analysis(db_document, legal_doc, 11, db_document["retry_number"] + 1)
+      logger.critical(f'cant process document {db_document._id}')
+
+      save_analysis(db_document, legal_doc, 11, db_document.retry_number + 1)
     return legal_doc
 
-  def is_valid(self, legal_doc, audit):
+  def is_valid(self, legal_doc, audit, db_document):
     if legal_doc.date is not None:
       _date = legal_doc.date.value
       date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
     else:
       date_is_ok = True
 
-    return ("* Все ДО" == audit["subsidiary"]["name"] or legal_doc.is_same_org(
-      audit["subsidiary"]["name"])) and date_is_ok
+    return ("* Все ДО" == audit["subsidiary"]["name"] or self.is_same_org(legal_doc, db_document,
+                                                                          audit["subsidiary"]["name"]) and date_is_ok)
+
+  def is_same_org(self, legal_doc, db_doc, subsidiary):
+    if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"][
+      "attributes"].get("org-1-name") is not None:
+      if subsidiary == db_doc["user"]["attributes"]["org-1-name"]["value"]:
+        return True
+    else:
+      return legal_doc.is_same_org(subsidiary)
 
 
 class ProtocolProcessor(BaseProcessor):
@@ -109,11 +132,12 @@ def get_audits():
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  res = audits_collection.find({'status': 'InWork'}).sort([("createDate", pymongo.ASCENDING)])
+  res = audits_collection.find({'status': 'InWork'}, cursor_type=CursorType.EXHAUST).sort(
+    [("createDate", pymongo.ASCENDING)])
   return res
 
 
-def get_docs_by_audit_id(id: str, states=None, kind=None):
+def get_docs_by_audit_id(id: str, states=None, kind=None, id_only=False) -> []:
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
@@ -134,18 +158,26 @@ def get_docs_by_audit_id(id: str, states=None, kind=None):
   if kind is not None:
     query["$and"].append({'parse.documentType': kind})
 
-  res = documents_collection.find(query)
+  if id_only:
+    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST, projection={'_id': True})
+  else:
+    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST)
+
+  res = []
+  # TODO there may be too many docs, might be we should fetch ids only
+  for doc in cursor:
+    res.append(doc)
   return res
 
 
-def save_analysis(db_document, doc: LegalDocument, state: int, retry_number: int = 0):
+def save_analysis(db_document: DbJsonDoc, doc: LegalDocument, state: int, retry_number: int = 0):
   analyse_json_obj = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
-  db_document['analysis'] = analyse_json_obj
-  db_document["state"] = state
-  db_document["retry_number"] = retry_number
-  documents_collection.update({'_id': doc._id}, db_document, True)
+  db_document.analysis = analyse_json_obj
+  db_document.state = state
+  db_document.retry_number = retry_number
+  documents_collection.update({'_id': doc._id}, db_document.as_dict(), True)
 
 
 def change_audit_status(audit, status):
@@ -166,11 +198,13 @@ def run(run_pahse_2=True, kind=None):
 
     print('=' * 80)
     print(f'.....processing audit {audit["_id"]}')
-    documents = get_docs_by_audit_id(audit["_id"], [0], kind=kind)
-    for document in documents:
+
+    document_ids = get_docs_by_audit_id(audit["_id"], [0], kind=kind, id_only=True)
+    for k, document_id in enumerate(document_ids):
+      document = finalizer.get_doc_by_id(document_id["_id"])
       processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
       if processor is not None:
-        print(f'........pre-processing  {document["parse"]["documentType"]}')
+        print(f'......pre-processing {k} of {len(document_ids)}  {document["parse"]["documentType"]} {document["_id"]}')
         processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:
@@ -185,12 +219,16 @@ def run(run_pahse_2=True, kind=None):
 
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
-      documents = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind)
-      for document in documents:
+
+      document_ids = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind, id_only=True)
+      for k, document_id in enumerate(document_ids):
+        document = finalizer.get_doc_by_id(document_id["_id"])
+
         processor = document_processors.get(document["parse"]["documentType"], None)
         if processor is not None:
-          print(f'........processing  {document["parse"]["documentType"]}')
-          processor.process(document, audit, ctx)
+          jdoc = DbJsonDoc(document)
+          print(f'......processing  {k} of {len(document_ids)}   {document["parse"]["documentType"]} {document["_id"]}')
+          processor.process(jdoc, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
   else:

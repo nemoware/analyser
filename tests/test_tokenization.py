@@ -10,7 +10,7 @@ import unittest
 import numpy as np
 from nltk import TreebankWordTokenizer
 
-from analyser.documents import TextMap, span_tokenize
+from analyser.documents import TextMap, TOKENIZER_DEFAULT
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, PARAGRAPH_DELIMITER
 
 
@@ -102,7 +102,7 @@ class TokenisationTestCase(unittest.TestCase):
 
   def test_span_tokenize(self):
     text = 'УТВЕРЖДЕН.\n\nОбщим собранием `` акционеров собранием `` акционеров \'\' '
-    spans = span_tokenize(text)
+    spans = TOKENIZER_DEFAULT.span_tokenize(text)
 
     print(spans)
     for c in spans:
@@ -122,7 +122,7 @@ class TokenisationTestCase(unittest.TestCase):
 
   def test_span_tokenize_quotes(self):
     text = '"слово"'
-    _spans = span_tokenize(text)
+    _spans = TOKENIZER_DEFAULT.span_tokenize(text)
 
     spans = [s for s in _spans]
     print(spans)
@@ -167,7 +167,7 @@ class TokenisationTestCase(unittest.TestCase):
     self.assertEqual(tm.tokens[1], 'этилен')
 
   def test_slice_start_from_space(self):
-    offff=20
+    offff = 20
     txt = ' ' * offff + '''основании Устава, с одной стороны, и Фонд «Благо»'''
     tm = TextMap(txt)
     print(tm.map[0])

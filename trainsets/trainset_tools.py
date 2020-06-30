@@ -5,13 +5,67 @@ import warnings
 import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
 from pandas import DataFrame
 
 from analyser.legal_docs import LegalDocument
 from analyser.structures import ContractSubject
 
 VALIDATION_SET_PROPORTION = 0.25
+
+
+def get_feature_log_weights(trainset_rows, category_column_name):
+  subj_count = trainset_rows[category_column_name].value_counts()
+
+  subjects_weights = 1. / np.log(1. + subj_count)
+
+  subjects_weights /= subjects_weights.sum()
+  subjects_weights *= len(subjects_weights)
+
+  return subjects_weights
+
+
+def split_trainset_evenly(df: DataFrame,
+                          category_column_name: str,
+                          test_proportion=VALIDATION_SET_PROPORTION,
+                          no_intersections=False, seed=42) -> ([int], [int]):
+  warnings.warn('use sklearn.model_selection . train_test_split', DeprecationWarning)
+  np.random.seed(seed)
+
+  cat_count = df[category_column_name].value_counts()  # distribution by category
+
+  _bags = {key: [] for key in cat_count.index}
+
+  for index, row in df.iterrows():
+    subj_code = row[category_column_name]
+    _bags[subj_code].append(index)
+
+
+  train_indices = []
+  test_indices = []
+
+  for subj_code in _bags:
+    bag = _bags[subj_code]
+    split_index: int = int(len(bag) * test_proportion)
+
+    train_indices += bag[split_index:]
+    test_indices += bag[:split_index]
+
+    if(len(bag)==1): #just to manage small very small outlier classes
+      test_indices.append( bag[0])
+
+
+  # remove instesection
+  intersection = np.intersect1d(test_indices, train_indices)
+  print('test and train samples itersection: ', intersection)
+  if no_intersections:
+    test_indices = [e for e in test_indices if e not in intersection]
+
+  # shuffle
+
+  np.random.shuffle(test_indices)
+  np.random.shuffle(train_indices)
+
+  return train_indices, test_indices
 
 
 class TrainsetBalancer:
@@ -24,34 +78,34 @@ class TrainsetBalancer:
     random.seed(42)
     cat_count = df[category_column_name].value_counts()  # distribution by category
 
-    subject_bags = {key: [] for key in cat_count.index}
+    _bags = {key: [] for key in cat_count.index}
 
     _idx: int = 0
     for index, row in df.iterrows():
       subj_code = row[category_column_name]
-      subject_bags[subj_code].append(_idx)
+      _bags[subj_code].append(_idx)
 
       _idx += 1
 
     _desired_number_of_samples = max(cat_count.values)
-    for subj_code in subject_bags:
-      bag = subject_bags[subj_code]
+    for subj_code in _bags:
+      bag = _bags[subj_code]
       if len(bag) < _desired_number_of_samples:
         repeats = int(_desired_number_of_samples / len(bag))
         bag = sorted(np.tile(bag, repeats))
-        subject_bags[subj_code] = bag
+        _bags[subj_code] = bag
 
     train_indices = []
     test_indices = []
 
-    for subj_code in subject_bags:
-      bag = subject_bags[subj_code]
+    for subj_code in _bags:
+      bag = _bags[subj_code]
       split_index: int = int(len(bag) * test_proportion)
 
       train_indices += bag[split_index:]
       test_indices += bag[:split_index]
 
-    #remove instesection
+    # remove instesection
     intersection = np.intersect1d(test_indices, train_indices)
     test_indices = [e for e in test_indices if e not in intersection]
 
@@ -66,11 +120,6 @@ class SubjectTrainsetManager:
   EMB_NOISE_AMOUNT = 0.05
   OUTLIERS_PERCENT = 0.05
   NOISY_SAMPLES_AMOUNT = 0.5
-
-  def print_parameters(self):
-    print(f'outliers_percent={self.outliers_percent}')
-    print(f'noisy_samples_amount={self.noisy_samples_amount}')
-    print(f'noise_amount={self.noise_amount}')
 
   def __init__(self, trainset_description_csv: str):
     self.outliers_percent = SubjectTrainsetManager.OUTLIERS_PERCENT
@@ -101,6 +150,11 @@ class SubjectTrainsetManager:
 
     self.number_of_classes = len(list(self.subject_name_1hot_map.values())[0])
 
+  def print_parameters(self):
+    print(f'outliers_percent={self.outliers_percent}')
+    print(f'noisy_samples_amount={self.noisy_samples_amount}')
+    print(f'noise_amount={self.noise_amount}')
+
   @staticmethod
   def balance_trainset(trainset_dataframe: DataFrame):
     tb = TrainsetBalancer()
@@ -118,19 +172,7 @@ class SubjectTrainsetManager:
 
   @staticmethod
   def _encode_1_hot():
-    '''
-    bit of paranoia to reserve order
-    :return:
-    '''
-    all_subjects_map = ContractSubject.as_matrix()
-    values = all_subjects_map[:, 1]
-
-    # encoding integer subject codes in one-hot vectors
-    _cats = to_categorical(values)
-
-    subject_name_1hot_map = {all_subjects_map[i][0]: _cats[i] for i, k in enumerate(all_subjects_map)}
-
-    return subject_name_1hot_map
+    return ContractSubject.encode_1_hot()
 
   def noise_embedding(self, emb, var=0.1):
     warnings.warn('must be noised by keras model', DeprecationWarning)
@@ -212,7 +254,8 @@ class SubjectTrainsetManager:
 
       maxlen = 1000  # random.choice([700, 800, 900, 1000, 1100])
       batch_y = np.array(batch_output)
-      batch_x = np.array(pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post')).reshape(
+      batch_x = np.array(
+        pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post', dtype='float32')).reshape(
         (batch_size, maxlen, 1024))
 
       yield (batch_x, batch_y)
@@ -245,7 +288,8 @@ class SubjectTrainsetManager:
       # batch_x = np.array(batch_input)
       # TODO: "randomize" MAX_SEQUENCE_LENGTH
       maxlen = random.choice([700, 800, 900, 1000, 1100])
-      batch_x = np.array(pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post')).reshape(
+      batch_x = np.array(
+        pad_sequences(batch_input, maxlen=maxlen, padding='post', truncating='post', dtype='float32')).reshape(
         (batch_size, maxlen, 1024))
       batch_y = np.array(batch_output)
 
@@ -286,7 +330,7 @@ if __name__ == '__main__':
 
   if try_generator:
     tsm.pickle_resolver = lambda \
-      f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
+        f: '/Users/artem/work/nemo/goil/nlp_tools/tests/Договор _2_.docx.pickle'  # hack for tests
 
     gen = tsm.get_generator(batch_size=50, all_indices=[0, 1], randomize=True)
 

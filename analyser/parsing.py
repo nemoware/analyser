@@ -29,11 +29,11 @@ class ParsingSimpleContext:
 
   def _logstep(self, name: str) -> None:
     s = self.__step
-    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
+    print(f'{s}.\t❤️ ACCOMPLISHED:\t {name}')
     self.__step += 1
 
   def warning(self, text):
-    t_ = '⚠️ WARNING: - ' + text
+    t_ = '\t - ⚠️ WARNING: - ' + text
     self.warnings.append(t_)
     print(t_)
 
@@ -145,7 +145,7 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
   values_list = []
 
   for span in spans:
-    value_sign_currency = extract_sum_sign_currency(value_section_subdoc, span)
+    value_sign_currency:ContractValue = extract_sum_sign_currency(value_section_subdoc, span)
     if value_sign_currency is not None:
 
       # Estimating confidence by looking at attention vector

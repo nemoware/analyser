@@ -17,14 +17,7 @@ from analyser.parsing import AuditContext
 from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re, ProtocolDocument
 from analyser.runner import Runner
 from analyser.structures import OrgStructuralLevel
-
-
-def load_json_sample(fn: str):
-  pth = os.path.dirname(__file__)
-  with open(os.path.join(pth, fn), 'rb') as handle:
-    data = json.load(handle)
-
-  return data
+from tests.test_utilits import load_json_sample
 
 
 class TestProtocolParser(unittest.TestCase):

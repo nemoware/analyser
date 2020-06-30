@@ -50,9 +50,6 @@ class FuzzyPattern():
     _pat = self.embeddings
 
     window_size = wnd_mult * len(_pat) + whd_padding
-    # if window_size > len(_text):
-    #   print('---ERROR: pattern: "{}" window:{} > len(_text):{} (padding={} mult={})'.format(self.name, window_size, len(_text), whd_padding, wnd_mult)  )
-    #   return None
 
     for word_index in range(0, len(_text)):
       _fragment = _text[word_index: word_index + window_size]
@@ -195,12 +192,12 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     meaninful_sums = sums
 
     min_i = min_index(meaninful_sums)
-    min = sums[min_i]
-    mean = meaninful_sums.mean()
+    _min = sums[min_i]
+    _mean = meaninful_sums.mean()
 
     # confidence = sums[min_i] / mean
     sandard_deviation = np.std(meaninful_sums)
-    deviation_from_mean = abs(min - mean)
+    deviation_from_mean = abs(_min - _mean)
     confidence = sandard_deviation / deviation_from_mean
     return min_i, sums, confidence
 
@@ -208,7 +205,6 @@ class CoumpoundFuzzyPattern(CompoundPattern):
     sums = np.zeros(len(text_ebd))
     total_weight = 0
     for p in self.patterns:
-      # print('CoumpoundFuzzyPattern, finding', str(p))
       weight = self.patterns[p]
       sp = p._find_patterns(text_ebd)
 
@@ -221,8 +217,7 @@ class CoumpoundFuzzyPattern(CompoundPattern):
 
 class AbstractPatternFactory:
 
-  def __init__(self, embedder):
-    self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
+  def __init__(self):
     self.patterns: List[FuzzyPattern] = []
     self.patterns_dict = {}
 
@@ -232,19 +227,21 @@ class AbstractPatternFactory:
     self.patterns_dict[pattern_name] = fp
     return fp
 
-  def embedd(self):
+  def embedd(self, embedder):
     # collect patterns texts
     arr = []
     for p in self.patterns:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb, regions = self.embedder.embedd_contextualized_patterns(arr)
+    patterns_emb, regions = embedder.embedd_contextualized_patterns(arr)
     assert len(patterns_emb) == len(self.patterns)
     # =========
 
     for i in range(len(patterns_emb)):
       self.patterns[i].set_embeddings(patterns_emb[i], regions[i])
+
+
 
   def average_embedding_pattern(self, pattern_prefix):
     av_emb = None
@@ -280,11 +277,11 @@ _case_normalizer = CaseNormalizer()
 
 
 class AbstractPatternFactoryLowCase(AbstractPatternFactory):
-  def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+  def __init__(self):
+    AbstractPatternFactory.__init__(self)
     self.patterns_dict = {}
 
-  def create_pattern(self, pattern_name, ppp):
+  def create_pattern(self, pattern_name, ppp: [str]):
     _ppp = (_case_normalizer.normalize_text(ppp[0]),
             _case_normalizer.normalize_text(ppp[1]),
             _case_normalizer.normalize_text(ppp[2]))

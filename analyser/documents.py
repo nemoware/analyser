@@ -1,18 +1,21 @@
+import hashlib
 import os
 import pickle
 import sys
 import traceback
 import warnings
-
+from analyser.hyperparams import models_path
 import nltk
+nltk.data.path.append(os.path.join(models_path, 'nltk'))
 import numpy as np
 
-from analyser.hyperparams import models_path
 from analyser.ml_tools import spans_to_attention
-from analyser.text_tools import Tokens, untokenize, replace_tokens, tokenize_text, split_into_sentences
+from analyser.text_tools import Tokens, untokenize, replace_tokens, split_into_sentences
 
 TEXT_PADDING_SYMBOL = ' '
-nltk.download('punkt')
+
+
+# nltk.download('punkt')
 
 
 class TextMap:
@@ -202,18 +205,21 @@ class TextMap:
     elif isinstance(key, int):
 
       r = self.map[key]
-      # print('__getitem__', key)
       return self._full_text[r[0]:r[1]]
     else:
       raise TypeError("Invalid argument type.")
 
-  def get_tokens(self)->Tokens:
+  def get_tokens(self) -> Tokens:
     return [
       self._full_text[tr[0]:tr[1]] for tr in self.map
     ]
 
   tokens = property(get_tokens, None)
   text = property(get_text, None)
+
+  def get_checksum(self):
+    _reconstructed = '|'.join(self.tokens).encode('utf-8')
+    return hashlib.md5(_reconstructed).hexdigest()
 
 
 def split_sentences_into_map(substr, max_len_chars=150) -> TextMap:
@@ -229,7 +235,7 @@ class CaseNormalizer:
     self.__dict__ = self.__shared_state
     if 'replacements_map' not in self.__dict__:
       p = os.path.join(models_path, 'word_cases_stats.pickle')
-      print('loading word cases stats model', p)
+      print('loading word cases stats model from:', p)
 
       with open(p, 'rb') as handle:
         self.replacements_map = pickle.load(handle)
@@ -255,7 +261,8 @@ class CaseNormalizer:
     warnings.warn(
       "Deprecated, because this class must not perform tokenization. Use normalize_tokens or  normalize_tokens_map_case",
       DeprecationWarning)
-    tokens = tokenize_text(text)
+    tm = TextMap(text)
+    tokens = tm.tokens
     tokens = self.normalize_tokens(tokens)
     return untokenize(tokens)
 
@@ -274,27 +281,6 @@ class GTokenizer:
     raise NotImplementedError()
 
 
-def span_tokenize(text):
-  start_from = 0
-  text = text.replace('`', '!')
-  text = text.replace('"', '!')
-  tokens = list(nltk.word_tokenize(text))
-  __debug = []
-
-  for search_token in tokens:
-
-    ix_new = text.find(search_token, start_from)
-    if ix_new < 0:
-      msg = f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
-      warnings.warn(msg)
-    else:
-      start_from = ix_new
-      end = start_from + len(search_token)
-      __debug.append((search_token, start_from, end))
-      yield [start_from, end]
-      start_from = end
-
-
 class DefaultGTokenizer(GTokenizer):
 
   def __init__(self):
@@ -303,8 +289,28 @@ class DefaultGTokenizer(GTokenizer):
     # nltk.download('punkt', download_dir=pth)
     pass
 
+  def span_tokenize(self, text):
+    start_from = 0
+    text = text.replace('`', '!')
+    text = text.replace('"', '!')
+    tokens = list(nltk.word_tokenize(text, language='russian'))
+    __debug = []
+
+    for search_token in tokens:
+
+      ix_new = text.find(search_token, start_from)
+      if ix_new < 0:
+        msg = f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
+        warnings.warn(msg)
+      else:
+        start_from = ix_new
+        end = start_from + len(search_token)
+        __debug.append((search_token, start_from, end))
+        yield [start_from, end]
+        start_from = end
+
   def tokenize_line(self, line):
-    return [line[t[0]:t[1]] for t in span_tokenize(line)]
+    return [line[t[0]:t[1]] for t in self.span_tokenize(line)]
 
   def tokenize(self, text) -> Tokens:
     return [text[t[0]:t[1]] for t in self.tokens_map(text)]
@@ -317,7 +323,7 @@ class DefaultGTokenizer(GTokenizer):
       if text[i] == '\n':
         result.append([i, i + 1])
 
-    result += [s for s in span_tokenize(text)]
+    result += [s for s in self.span_tokenize(text)]
 
     result.sort(key=lambda x: x[0])
     return result

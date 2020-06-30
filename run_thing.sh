@@ -1,3 +1,4 @@
+#!/bin/bash
 export GPN_DB_PORT=27017
 export GPN_DB_HOST=localhost
 export GPN_DB_NAME=gpn

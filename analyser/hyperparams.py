@@ -1,12 +1,23 @@
 import os
+import warnings
+from pathlib import Path
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+__location__path = Path(__location__)
+
 models_path = os.path.join(__location__, 'vocab')
+
+if 'GPN_WORK_DIR' in os.environ:
+  work_dir = os.environ['GPN_WORK_DIR']
+else:
+  work_dir = os.path.join(__location__path.parent, 'work')
+  warnings.warn('please set GPN_WORK_DIR environment variable')
+
+print(f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
 
 
 class HyperParameters:
   protocol_caption_max_size_words = 200
-
 
   sentence_max_len = 200
   charter_sentence_max_len = sentence_max_len
@@ -27,6 +38,6 @@ class HyperParameters:
   charter_subject_attention_confidence = 0.66
 
   obligations_date_pattern_threshold = 0.4
-  hdbscan_cluster_proximity=0.8
+  hdbscan_cluster_proximity = 0.8
 
-  headers_detector_use_regressor=False ## regressor vs classifyer
+  headers_detector_use_regressor = False  ## regressor vs classifyer

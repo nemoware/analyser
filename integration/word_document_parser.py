@@ -45,7 +45,7 @@ class WordDocParser(DirDocProvider):
     return json.loads(result.stdout)
 
 
-def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or ProtocolDocument:
+def join_paragraphs(response, doc_id, filename=None) -> CharterDocument or ContractDocument or ProtocolDocument:
   # TODO: check type of res
 
   if response['documentType'] == 'CONTRACT':
@@ -62,12 +62,10 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
   doc.parse()
 
   fields = ['documentNumber', 'documentType']
-
   for key in fields:
     doc.__dict__[key] = response[key]
 
   last = 0
-
   # remove empty headers
   paragraphs = []
   for _p in response['paragraphs']:
@@ -79,7 +77,6 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
       warnings.warn('blank header encountered')
 
   for _p in paragraphs:
-
     header_text = _p['paragraphHeader']['text']
     header_text = header_text.replace('\n', ' ').strip() + PARAGRAPH_DELIMITER
 
@@ -93,9 +90,7 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
 
     if _p['paragraphBody']:
       body_text = _p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
-      body = LegalDocument(body_text)
-      body.parse()
-      doc += body
+      doc += LegalDocument(body_text).parse()
 
     bodyspan = (last, len(doc.tokens_map))
 
@@ -107,7 +102,11 @@ def join_paragraphs(response, doc_id) -> CharterDocument or ContractDocument or 
     last = len(doc.tokens_map)
 
   doc._id = doc_id
-  doc.filename = doc_id
+  if filename is not None:
+    doc.filename = filename
+  else:
+    doc.filename = doc_id
+
   return doc
 
 

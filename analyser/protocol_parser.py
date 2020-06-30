@@ -236,7 +236,7 @@ class ProtocolParser(ParsingContext):
     values = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
-      # print(subdoc.text)
+
       numbers = find_document_number_in_subdoc(subdoc, tagname='number', parent=agenda_question_tag)
 
       for k, v in enumerate(numbers):
@@ -341,12 +341,12 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     return fp
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+    AbstractPatternFactory.__init__(self)
 
     create_value_negation_patterns(self)
     create_value_patterns(self)
 
-    self.embedd()
+    self.embedd(embedder)
 
 
 def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
@@ -369,17 +369,12 @@ def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   return ret
 
 
-import re
-
-from pyjarowinkler import distance
-
-
 def closest_name(pattern: str, knowns: [str]) -> (str, int):
   #
   min_distance = 0
   found = None
   for b in knowns:
-    d = distance.get_jaro_distance(pattern, b, winkler=True, scaling=0.1)
+    d = jaro.get_jaro_distance(pattern, b, winkler=True, scaling=0.1)
     if d > min_distance:
       found = b
       min_distance = d

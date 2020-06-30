@@ -134,7 +134,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
     raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
   s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-  # print(len(s))
+
   if window == 'flat':  # moving average
     w = np.ones(window_len, 'd')
   else:
@@ -399,6 +399,25 @@ class SemanticTag:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
     self.confidence = 1.0
+
+
+  def as_json_attribute(self):
+
+    key = self.get_key()
+    attribute = self.__dict__.copy()
+
+    if isinstance(self.value, Enum):
+      attribute['value'] = self.value.name
+
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if self.parent is not None:
+        attribute['parent'] = self.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
+
+
 
   @staticmethod
   def number_key(base: str or Enum, number: int) -> str:

@@ -1,11 +1,16 @@
+import warnings
 from abc import abstractmethod
 
 import numpy as np
 
 from analyser.documents import TextMap
+from analyser.hyperparams import work_dir
 from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
+import logging
 
+
+elmo_logger = logging.getLogger('elmo')
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
@@ -30,7 +35,28 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   return sentences_emb, None, lens
 
 
+import os
+
+
 class AbstractEmbedder:
+
+  def __cache_fn(self, checksum):
+    return os.path.join(work_dir, f'cache-{checksum}-embeddings-ElmoEmbedder.npy')
+
+  def get_cached_embedding(self, checksum) -> Embeddings or None:
+    fn = self.__cache_fn(checksum)
+    # print(f'checking for existence {fn}')
+    if os.path.isfile(fn):
+      elmo_logger.debug(f'skipping embedding doc {checksum} ...., {fn} exists, loading')
+      e = np.load(fn)
+      elmo_logger.debug(f'loaded embedding shape is: {e.shape}')
+      return e
+
+    return None
+
+  def cache_embedding(self, checksum, embeddings):
+    fn = self.__cache_fn(checksum)
+    np.save(fn, embeddings)
 
   @abstractmethod
   def embedd_tokens(self, tokens: Tokens) -> Embeddings:
@@ -64,8 +90,6 @@ class AbstractEmbedder:
 
       sentence_tokens = prefix_tokens + pattern_tokens + suffix_tokens
 
-      # print('embedd_contextualized_patterns', (sentence, start, end))
-
       regions.append((start, end))
       tokenized_sentences_list.append(sentence_tokens)
       lens.append(len(sentence_tokens))
@@ -74,21 +98,16 @@ class AbstractEmbedder:
 
       i = i + 1
 
-    # print('maxlen=', maxlen)
     _strings = []
 
     for s in tokenized_sentences_list:
       s.extend([' '] * (maxlen - len(s)))
       _strings.append(s)
-      # print(s)
     _strings = np.array(_strings)
 
     # ======== call TENSORFLOW -----==================
     sentences_emb = self.embedd_tokenized_text(_strings, lens)
     # ================================================
-
-    # print(sentences_emb.shape)
-    #     assert len(sentence_tokens) == sentences_emb
 
     patterns_emb = []
 
@@ -103,3 +122,32 @@ class AbstractEmbedder:
       patterns_emb = sentences_emb
 
     return patterns_emb, regions
+
+  def embedd_large(self, text_map, max_tokens=8000, verbosity=2):
+    overlap = max_tokens // 20
+
+    number_of_windows = 1 + len(text_map) // max_tokens
+    window = max_tokens
+
+    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
+    elmo_logger.warning(msg)
+
+    start = 0
+    embeddings = None
+    # tokens = []
+    while start < len(text_map):
+
+      subtokens: Tokens = text_map[start:start + window + overlap]
+      elmo_logger.debug(f"Embedding region: {start}, {len(subtokens)}")
+
+      sub_embeddings = self.embedd_tokens(subtokens)[0:window]
+
+      if embeddings is None:
+        embeddings = sub_embeddings
+      else:
+        embeddings = np.concatenate([embeddings, sub_embeddings])
+
+      start += window
+
+    return embeddings
+    # self.tokens = tokens

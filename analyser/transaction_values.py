@@ -97,7 +97,6 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
     if r_vat_percent:
       vat_percent = to_float(r_vat_percent) / 100
-      # print(f'vat_percent::{vat_percent}')
 
     number = number / (1. + vat_percent)
     # number = int(number * 100.) / 100.  # dumned truncate!
@@ -183,7 +182,7 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
       r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
       if r_vat_percent:
         vat_percent = to_float(r_vat_percent) / 100
-        # print(f'vat_percent::{vat_percent}')
+
 
       number = number / (1. + vat_percent)
       # number = int(number * 100.) / 100.  # dumned truncate!

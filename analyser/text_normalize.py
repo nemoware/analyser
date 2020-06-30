@@ -195,6 +195,28 @@ r_quoted_name_contents = r_quote_open + r'\s*' + r_group(_r_name, 'r_quoted_name
 r_quoted_name_contents_c = re.compile(r_quoted_name_contents)
 
 
+def fix_ru_quotes(s):
+  if s is None:
+    return None
+
+  s = s.lstrip('«').rstrip('»')
+  s = unquote(s)
+  if s.find('«') >= 0 and s.find('»') < 0:  # TODO: hack
+    s += '»'
+
+  if s.find('»') >= 0 and s.find('«') < 0:  # TODO: hack
+    s = '«' + s
+
+  findings = r_quoted_name_contents_c.finditer(s)
+
+  rr = re.sub(r'[«»]', ' ', s)
+  for match in findings:
+    span = match.span()
+    rr = rr[:span[0]] + s[span[0]:span[1]] + rr[span[1]:]
+
+  return rr.strip()
+
+
 def normalize_company_name(name: str) -> (str, str):
   legal_entity_type = ''
   normal_name = name
@@ -212,16 +234,7 @@ def normalize_company_name(name: str) -> (str, str):
   normal_name = re.sub(r'\s+', ' ', normal_name)
   normal_name = re.sub(r'[\s ]*[-–][\s ]*', '-', normal_name)
 
-  # x = r_quoted_name_contents_c.search(normal_name)
-  # if x is not None and x['r_quoted_name_contents'] is not None:
-  #   normal_name = x['r_quoted_name_contents']
-
-  # normal_name = re.sub(r'["\']', '', normal_name)
-
-  normal_name = unquote(normal_name)
-
-  if normal_name.find('«') >= 0 and normal_name.find('»') < 0:  # TODO: hack
-    normal_name += '»'
+  normal_name = fix_ru_quotes(normal_name)
 
   return legal_entity_type, normal_name
 

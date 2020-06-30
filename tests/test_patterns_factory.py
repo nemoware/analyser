@@ -17,7 +17,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
   def test_embedder(self):
     point1 = [1, 6, 4]
 
-    PF = AbstractPatternFactory(FakeEmbedder(point1))
+    PF = AbstractPatternFactory()
 
     fp1 = PF.create_pattern('p1', ('prefix', 'pat 2', 'suffix'))
     fp2 = PF.create_pattern('p2', ('prefix', 'pat', 'suffix 2'))
@@ -25,7 +25,7 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
     self.assertEqual(3, len(PF.patterns))
 
-    PF.embedd()
+    PF.embedd(FakeEmbedder(point1))
 
     self.assertEqual(2, len(fp1.embeddings))
     self.assertEqual(1, len(fp2.embeddings))
@@ -37,12 +37,12 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     point3 = [1, 6, 4]
 
     embedder = FakeEmbedder(point2)
-    PF = AbstractPatternFactory(embedder)
+    PF = AbstractPatternFactory()
 
     fp1 = PF.create_pattern('p1', ('prefix', 'pat', 'suffix 1'))
     fp2 = PF.create_pattern('p2', ('prefix', 'pat', 'suffix 2'))
 
-    PF.embedd()
+    PF.embedd(embedder)
     # FuzzyPattern(None)
     # fp2.set_embeddings(np.array([point2]))
     # fp2 = FuzzyPattern(np.array([[point2]]))

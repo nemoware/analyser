@@ -6,10 +6,12 @@
 import unittest
 
 import pymongo
+from analyser import finalizer
 
 from analyser.parsing import AuditContext
 from analyser.runner import Runner, get_audits, get_docs_by_audit_id, document_processors, save_analysis
 from integration.db import get_mongodb_connection
+from trainsets.retrain_contract_uber_model import DbJsonDoc
 
 SKIP_TF = True
 
@@ -40,12 +42,16 @@ class TestRunner(unittest.TestCase):
   def _get_doc_from_db(self, kind):
     audits = get_mongodb_connection()['audits'].find().sort([("createDate", pymongo.ASCENDING)]).limit(1)
     for audit in audits:
-      for doc in get_docs_by_audit_id(audit['_id'], kind=kind, states=[15]).limit(1):
-        print(doc['_id'])
+      doc_ids =  get_docs_by_audit_id(audit['_id'], kind=kind, states=[15], id_only=True)
+      if len(doc_ids) > 0:
+        print(doc_ids[0]['_id'])
+        doc = finalizer.get_doc_by_id(doc_ids[0]['_id'])
+        # jdoc = DbJsonDoc(doc)
         yield doc
 
   def _preprocess_single_doc(self, kind):
     for doc in self._get_doc_from_db(kind):
+
       processor = document_processors.get(kind, None)
       processor.preprocess(doc, AuditContext())
 
@@ -89,7 +95,7 @@ class TestRunner(unittest.TestCase):
       for doc in docs:
         charter = runner.make_legal_doc(doc)
         runner.protocol_parser.find_org_date_number(charter, AuditContext())
-        save_analysis(doc, charter, -1)
+        save_analysis(DbJsonDoc(doc), charter, -1)
 
   # if get_mongodb_connection() is not None:
   unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)
