@@ -324,7 +324,7 @@ def compare_masked_strings(a, b, masked_substrings):
       a1 = a1.replace(masked, '')
       b1 = b1.replace(masked, '')
 
-  return jaro.get_jaro_distance(a1, b1, winkler=True, scaling=0.1)
+  return jaro.get_jaro_distance(a1, b1, winkler=False, scaling=0.1)
 
 
 def find_top_spans(paragraph_attention_vector, threshold=0.5, maxgap=2, limit=None) -> []:

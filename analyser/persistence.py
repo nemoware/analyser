@@ -70,6 +70,12 @@ class DbJsonDoc:
   def get_subject(d):
     return d.get_attribute('subject')
 
+  def get_attribute_value(d, attr):
+    a = d.get_attribute(attr)
+    if a is not None:
+      return a['value']
+    return None
+
   def get_attribute(d, attr):
     atts = d.get_attributes()
     if attr in atts:

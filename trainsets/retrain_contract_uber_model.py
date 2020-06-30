@@ -41,14 +41,8 @@ from trainsets.trainset_tools import split_trainset_evenly, get_feature_log_weig
 
 matplotlib.use('Agg')
 logger = logging.getLogger('retrain_contract_uber_model')
-
-
 logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+
 
 
 SAVE_PICKLES = False
@@ -644,6 +638,14 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
 
 
 if __name__ == '__main__':
+
+  ch = logging.StreamHandler()
+  ch.setLevel(logging.DEBUG)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  ch.setFormatter(formatter)
+  logger.addHandler(ch)
+
+
   '''
   0. Read 'contract_trainset_meta.csv CSV, find the last datetime of export
   1. Fetch recent docs from DB: update date > last datetime of export 

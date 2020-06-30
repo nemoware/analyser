@@ -101,7 +101,7 @@ def find_org_names(doc: LegalDocument,
                    audit_subsidiary_name=None, regex=complete_re,
                    re_ignore_case=complete_re_ignore_case) -> [SemanticTag]:
   _all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
-                                            re_ignore_case=re_ignore_case)
+                                             re_ignore_case=re_ignore_case)
   if audit_subsidiary_name:
     _all = sorted(_all, key=lambda a: a.name.value != audit_subsidiary_name)
   else:
@@ -124,18 +124,18 @@ def _rename_org_tags(all_: [ContractAgent], prefix='', start_from=1) -> [Semanti
 def find_org_names_raw(doc: LegalDocument, max_names=2, parent=None, decay_confidence=True, regex=complete_re,
                        re_ignore_case=complete_re_ignore_case) -> [ContractAgent]:
   all_org_names = find_org_names_raw_by_re(doc,
-                                 regex=regex,
-                                 confidence_base=1,
-                                 parent=parent,
-                                 decay_confidence=decay_confidence)
+                                           regex=regex,
+                                           confidence_base=1,
+                                           parent=parent,
+                                           decay_confidence=decay_confidence)
 
   # if len(all) < 200:
   # falling back to case-agnostic regexp
   all_org_names += find_org_names_raw_by_re(doc,
-                                  regex=re_ignore_case,  # case-agnostic
-                                  confidence_base=0.75,
-                                  parent=parent,
-                                  decay_confidence=decay_confidence)
+                                            regex=re_ignore_case,  # case-agnostic
+                                            confidence_base=0.75,
+                                            parent=parent,
+                                            decay_confidence=decay_confidence)
 
   # filter, keep unique names
   _map = {}
@@ -159,7 +159,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
   for m in iter:
     ca = ContractAgent()
     all_.append(ca)
-    for re_kind in org_pieces: # like 'type', 'name', 'human_name', 'alt_name', 'alias' ...
+    for re_kind in org_pieces:  # like 'type', 'name', 'human_name', 'alt_name', 'alias' ...
       try:
         char_span = m.span(re_kind)
         if span_len(char_span) > 1:
@@ -185,22 +185,26 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
 
   # normalize org_name names by find_closest_org_name
   for ca in all_:
-    if ca.name is not None:
-      _, val = normalize_company_name(ca.name.value)
-      ca.name.value = val
-      known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
-                                                              HyperParameters.subsidiary_name_match_min_jaro_similarity)
-      if known_org_name is not None:
-        ca.name.value = known_org_name['_id']
-        ca.name.confidence *= best_similarity
-
-    # normalize org_type names by find_closest_org_name
-    if ca.type is not None:
-      long_, short_, confidence_ = normalize_legal_entity_type(ca.type.value)
-      ca.type.value = long_
-      ca.type.confidence *= confidence_
+    normalize_contract_agent(ca)
 
   return all_
+
+
+def normalize_contract_agent(ca: ContractAgent):
+  if ca.name is not None:
+    _, val = normalize_company_name(ca.name.value)
+    ca.name.value = val
+    known_org_name, best_similarity = find_closest_org_name(subsidiaries, val,
+                                                            HyperParameters.subsidiary_name_match_min_jaro_similarity)
+    if known_org_name is not None:
+      ca.name.value = known_org_name['_id']
+      ca.name.confidence *= best_similarity
+
+  # normalize org_type names by find_closest_org_name
+  if ca.type is not None:
+    long_, short_, confidence_ = normalize_legal_entity_type(ca.type.value)
+    ca.type.value = long_
+    ca.type.confidence *= confidence_
 
 
 def find_closest_org_name(subsidiaries, pattern, threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
