@@ -6,12 +6,12 @@
 import unittest
 
 import pymongo
-from analyser import finalizer
 
+from analyser import finalizer
 from analyser.parsing import AuditContext
+from analyser.persistence import DbJsonDoc
 from analyser.runner import Runner, get_audits, get_docs_by_audit_id, document_processors, save_analysis
 from integration.db import get_mongodb_connection
-from trainsets.retrain_contract_uber_model import DbJsonDoc
 
 SKIP_TF = True
 
@@ -42,7 +42,7 @@ class TestRunner(unittest.TestCase):
   def _get_doc_from_db(self, kind):
     audits = get_mongodb_connection()['audits'].find().sort([("createDate", pymongo.ASCENDING)]).limit(1)
     for audit in audits:
-      doc_ids =  get_docs_by_audit_id(audit['_id'], kind=kind, states=[15], id_only=True)
+      doc_ids = get_docs_by_audit_id(audit['_id'], kind=kind, states=[15], id_only=True)
       if len(doc_ids) > 0:
         print(doc_ids[0]['_id'])
         doc = finalizer.get_doc_by_id(doc_ids[0]['_id'])
@@ -51,7 +51,6 @@ class TestRunner(unittest.TestCase):
 
   def _preprocess_single_doc(self, kind):
     for doc in self._get_doc_from_db(kind):
-
       processor = document_processors.get(kind, None)
       processor.preprocess(doc, AuditContext())
 

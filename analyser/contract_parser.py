@@ -2,6 +2,7 @@ from analyser.contract_agents import find_org_names
 from analyser.contract_patterns import ContractPatternFactory, head_subject_patterns_prefix, contract_headlines_patterns
 from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import find_document_number
+from analyser.documents import TextMap
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency, _find_most_relevant_paragraph
@@ -128,7 +129,8 @@ class ContractParser(ParsingContext):
 
     # -------------------------------subject
     semantic_map, subj_1hot = predict_subject(self.subject_prediction_model, contract)
-    contract.subjects = self.get_predicted_subject(semantic_map, subj_1hot)
+    contract.subjects =  get_predicted_subject(contract.tokens_map , semantic_map, subj_1hot)
+
 
     if not contract.subjects:
       contract.warn(ParserWarnings.contract_subject_not_found)
@@ -140,18 +142,6 @@ class ContractParser(ParsingContext):
 
     return contract
     # , self.contract.contract_values
-
-  def get_predicted_subject(self, semantic_map, subj_1hot) -> SemanticTag:
-
-    predicted_subj_name, confidence, _ = decode_subj_prediction(subj_1hot)
-
-    tag = SemanticTag('subject', predicted_subj_name.name, span=None)
-    tag.confidence = confidence
-
-    slices = find_top_spans(semantic_map['subject'].values, threshold=0.5, limit=1)
-    if len(slices) == 1:
-      tag.span = slices[0].start, slices[0].stop
-    return tag
 
   def select_most_confident_if_almost_equal(self, a: ProbableValue, alternative: ProbableValue, m_convert,
                                             equality_range=0.0):
@@ -382,3 +372,29 @@ def _sub_attention_names(subj: Enum):
   b = AV_PREFIX + f'x_{subj}'
   c = AV_SOFT + a
   return a, b, c
+
+
+def get_predicted_subject(textmap: TextMap, semantic_map: DataFrame, subj_1hot) -> SemanticTag:
+  predicted_subj_name, confidence, _ = decode_subj_prediction(subj_1hot)
+
+  tag = SemanticTag('subject', predicted_subj_name.name, span=None)
+  tag.confidence = confidence
+
+  tag_ = fetch_tag_value('subject', textmap, semantic_map)
+  if tag_ is not None:
+    tag.span = tag_.span
+
+  return tag
+
+
+def fetch_tag_value(tagname: str, textmap: TextMap, semantic_map: DataFrame, threshold=0.3) -> SemanticTag or None:
+  att = semantic_map[tagname].values
+  slices = find_top_spans(att, threshold=threshold, limit=1)  # TODO: estimate per-tag thresholds
+
+  if len(slices) > 0:
+    span = slices[0].start, slices[0].stop
+    value = textmap.text_range(span)
+    tag = SemanticTag(tagname, value, span)
+    tag.confidence = att[slices[0]].mean()
+    return tag
+  return None
