@@ -38,10 +38,9 @@ class TestJsonExport(unittest.TestCase):
   def _get_doc_factory_ctx(self):
     doc, factory = self._get_doc()
 
-    ctx = ContractParser(embedder={}, pattern_factory=factory)
+    ctx = ContractParser(embedder={} )
     ctx.verbosity_level = 3
-    ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
-                                      headline_patterns_prefix='headline.')
+
     return doc, factory, ctx
 
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):

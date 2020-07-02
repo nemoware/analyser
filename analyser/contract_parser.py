@@ -1,15 +1,13 @@
 from overrides import overrides
 
 from analyser.contract_agents import ContractAgent, normalize_contract_agent
-from analyser.contract_patterns import ContractPatternFactory, head_subject_patterns_prefix, contract_headlines_patterns
+from analyser.contract_patterns import ContractPatternFactory
 from analyser.doc_dates import find_date
 from analyser.documents import TextMap
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext, AuditContext, _find_most_relevant_paragraph, \
-  find_value_sign_currency_attention
-from analyser.patterns import AV_SOFT, AV_PREFIX, AbstractPatternFactory
-from analyser.structures import ContractSubject, contract_subjects
+from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
+from analyser.patterns import AV_SOFT, AV_PREFIX
 from analyser.text_tools import find_top_spans
 from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.tf_subject_model import load_subject_detection_trained_model, decode_subj_prediction, \
@@ -54,10 +52,9 @@ ContractDocument3 = ContractDocument
 class ContractParser(ParsingContext):
   # TODO: rename this class
 
-  def __init__(self, embedder=None, pattern_factory: ContractPatternFactory = None):
+  def __init__(self, embedder=None):
     ParsingContext.__init__(self, embedder)
 
-    # self.pattern_factory: ContractPatternFactory or None = pattern_factory
     if embedder is not None:
       self.init_embedders(embedder, None)
 
@@ -65,16 +62,13 @@ class ContractParser(ParsingContext):
 
   def init_embedders(self, embedder, elmo_embedder_default):
     self.embedder = embedder
-    if self.pattern_factory is None:
-      self.pattern_factory = ContractPatternFactory(embedder)
 
   def find_org_date_number(self, contract_full: ContractDocument, ctx: AuditContext) -> ContractDocument:
-
 
     if self.embedder is None:
       self.embedder = ElmoEmbedder.get_instance()
 
-    contract = contract_full[0:300] #warning, trimming doc for analysis phase 1
+    contract = contract_full[0:300]  # warning, trimming doc for analysis phase 1
     if contract.embeddings is None:
       contract.embedd_tokens(self.embedder)
 
@@ -146,165 +140,8 @@ class ContractParser(ParsingContext):
 
     return contract
 
-  def select_most_confident_if_almost_equal(self, a: ProbableValue, alternative: ProbableValue, m_convert,
-                                            equality_range=0.0):
-
-    if abs(m_convert(a.value).value - m_convert(alternative.value).value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-    return a
-
-  @staticmethod
-  def make_subject_attention_vector_3(section: LegalDocument, subject_kind: ContractSubject,
-                                      addon=None) -> FixedVector:
-
-    pattern_prefix, attention_vector_name, attention_vector_name_soft = _sub_attention_names(subject_kind)
-
-    _vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
-    _vectors = list(_vectors)
-
-    if not _vectors:
-      _vectors = []
-      _vectors.append(np.zeros(len(section.tokens_map)))
-      warnings.warn(f'no patterns for {subject_kind}')
-
-    if addon is not None:
-      _vectors.append(addon)
-
-    vectors = []
-    for v in _vectors:
-      vectors.append(best_above(v, 0.4))
-
-    # assert len(vectors) > 0, f'no vectors for {pattern_prefix} {attention_vector_name} {attention_vector_name_soft}'
-
-    x = max_exclusive_pattern(vectors)
-    x = relu(x, 0.6)
-    section.distances_per_pattern_dict[attention_vector_name_soft] = x
-    section.distances_per_pattern_dict[attention_vector_name] = x
-
-    return x
-
-  def find_contract_subject_region(self, doc) -> SemanticTag:
-    if 'subj' in doc.sections:
-      subj_section = doc.sections['subj']
-      subject_subdoc = subj_section.body
-      denominator = 1
-    else:
-      doc.warn(ParserWarnings.subject_section_not_found)
-      self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
-      doc.warn(ParserWarnings.contract_subject_section_not_found)
-      subject_subdoc = doc[0:1500]
-      denominator = 0.7
-
-    a: SemanticTag = self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
-
-    header_subject, header_subject_conf, header_subject_subdoc = find_headline_subject_match(doc, self.pattern_factory)
-
-    if header_subject is not None:
-      if a is None:
-        a = SemanticTag('subject', header_subject.name, (header_subject_subdoc.start, header_subject_subdoc.end))
-        a.confidence = header_subject_conf
-
-      if header_subject_conf >= a.confidence or header_subject_conf > 0.7:
-        a.value = header_subject.name  # override subject kind detected in text by subject detected in 1st headline
-        a.confidence = (a.confidence + header_subject_conf) / 2.0
-
-    return a
-
-  def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
-    # TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
-    # TODO: const(loss) function should measure distance from actual span to expected span
-
-    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
-    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
-
-    all_subjects_headlines_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
-
-    subject_headline_attention: FixedVector = max_exclusive_pattern(all_subjects_headlines_vectors)
-    subject_headline_attention = best_above(subject_headline_attention, 0.5)
-    subject_headline_attention = momentum_t(subject_headline_attention, half_decay=120)
-    subject_headline_attention_max = max(subject_headline_attention)
-
-    section.distances_per_pattern_dict['subject_headline_attention'] = subject_headline_attention  # for debug
-
-    max_confidence: float = 0.
-    max_subject_kind: ContractSubject or None = None
-    max_paragraph_span = None
-
-    for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
-      subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, None)
-      if subject_headline_attention_max > 0.2:
-        subject_attention_vector *= subject_headline_attention
-
-      paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(section,
-                                                                                             subject_attention_vector,
-                                                                                             min_len=20,
-                                                                                             return_delimiters=False)
-      if len(subject_attention_vector) < 400:
-        confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
-
-      if self.verbosity_level > 2:
-        print(f'--------------------confidence {subject_kind}=', confidence)
-
-      if confidence > max_confidence:
-        max_confidence = confidence
-        max_subject_kind = subject_kind
-        max_paragraph_span = paragraph_span
-
-    if max_subject_kind:
-      subject_tag = SemanticTag('subject', max_subject_kind.name,
-                                max_paragraph_span)  # TODO: check if it is OK to use enum value instead of just name
-      subject_tag.confidence = max_confidence * denominator
-      subject_tag.offset(section.start)
-
-      return subject_tag
-
 
 # --------------- END of CLASS
-
-
-def match_headline_to_subject(section: LegalDocument, subject_kind: ContractSubject) -> FixedVector:
-  pattern_prefix = f'{head_subject_patterns_prefix}{subject_kind}'
-
-  _vectors = list(filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix))
-
-  if not _vectors:
-    warnings.warn(f'no patterns for {subject_kind}')
-    return np.zeros(len(section.tokens_map))
-
-  vectors = [best_above(v, 0.4) for v in _vectors]
-
-  x = max_exclusive_pattern(vectors)
-  x = relu(x, 0.6)
-
-  return x
-
-
-def find_headline_subject_match(doc: LegalDocument, factory: AbstractPatternFactory) -> (
-        ContractSubject, float, LegalDocument):
-  headers: [LegalDocument] = [doc.subdoc_slice(p.header.as_slice()) for p in doc.paragraphs]
-
-  max_confidence = 0
-  best_subj = None
-  subj_header = None
-  for header in headers[:3]:  # take only 3 fist headlines; normally contract type is known by the 1st one.
-
-    if header.text and header.text.strip():
-
-      # TODO: must be pre-calculated
-      header.calculate_distances_per_pattern(factory, pattern_prefix=head_subject_patterns_prefix, merge=False)
-
-      for subject_kind in contract_headlines_patterns.values():  # like ContractSubject.RealEstate ..
-        subject_attention_vector: FixedVector = match_headline_to_subject(header, subject_kind)
-        _confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
-        if _confidence > max_confidence:
-          max_confidence = _confidence
-          best_subj = subject_kind
-          subj_header = header
-
-  return best_subj, max_confidence, subj_header
 
 
 ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove

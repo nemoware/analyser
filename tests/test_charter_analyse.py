@@ -7,6 +7,7 @@ import unittest
 
 from analyser.charter_parser import CharterDocument
 from analyser.runner import *
+from integration.word_document_parser import join_paragraphs
 
 
 class TestAnalyse(unittest.TestCase):
