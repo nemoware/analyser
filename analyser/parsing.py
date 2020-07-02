@@ -13,7 +13,9 @@ from analyser.transaction_values import complete_re as transaction_values_re
 
 PROF_DATA = {}
 
+import logging
 
+logger = logging.getLogger('analyser')
 class ParsingSimpleContext:
   def __init__(self):
 
@@ -41,11 +43,12 @@ class ParsingSimpleContext:
     return '\n'.join(self.warnings)
 
   def log_warnings(self):
+
     if len(self.warnings) > 0:
-      print("Recent parsing warnings:")
+      logger.warning("Recent analyser warnings:")
 
       for w in self.warnings:
-        print('\t\t', w)
+        logger.warning(w)
 
 
 class AuditContext:
@@ -125,7 +128,7 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument,
     # merge dictionaries of attention vectors
     value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
 
-    attention_vector_tuned = 'value_attention_vector_tuned'
+    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
   else:
     # HATI-HATI: this case is for Unit Testing only
     attention_vector_tuned = None
@@ -134,12 +137,10 @@ def find_value_sign_currency(value_section_subdoc: LegalDocument,
 
 
 def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
-                                       attention_vector_name: str = None,
+                                       attention_vector_tuned: FixedVector or None,
                                        parent_tag=None,
                                        absolute_spans=False) -> List[ContractValue]:
-  attention_vector_tuned = None
-  if attention_vector_name is not None:
-    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict[attention_vector_name]
+
 
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = []

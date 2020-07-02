@@ -35,11 +35,11 @@ def predict_subject(umodel, doc):
   prediction = umodel.predict(x=[np.expand_dims(embeddings, axis=0), np.expand_dims(token_features, axis=0)],
                               batch_size=1)
 
-  subj_1hot = prediction[1][0]
-
   semantic_map = pd.DataFrame(prediction[0][0], columns=seq_labels_contract)
-  return semantic_map, subj_1hot
+  return semantic_map, prediction[1][0]
 
+
+nn_predict = predict_subject #TODO: rename the method itself
 
 def set_conv_bi_LSTM_dropouts_training_params(dataset_manager: SubjectTrainsetManager):
   dataset_manager.noisy_samples_amount = 0.75

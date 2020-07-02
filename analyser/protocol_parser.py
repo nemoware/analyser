@@ -217,8 +217,9 @@ class ProtocolParser(ParsingContext):
     values: [ContractValue] = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
+      relu_value_attention_vector  = subdoc.distances_per_pattern_dict[ProtocolAV.relu_value_attention_vector.name]
       subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc,
-                                                                          ProtocolAV.relu_value_attention_vector.name,
+                                                                          relu_value_attention_vector,
                                                                           parent_tag=agenda_question_tag,
                                                                           absolute_spans=True)
       values += subdoc_values

@@ -92,12 +92,14 @@ class BaseProcessor:
     return legal_doc
 
   def is_valid(self, legal_doc, audit, db_document):
+    # date must be ok
     if legal_doc.date is not None:
       _date = legal_doc.date.value
       date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
     else:
       date_is_ok = True
 
+    # org filter must be ok
     return ("* Все ДО" == audit["subsidiary"]["name"] or self.is_same_org(legal_doc, db_document,
                                                                           audit["subsidiary"]["name"]) and date_is_ok)
 

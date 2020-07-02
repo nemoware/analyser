@@ -21,7 +21,9 @@ from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
+import logging
 
+elmo_logger = logging.getLogger('elmo')
 REPORTED_DEPRECATED = {}
 
 
@@ -76,6 +78,8 @@ class LegalDocument:
     # subdocs
     self.start = 0
     self.end = None  # TODO:
+
+    self.user: dict = {}
 
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
@@ -584,9 +588,9 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
   return av
 
 
-import logging
 
-elmo_logger = logging.getLogger('elmo')
+
+
 def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000, log_key=''):
   ch = tokens_map_norm.get_checksum()
 

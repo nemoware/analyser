@@ -117,7 +117,7 @@ class ElmoEmbedderImpl(AbstractEmbedder):
 class ElmoEmbedder:
 
   @staticmethod
-  def get_instance(layer) -> AbstractEmbedder:
+  def get_instance(layer="elmo") -> AbstractEmbedder:
     global _e_instance
     if _e_instance is None:
       print('creating ElmoEmbedderImpl instance')
