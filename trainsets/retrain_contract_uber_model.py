@@ -320,6 +320,8 @@ class UberModelTrainsetManager:
 
   def validate_trainset(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
+    self.stats['error'] = ''
+    self.stats['valid'] = True
     for i in self.stats.index:
       try:
         self.make_xyw(i)
