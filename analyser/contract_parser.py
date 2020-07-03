@@ -148,10 +148,14 @@ ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. 
 
 
 def max_confident(vals: List[ContractValue]) -> ContractValue:
+  if len(vals) == 0:
+    return None
   return max(vals, key=lambda a: a.integral_sorting_confidence())
 
 
 def max_value(vals: List[ContractValue]) -> ContractValue:
+  if len(vals) == 0:
+    return None
   return max(vals, key=lambda a: a.value.value)
 
 
@@ -174,11 +178,16 @@ def nn_find_org_names(textmap: TextMap, semantic_map: DataFrame,
     normalize_contract_agent(ca)
     cas.append(ca)
 
+  def name_val_safe(a):
+    if a.name is not None:
+      return a.name.value
+    return ''
+
   if audit_subsidiary_name:
     # known subsidiary goes first
-    cas = sorted(cas, key=lambda a: a.name.value != audit_subsidiary_name)
+    cas = sorted(cas, key=lambda a: name_val_safe(a) != audit_subsidiary_name)
   else:
-    cas = sorted(cas, key=lambda a: a.name.value)
+    cas = sorted(cas, key=lambda a: name_val_safe(a))
 
   return _swap_org_tags(cas)
 
