@@ -208,7 +208,8 @@ def nn_find_contract_value(contract: ContractDocument, semantic_map: DataFrame) 
   attention_vector = semantic_map[_keys].values.sum(axis=-1)
 
   values_list: [ContractValue] = find_value_sign_currency_attention(contract, attention_vector)
-
+  if len(values_list)==0:
+    return []
   # ------
   # reduce number of found values
   # take only max value and most confident ones (we hope, it is the same finding)
