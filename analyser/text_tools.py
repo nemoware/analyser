@@ -185,15 +185,8 @@ def acronym(n):
   return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
 
 
-def replace_tokens(tokens: Tokens, replacements_map):
-  result = []
-  for t in tokens:
-    key = t.lower()
-    if key in replacements_map:
-      result.append(replacements_map[key])
-    else:
-      result.append(t)
-  return result
+def replace_tokens(tokens: Tokens, replacements_map: dict):
+  return [replacements_map.get(t.lower(), t) for t in tokens]
 
 
 def roman_to_arabic(n) -> int or None:

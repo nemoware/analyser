@@ -320,16 +320,19 @@ class UberModelTrainsetManager:
 
   def validate_trainset(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
-    for i in self.stats.index:
+    meta = self.stats
+
+    meta['valid'] = True
+    meta['error'] = ''
+
+    for i in meta.index:
       try:
         self.make_xyw(i)
 
       except Exception as e:
         logger.error(e)
-        self.stats.at[i, 'valid'] = False
-        self.stats.at[i, 'error'] = str(e)
-        self._save_stats()
-        return ((None, None), (None, None), (None, None))
+        meta.at[i, 'valid'] = False
+        meta.at[i, 'error'] = str(e)
 
     self._save_stats()
 

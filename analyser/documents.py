@@ -4,8 +4,11 @@ import pickle
 import sys
 import traceback
 import warnings
-from analyser.hyperparams import models_path
+
 import nltk
+
+from analyser.hyperparams import models_path
+
 nltk.data.path.append(os.path.join(models_path, 'nltk'))
 import numpy as np
 
@@ -25,10 +28,25 @@ class TextMap:
     self._offset_chars = 0
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)
+      self.cleanup()
     else:
       self.map = list(map)
 
     self.untokenize = self.text_range  # alias
+
+  def getcopy(self):
+    tm = TextMap(self._full_text, self.map)
+    tm._offset_chars = self._offset_chars
+    return tm
+
+  def cleanup(self):
+    warnings.warn("fix tokenization instead of using it, also, it breaks attributes mapping", DeprecationWarning)
+    '''
+    removes empty span (for obsolete docs
+    :return:
+    '''
+
+    self.map = [x for x in self.map if x[0] != x[1]]
 
   def __add__(self, other):
     off = len(self._full_text)
@@ -47,8 +65,15 @@ class TextMap:
     return spans_to_attention(matches, len(self))
 
   def set_token(self, index, new_token):
-    assert len(new_token) == self.map[index][1] - self.map[index][0]
-    self._full_text = self._full_text[: self.map[index][0]] + new_token + self._full_text[self.map[index][1]:]
+    span = self.map[index]
+    tlen = span[1] - span[0]
+    if len(new_token) == tlen:
+      self._full_text = self._full_text[: span[0]] + new_token + self._full_text[span[1]:]
+    else:
+      et = self.text_range(span)
+      q = self.text_range((span[0] - 10, span[1] + 10))
+      msg = f'index:{index}; len of replacement [{new_token}] {len(new_token)} is not equal to len of existing token [{et}] {tlen}, quote="{q}"'
+      raise AssertionError(msg)
 
   def finditer(self, regexp):
     for m in regexp.finditer(self.text):
@@ -214,8 +239,8 @@ class TextMap:
       self._full_text[tr[0]:tr[1]] for tr in self.map
     ]
 
-  tokens = property(get_tokens, None)
-  text = property(get_text, None)
+  tokens: Tokens = property(get_tokens, None)
+  text: str = property(get_text, None)
 
   def get_checksum(self):
     _reconstructed = '|'.join(self.tokens).encode('utf-8')
@@ -238,21 +263,35 @@ class CaseNormalizer:
       print('loading word cases stats model from:', p)
 
       with open(p, 'rb') as handle:
-        self.replacements_map = pickle.load(handle)
+        self.replacements_map: dict = pickle.load(handle)
 
-  def normalize_tokens_map_case(self, map: TextMap) -> TextMap:
-    norm_tokens = replace_tokens(map.tokens, self.replacements_map)
-    norm_map = TextMap(map._full_text, map.map)
-    for k in range(len(map)):
-      norm_map.set_token(k, norm_tokens[k])
-    # chars = list(map.text)
-    # for i in range(0, len(map)):
-    #   r = map.map[i]
-    #   chars[r[0]:r[1]] = norm_tokens[i]
-    # norm_map = TextMap(''.join(chars), list(map.map))
-    # # XXXX
-    # dfdfdfdf
+      # selfcheck
+      mn = {}
+      for k, v in self.replacements_map.items():
+        assert len(k) == len(v)
+        assert len(v) > 0
+        assert len(k) > 0
+        if len(k) > 1:
+          mn[k] = v
+      self.replacements_map = mn
+
+  def normalize_tokens_map_case(self, tmap: TextMap) -> TextMap:
+    norm_tokens = replace_tokens(tmap.tokens, self.replacements_map)
+    norm_map: TextMap = tmap.getcopy()
+    assert (len(norm_tokens)) == len((tmap.tokens))
+    for k in range(len(tmap)):
+      span = tmap.map[k]
+      if span[0] != span[1] > 0:
+        norm_map.set_token(k, norm_tokens[k])
+      else:
+        msg = f'empty span at index {k}'
+        warnings.warn(msg)
+
     return norm_map
+
+  @staticmethod
+  def _assert_span_notempty(span):
+    assert span[0] - span[1] > 0
 
   def normalize_tokens(self, tokens: Tokens) -> Tokens:
     return replace_tokens(tokens, self.replacements_map)

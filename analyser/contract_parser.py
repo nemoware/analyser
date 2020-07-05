@@ -1,7 +1,6 @@
 from overrides import overrides
 
 from analyser.contract_agents import ContractAgent, normalize_contract_agent
-from analyser.contract_patterns import ContractPatternFactory
 from analyser.doc_dates import find_date
 from analyser.documents import TextMap
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
@@ -81,12 +80,6 @@ class ContractParser(ParsingContext):
     contract_full.number = nn_get_contract_number(contract.tokens_map, semantic_map)
     contract_full.date = nn_get_contract_date(contract.tokens_map, semantic_map)
 
-    if not contract_full.date:
-      contract_full.warn(ParserWarnings.date_not_found)
-
-    if not contract_full.number:
-      contract_full.warn(ParserWarnings.number_not_found)
-
     #
     #
     # # validating date & number position, date must go before any agents
@@ -108,6 +101,21 @@ class ContractParser(ParsingContext):
     #
     return contract_full
 
+  def validate(self, contract):
+    if not contract.date:
+      contract.warn(ParserWarnings.date_not_found)
+
+    if not contract.number:
+      contract.warn(ParserWarnings.number_not_found)
+
+    if not contract.contract_values:
+      contract.warn(ParserWarnings.contract_value_not_found)
+
+    if not contract.subjects:
+      contract.warn(ParserWarnings.contract_subject_not_found)
+
+    self.log_warnings()
+
   @overrides
   def find_attributes(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
     """
@@ -118,25 +126,35 @@ class ContractParser(ParsingContext):
 
     self._reset_context()
 
+    self.find_org_date_number(contract, ctx)
+
     # ------ lazy embedding
     if contract.embeddings is None:
       contract.embedd_tokens(self.embedder)
 
     semantic_map, subj_1hot = nn_predict(self.subject_prediction_model, contract)
 
+    # repeat phase 1
+    # ---
+
+    if not contract.number:
+      contract.number = nn_get_contract_number(contract.tokens_map, semantic_map)
+    if not contract.date:
+      contract.date = nn_get_contract_date(contract.tokens_map, semantic_map)
+
+    if len(contract.agents_tags) < 2:
+      contract.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
+                                               audit_subsidiary_name=ctx.audit_subsidiary_name)
     # -------------------------------subject
     contract.subjects = nn_get_subject(contract.tokens_map, semantic_map, subj_1hot)
-    if not contract.subjects:
-      contract.warn(ParserWarnings.contract_subject_not_found)
 
     # -------------------------------values
     contract.contract_values = nn_find_contract_value(contract, semantic_map)
-    if not contract.contract_values:
-      contract.warn(ParserWarnings.contract_value_not_found)
+
     self._logstep("finding contract values")
     # --------------------------------------
 
-    self.log_warnings()
+    self.validate(contract)
 
     return contract
 
@@ -208,20 +226,26 @@ def nn_find_contract_value(contract: ContractDocument, semantic_map: DataFrame) 
   attention_vector = semantic_map[_keys].values.sum(axis=-1)
 
   values_list: [ContractValue] = find_value_sign_currency_attention(contract, attention_vector)
-  if len(values_list)==0:
+  if len(values_list) == 0:
     return []
   # ------
   # reduce number of found values
   # take only max value and most confident ones (we hope, it is the same finding)
 
   max_confident_cv: ContractValue = max_confident(values_list)
-  max_valued_cv: ContractValue = max_value(values_list)
-  if max_confident_cv == max_valued_cv:
-    return [max_confident_cv]
-  else:
-    # TODO: Insurance docs have big value, its not what we're looking for. Biggest is not the best see https://github.com/nemoware/analyser/issues/55
-    max_valued_cv *= 0.5
-    return [max_valued_cv]
+  if max_confident_cv.value.confidence < 0.1:
+    return []
+
+  return [max_confident_cv]
+
+  # max_valued_cv: ContractValue = max_value(values_list)
+  # if max_confident_cv == max_valued_cv:
+  #   return [max_confident_cv]
+  # else:
+  #   # TODO: Insurance docs have big value, its not what we're looking for. Biggest is not the best see https://github.com/nemoware/analyser/issues/55
+  #   # TODO: cannot compare diff. currencies
+  #   max_valued_cv *= 0.5
+  #   return [max_valued_cv]
 
 
 def nn_get_subject(textmap: TextMap, semantic_map: DataFrame, subj_1hot) -> SemanticTag:

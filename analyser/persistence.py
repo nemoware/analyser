@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from analyser.documents import TextMap, CaseNormalizer
@@ -25,6 +27,10 @@ class DbJsonDoc:
       doc.tokens_map_norm = self.get_tokens_for_embedding()
       doc.tokens_map = self.get_tokens_map_unchaged()
 
+      if len(doc.tokens_map_norm) != len(doc.tokens_map):
+        msg = f'{doc._id} has wrong tokenization: len(doc.tokens_map_norm)={len(doc.tokens_map_norm)}; len( doc.tokens_map)={len(doc.tokens_map)} '
+        logging.error(msg)
+
       headers = self.analysis.get('headers', None)
       if headers is not None:
         doc.paragraphs = []
@@ -48,9 +54,8 @@ class DbJsonDoc:
     return tokens_map
 
   def get_tokens_for_embedding(self):
-    tokens_map = self.get_tokens_map_unchaged()
-    tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(tokens_map)
-
+    _tokens_map = self.get_tokens_map_unchaged()
+    tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(_tokens_map)
     return tokens_map_norm
 
   def as_dict(self):

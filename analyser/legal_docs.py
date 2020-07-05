@@ -6,6 +6,7 @@
 # legal_docs.py
 import datetime
 import json
+import logging
 
 from bson import json_util
 from overrides import final
@@ -21,7 +22,6 @@ from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   find_value_spans
-import logging
 
 elmo_logger = logging.getLogger('elmo')
 REPORTED_DEPRECATED = {}
@@ -37,10 +37,13 @@ class ParserWarnings(Enum):
   contract_value_not_found = 8,
   subject_section_not_found = 6,
   contract_subject_not_found = 9,
-  contract_subject_section_not_found = 12,
+
   protocol_agenda_not_found = 10,
 
   boring_agenda_questions = 11
+  contract_subject_section_not_found = 12,
+
+  doc_too_big = 13
 
 
 class Paragraph:
@@ -91,6 +94,18 @@ class LegalDocument:
     w['code'] = msg.name
     self.warnings.append(w)
 
+  def set_trimmed(self, maxsize: int) -> str:
+
+    appx = f'Документ обрезан из соображений производительности, допустимая длинна -- {maxsize} символов'
+    appendix = f"\n\n -- ✂️ - {appx} - ✂️ \n\n-"
+    logging.warning(f'{self._id}, {self.filename},  {appx}')
+
+    self.warn(ParserWarnings.doc_too_big, appx)
+
+    self += LegalDocument(appendix).parse()
+
+    return self
+
   def get_headers_as_subdocs(self):
     return [self.subdoc_slice(p.header.as_slice()) for p in self.paragraphs]
 
@@ -101,8 +116,10 @@ class LegalDocument:
     assert txt is not None
 
     self._normal_text = self.preprocess_text(txt)
+
     self.tokens_map = TextMap(self._normal_text)
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+
     return self
 
   def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
@@ -355,6 +372,7 @@ class DocumentJson:
 
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
+    self.size = {}
 
     if doc is None:
       return
@@ -586,9 +604,6 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
     t_span = source_map.remap_span(span, target_map)
     av[t_span[0]:t_span[1]] = v[i]
   return av
-
-
-
 
 
 def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000, log_key=''):
