@@ -488,7 +488,7 @@ class UberModelTrainsetManager:
       start_from = 0
 
       if augment_samples:
-        max_len = 128 * random.choice([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+        max_len = random.randint(300, 1400)
 
       batch_input_emb = []
       batch_input_token_f = []
@@ -502,18 +502,23 @@ class UberModelTrainsetManager:
       for doc_id in batch_indices:
 
         dp = self.make_xyw(doc_id)
+        (emb, tok_f), (sm, subj), (sample_weight, subject_weight) = dp
+
         subject_weight_K = 1.0
         if augment_samples:
-          start_from = 16 * random.choice([0, 0, 0, 1, 1, 2, 3])  # cut beginning of the doc off
+          start_from = 0
+
           row = self.stats.loc[doc_id]
-          if not pd.isna(row['value_span']):
-            if random.randint(1, 3) == 1:  # 33% of samples
-              value_token_center = int(row['value_span'])
-              _off = random.randint(max_len // 4, max_len // 2)
-              start_from = value_token_center - _off
-              if start_from < 0:
-                start_from = 0
-              subject_weight_K = 0.01  # lower subject weight because there migh be no information about subject around doc. value
+          if random.randint(1, 2) == 1:  # 50% of samples
+            segment_center = random.randint(0, len(emb) - 1)  ##select random token as a center
+            if not pd.isna(row['value_span']) and random.random() < 0.7:
+              segment_center = int(row['value_span'])
+
+            _off = random.randint(max_len // 4, max_len // 2)
+            start_from = segment_center - _off
+            if start_from < 0:
+              start_from = 0
+            subject_weight_K = 0.1  # lower subject weight because there mighе be no information about subject around doc. value
 
         dp = self.trim_maxlen(dp, start_from, max_len)
         # TODO: find samples maxlen
