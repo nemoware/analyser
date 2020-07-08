@@ -16,10 +16,8 @@ nltk_data_download/**/*
 !/analyser/vocab/nltk/tokenizers/punkt/english.pickle
 
 tests/contracts-stats.csv
-
 tests/contracts-stats-1.csv
  
-nltk_data_download/tokenizers/punkt/PY3/polish.pickle
 
 libs/document-parser**/
  
@@ -27,7 +25,6 @@ libs/document-parser**/
 *.log
 
 utilits/parsed_docs.json
-
 utilits/parsed_docs.json.zip
 
 *.checkpoint
@@ -35,36 +32,11 @@ utilits/parsed_docs.json.zip
 trainsets/exported_docs.json
 /work/exported_docs.json
 
-work/*.pickle
-work/*.npy
-work/*.png
-
-work/contract_trainset_meta.csv
-
-work/uber_detection_model_005_1_1.0.log.csv
-
-work/uber_detection_model_005_1_1.weights
-
-work/train_statistics0.csv
+work/**/*
+!work/README.md
 
 trainsets/uber_detection_model_005_1_1.0.log.csv
-
 trainsets/stats.csv
-
-work/contract_trainset_meta.bak.csv
-
-
-
-work/subjects-classification_report-uber_detection_model_005_1_1.txt
-
 trainsets/uber_detection_model_003.0.log.csv
-
-work/*.txt
-
-work/*.weights
-
-work/*.json
-
-work/*.zip
 
 
