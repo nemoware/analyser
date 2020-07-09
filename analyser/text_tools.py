@@ -14,7 +14,7 @@ from pyjarowinkler import distance as jaro
 Tokens = List[str] or ndarray
 
 
-def to_float(string):
+def to_float(string)->float:
   try:
     return float(string.replace(" ", "").replace(",", ".").replace("=", "."))
   except:

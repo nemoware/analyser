@@ -63,9 +63,11 @@ class BaseProcessor:
   parser = None
 
   def preprocess(self, db_document: dict, context: AuditContext):
-    legal_doc = Runner.get_instance().make_legal_doc(db_document)
+    jdoc = DbJsonDoc(db_document)
+    legal_doc = jdoc.asLegalDoc()
+    Runner.get_instance()
     self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(DbJsonDoc(db_document), legal_doc, state=5)
+    save_analysis(jdoc, legal_doc, state=5)
 
   def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
     if db_document.retry_number is None:
@@ -74,6 +76,7 @@ class BaseProcessor:
     if db_document.retry_number > 2:
       logger.error(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
       return None
+
     legal_doc = db_document.asLegalDoc()
     try:
       # todo: remove find_org_date_number call

@@ -14,6 +14,7 @@ from analyser.contract_patterns import ContractPatternFactory
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
 from analyser.parsing import AuditContext
+from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re, ProtocolDocument
 from analyser.runner import Runner
 from analyser.structures import OrgStructuralLevel
@@ -28,11 +29,12 @@ class TestProtocolParser(unittest.TestCase):
 
   def test_protocol_processor(self):
     json_doc = load_json_sample('protocol_1.json')
+    jdoc = DbJsonDoc(json_doc)
+    legal_doc = jdoc.asLegalDoc()
 
     # print (doc)
 
     pp = Runner.get_instance().protocol_parser
-    legal_doc = Runner.get_instance().make_legal_doc(json_doc)
     pp.find_org_date_number(legal_doc, AuditContext())
 
     orgtags = legal_doc.org_tags

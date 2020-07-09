@@ -132,24 +132,30 @@ class ContractParser(ParsingContext):
     if contract.embeddings is None:
       contract.embedd_tokens(self.embedder)
 
-    semantic_map, subj_1hot = nn_predict(self.subject_prediction_model, contract)
+    _contract_cut = contract
+    if len(contract) > HyperParameters.max_doc_size_tokens:
+      contract.warn_trimmed(HyperParameters.max_doc_size_tokens)
+      _contract_cut = contract[0:HyperParameters.max_doc_size_tokens]  # warning, trimming doc for analysis phase 1
+
+    semantic_map, subj_1hot = nn_predict(self.subject_prediction_model, _contract_cut)
 
     # repeat phase 1
     # ---
 
     if not contract.number:
-      contract.number = nn_get_contract_number(contract.tokens_map, semantic_map)
+      contract.number = nn_get_contract_number(_contract_cut.tokens_map, semantic_map)
+
     if not contract.date:
-      contract.date = nn_get_contract_date(contract.tokens_map, semantic_map)
+      contract.date = nn_get_contract_date(_contract_cut.tokens_map, semantic_map)
 
     if len(contract.agents_tags) < 2:
-      contract.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
+      contract.agents_tags = nn_find_org_names(_contract_cut.tokens_map, semantic_map,
                                                audit_subsidiary_name=ctx.audit_subsidiary_name)
     # -------------------------------subject
-    contract.subjects = nn_get_subject(contract.tokens_map, semantic_map, subj_1hot)
+    contract.subjects = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
 
     # -------------------------------values
-    contract.contract_values = nn_find_contract_value(contract, semantic_map)
+    contract.contract_values = nn_find_contract_value(_contract_cut, semantic_map)
 
     self._logstep("finding contract values")
     # --------------------------------------
@@ -264,7 +270,8 @@ def nn_get_subject(textmap: TextMap, semantic_map: DataFrame, subj_1hot) -> Sema
 def nn_get_contract_number(textmap: TextMap, semantic_map: DataFrame) -> SemanticTag:
   tag = nn_get_tag_value('number', textmap, semantic_map)
   if tag is not None:
-    tag.value = tag.value.strip().lstrip('№').lstrip('N ').lstrip()
+    tag.value = tag.value.strip().lstrip('№').lstrip().lstrip(':').lstrip('N ').lstrip().rstrip('.')
+    nn_fix_span(tag)
   return tag
 
 
@@ -288,3 +295,7 @@ def nn_get_tag_value(tagname: str, textmap: TextMap, semantic_map: DataFrame, th
     tag.confidence = float(att[slices[0]].mean())
     return tag
   return None
+
+def nn_fix_span(tag:SemanticTag):
+
+  return tag

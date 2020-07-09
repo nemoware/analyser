@@ -92,9 +92,13 @@ class TestRunner(unittest.TestCase):
       docs = get_docs_by_audit_id(audit_id, kind='PROTOCOL')
 
       for doc in docs:
-        charter = runner.make_legal_doc(doc)
-        runner.protocol_parser.find_org_date_number(charter, AuditContext())
-        save_analysis(DbJsonDoc(doc), charter, -1)
+        # charter = runner.make_legal_doc(doc)
+
+        jdoc = DbJsonDoc(doc)
+        legal_doc = jdoc.asLegalDoc()
+
+        runner.protocol_parser.find_org_date_number(legal_doc, AuditContext())
+        save_analysis(jdoc, legal_doc, -1)
 
   # if get_mongodb_connection() is not None:
   unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

@@ -92,11 +92,7 @@ def join_paragraphs(response, doc_id, filename=None) -> CharterDocument or Contr
     if _p['paragraphBody']:
       body_text = _p['paragraphBody']['text'] + PARAGRAPH_DELIMITER
       appendix = LegalDocument(body_text).parse()
-      if len(doc.tokens_map) + len(appendix.tokens_map) > HyperParameters.max_doc_size_tokens:
-        doc.set_trimmed(HyperParameters.max_doc_size_tokens)
-        break
-      else:
-        doc += appendix
+      doc += appendix
 
     bodyspan = (last, len(doc.tokens_map))
 

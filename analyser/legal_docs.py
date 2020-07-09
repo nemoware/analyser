@@ -21,7 +21,7 @@ from analyser.structures import ContractTags
 from analyser.text_normalize import *
 from analyser.text_tools import *
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
-  find_value_spans
+  ValueSpansFinder
 
 elmo_logger = logging.getLogger('elmo')
 REPORTED_DEPRECATED = {}
@@ -65,7 +65,6 @@ class LegalDocument:
 
     self.filename = None
     self._original_text = original_text
-    self._normal_text = None
     self.warnings: [str] = []
 
     # todo: use pandas' DataFrame
@@ -94,17 +93,13 @@ class LegalDocument:
     w['code'] = msg.name
     self.warnings.append(w)
 
-  def set_trimmed(self, maxsize: int) -> str:
+  def warn_trimmed(self, maxsize: int):
 
-    appx = f'Документ обрезан из соображений производительности, допустимая длинна -- {maxsize} символов'
-    appendix = f"\n\n -- ✂️ - {appx} - ✂️ \n\n-"
-    logging.warning(f'{self._id}, {self.filename},  {appx}')
+    appx = f'Для анализа документ обрезан из соображений производительности, допустимая длинна -- {maxsize} символов ✂️'
+    wrn = f'{self._id}, {self.filename},  {appx}'
+    logging.warning(wrn)
 
     self.warn(ParserWarnings.doc_too_big, appx)
-
-    self += LegalDocument(appendix).parse()
-
-    return self
 
   def get_headers_as_subdocs(self):
     return [self.subdoc_slice(p.header.as_slice()) for p in self.paragraphs]
@@ -115,9 +110,8 @@ class LegalDocument:
 
     assert txt is not None
 
-    self._normal_text = self.preprocess_text(txt)
-
-    self.tokens_map = TextMap(self._normal_text)
+    _preprocessed_text = self.preprocess_text(txt)
+    self.tokens_map = TextMap(_preprocessed_text)
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
 
     return self
@@ -136,11 +130,7 @@ class LegalDocument:
     :param suffix: doc to add
     :return: self + suffix
     '''
-    assert self._normal_text is not None
-    assert suffix._normal_text is not None
-
     self.distances_per_pattern_dict = {}
-    self._normal_text += suffix.normal_text
     self._original_text += suffix.original_text
 
     self.tokens_map += suffix.tokens_map
@@ -212,7 +202,7 @@ class LegalDocument:
     return self._original_text
 
   def get_normal_text(self) -> str:
-    return self._normal_text
+    return self.tokens_map.text
 
   def get_text(self):
     return self.tokens_map.text
@@ -504,28 +494,27 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
   # ======================================
-  results = find_value_spans(subdoc.text)
+  results = ValueSpansFinder(subdoc.text)
   # ======================================
 
   if results:
-    value_char_span, value, currency_char_span, currency, including_vat, original_value = results
-    value_span = subdoc.tokens_map.token_indices_by_char_range(value_char_span)
-    currency_span = subdoc.tokens_map.token_indices_by_char_range(currency_char_span)
+    value_span = subdoc.tokens_map.token_indices_by_char_range(results.number_span)
+    currency_span = subdoc.tokens_map.token_indices_by_char_range(results.currency_span)
 
     group = SemanticTag('sign_value_currency', value=None, span=region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
     sign.offset(subdoc.start)
 
-    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
+    value_tag = SemanticTag(ContractTags.Value.display_string, results.value, value_span, parent=group)
     value_tag.offset(subdoc.start)
 
-    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span, parent=group)
+    currency = SemanticTag(ContractTags.Currency.display_string, results.currencly_name, currency_span, parent=group)
     currency.offset(subdoc.start)
 
     groupspan = [0, 0]
-    groupspan[0] = min(sign.span[0], sign.span[0], sign.span[0], group.span[0])
-    groupspan[1] = max(sign.span[1], sign.span[1], sign.span[1], group.span[1])
+    groupspan[0] = min(sign.span[0], value_tag.span[0], currency.span[0], group.span[0])
+    groupspan[1] = max(sign.span[1], value_tag.span[1], currency.span[1], group.span[1])
     group.span = groupspan
 
     return ContractValue(sign, value_tag, currency, group)
