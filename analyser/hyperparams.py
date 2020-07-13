@@ -3,7 +3,8 @@ import warnings
 from pathlib import Path
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-__location__path = Path(__location__)
+gpn_home = __location__path = Path(__location__)
+tf_cache = os.path.join(__location__path.parent.parent, 'tf_cache')
 
 models_path = os.path.join(__location__, 'vocab')
 

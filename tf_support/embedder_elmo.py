@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 import numpy as np
@@ -5,11 +6,17 @@ import tensorflow as tf
 import tensorflow_hub as hub
 
 from analyser.embedding_tools import AbstractEmbedder
+from analyser.hyperparams import tf_cache
+
 from analyser.text_tools import Tokens
 
 _e_instance: AbstractEmbedder = None
 
+import os
+if "TFHUB_CACHE_DIR" not in os.environ:
+  os.environ["TFHUB_CACHE_DIR"] = tf_cache
 
+logger = logging.getLogger('root')
 class ElmoEmbedderWrapper(AbstractEmbedder):
   def __init__(self, instance: AbstractEmbedder, layer: str):
     self.instance: AbstractEmbedder = instance
@@ -40,9 +47,10 @@ class ElmoEmbedderImpl(AbstractEmbedder):
     embedding_graph = tf.compat.v1.Graph()
 
     with embedding_graph.as_default():
-      print(f'< loading ELMO module {self.module_url}')
+      logger.info(f'< loading ELMO module {self.module_url}')
+      logger.info(f'TF hub cache dir is models{os.environ["TFHUB_CACHE_DIR"]}')
       self.elmo = hub.Module(self.module_url, trainable=False)
-      print(f'ELMO module loaded >')
+      logger.info(f'ELMO module loaded >')
 
       self.text_input = tf.compat.v1.placeholder(dtype='string', name="text_input")
       self.text_lengths = tf.compat.v1.placeholder(dtype='int32', name='text_lengths')
@@ -57,13 +65,13 @@ class ElmoEmbedderImpl(AbstractEmbedder):
     }
 
     with embedding_graph.as_default():
-      print(f'ELMO: creating embedded_out_elmo')
+      logger.info(f'ELMO: creating embedded_out_elmo')
       self.embedded_out_elmo = self.elmo(
         inputs=inputs_elmo,
         signature="tokens",
         as_dict=True)['elmo']
 
-      print(f'ELMO: embedded_out_defaut embedded_out_elmo')
+      logger.info(f'ELMO: embedded_out_defaut embedded_out_elmo')
       self.embedded_out_defaut = self.elmo(
         inputs=inputs_default,
         signature="default",
@@ -120,7 +128,7 @@ class ElmoEmbedder:
   def get_instance(layer="elmo") -> AbstractEmbedder:
     global _e_instance
     if _e_instance is None:
-      print('creating ElmoEmbedderImpl instance')
+      logger.debug('creating ElmoEmbedderImpl instance')
       _e_instance = ElmoEmbedderImpl()
 
     wrapper = ElmoEmbedderWrapper(_e_instance, layer)
