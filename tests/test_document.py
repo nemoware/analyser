@@ -5,9 +5,11 @@
 
 import unittest
 
+import numpy as np
+
 from analyser.charter_parser import CharterParser, CharterDocument
 from analyser.contract_parser import ContractParser, ContractDocument
-from analyser.legal_docs import *
+from analyser.legal_docs import LegalDocument, DocumentJson
 from analyser.parsing import AuditContext
 from tests.test_utilits import FakeEmbedder
 
@@ -31,8 +33,6 @@ class LegalDocumentTestCase(unittest.TestCase):
     d.parse()
     print(d.tokens)
     self.assertEqual(1, len(d.tokens))
-
-
 
   def test_analyze_contract_0(self):
     point1 = np.random.rand(1024)

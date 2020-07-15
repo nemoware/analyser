@@ -1,6 +1,8 @@
 import unittest
 
-from analyser.legal_docs import *
+import numpy as np
+
+from analyser.patterns import AbstractPatternFactory, CoumpoundFuzzyPattern
 from tests.test_utilits import FakeEmbedder
 
 

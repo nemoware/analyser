@@ -5,8 +5,10 @@
 
 import unittest
 
-from analyser.charter_parser import CharterDocument
-from analyser.runner import *
+from analyser.charter_parser import CharterDocument, CharterParser
+from analyser.parsing import AuditContext
+from analyser.runner import get_audits, get_docs_by_audit_id
+from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 
 

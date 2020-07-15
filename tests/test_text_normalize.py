@@ -9,7 +9,7 @@ from analyser.contract_agents import normalize_legal_entity_type
 from analyser.documents import CaseNormalizer, TextMap
 from analyser.legal_docs import LegalDocument
 from analyser.structures import legal_entity_types
-from analyser.text_normalize import *
+from analyser.text_normalize import normalize_company_name, normalize_text, replacements_regex
 
 
 class CaseNormalizerTestCase(unittest.TestCase):

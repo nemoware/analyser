@@ -3,14 +3,18 @@
 # coding=utf-8
 
 
+import re
 import unittest
 from typing import List
 
-from analyser.contract_agents import *
+from analyser.contract_agents import r_type_and_name, complete_re_str, find_org_names, complete_re_ignore_case, \
+  complete_re_str_org, complete_re, r_alias, r_alter, r_quoted_name_alias, r_being_a_citizen, r_being_a_human_citizen
 from analyser.contract_parser import ContractDocument
+from analyser.legal_docs import LegalDocument
+from analyser.ml_tools import SemanticTag
 from analyser.protocol_parser import ProtocolDocument, find_protocol_org
 from analyser.text_normalize import _r_name_ru, r_human_abbr_name, r_human_full_name, _r_name_lat, replacements_regex, \
-  r_alias_prefix, r_types, sub_ip_quoter, sub_alias_quote, r_human_name
+  r_alias_prefix, r_types, sub_ip_quoter, sub_alias_quote, r_human_name, ru_cap, r_quoted_name
 
 _suffix = " слово" * 1000
 
@@ -329,7 +333,6 @@ class TestContractAgentsSearch(unittest.TestCase):
     print(doc.text)
     tags: [SemanticTag] = find_protocol_org(doc)
     self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть Шиппинг', None))
-
 
   def test_find_agents_2(self):
     doc_text = """Акционерное общество «Газпромнефть - мобильная карта» (АО «ГВК»), именуемое в \
