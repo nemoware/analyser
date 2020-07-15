@@ -137,7 +137,6 @@ class ProtocolParser(ParsingContext):
     if self.elmo_embedder_default is None:
       self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
 
-
     ### ⚙️🔮 SENTENCES embedding
     if doc.sentence_map is None:
       doc.sentence_map = tokenize_doc_into_sentences_map(doc, HyperParameters.charter_sentence_max_len)
@@ -219,12 +218,13 @@ class ProtocolParser(ParsingContext):
     return _rename_org_tags(all, 'contract_agent_', start_from=start_from)
 
   def find_margin_values(self, doc) -> [ContractValue]:
-    assert ProtocolAV.relu_value_attention_vector.name in doc.distances_per_pattern_dict, 'call find_question_decision_sections first'
+    if ProtocolAV.relu_value_attention_vector.name not in doc.distances_per_pattern_dict:
+      raise KeyError('call find_question_decision_sections first')
 
     values: [ContractValue] = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
-      relu_value_attention_vector  = subdoc.distances_per_pattern_dict[ProtocolAV.relu_value_attention_vector.name]
+      relu_value_attention_vector = subdoc.distances_per_pattern_dict[ProtocolAV.relu_value_attention_vector.name]
       subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc,
                                                                           relu_value_attention_vector,
                                                                           parent_tag=agenda_question_tag,

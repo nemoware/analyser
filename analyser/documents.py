@@ -268,9 +268,9 @@ class CaseNormalizer:
       # selfcheck
       mn = {}
       for k, v in self.replacements_map.items():
-        assert len(k) == len(v)
-        assert len(v) > 0
-        assert len(k) > 0
+        if len(k) != len(v):
+          raise ValueError('cannot replace token with one of a diff. length')
+
         if len(k) > 1:
           mn[k] = v
       self.replacements_map = mn
@@ -278,7 +278,10 @@ class CaseNormalizer:
   def normalize_tokens_map_case(self, tmap: TextMap) -> TextMap:
     norm_tokens = replace_tokens(tmap.tokens, self.replacements_map)
     norm_map: TextMap = tmap.getcopy()
-    assert (len(norm_tokens)) == len((tmap.tokens))
+
+    if len(norm_tokens) != len(tmap.tokens):
+      raise ValueError('len(norm_tokens) != len(tmap.tokens)')
+
     for k in range(len(tmap)):
       span = tmap.map[k]
       if span[0] != span[1] > 0:
@@ -288,10 +291,6 @@ class CaseNormalizer:
         warnings.warn(msg)
 
     return norm_map
-
-  @staticmethod
-  def _assert_span_notempty(span):
-    assert span[0] - span[1] > 0
 
   def normalize_tokens(self, tokens: Tokens) -> Tokens:
     return replace_tokens(tokens, self.replacements_map)
