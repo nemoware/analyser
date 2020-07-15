@@ -3,7 +3,6 @@
 # coding=utf-8
 
 
-import json
 import os
 import pickle
 import re

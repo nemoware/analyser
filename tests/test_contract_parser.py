@@ -6,12 +6,10 @@
 import os
 import pickle
 import unittest
-import warnings
 
 from analyser.contract_parser import ContractParser, ContractDocument, nn_find_contract_value
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.documents import TextMap
-from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
 from analyser.parsing import AuditContext
 from analyser.protocol_parser import ProtocolDocument
@@ -60,7 +58,7 @@ class TestContractParser(unittest.TestCase):
   def _get_doc_factory_ctx(self, fn='2. Договор по благ-ти Радуга.docx.pickle'):
     doc, factory = self.get_doc(fn)
 
-    ctx = ContractParser(embedder={} )
+    ctx = ContractParser(embedder={})
     ctx.verbosity_level = 3
 
     return doc, factory, ctx
@@ -88,8 +86,6 @@ class TestContractParser(unittest.TestCase):
 
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
     print('print_semantic_tag:', tag, f"[{map.text_range(tag.span)}]", tag.parent)
-
-
 
 
 unittest.main(argv=['-e utf-8'], verbosity=3, exit=False)

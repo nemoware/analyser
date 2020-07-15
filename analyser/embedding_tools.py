@@ -1,4 +1,4 @@
-import warnings
+import logging
 from abc import abstractmethod
 
 import numpy as np
@@ -7,10 +7,9 @@ from analyser.documents import TextMap
 from analyser.hyperparams import work_dir
 from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
-import logging
-
 
 elmo_logger = logging.getLogger('elmo')
+
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   maxlen = 0
