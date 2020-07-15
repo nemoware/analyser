@@ -7,19 +7,25 @@
 import datetime
 import json
 import logging
+import warnings
+from enum import Enum
 
+import numpy as np
 from bson import json_util
 from overrides import final
+from pandas import DataFrame
 
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
-from analyser.documents import split_sentences_into_map, TextMap
+from analyser.documents import split_sentences_into_map, TextMap, CaseNormalizer
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.ml_tools import *
-from analyser.patterns import *
+from analyser.hyperparams import HyperParameters
+from analyser.ml_tools import SemanticTag, FixedVector, Embeddings, filter_values_by_key_prefix, rectifyed_sum, \
+  conditional_p_sum
+from analyser.patterns import DIST_FUNC, AbstractPatternFactory, make_pattern_attention_vector
 from analyser.structures import ContractTags
-from analyser.text_normalize import *
-from analyser.text_tools import *
+from analyser.text_normalize import normalize_text, replacements_regex
+from analyser.text_tools import find_token_before_index
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   ValueSpansFinder
 
@@ -28,20 +34,20 @@ REPORTED_DEPRECATED = {}
 
 
 class ParserWarnings(Enum):
-  org_name_not_found = 1,
-  org_type_not_found = 2,
-  org_struct_level_not_found = 3,
+  org_name_not_found = 1
+  org_type_not_found = 2
+  org_struct_level_not_found = 3
   date_not_found = 4
-  number_not_found = 5,
-  value_section_not_found = 7,
-  contract_value_not_found = 8,
-  subject_section_not_found = 6,
-  contract_subject_not_found = 9,
+  number_not_found = 5
+  value_section_not_found = 7
+  contract_value_not_found = 8
+  subject_section_not_found = 6
+  contract_subject_not_found = 9
 
-  protocol_agenda_not_found = 10,
+  protocol_agenda_not_found = 10
 
   boring_agenda_questions = 11
-  contract_subject_section_not_found = 12,
+  contract_subject_section_not_found = 12
 
   doc_too_big = 13
 
@@ -74,7 +80,7 @@ class LegalDocument:
     self.tokens_map_norm: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
-    self.paragraphs: List[Paragraph] = []
+    self.paragraphs: [Paragraph] = []
     self.name = name
 
     # subdocs
