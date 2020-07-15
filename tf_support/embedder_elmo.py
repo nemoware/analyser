@@ -28,7 +28,8 @@ class ElmoEmbedderWrapper(AbstractEmbedder):
     else:
       return self.instance.embedd_strings(tokens)
 
-  def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> np.ndarray:
+
+  def embedd_tokenized_text(self, words: [Tokens], text_lens: [int]) -> np.ndarray:
     return self.instance.embedd_tokenized_text(words, text_lens)
 
   def embedd_strings(self, strings: Tokens) -> np.ndarray:
@@ -90,7 +91,7 @@ class ElmoEmbedderImpl(AbstractEmbedder):
 
     return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
 
-  def embedd_tokenized_text(self, words: [Tokens], text_lens: List[int]) -> np.ndarray:
+  def embedd_tokenized_text(self, words: [Tokens], text_lens: [int]) -> np.ndarray:
     if self.session is None:
       self._build_session_and_graph()  # lazy init
 

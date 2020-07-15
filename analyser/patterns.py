@@ -173,47 +173,6 @@ class ExclusivePattern(CompoundPattern):
     return distances_per_pattern, ranges, winning_patterns
 
 
-class CoumpoundFuzzyPattern(CompoundPattern):
-  """
-  finds average
-  """
-
-  def __init__(self, name="no name"):
-    self.name = name
-    self.patterns = {}
-
-  def add_pattern(self, pat, weight=1.0):
-    assert pat is not None
-    self.patterns[pat] = weight
-
-  def find(self, text_ebd):
-    sums = self._find_patterns(text_ebd)
-
-    meaninful_sums = sums
-
-    min_i = min_index(meaninful_sums)
-    _min = sums[min_i]
-    _mean = meaninful_sums.mean()
-
-    # confidence = sums[min_i] / mean
-    sandard_deviation = np.std(meaninful_sums)
-    deviation_from_mean = abs(_min - _mean)
-    confidence = sandard_deviation / deviation_from_mean
-    return min_i, sums, confidence
-
-  def _find_patterns(self, text_ebd):
-    sums = np.zeros(len(text_ebd))
-    total_weight = 0
-    for p in self.patterns:
-      weight = self.patterns[p]
-      sp = p._find_patterns(text_ebd)
-
-      sums += sp * weight
-      total_weight += abs(weight)
-    # norm
-    sums /= total_weight
-    return sums
-
 
 class AbstractPatternFactory:
 

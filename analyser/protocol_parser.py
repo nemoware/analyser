@@ -32,9 +32,9 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolAV(Enum):
   '''AV fo Attention Vecotrs'''
-  bin_votes_attention = 1,
-  relu_deal_approval = 2,
-  digits_attention = 3,
+  bin_votes_attention = 1
+  relu_deal_approval = 2
+  digits_attention = 3
   relu_value_attention_vector = 4
 
 
@@ -181,10 +181,11 @@ class ProtocolParser(ParsingContext):
     doc.contract_numbers = self.find_contract_numbers(doc)
     doc.agents_tags = list(self.find_agents_in_all_sections(doc, doc.agenda_questions, ctx.audit_subsidiary_name))
 
-    self.validate(doc)
+    self.validate(doc, ctx)
     return doc
 
-  def validate(self, doc):
+  def validate(self, doc: ProtocolDocument, ctx: AuditContext):
+
     if not doc.agenda_questions:
       doc.warn(ParserWarnings.protocol_agenda_not_found)
 

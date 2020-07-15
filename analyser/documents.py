@@ -312,10 +312,8 @@ class CaseNormalizer:
 
 
 class GTokenizer:
-  def tokenize(self, s) -> Tokens:
-    raise NotImplementedError()
 
-  def untokenize(self, t: Tokens) -> str:
+  def tokenize(self, s) -> Tokens:
     raise NotImplementedError()
 
 

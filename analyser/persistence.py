@@ -24,7 +24,7 @@ class DbJsonDoc:
     self.__dict__.update(j)
 
     if self.state == DocumentState.New.value:
-      #reset user data, because it is bound to tokenisation map, re-tokenisation is possible
+      # reset user data, because it is bound to tokenisation map, re-tokenisation is possible
       self.user = None
       self.analysis = None
 
@@ -95,7 +95,7 @@ class DbJsonDoc:
       return False
 
     return ((self.analysis is not None) and (
-              self.analysis.get('attributes', None) is not None)) or self.is_user_corrected()
+            self.analysis.get('attributes', None) is not None)) or self.is_user_corrected()
 
   def get_attributes(self) -> dict:
     if self.user is not None:
@@ -104,11 +104,11 @@ class DbJsonDoc:
       attributes = self.analysis.get('attributes', {})
     return attributes
 
-  def get_subject(d) -> dict:
-    return d.get_attribute('subject')
+  def get_subject(self) -> dict:
+    return self.get_attribute('subject')
 
-  def get_attribute_value(d, attr) -> str or None:
-    a = d.get_attribute(attr)
+  def get_attribute_value(self, attr) -> str or None:
+    a = self.get_attribute(attr)
     if a is not None:
       return a['value']
     return None
@@ -116,8 +116,8 @@ class DbJsonDoc:
   def get_date_value(self) -> datetime.datetime or None:
     return self.get_attribute_value('date')
 
-  def get_attribute(d, attr) -> dict:
-    atts = d.get_attributes()
+  def get_attribute(self, attr) -> dict:
+    atts = self.get_attributes()
     if attr in atts:
       return atts[attr]
     else:

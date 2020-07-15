@@ -62,7 +62,7 @@ class AbstractEmbedder:
     raise NotImplementedError()
 
   @abstractmethod
-  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> Embeddings:
+  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
     raise NotImplementedError()
 
   @abstractmethod

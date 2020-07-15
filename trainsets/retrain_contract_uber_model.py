@@ -43,8 +43,6 @@ matplotlib.use('Agg')
 logger = logging.getLogger('retrain_contract_uber_model')
 logger.setLevel(logging.DEBUG)
 
-
-
 SAVE_PICKLES = False
 _DEV_MODE = False
 _EMBEDD = True
@@ -138,9 +136,9 @@ class UberModelTrainsetManager:
     embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
     tokens_map = d.get_tokens_for_embedding()
     embeddings = embedd_tokens(tokens_map,
-                             embedder,
-                             verbosity=2,
-                             log_key=f'id={_id} chs={tokens_map.get_checksum()}')
+                               embedder,
+                               verbosity=2,
+                               log_key=f'id={_id} chs={tokens_map.get_checksum()}')
 
     # doc.embedd_tokens(embedder)
 
@@ -181,7 +179,6 @@ class UberModelTrainsetManager:
 
     logger.info('obtaining DB connection: DONE')
     documents_collection = db['documents']
-
 
     # TODO: filter by version
     query = {
@@ -542,14 +539,14 @@ class UberModelTrainsetManager:
              [np.array(batch_output_sm), np.array(batch_output_subj)],
              [np.array(weights), np.array(weights_subj)])
 
-  def run(umtm):
-    umtm.export_docs_to_json()
-    umtm.import_recent_contracts()
+  def run(self):
+    self.export_docs_to_json()
+    self.import_recent_contracts()
 
-    umtm.calculate_samples_weights()
-    umtm.validate_trainset()
+    self.calculate_samples_weights()
+    self.validate_trainset()
 
-    umtm.train(umtm.make_generator)
+    self.train(self.make_generator)
 
 
 def export_updated_contracts_to_json(documents, work_dir):
@@ -627,7 +624,6 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
             x = data['epoch'][-100:]
             y = data[key][-100:]
 
-
             c = 'red'  # plt.cm.jet_r(i * colorstep)
             if metric_variant == '':
               c = 'blue'
@@ -646,13 +642,11 @@ def plot_compare_models(ctx, models: [str], metrics, image_save_path):
 
 
 if __name__ == '__main__':
-
   ch = logging.StreamHandler()
   ch.setLevel(logging.DEBUG)
   formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
   ch.setFormatter(formatter)
   logger.addHandler(ch)
-
 
   '''
   0. Read 'contract_trainset_meta.csv CSV, find the last datetime of export

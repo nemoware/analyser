@@ -39,9 +39,10 @@ class ParserWarnings(Enum):
   org_struct_level_not_found = 3
   date_not_found = 4
   number_not_found = 5
+  #6? what about 6
   value_section_not_found = 7
   contract_value_not_found = 8
-  subject_section_not_found = 6
+  subject_section_not_found = 6 #here it is
   contract_subject_not_found = 9
 
   protocol_agenda_not_found = 10
@@ -550,7 +551,6 @@ PARAGRAPH_DELIMITER = '\n'
 def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
   warnings.warn("use embedd_words", DeprecationWarning)
 
-  max_tokens = max_tokens
   if len(text_map) > max_tokens:
     return embedder.embedd_large(text_map, max_tokens, verbosity)
   else:
@@ -607,7 +607,7 @@ def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosit
   else:
     elmo_logger.debug(f'embedding doc {log_key}')
     if tokens_map_norm.tokens:
-      max_tokens = max_tokens
+
       if len(tokens_map_norm) > max_tokens:
         embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, verbosity)
       else:
