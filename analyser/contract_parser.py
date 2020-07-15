@@ -71,7 +71,7 @@ class ContractParser(ParsingContext):
     if contract.embeddings is None:
       contract.embedd_tokens(self.embedder)
 
-    semantic_map, subj_1hot = nn_predict(self.subject_prediction_model, contract)
+    semantic_map, _ = nn_predict(self.subject_prediction_model, contract)
 
     contract_full.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
                                                   audit_subsidiary_name=ctx.audit_subsidiary_name)

@@ -333,7 +333,7 @@ class CharterParser(ParsingContext):
     all_subjects = [k for k in subject_attentions_map.keys()]
     constraint_tags = []
     # attribute sentences to subject
-    for sentence_number, contract_value_sentence_span in enumerate(unique_sentence_spans, start=1):
+    for contract_value_sentence_span in unique_sentence_spans:
 
       max_confidence = 0
       best_subject = None
@@ -350,7 +350,6 @@ class CharterParser(ParsingContext):
       # end for
 
       if best_subject is not None:
-        # $number_key(best_subject, sentence_number),
         constraint_tag = SemanticTag(best_subject.name,
                                      best_subject,
                                      contract_value_sentence_span,
@@ -444,33 +443,15 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
   return _distances_per_subj
 
 
-def collect_subjects_spans(subdoc, subject_attentions_map, min_len=20):
-  spans = []
-  for subj in subject_attentions_map.keys():
-
-    subject_attention = subject_attentions_map[subj]
-    paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
-                                                                                           subject_attention,
-                                                                                           min_len=min_len,
-                                                                                           return_delimiters=False)
-    if confidence > HyperParameters.charter_subject_attention_confidence:
-      if paragraph_span not in spans:
-        spans.append(paragraph_span)
-
-  unique_sentence_spans = merge_colliding_spans(spans, eps=1)
-
-  return unique_sentence_spans
-
-
 def collect_subjects_spans2(subdoc, subject_attentions_map, min_len=20):
   spans = []
   for subj in subject_attentions_map.keys():
 
     subject_attention = subject_attentions_map[subj]
-    paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
-                                                                                           subject_attention,
-                                                                                           min_len=min_len,
-                                                                                           return_delimiters=False)
+    paragraph_span, confidence, _ = _find_most_relevant_paragraph(subdoc,
+                                                                  subject_attention,
+                                                                  min_len=min_len,
+                                                                  return_delimiters=False)
     if confidence > HyperParameters.charter_subject_attention_confidence:
       if paragraph_span not in spans:
         spans.append(paragraph_span)

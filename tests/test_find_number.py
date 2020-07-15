@@ -5,7 +5,6 @@ import re
 import unittest
 
 from analyser.doc_numbers import document_number_c, find_document_number_span
-from analyser.documents import TextMap
 from analyser.legal_docs import LegalDocument
 
 
@@ -22,7 +21,7 @@ class NumbersTestCase(unittest.TestCase):
     
     г. Санкт-Петербург 15-11-2048 год.'''
 
-    _number, finding_span = find_document_number_span(t)
+    _number, _ = find_document_number_span(t)
 
     self.assertEqual('ДП_79305_69072_30912', _number)
 
@@ -48,13 +47,13 @@ class NumbersTestCase(unittest.TestCase):
   def test_find_doc_number_N_g(self):
     t = 'ДОГОВОР чего-то-там N \n г. Санкт-Петербург    '
 
-    _number, finding_span = find_document_number_span(t)
+    _number, _ = find_document_number_span(t)
     self.assertEqual(None, _number)
 
   def test_find_doc_number_missing___(self):
     t = '''Одобрить сделку, связанную с заключением Дополнительного соглашения № ____ на ыдаче'''
 
-    _number, finding_span = find_document_number_span(t)
+    _number, _ = find_document_number_span(t)
     self.assertEqual(None, _number)
 
   def test_find_doc_number_no_dot(self):

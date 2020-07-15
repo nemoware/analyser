@@ -176,7 +176,7 @@ class PriceExtractTestCase(unittest.TestCase):
 
   def test_find_value_sign_c(self):
 
-    for (sign_expected, price, currency, vat, text) in data:
+    for (sign_expected, price, currency, _, text) in data:
       tm = TextMap(text)
       sign, span = find_value_sign(tm)
       if sign_expected:
@@ -188,7 +188,7 @@ class PriceExtractTestCase(unittest.TestCase):
 
   def test_extract(self):
     errorsc = 0
-    for (sign, value, currency, vat, text) in data:
+    for (_, value, currency, vat, text) in data:
 
       normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
       # print(f'text:            {text}')
@@ -293,7 +293,7 @@ class PriceExtractTestCase(unittest.TestCase):
         # self.assertTrue(len(ff)>0 )
 
   def test_split_by_number(self):
-    for (sign, price, currency, vat, text) in data:
+    for (_, _, _, _, text) in data:
 
       normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
       tm = TextMap(normal_text)

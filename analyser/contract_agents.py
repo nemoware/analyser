@@ -179,8 +179,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
             tag.confidence = confidence
             tag.offset(doc.start)
             ca.__dict__[kind] = tag
-      except IndexError as e:
-        # print(f'find_org_names_raw_by_re: exception {type(e)}, {e}')
+      except IndexError:
         pass
 
   # normalize org_name names by find_closest_org_name
@@ -202,7 +201,7 @@ def normalize_contract_agent(ca: ContractAgent):
 
   # normalize org_type names by find_closest_org_name
   if ca.type is not None:
-    long_, short_, confidence_ = normalize_legal_entity_type(ca.type.value)
+    long_, _, confidence_ = normalize_legal_entity_type(ca.type.value)
     ca.type.value = long_
     ca.type.confidence *= confidence_
 

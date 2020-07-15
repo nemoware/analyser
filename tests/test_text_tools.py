@@ -73,22 +73,22 @@ class TextToolsTestCase(unittest.TestCase):
 
   def test_find_best_sentence_end_0(self):
     x = 'ие? д'
-    be, char = find_best_sentence_end(x)
+    be, _ = find_best_sentence_end(x)
     self.assertEqual("ие?", x[:be])
 
   def test_find_best_sentence_end_1(self):
     x = 'ие. д'
-    be, char = find_best_sentence_end(x)
+    be, _ = find_best_sentence_end(x)
     self.assertEqual("ие.", x[:be])
 
   def test_find_best_sentence_end_2(self):
     x = 'ие) д'
-    be, char = find_best_sentence_end(x)
+    be, _ = find_best_sentence_end(x)
     self.assertEqual("ие)", x[:be])
 
   def test_find_best_sentence_end_3(self):
     x = 'ие) д!'
-    be, char = find_best_sentence_end(x)
+    be, _ = find_best_sentence_end(x)
     self.assertEqual("ие) д!", x[:be])
 
   def test_find_best_sentence_end_4(self):
