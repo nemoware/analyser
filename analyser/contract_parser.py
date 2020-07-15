@@ -80,28 +80,13 @@ class ContractParser(ParsingContext):
     contract_full.number = nn_get_contract_number(contract.tokens_map, semantic_map)
     contract_full.date = nn_get_contract_date(contract.tokens_map, semantic_map)
 
-    #
-    #
-    # # validating date & number position, date must go before any agents
-    #
-    # if contract.date is not None:
-    #   date_start = contract.date.span[0]
-    #   for at in contract.agents_tags:
-    #     if at.span[0] < date_start:
-    #       # date must go before companies names
-    #       contract.date = None
-    #
-    # if contract.number is not None:
-    #   number_start = contract.number.span[0]
-    #   for at in contract.agents_tags:
-    #     if at.span[0] < number_start:
-    #       # doc number must go before companies names
-    #       contract.number = None
-    #
-    #
+
     return contract_full
 
-  def validate(self, contract):
+
+  def validate(self, contract: ContractDocument, ctx: AuditContext):
+    contract.clear_warnings()
+
     if not contract.date:
       contract.warn(ParserWarnings.date_not_found)
 
@@ -126,16 +111,16 @@ class ContractParser(ParsingContext):
 
     self._reset_context()
 
-    self.find_org_date_number(contract, ctx)
-
-    # ------ lazy embedding
-    if contract.embeddings is None:
-      contract.embedd_tokens(self.embedder)
-
     _contract_cut = contract
     if len(contract) > HyperParameters.max_doc_size_tokens:
       contract.warn_trimmed(HyperParameters.max_doc_size_tokens)
       _contract_cut = contract[0:HyperParameters.max_doc_size_tokens]  # warning, trimming doc for analysis phase 1
+
+    # ------ lazy embedding
+    if _contract_cut.embeddings is None:
+      _contract_cut.embedd_tokens(self.embedder)
+
+    # self.find_org_date_number(_contract_cut, ctx)
 
     semantic_map, subj_1hot = nn_predict(self.subject_prediction_model, _contract_cut)
 
@@ -160,7 +145,7 @@ class ContractParser(ParsingContext):
     self._logstep("finding contract values")
     # --------------------------------------
 
-    self.validate(contract)
+    self.validate(contract, ctx)
 
     return contract
 

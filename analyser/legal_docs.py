@@ -86,6 +86,9 @@ class LegalDocument:
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
+  def clear_warnings(self):
+    self.warnings = []
+
   def warn(self, msg: ParserWarnings, comment: str = None):
     w = {}
     if comment:
@@ -95,7 +98,7 @@ class LegalDocument:
 
   def warn_trimmed(self, maxsize: int):
 
-    appx = f'Для анализа документ обрезан из соображений производительности, допустимая длинна -- {maxsize} символов ✂️'
+    appx = f'Для анализа документ обрезан из соображений производительности, допустимая длинна -- {maxsize} слов ✂️'
     wrn = f'{self._id}, {self.filename},  {appx}'
     logging.warning(wrn)
 
@@ -335,13 +338,6 @@ class LegalDocumentExt(LegalDocument):
 
 
 class DocumentJson:
-  @staticmethod
-  def from_json_dict(json_dict: dict) -> 'DocumentJson':
-
-    c = DocumentJson(None)
-    c.__dict__ = json_dict
-
-    return c
 
   @staticmethod
   def from_json_str(json_string: str) -> 'DocumentJson':

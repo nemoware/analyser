@@ -69,8 +69,9 @@ spaces_regex = [
   (re.compile(_bell), '\n'),
   (re.compile(r'\t'), ' '),
   (re.compile(r'[ ]{2}'), ' '),
-  (re.compile(r' '), ' ')  # this is not just space char! this is weird invisible symbol
+  (re.compile(r' '), ' '),  # this is not just space char! this is weird invisible symbol
 
+  (re.compile(r'№(?=\S)'), '№ ')
   # ,
   # (re.compile(r'\n{2}'), '\n')
 ]
@@ -160,6 +161,7 @@ fixtures_regex = [
 
   (re.compile(r'FORMTEXT'), ''),
   (re.compile(r''), ' ')  # ACHTUNG!! this is not just a space
+
 
 ]
 

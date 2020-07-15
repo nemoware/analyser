@@ -16,6 +16,7 @@ from analyser.structures import ORG_LEVELS_names
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
+from tf_support.embedder_elmo import ElmoEmbedder
 
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
@@ -129,14 +130,20 @@ class ProtocolParser(ParsingContext):
     patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
 
-  def ebmedd(self, doc: ProtocolDocument):
-    assert self.embedder is not None, 'call init_embedders first'
-    assert self.elmo_embedder_default is not None, 'call init_embedders first'
+  def embedd(self, doc: ProtocolDocument):
+    if self.embedder is None:
+      self.embedder = ElmoEmbedder.get_instance()
+
+    if self.elmo_embedder_default is None:
+      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
+
 
     ### ⚙️🔮 SENTENCES embedding
+    if doc.sentence_map is None:
+      doc.sentence_map = tokenize_doc_into_sentences_map(doc, HyperParameters.charter_sentence_max_len)
     doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
 
-    ### ⚙️🔮 WORDS Ebmedding
+    ### ⚙️🔮 WORDS Embedding
     doc.embedd_tokens(self.embedder)
 
     doc.calculate_distances_per_pattern(self.protocols_factory)
@@ -168,7 +175,7 @@ class ProtocolParser(ParsingContext):
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
 
     if doc.sentences_embeddings is None or doc.embeddings is None:
-      self.ebmedd(doc)  # lazy embedding
+      self.embedd(doc)  # lazy embedding
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_margin_values(doc)

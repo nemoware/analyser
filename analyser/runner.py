@@ -1,5 +1,7 @@
-import warnings
 import logging
+import traceback
+import warnings
+
 import pymongo
 from pymongo import CursorType
 
@@ -11,18 +13,20 @@ from analyser.legal_docs import LegalDocument
 from analyser.parsing import AuditContext
 from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import ProtocolParser
+from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
 from tf_support.embedder_elmo import ElmoEmbedder
 
-logger = logging.getLogger('runner')
+logger = logging.getLogger('root')
 
-
-logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
+logger.setLevel(logging.DEBUG)
+
 logger.addHandler(ch)
+
 
 class Runner:
   default_instance: 'Runner' = None
@@ -51,23 +55,20 @@ class Runner:
       Runner.default_instance = Runner(init_embedder=init_embedder)
     return Runner.default_instance
 
-  def make_legal_doc(self, db_document: dict):
-    parsed_p_json = db_document['parse']
-    jdoc = DbJsonDoc(db_document)
-    # save_analysis(db_document, legal_doc)
-    # TODO: do not ignore user-corrected attributes here
-    return jdoc.asLegalDoc()
-
 
 class BaseProcessor:
   parser = None
 
   def preprocess(self, db_document: dict, context: AuditContext):
     jdoc = DbJsonDoc(db_document)
-    legal_doc = jdoc.asLegalDoc()
-    Runner.get_instance()
-    self.parser.find_org_date_number(legal_doc, context)
-    save_analysis(jdoc, legal_doc, state=5)
+    if jdoc.is_user_corrected():
+      logger.info(f"skipping doc {jdoc._id} because it is corrected by user")
+      # TODO: update state?
+    else:
+      legal_doc = jdoc.asLegalDoc()
+      Runner.get_instance()
+      self.parser.find_org_date_number(legal_doc, context)
+      save_analysis(jdoc, legal_doc, state=DocumentState.Preprocessed.value)
 
   def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
     if db_document.retry_number is None:
@@ -79,34 +80,53 @@ class BaseProcessor:
 
     legal_doc = db_document.asLegalDoc()
     try:
-      # todo: remove find_org_date_number call
-      self.parser.find_org_date_number(legal_doc, context)
-      save_analysis(db_document, legal_doc, state=10)
-      if self.is_valid(legal_doc, audit, db_document.as_dict()):  # TODO: do not use as_dict
-        self.parser.find_attributes(legal_doc, context)
-        save_analysis(db_document, legal_doc, state=15)
-        logger.info(f'analysis saved, doc._id={legal_doc._id}' )
-      else:
-        save_analysis(db_document, legal_doc, 12)
-    except:
-      logger.critical(f'cant process document {db_document._id}')
 
-      save_analysis(db_document, legal_doc, 11, db_document.retry_number + 1)
+      # self.parser.find_org_date_number(legal_doc, context) # todo: remove this call
+      # save_analysis(db_document, legal_doc, state=DocumentState.InWork.value)
+
+      if self.is_valid(audit, db_document):
+
+        if db_document.is_user_corrected():
+          logger.info(f"skipping doc {db_document._id} postprocessing because it is corrected by user")
+        else:
+          self.parser.find_attributes(legal_doc, context)
+
+        save_analysis(db_document, legal_doc, state=DocumentState.Done.value)
+        logger.info(f'analysis saved, doc._id={legal_doc._id}')
+      else:
+        logger.info(f"excluding doc {db_document._id}")
+        save_analysis(db_document, legal_doc, state=DocumentState.Excluded.value)
+
+    except Exception as err:
+      traceback.print_tb(err.__traceback__)
+      logger.exception(f'cant process document {db_document._id}')
+      save_analysis(db_document, legal_doc, DocumentState.Error.value, db_document.retry_number + 1)
+
     return legal_doc
 
-  def is_valid(self, legal_doc, audit, db_document):
+  def is_valid(self, audit, db_document: DbJsonDoc):
     # date must be ok
-    if legal_doc.date is not None:
-      _date = legal_doc.date.value
-      date_is_ok = legal_doc.date is not None or audit["auditStart"] <= _date <= audit["auditEnd"]
+    _date = db_document.get_date_value()
+    if _date is not None:
+      date_is_ok = audit["auditStart"] <= _date <= audit["auditEnd"]
     else:
+      # if date not found, we keep processing the doc anyway
       date_is_ok = True
 
     # org filter must be ok
-    return ("* Все ДО" == audit["subsidiary"]["name"] or self.is_same_org(legal_doc, db_document,
-                                                                          audit["subsidiary"]["name"]) and date_is_ok)
+    _audit_subsidiary: str = audit["subsidiary"]["name"]
+    org_is_ok = ("* Все ДО" == _audit_subsidiary) or (self._same_org(db_document, _audit_subsidiary))
+
+    return org_is_ok and date_is_ok
+
+  def _same_org(self, db_doc: DbJsonDoc, subsidiary: str) -> bool:
+    o1: str = db_doc.get_attribute_value("org-1-name")
+    o2: str = db_doc.get_attribute_value("org-2-name")
+
+    return (subsidiary == o1) or (o2 == subsidiary)
 
   def is_same_org(self, legal_doc, db_doc, subsidiary):
+    warnings.warn("use _same_org", DeprecationWarning)
     if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"][
       "attributes"].get("org-1-name") is not None:
       if subsidiary == db_doc["user"]["attributes"]["org-1-name"]["value"]:
@@ -202,9 +222,9 @@ def run(run_pahse_2=True, kind=None):
     ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
 
     print('=' * 80)
-    print(f'.....processing audit {audit["_id"]}')
+    logger.info(f'.....processing audit {audit["_id"]}')
 
-    document_ids = get_docs_by_audit_id(audit["_id"], [0], kind=kind, id_only=True)
+    document_ids = get_docs_by_audit_id(audit["_id"], states=[DocumentState.New.value], kind=kind, id_only=True)
     for k, document_id in enumerate(document_ids):
       document = finalizer.get_doc_by_id(document_id["_id"])
       processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
@@ -225,7 +245,9 @@ def run(run_pahse_2=True, kind=None):
       print('=' * 80)
       print(f'.....processing audit {audit["_id"]}')
 
-      document_ids = get_docs_by_audit_id(audit["_id"], [5, 11], kind=kind, id_only=True)
+      document_ids = get_docs_by_audit_id(audit["_id"],
+                                          states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
+                                          kind=kind, id_only=True)
       for k, document_id in enumerate(document_ids):
         document = finalizer.get_doc_by_id(document_id["_id"])
 

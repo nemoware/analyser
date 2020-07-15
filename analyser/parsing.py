@@ -77,6 +77,9 @@ class ParsingContext(ParsingSimpleContext):
   def find_attributes(self, document: LegalDocument, ctx: AuditContext):
     raise NotImplementedError()
 
+  def validate(self, document: LegalDocument, ctx: AuditContext):
+    pass
+
 
 def profile(fn):
   @wraps(fn)

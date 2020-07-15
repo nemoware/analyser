@@ -11,6 +11,7 @@ from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
 from analyser.sections_finder import map_headlines_to_patterns
 from analyser.structures import *
 from analyser.transaction_values import number_re
+from tf_support.embedder_elmo import ElmoEmbedder
 
 WARN = '\033[1;31m'
 
@@ -191,7 +192,10 @@ class CharterParser(ParsingContext):
     self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
   def _ebmedd(self, doc: CharterDocument):
-    assert self.elmo_embedder_default is not None, 'call init_embedders first'
+
+    if self.elmo_embedder_default is None:
+      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
+
     ### ⚙️🔮 SENTENCES embedding
     doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,

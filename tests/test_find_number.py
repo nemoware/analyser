@@ -5,9 +5,17 @@ import re
 import unittest
 
 from analyser.doc_numbers import document_number_c, find_document_number_span
+from analyser.documents import TextMap
+from analyser.legal_docs import LegalDocument
 
 
 class NumbersTestCase(unittest.TestCase):
+
+  def test_fix_number(self):
+    txt = 'ДОГОВОР №ЭЮС-10701/17 на '
+    tm = LegalDocument(txt).parse()
+    self.assertEqual('№', tm.tokens[1])
+    print(tm.tokens)
 
   def test_find_doc_number_underscores(self):
     t = '''ДОГОВОР ПОСТАВКИ № ДП_79305_69072_30912

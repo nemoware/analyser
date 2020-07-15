@@ -1,35 +1,44 @@
-import logging
+import datetime
 
 import numpy as np
 
 from analyser.documents import TextMap, CaseNormalizer
 from analyser.legal_docs import Paragraph
 from analyser.ml_tools import SemanticTag
-from integration.word_document_parser import join_paragraphs
+from analyser.structures import DocumentState
+from integration.word_document_parser import join_paragraphs, create_doc_by_type
 
 
 class DbJsonDoc:
 
   def __init__(self, j: dict):
     self.analysis = None
+    self.user = None
+
     self.state: int = -1
     self.parse = None
     self.filename = None
-    self.user = None
+
     self._id = None
     self.retry_number: int = 0
     self.__dict__.update(j)
 
+    if self.state == DocumentState.New.value:
+      #reset user data, because it is bound to tokenisation map, re-tokenisation is possible
+      self.user = None
+      self.analysis = None
+
   def asLegalDoc(self):
-    doc = join_paragraphs(self.parse, self._id, filename=self.filename)
-    if self.analysis is not None and ('normal_text' in self.analysis):
+
+    if self.is_analyzed():
+      # attributes are bound to an existing tokens map
+      # -->  preserve saved tokenization
+      doc = create_doc_by_type(self.parse['documentType'], self._id, filename=self.filename)
 
       doc.tokens_map_norm = self.get_tokens_for_embedding()
       doc.tokens_map = self.get_tokens_map_unchaged()
-
-      if len(doc.tokens_map_norm) != len(doc.tokens_map):
-        msg = f'{doc._id} has wrong tokenization: len(doc.tokens_map_norm)={len(doc.tokens_map_norm)}; len( doc.tokens_map)={len(doc.tokens_map)} '
-        logging.error(msg)
+      if 'sentence_map' in doc.__dict__:
+        doc.sentence_map = self.get_sentence_map()
 
       headers = self.analysis.get('headers', None)
       if headers is not None:
@@ -45,13 +54,24 @@ class DbJsonDoc:
 
           para = Paragraph(header_tag, body_tag)
           doc.paragraphs.append(para)
+    else:
+      # re-combine parser data
+      doc = join_paragraphs(self.parse, self._id, filename=self.filename)
+      pass
 
+    doc.user = self.user
     return doc
 
   def get_tokens_map_unchaged(self):
     _map = self.analysis['tokenization_maps']['words']
     tokens_map = TextMap(self.analysis['normal_text'], _map)
     return tokens_map
+
+  def get_sentence_map(self):
+    if 'sentences' in self.analysis['tokenization_maps']:
+      _map = self.analysis['tokenization_maps']['sentences']
+      tokens_map = TextMap(self.analysis['normal_text'], _map)
+      return tokens_map
 
   def get_tokens_for_embedding(self):
     _tokens_map = self.get_tokens_map_unchaged()
@@ -65,23 +85,38 @@ class DbJsonDoc:
     arrr = self.analysis['tokenization_maps']['words']
     return len(arrr)
 
+  def is_user_corrected(self) -> bool:
+    if self.state == DocumentState.New.value:
+      return False
+    return self.user is not None and self.user.get('attributes', None) is not None
+
+  def is_analyzed(self) -> bool:
+    if self.state == DocumentState.New.value:
+      return False
+
+    return ((self.analysis is not None) and (
+              self.analysis.get('attributes', None) is not None)) or self.is_user_corrected()
+
   def get_attributes(self) -> dict:
     if self.user is not None:
-      attributes = self.user['attributes']
+      attributes = self.user.get('attributes', {})
     else:
-      attributes = self.analysis['attributes']
+      attributes = self.analysis.get('attributes', {})
     return attributes
 
-  def get_subject(d):
+  def get_subject(d) -> dict:
     return d.get_attribute('subject')
 
-  def get_attribute_value(d, attr):
+  def get_attribute_value(d, attr) -> str or None:
     a = d.get_attribute(attr)
     if a is not None:
       return a['value']
     return None
 
-  def get_attribute(d, attr):
+  def get_date_value(self) -> datetime.datetime or None:
+    return self.get_attribute_value('date')
+
+  def get_attribute(d, attr) -> dict:
     atts = d.get_attributes()
     if attr in atts:
       return atts[attr]

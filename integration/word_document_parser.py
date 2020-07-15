@@ -1,11 +1,11 @@
 import json
+import logging
 import os
 import subprocess
 import warnings
 
 from analyser.charter_parser import CharterDocument
 from analyser.contract_parser import ContractDocument
-from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
 from analyser.ml_tools import SemanticTag
 from analyser.protocol_parser import ProtocolDocument
@@ -46,25 +46,36 @@ class WordDocParser(DirDocProvider):
     return json.loads(result.stdout)
 
 
+def create_doc_by_type(t: str, doc_id, filename) -> CharterDocument or ContractDocument or ProtocolDocument:
+  # TODO: check type of res
+
+
+
+  if t == 'CONTRACT':
+    doc: LegalDocument = ContractDocument('')
+  elif t == 'PROTOCOL':
+    doc: LegalDocument = ProtocolDocument()
+  elif t == 'CHARTER':
+    doc: LegalDocument = CharterDocument()
+  else:
+    logging.warning(f"Unsupported document type: {t}")
+    doc: LegalDocument = LegalDocument('')
+
+  doc._id = doc_id
+  doc.filename = filename
+
+  doc.parse()
+  return doc
+
+
 def join_paragraphs(response, doc_id, filename=None) -> CharterDocument or ContractDocument or ProtocolDocument:
   # TODO: check type of res
 
-  if response['documentType'] == 'CONTRACT':
-    doc: LegalDocument = ContractDocument('')
-  elif response['documentType'] == 'PROTOCOL':
-    doc: LegalDocument = ProtocolDocument()
-  elif response['documentType'] == 'CHARTER':
-    doc: LegalDocument = CharterDocument()
-  else:
-    msg = f"Unsupported document type: {response['documentType']}"
-    warnings.warn(msg)
-    doc: LegalDocument = LegalDocument('')
+  doc = create_doc_by_type(response['documentType'], doc_id, filename)
 
-  doc.parse()
-
-  fields = ['documentNumber', 'documentType']
+  fields = ['documentType']
   for key in fields:
-    doc.__dict__[key] = response[key]
+    doc.__setattr__(key, response.get(key, None))
 
   last = 0
   # remove empty headers
@@ -103,11 +114,7 @@ def join_paragraphs(response, doc_id, filename=None) -> CharterDocument or Contr
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
 
-  doc._id = doc_id
-  if filename is not None:
-    doc.filename = filename
-  else:
-    doc.filename = doc_id
+
 
   return doc
 

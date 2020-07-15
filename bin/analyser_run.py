@@ -2,6 +2,17 @@
 import os
 import time
 import logging
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+
+logger = logging.getLogger('root')
+logger.addHandler(ch)
+
+
+
 import schedule
 
 from analyser import runner
@@ -24,12 +35,6 @@ def main():
 
 
 if __name__ == '__main__':
-  ch = logging.StreamHandler()
-  ch.setLevel(logging.DEBUG)
-  # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-  # ch.setFormatter(formatter)
 
-  logger = logging.getLogger()
-  logger.addHandler(ch)
 
   main()

@@ -49,6 +49,21 @@ class DisplayStringEnumMeta(EnumMeta):
 
 
 @unique
+class DocumentState(Enum):
+
+  New = 0
+
+  Preprocessed = 5
+  InWork = 10
+
+  Excluded = 12
+  Error = 11
+
+  Done = 15
+
+
+
+@unique
 class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
   # TODO: define per org_types
 
