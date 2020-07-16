@@ -1,5 +1,9 @@
 import re
+import warnings
+from enum import Enum
 from typing import Iterator
+
+from textdistance import jaro
 
 from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
   ContractAgent, _rename_org_tags, protocol_caption_complete_re, protocol_caption_complete_re_ignore_case
@@ -7,12 +11,17 @@ from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import document_number_c, find_document_number_in_subdoc
 from analyser.documents import sentences_attention_to_words
 from analyser.embedding_tools import AbstractEmbedder
+from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings, \
   LegalDocumentExt
-from analyser.ml_tools import *
+from analyser.ml_tools import SemanticTag, calc_distances_per_pattern_dict, max_confident_tags, \
+  max_exclusive_pattern_by_prefix, relu, sum_probabilities, best_above, smooth_safe, spans_between_non_zero_attention, \
+  FixedVector, estimate_confidence_by_mean_top_non_zeros
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
-from analyser.patterns import *
-from analyser.structures import ORG_LEVELS_names
+from analyser.patterns import AbstractPatternFactory, FuzzyPattern, create_value_negation_patterns, \
+  create_value_patterns
+
+from analyser.structures import ORG_LEVELS_names, OrgStructuralLevel
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
@@ -358,9 +367,9 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     self.embedd(embedder)
 
 
-def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
+def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
   ret = []
-  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words], max_names=1,
+  x: [SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words], max_names=1,
                                         regex=protocol_caption_complete_re,
                                         re_ignore_case=protocol_caption_complete_re_ignore_case)
 

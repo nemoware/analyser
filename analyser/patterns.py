@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import random
+import warnings
+
+import numpy as np
 
 from analyser.documents import CaseNormalizer
 from analyser.structures import OrgStructuralLevel, ContractSubject
-from analyser.text_tools import *
+from analyser.text_tools import dist_mean_cosine, min_index, Tokens
 from analyser.transaction_values import ValueConstraint
 
-load_punkt = False
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
@@ -173,11 +175,10 @@ class ExclusivePattern(CompoundPattern):
     return distances_per_pattern, ranges, winning_patterns
 
 
-
 class AbstractPatternFactory:
 
   def __init__(self):
-    self.patterns: List[FuzzyPattern] = []
+    self.patterns: [FuzzyPattern] = []
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
@@ -199,8 +200,6 @@ class AbstractPatternFactory:
 
     for i in range(len(patterns_emb)):
       self.patterns[i].set_embeddings(patterns_emb[i], regions[i])
-
-
 
   def average_embedding_pattern(self, pattern_prefix):
     av_emb = None
@@ -301,7 +300,7 @@ class PatternMatch():
       'subj': ContractSubject.Other,
       'confidence': 0
     }
-    self.constraints: List[ValueConstraint] = []
+    self.constraints: [ValueConstraint] = []
     self.region: slice = region
     self.confidence: float = 0
     self.pattern_prefix: str = None
@@ -338,7 +337,7 @@ class PatternSearchResult(PatternMatch):
 class ConstraintsSearchResult:
   def __init__(self):
     warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
-    self.constraints: List[ValueConstraint] = []
+    self.constraints: [ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
   def get_context(self) -> PatternSearchResult:  # alias
@@ -348,7 +347,7 @@ class ConstraintsSearchResult:
   context = property(get_context)
 
 
-PatternSearchResults = List[PatternSearchResult]
+PatternSearchResults = [PatternSearchResult]
 
 
 def create_value_negation_patterns(f: AbstractPatternFactory, name='not_sum_'):

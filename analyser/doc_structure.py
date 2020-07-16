@@ -1,7 +1,7 @@
 import re
 
-from analyser.ml_tools import *
-from analyser.text_tools import *
+from analyser.ml_tools import FixedVector
+from analyser.text_tools import roman_might_be, Tokens, string_to_ip
 
 
 def _count_start_whitespace(tokens: Tokens) -> int:
@@ -62,7 +62,7 @@ def get_tokenized_line_number(tokens: Tokens, last_level):
   return None, (0, 0), last_level, False
 
 
-def remove_similar_indexes_considering_weights(indexes: List[int], weights: FixedVector) -> List[int]:
+def remove_similar_indexes_considering_weights(indexes: [int], weights: FixedVector) -> [int]:
   hif = []
 
   def is_index_far(i):

@@ -1,6 +1,8 @@
 import unittest
 
-from analyser.patterns import *
+import numpy as np
+
+from analyser.patterns import ExclusivePattern, FuzzyPattern
 
 
 class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
@@ -40,7 +42,6 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
     print("ranges")
     print(ranges)
-
 
   def test_eval_distances(self):
     point1 = [1, 3]
@@ -127,8 +128,6 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     # self.assertGreater(distances[0], distances[2])
     #
     # self.assertEqual(2, np.argmin(distances))
-
-
 
   def test_etimate_confidence(self):
     from analyser.ml_tools import estimate_confidence
