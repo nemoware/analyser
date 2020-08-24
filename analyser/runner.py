@@ -84,7 +84,7 @@ class BaseProcessor:
       # self.parser.find_org_date_number(legal_doc, context) # todo: remove this call
       # save_analysis(db_document, legal_doc, state=DocumentState.InWork.value)
 
-      if self.is_valid(audit, db_document):
+      if audit is None or self.is_valid(audit, db_document):
 
         if db_document.is_user_corrected():
           logger.info(f"skipping doc {db_document._id} postprocessing because it is corrected by user")
@@ -214,7 +214,7 @@ def change_audit_status(audit, status):
 
 def need_analysis(document) -> bool:
   return document["parse"]["documentType"] != "CHARTER" or (document["parserResponseCode"] == 200 and
-    document.get("user") is None and (document.get("isActive") is None or document["isActive"]))
+    (document.get("isActive") is None or document["isActive"]))
 
 
 def run(run_pahse_2=True, kind=None):
@@ -240,6 +240,15 @@ def run(run_pahse_2=True, kind=None):
       if processor is not None and need_analysis(document) and (document.get("state") == DocumentState.New.value or document.get("state") is None):
         print(f'......pre-processing {k} of {len(document_ids)}  {document["parse"]["documentType"]} {document["_id"]}')
         processor.preprocess(db_document=document, context=ctx)
+
+  charters = get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
+  for k, document in enumerate(charters):
+    processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
+    if processor is not None and document.get("subsidiary") is not None:
+      print(f'......pre-processing {k} of {len(charters)}  {document["parse"]["documentType"]} {document["_id"]}')
+      ctx = AuditContext()
+      ctx.audit_subsidiary_name = document["subsidiary"]["name"]
+      processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:
     # phase 2
@@ -271,6 +280,17 @@ def run(run_pahse_2=True, kind=None):
           processor.process(jdoc, audit, ctx)
 
       change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
+
+    charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value], kind="CHARTER")
+    for k, document in enumerate(charters):
+      processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
+      if processor is not None and document.get("subsidiary") is not None:
+        jdoc = DbJsonDoc(document)
+        print(f'......processing  {k} of {len(charters)}   {document["parse"]["documentType"]} {document["_id"]}')
+        ctx = AuditContext()
+        ctx.audit_subsidiary_name = document["subsidiary"]["name"]
+        processor.process(jdoc, audit=None, context=ctx)
+
   else:
     warnings.warn("phase 2 is skipped")
 
