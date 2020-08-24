@@ -399,6 +399,37 @@ def check_contract(contract, charters, protocols, audit):
     return violations
 
 
+def exclude_same_charters(charters):
+    result = []
+    date_map = {}
+    for charter in charters:
+        if get_attrs(charter).get("date") is not None:
+            charter_date = get_attrs(charter)["date"]["value"]
+            same_charters = date_map.get(charter_date)
+            if same_charters is None:
+                date_map[charter_date] = [charter]
+            else:
+                same_charters.append(charter)
+
+    for date, same_charters in date_map.items():
+        if len(same_charters) == 1:
+            result.append(same_charters[0])
+        else:
+            best = same_charters[0]
+            for charter in same_charters[1:]:
+                if charter.get("user") is not None:
+                    if best.get("user") is not None:
+                        if charter["user"]["updateDate"] > best["user"]["updateDate"]:
+                            best = charter
+                    else:
+                        best = charter
+                else:
+                    if best.get("user") is None and best["analysis"]["analyze_timestamp"] > charter["analysis"]["analyze_timestamp"]:
+                        best = charter
+            result.append(best)
+    return result
+
+
 def finalize():
     audits = get_audits()
     for audit in audits:
@@ -408,7 +439,14 @@ def finalize():
         print(f'.....finalizing audit {audit["_id"]}')
         violations = []
         contract_ids = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT", id_only=True)
-        charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
+        charters = []
+        if audit.get("charters") is not None:
+            for charter_id in audit["charters"]:
+                charter = get_doc_by_id(charter_id)
+                if (charter.get("isActive") is None or charter["isActive"]) and charter["state"] == 15:
+                    charters.append(charter)
+            cleaned_charters = exclude_same_charters(charters)
+            charters = sorted(cleaned_charters, key=lambda k: get_attrs(k)["date"]["value"])
         protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL", without_large_fields=True)
 
         for contract_id in contract_ids:

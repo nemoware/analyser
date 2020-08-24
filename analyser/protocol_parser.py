@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Iterator
 
 from textdistance import jaro
+from pyjarowinkler import distance
 
 from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
   ContractAgent, _rename_org_tags, protocol_caption_complete_re, protocol_caption_complete_re_ignore_case
@@ -392,7 +393,7 @@ def closest_name(pattern: str, knowns: [str]) -> (str, int):
   min_distance = 0
   found = None
   for b in knowns:
-    d = jaro.get_jaro_distance(pattern, b, winkler=True, scaling=0.1)
+    d = distance.get_jaro_distance(pattern, b, winkler=True, scaling=0.1)
     if d > min_distance:
       found = b
       min_distance = d
