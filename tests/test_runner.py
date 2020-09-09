@@ -44,8 +44,8 @@ class TestRunner(unittest.TestCase):
     for audit in audits:
       doc_ids = get_docs_by_audit_id(audit['_id'], kind=kind, states=[15], id_only=True)
       if len(doc_ids) > 0:
-        print(doc_ids[0]['_id'])
-        doc = finalizer.get_doc_by_id(doc_ids[0]['_id'])
+        print(doc_ids[0])
+        doc = finalizer.get_doc_by_id(doc_ids[0])
         # jdoc = DbJsonDoc(doc)
         yield doc
 
