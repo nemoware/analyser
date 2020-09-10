@@ -244,10 +244,9 @@ def run(run_pahse_2=True, kind=None):
   charters = get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
   for k, document in enumerate(charters):
     processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
-    if processor is not None and document.get("subsidiary") is not None:
+    if processor is not None:
       print(f'......pre-processing {k} of {len(charters)}  {document["parse"]["documentType"]} {document["_id"]}')
       ctx = AuditContext()
-      ctx.audit_subsidiary_name = document["subsidiary"]["name"]
       processor.preprocess(db_document=document, context=ctx)
 
   if run_pahse_2:
@@ -284,11 +283,10 @@ def run(run_pahse_2=True, kind=None):
     charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value], kind="CHARTER")
     for k, document in enumerate(charters):
       processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
-      if processor is not None and document.get("subsidiary") is not None:
+      if processor is not None:
         jdoc = DbJsonDoc(document)
         print(f'......processing  {k} of {len(charters)}   {document["parse"]["documentType"]} {document["_id"]}')
         ctx = AuditContext()
-        ctx.audit_subsidiary_name = document["subsidiary"]["name"]
         processor.process(jdoc, audit=None, context=ctx)
 
   else:
