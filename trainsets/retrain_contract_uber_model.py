@@ -23,6 +23,7 @@ from pandas import DataFrame
 from pymongo import ASCENDING
 from sklearn.metrics import classification_report
 
+from analyser.documents import TextMap
 from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
 from analyser.hyperparams import work_dir as default_work_dir
@@ -102,14 +103,22 @@ class UberModelTrainsetManager:
     self.work_dir: str = work_dir
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
-  def save_contract_data_arrays(self, db_json_doc: DbJsonDoc, embeddings, id_override=None):
-    # TODO: why same doc twice in arguments??
+  def save_contract_data_arrays(self, db_json_doc: DbJsonDoc, id_override=None):
+    # TODO: trim long documens according to contract parser
+
     id_ = db_json_doc._id
     if id_override is not None:
       id_ = id_override
 
-    token_features = get_tokens_features(db_json_doc.get_tokens_map_unchaged().tokens)
-    semantic_map = _get_semantic_map(db_json_doc, 1.0)
+    embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
+
+    tokens_map: TextMap = db_json_doc.get_tokens_for_embedding()
+    embeddings = embedd_tokens(tokens_map,
+                               embedder,
+                               log_key=f'id={id_} chs={tokens_map.get_checksum()}')
+
+    token_features: DataFrame = get_tokens_features(db_json_doc.get_tokens_map_unchaged().tokens)
+    semantic_map:DataFrame = _get_semantic_map(db_json_doc, 1.0)
 
     if embeddings.shape[0] != token_features.shape[0]:
       msg = f'{id_} embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
@@ -126,23 +135,8 @@ class UberModelTrainsetManager:
   def save_contract_datapoint(self, d: DbJsonDoc):
     _id = str(d._id)
 
-    # if not _DEV_MODE and _EMBEDD:
-    fn = self._dp_fn(_id, 'embeddings')
-    # if os.path.isfile(fn):
-    #   print(f'skipping embedding doc {_id} ...., {fn} exits')
-    #   embeddings = np.load(fn)
-    # else:
-    #   print(f'embedding doc {_id} ....')
-    embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
-    tokens_map = d.get_tokens_for_embedding()
-    embeddings = embedd_tokens(tokens_map,
-                               embedder,
-                               verbosity=2,
-                               log_key=f'id={_id} chs={tokens_map.get_checksum()}')
 
-    # doc.embedd_tokens(embedder)
-
-    self.save_contract_data_arrays(d, embeddings)
+    self.save_contract_data_arrays(d)
 
     stats = self.stats  # shortcut
 

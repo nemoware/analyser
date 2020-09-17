@@ -62,18 +62,18 @@ class DbJsonDoc:
     doc.user = self.user
     return doc
 
-  def get_tokens_map_unchaged(self):
+  def get_tokens_map_unchaged(self) -> TextMap:
     _map = self.analysis['tokenization_maps']['words']
     tokens_map = TextMap(self.analysis['normal_text'], _map)
     return tokens_map
 
-  def get_sentence_map(self):
+  def get_sentence_map(self) -> TextMap:
     if 'sentences' in self.analysis['tokenization_maps']:
       _map = self.analysis['tokenization_maps']['sentences']
       tokens_map = TextMap(self.analysis['normal_text'], _map)
       return tokens_map
 
-  def get_tokens_for_embedding(self):
+  def get_tokens_for_embedding(self) -> TextMap:
     _tokens_map = self.get_tokens_map_unchaged()
     tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(_tokens_map)
     return tokens_map_norm
