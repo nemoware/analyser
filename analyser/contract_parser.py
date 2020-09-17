@@ -60,6 +60,7 @@ class ContractParser(ParsingContext):
     self.subject_prediction_model = load_subject_detection_trained_model()
 
   def init_embedders(self, embedder, elmo_embedder_default):
+    warnings.warn('init_embedders will be removed', DeprecationWarning)
     self.embedder = embedder
 
   def find_org_date_number(self, contract_full: ContractDocument, ctx: AuditContext) -> ContractDocument:
@@ -80,9 +81,7 @@ class ContractParser(ParsingContext):
     contract_full.number = nn_get_contract_number(contract.tokens_map, semantic_map)
     contract_full.date = nn_get_contract_date(contract.tokens_map, semantic_map)
 
-
     return contract_full
-
 
   def validate(self, contract: ContractDocument, ctx: AuditContext):
     contract.clear_warnings()
@@ -281,6 +280,6 @@ def nn_get_tag_value(tagname: str, textmap: TextMap, semantic_map: DataFrame, th
     return tag
   return None
 
-def nn_fix_span(tag:SemanticTag):
 
+def nn_fix_span(tag: SemanticTag):
   return tag

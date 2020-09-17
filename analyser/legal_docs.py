@@ -283,10 +283,9 @@ class LegalDocument:
     return self.subdoc_slice(_s)
 
   @final
-  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
+  def embedd_tokens(self, embedder: AbstractEmbedder, max_tokens=8000):
     self.embeddings = embedd_tokens(self.tokens_map_norm,
                                     embedder,
-                                    verbosity=verbosity,
                                     max_tokens=max_tokens,
                                     log_key=self._id)
 
@@ -548,11 +547,11 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 PARAGRAPH_DELIMITER = '\n'
 
 
-def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
+def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='', max_tokens=100):
   warnings.warn("use embedd_words", DeprecationWarning)
 
   if len(text_map) > max_tokens:
-    return embedder.embedd_large(text_map, max_tokens, verbosity)
+    return embedder.embedd_large(text_map, max_tokens, log_addon)
   else:
     return embedder.embedd_tokens(text_map.tokens)
 
@@ -597,7 +596,7 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
   return av
 
 
-def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000, log_key=''):
+def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, max_tokens=8000, log_key=''):
   ch = tokens_map_norm.get_checksum()
 
   _cached = embedder.get_cached_embedding(ch)
@@ -605,11 +604,11 @@ def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosit
     elmo_logger.debug(f'getting embedding from cache {log_key}')
     return _cached
   else:
-    elmo_logger.debug(f'embedding doc {log_key}')
+    elmo_logger.info(f'embedding doc {log_key}')
     if tokens_map_norm.tokens:
 
       if len(tokens_map_norm) > max_tokens:
-        embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, verbosity)
+        embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, log_key)
       else:
         embeddings = embedder.embedd_tokens(tokens_map_norm.tokens)
 
