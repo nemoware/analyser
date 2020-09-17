@@ -182,6 +182,8 @@ class CharterParser(ParsingContext):
       self.init_embedders(embedder, elmo_embedder_default)
 
   def init_embedders(self, embedder, elmo_embedder_default):
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
+                  DeprecationWarning)
     self.embedder = embedder
     self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
 
@@ -191,15 +193,6 @@ class CharterParser(ParsingContext):
     __patterns_embeddings = elmo_embedder_default.embedd_strings(self.patterns_dict.values[0])
     self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
-  def _ebmedd(self, doc: CharterDocument):
-
-    if self.elmo_embedder_default is None:
-      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
-
-    ### ⚙️🔮 SENTENCES embedding
-    doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
-    doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
-                                                                         self.patterns_named_embeddings)
 
   def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
@@ -208,12 +201,24 @@ class CharterParser(ParsingContext):
     :param charter:
     :return:
     """
-    # TODO move this call from here to CharterDoc
-    charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
+
     charter.org_tags = find_charter_org(charter)
     charter.date = find_document_date(charter)
 
     return charter
+
+  def _embedd(self, charter: CharterDocument):
+
+    if self.elmo_embedder_default is None:
+      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
+
+    ### ⚙️🔮 SENTENCES embedding
+    # TODO move this call from here to CharterDoc
+    charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
+    charter.sentences_embeddings = embedd_sentences(charter.sentence_map, self.elmo_embedder_default)
+    charter.distances_per_sentence_pattern_dict = calc_distances_per_pattern(charter.sentences_embeddings,
+                                                                         self.patterns_named_embeddings)
+
 
   def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
     margin_values = []
@@ -221,7 +226,7 @@ class CharterParser(ParsingContext):
     constraint_tags = []
     if _charter.sentences_embeddings is None:
       # lazy embedding
-      self._ebmedd(_charter)
+      self._embedd(_charter)
 
     # reset for preventing tags doubling
     _charter.reset_attributes()

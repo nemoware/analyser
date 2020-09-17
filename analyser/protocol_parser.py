@@ -133,9 +133,12 @@ class ProtocolParser(ParsingContext):
       self.init_embedders(embedder, elmo_embedder_default)
 
   def init_embedders(self, embedder, elmo_embedder_default):
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
+                  DeprecationWarning)
     self.embedder = embedder
     self.elmo_embedder_default = elmo_embedder_default
 
+    # TODO: init factory earlier
     self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
     patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
     self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)

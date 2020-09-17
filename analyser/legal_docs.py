@@ -6,7 +6,7 @@
 # legal_docs.py
 import datetime
 import json
-import logging
+
 import warnings
 from enum import Enum
 
@@ -20,6 +20,7 @@ from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import split_sentences_into_map, TextMap, CaseNormalizer
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import HyperParameters
+from analyser.log import logger
 from analyser.ml_tools import SemanticTag, FixedVector, Embeddings, filter_values_by_key_prefix, rectifyed_sum, \
   conditional_p_sum
 from analyser.patterns import DIST_FUNC, AbstractPatternFactory, make_pattern_attention_vector
@@ -29,7 +30,6 @@ from analyser.text_tools import find_token_before_index
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   ValueSpansFinder
 
-elmo_logger = logging.getLogger('elmo')
 REPORTED_DEPRECATED = {}
 
 
@@ -39,10 +39,10 @@ class ParserWarnings(Enum):
   org_struct_level_not_found = 3
   date_not_found = 4
   number_not_found = 5
-  #6? what about 6
+  # 6? what about 6
   value_section_not_found = 7
   contract_value_not_found = 8
-  subject_section_not_found = 6 #here it is
+  subject_section_not_found = 6  # here it is
   contract_subject_not_found = 9
 
   protocol_agenda_not_found = 10
@@ -107,7 +107,7 @@ class LegalDocument:
 
     appx = f'Для анализа документ обрезан из соображений производительности, допустимая длинна -- {maxsize} слов ✂️'
     wrn = f'{self._id}, {self.filename},  {appx}'
-    logging.warning(wrn)
+    logger.warning(wrn)
 
     self.warn(ParserWarnings.doc_too_big, appx)
 
@@ -550,6 +550,10 @@ PARAGRAPH_DELIMITER = '\n'
 def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='', max_tokens=100):
   warnings.warn("use embedd_words", DeprecationWarning)
 
+  if text_map is None:
+    # https://github.com/nemoware/analyser/issues/224
+    raise ValueError('text_map must not be None')
+
   if len(text_map) > max_tokens:
     return embedder.embedd_large(text_map, max_tokens, log_addon)
   else:
@@ -601,10 +605,10 @@ def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, max_toke
 
   _cached = embedder.get_cached_embedding(ch)
   if _cached is not None:
-    elmo_logger.debug(f'getting embedding from cache {log_key}')
+    logger.debug(f'getting embedding from cache {log_key}')
     return _cached
   else:
-    elmo_logger.info(f'embedding doc {log_key}')
+    logger.info(f'embedding doc {log_key}')
     if tokens_map_norm.tokens:
 
       if len(tokens_map_norm) > max_tokens:

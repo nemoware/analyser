@@ -1,4 +1,4 @@
-import logging
+from analyser.log import logger
 import traceback
 import warnings
 
@@ -17,15 +17,9 @@ from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
 from tf_support.embedder_elmo import ElmoEmbedder
 
-logger = logging.getLogger('root')
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.setLevel(logging.DEBUG)
 
-logger.addHandler(ch)
+
 
 
 class Runner:
@@ -46,7 +40,7 @@ class Runner:
     self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
     self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
     self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
-    self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    # self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
     self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
 
   @staticmethod

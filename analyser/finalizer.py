@@ -1,7 +1,7 @@
 import pymongo
 import numpy as np
 import textdistance
-
+from analyser.log import logger
 from integration.db import get_mongodb_connection
 
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
@@ -436,7 +436,7 @@ def finalize():
         if audit["subsidiary"]["name"] == "Все ДО":
             print(f'.....audit {audit["_id"]} finalizing skipped')
             continue
-        print(f'.....finalizing audit {audit["_id"]}')
+        logger.info(f'.....finalizing audit {audit["_id"]}')
         violations = []
         contract_ids = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT", id_only=True)
         charters = []

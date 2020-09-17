@@ -1,5 +1,5 @@
 from overrides import overrides
-
+from analyser.log import logger
 from analyser.contract_agents import ContractAgent, normalize_contract_agent
 from analyser.doc_dates import find_date
 from analyser.documents import TextMap
@@ -60,18 +60,23 @@ class ContractParser(ParsingContext):
     self.subject_prediction_model = load_subject_detection_trained_model()
 
   def init_embedders(self, embedder, elmo_embedder_default):
-    warnings.warn('init_embedders will be removed', DeprecationWarning)
-    self.embedder = embedder
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand', DeprecationWarning)
+    # self.embedder = embedder
+    # self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
+
 
   def find_org_date_number(self, contract_full: ContractDocument, ctx: AuditContext) -> ContractDocument:
 
     if self.embedder is None:
-      self.embedder = ElmoEmbedder.get_instance()
+      self.embedder = ElmoEmbedder.get_instance('elmo')
 
     contract = contract_full[0:300]  # warning, trimming doc for analysis phase 1
     if contract.embeddings is None:
+      logger.debug('embedding 300-trimmed contract')
       contract.embedd_tokens(self.embedder)
 
+    # predicting with NN
+    logger.debug('predicting semantic_map in 300-trimmed contract with NN')
     semantic_map, _ = nn_predict(self.subject_prediction_model, contract)
 
     contract_full.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
