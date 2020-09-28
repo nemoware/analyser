@@ -56,6 +56,8 @@ class DbJsonDoc:
       doc.tokens_map = self.get_tokens_map_unchaged()
       if 'sentence_map' in doc.__dict__:
         doc.sentence_map = self.get_sentence_map()
+        if doc.sentence_map is None:
+          doc.split_into_sentenses()
 
       headers = self.analysis.get('headers', None)
       if headers is not None:

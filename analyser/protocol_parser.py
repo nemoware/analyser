@@ -3,7 +3,6 @@ import warnings
 from enum import Enum
 from typing import Iterator
 
-from textdistance import jaro
 from pyjarowinkler import distance
 
 from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
@@ -21,12 +20,10 @@ from analyser.ml_tools import SemanticTag, calc_distances_per_pattern_dict, max_
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AbstractPatternFactory, FuzzyPattern, create_value_negation_patterns, \
   create_value_patterns
-
 from analyser.structures import ORG_LEVELS_names, OrgStructuralLevel
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
-from tf_support.embedder_elmo import ElmoEmbedder
 
 something = r'(\s*.{1,100}\s*)'
 itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
@@ -54,7 +51,8 @@ class ProtocolDocument(LegalDocumentExt):
     super().__init__(doc)
 
     if doc is not None:
-      self.__dict__ = {**super().__dict__, **doc.__dict__}
+      # self.__dict__ = {**super().__dict__, **doc.__dict__}
+      self.__dict__.update(doc.__dict__)
 
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
@@ -122,46 +120,44 @@ class ProtocolParser(ParsingContext):
 
   ]
 
-  def __init__(self, embedder=None, elmo_embedder_default: AbstractEmbedder = None):
-    ParsingContext.__init__(self, embedder)
-    self.embedder = embedder
-    self.elmo_embedder_default = elmo_embedder_default
-    self.protocols_factory: ProtocolPatternFactory = None
-    self.patterns_embeddings = None
+  def __init__(self, embedder: AbstractEmbedder = None, sentence_embedder: AbstractEmbedder = None):
+    ParsingContext.__init__(self, embedder, sentence_embedder)
 
-    if embedder is not None and elmo_embedder_default is not None:
-      self.init_embedders(embedder, elmo_embedder_default)
+    self._protocols_factory: ProtocolPatternFactory or None = None
+    self._patterns_embeddings = None
 
   def init_embedders(self, embedder, elmo_embedder_default):
     warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
                   DeprecationWarning)
-    self.embedder = embedder
-    self.elmo_embedder_default = elmo_embedder_default
+    raise NotImplementedError('init_embedders is removed for EVER')
 
-    # TODO: init factory earlier
-    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
-    patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
-    self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
+  def get_patterns_embeddings(self):
+    if self._patterns_embeddings is None:
+      patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
+      self._patterns_embeddings = self.get_sentence_embedder().embedd_strings(patterns_te)
+
+    return self._patterns_embeddings
+
+  def get_protocols_factory(self):
+    if self._protocols_factory is None:
+      self._protocols_factory = ProtocolPatternFactory(self.get_embedder())
+
+    return self._protocols_factory
 
   def embedd(self, doc: ProtocolDocument):
-    if self.embedder is None:
-      self.embedder = ElmoEmbedder.get_instance()
-
-    if self.elmo_embedder_default is None:
-      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
 
     ### ⚙️🔮 SENTENCES embedding
-    if doc.sentence_map is None:
-      doc.sentence_map = tokenize_doc_into_sentences_map(doc, HyperParameters.charter_sentence_max_len)
-    doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
+    # if doc.sentence_map is None:
+    #   doc.sentence_map = tokenize_doc_into_sentences_map(doc, HyperParameters.charter_sentence_max_len)
+    doc.sentences_embeddings = self.get_sentence_embedder().embedd_strings(doc.sentence_map.tokens)
 
     ### ⚙️🔮 WORDS Embedding
-    doc.embedd_tokens(self.embedder)
+    doc.embedd_tokens(self.get_embedder())
 
-    doc.calculate_distances_per_pattern(self.protocols_factory)
+    doc.calculate_distances_per_pattern(self.get_protocols_factory())
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
                                                                               self.patterns_dict,
-                                                                              self.patterns_embeddings)
+                                                                              self.get_patterns_embeddings())
 
   def find_org_date_number(self, doc: ProtocolDocument, ctx: AuditContext) -> ProtocolDocument:
     """
@@ -170,7 +166,7 @@ class ProtocolParser(ParsingContext):
     :param charter:
     :return:
     """
-    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
+    # doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
 
     doc.org_tags = list(find_protocol_org(doc))
@@ -374,9 +370,11 @@ class ProtocolPatternFactory(AbstractPatternFactory):
 
 def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
   ret = []
-  x: [SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words], max_names=1,
-                                        regex=protocol_caption_complete_re,
-                                        re_ignore_case=protocol_caption_complete_re_ignore_case)
+
+  x: [SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words],
+                                    max_names=1,
+                                    regex=protocol_caption_complete_re,
+                                    re_ignore_case=protocol_caption_complete_re_ignore_case)
 
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:

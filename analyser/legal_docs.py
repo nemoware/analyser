@@ -6,7 +6,6 @@
 # legal_docs.py
 import datetime
 import json
-
 import warnings
 from enum import Enum
 
@@ -315,16 +314,22 @@ class LegalDocumentExt(LegalDocument):
 
   def __init__(self, doc: LegalDocument):
     super().__init__('')
-    if doc is not None:
-      self.__dict__ = doc.__dict__
-
     self.sentence_map: TextMap or None = None
+
+    if doc is not None:
+      # self.__dict__ = doc.__dict__
+      self.__dict__.update(doc.__dict__)
+
     self.sentences_embeddings: Embeddings = None
     self.distances_per_sentence_pattern_dict = {}
 
+  def split_into_sentenses(self):
+    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map._full_text,
+                                                        HyperParameters.protocol_sentence_max_len)
+
   def parse(self, txt=None):
     super().parse(txt)
-    self.sentence_map = tokenize_doc_into_sentences_map(self, HyperParameters.charter_sentence_max_len)
+    self.split_into_sentenses()
     return self
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -339,7 +344,8 @@ class LegalDocumentExt(LegalDocument):
       if self.sentences_embeddings is not None:
         sub.sentences_embeddings = self.sentences_embeddings[_slice]
     else:
-      warnings.warn('split into sentences first')
+      raise ValueError(f'split doc into sentences first {self._id}')
+
     return sub
 
 
@@ -524,20 +530,11 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     return None
 
 
-def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
+def tokenize_doc_into_sentences_map(txt: str, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
 
-  # if doc.paragraphs:
-  #   for p in doc.paragraphs:
-  #     header_lines = doc.substr(p.header).splitlines(True)
-  #     for line in header_lines:
-  #       tm += split_sentences_into_map(line, max_len_chars)
-  #
-  #     body_lines = doc.substr(p.body).splitlines(True)
-  #     for line in body_lines:
-  #       tm += split_sentences_into_map(line, max_len_chars)
-  # else:
-  body_lines = doc.text.splitlines(True)
+  # body_lines = doc.tokens_map._full_text.splitlines(True)
+  body_lines = txt.splitlines(True)
   for line in body_lines:
     tm += split_sentences_into_map(line, max_len_chars)
 

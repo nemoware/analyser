@@ -1,14 +1,14 @@
 from overrides import overrides
-from analyser.log import logger
+
 from analyser.contract_agents import ContractAgent, normalize_contract_agent
 from analyser.doc_dates import find_date
 from analyser.documents import TextMap
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
+from analyser.log import logger
 from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AV_SOFT, AV_PREFIX
 from analyser.text_tools import find_top_spans
-from tf_support.embedder_elmo import ElmoEmbedder
 from tf_support.tf_subject_model import load_subject_detection_trained_model, decode_subj_prediction, \
   nn_predict
 
@@ -49,31 +49,22 @@ ContractDocument3 = ContractDocument
 
 
 class ContractParser(ParsingContext):
-  # TODO: rename this class
 
-  def __init__(self, embedder=None):
-    ParsingContext.__init__(self, embedder)
-
-    if embedder is not None:
-      self.init_embedders(embedder, None)
-
+  def __init__(self, embedder=None, sentence_embedder=None):
+    ParsingContext.__init__(self, embedder, sentence_embedder)
     self.subject_prediction_model = load_subject_detection_trained_model()
 
   def init_embedders(self, embedder, elmo_embedder_default):
-    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand', DeprecationWarning)
-    # self.embedder = embedder
-    # self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
-
+    # TODO: remove
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
+                  DeprecationWarning)
 
   def find_org_date_number(self, contract_full: ContractDocument, ctx: AuditContext) -> ContractDocument:
-
-    if self.embedder is None:
-      self.embedder = ElmoEmbedder.get_instance('elmo')
 
     contract = contract_full[0:300]  # warning, trimming doc for analysis phase 1
     if contract.embeddings is None:
       logger.debug('embedding 300-trimmed contract')
-      contract.embedd_tokens(self.embedder)
+      contract.embedd_tokens(self.get_embedder())
 
     # predicting with NN
     logger.debug('predicting semantic_map in 300-trimmed contract with NN')
@@ -110,8 +101,6 @@ class ContractParser(ParsingContext):
     """
     this analyser should care about embedding, because it decides wheater it needs (NN) embeddings or not  
     """
-    if self.embedder is None:
-      self.embedder = ElmoEmbedder.get_instance()
 
     self._reset_context()
 
@@ -122,7 +111,7 @@ class ContractParser(ParsingContext):
 
     # ------ lazy embedding
     if _contract_cut.embeddings is None:
-      _contract_cut.embedd_tokens(self.embedder)
+      _contract_cut.embedd_tokens(self.get_embedder())
 
     # self.find_org_date_number(_contract_cut, ctx)
 

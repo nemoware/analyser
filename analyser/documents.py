@@ -182,7 +182,10 @@ class TextMap:
     return ret
 
   def remap_span(self, span, target_map: 'TextMap'):
-    assert self._full_text == target_map._full_text
+    if self._full_text != target_map._full_text:
+      msg = f'remap: texts differ {len(self._full_text)}!={len(target_map._full_text)}'
+      raise ValueError(msg)
+
 
     char_range = self.char_range(span)
     target_range = target_map.token_indices_by_char_range(char_range)

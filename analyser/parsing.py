@@ -10,12 +10,15 @@ from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, extract_sum_sign_currency
 from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe, relu
 from analyser.transaction_values import complete_re as transaction_values_re
+from tf_support.embedder_elmo import ElmoEmbedder
 
 PROF_DATA = {}
 
 import logging
 
 logger = logging.getLogger('analyser')
+
+
 class ParsingSimpleContext:
   def __init__(self):
 
@@ -58,9 +61,20 @@ class AuditContext:
 
 
 class ParsingContext(ParsingSimpleContext):
-  def __init__(self, embedder=None):
+  def __init__(self, embedder=None, sentence_embedder=None):
     ParsingSimpleContext.__init__(self)
-    self.embedder = embedder
+    self._embedder = embedder
+    self._sentence_embedder = sentence_embedder
+
+  def get_sentence_embedder(self):
+    if self._sentence_embedder is None:
+      self._sentence_embedder = ElmoEmbedder.get_instance('default')
+    return self._sentence_embedder
+
+  def get_embedder(self):
+    if self._embedder is None:
+      self._embedder = ElmoEmbedder.get_instance()
+    return self._embedder
 
   def init_embedders(self, embedder, elmo_embedder_default):
     raise NotImplementedError()
@@ -143,13 +157,11 @@ def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
                                        attention_vector_tuned: FixedVector or None,
                                        parent_tag=None,
                                        absolute_spans=False) -> List[ContractValue]:
-
-
   spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
   values_list = []
 
   for span in spans:
-    value_sign_currency:ContractValue = extract_sum_sign_currency(value_section_subdoc, span)
+    value_sign_currency: ContractValue = extract_sum_sign_currency(value_section_subdoc, span)
     if value_sign_currency is not None:
 
       # Estimating confidence by looking at attention vector

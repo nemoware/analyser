@@ -19,10 +19,11 @@ class TokenisationTestCase(unittest.TestCase):
   def test_tokenize_doc_into_sentences(self):
     pth = os.path.dirname(__file__)
     with open(os.path.join(pth, '2. Договор по благ-ти Радуга.docx.pickle'), 'rb') as handle:
-      doc = pickle.load(handle)
+      doc: LegalDocument = pickle.load(handle)
 
     maxlen = 100
-    tm = tokenize_doc_into_sentences_map(doc, maxlen)
+
+    tm = tokenize_doc_into_sentences_map(doc.tokens_map._full_text, maxlen)
 
     lens = [len(t) for t in tm.tokens]
     print(min(lens))
@@ -30,28 +31,32 @@ class TokenisationTestCase(unittest.TestCase):
     print(np.mean(lens))
 
     self.assertEqual(doc.tokens_map.text, tm.text)
+    self.assertEqual(doc.tokens_map._full_text, tm._full_text)
     self.assertLessEqual(max(lens), maxlen)
 
   def test_tokenize_doc_into_sentences_2(self):
-    doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), именуемое в собранием `` акционеров собранием `` акционеров \'\' \
+    doc_text = """\n\n\nАкционерное общество «Газпром - Вибраниум и Криптонит» (АО «ГВК»), \n\n именуемое в собранием `` акционеров собранием `` акционеров \'\' \
             дальнейшем «Благотворитель», в лице заместителя генерального директора по персоналу и \
-            организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г, \
+            организационному развитию Неизвестного И.И., действующего на основании на основании Доверенности № Д-17 от 29.01.2018г \n\n, \
             с одной стороны, и Фонд поддержки социальных инициатив «Интерстеларные пущи», именуемый в дальнейшем «Благополучатель», \
             в лице Генерального директора ____________________действующего на основании Устава, с другой стороны, \
             именуемые совместно «Стороны», а по отдельности «Сторона», заключили настоящий Договор о нижеследующем:
-            """
-    doc = LegalDocument(doc_text)
-    doc.parse()
+            """ + (" " * 77)
+    doc = LegalDocument(doc_text).parse()
 
     maxlen = 50
-    tm = tokenize_doc_into_sentences_map(doc, maxlen)
-
+    tm = tokenize_doc_into_sentences_map(doc.tokens_map._full_text, maxlen)
     lens = [len(t) for t in tm.tokens]
+    for t in tm.tokens:
+      print(t)
     print(min(lens))
     print(max(lens))
     print(np.mean(lens))
 
     self.assertLessEqual(max(lens), maxlen)
+    self.assertEqual(doc.tokens_map._full_text, tm._full_text)
+
+
 
   def test_normalize_doc_slice_1(self):
     doc_text = """\n\n\nАкционерное 3`4`` общество «Газпром - 'Вибраниум' и Криптонит» (АО «ГВК»), "именуемое" в собранием `` акционеров собранием `` акционеров \'\' \

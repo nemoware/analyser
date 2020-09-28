@@ -15,29 +15,18 @@ from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import ProtocolParser
 from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
-from tf_support.embedder_elmo import ElmoEmbedder
 
 
 class Runner:
   default_instance: 'Runner' = None
 
   def __init__(self, init_embedder=True):
-    self.elmo_embedder: ElmoEmbedder = None
-    self.elmo_embedder_default: ElmoEmbedder = None
-    if init_embedder:
-      self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
-      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
-
-    self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
-    self.contract_parser = ContractParser(self.elmo_embedder)
-    self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
+    self.protocol_parser = ProtocolParser()
+    self.contract_parser = ContractParser()
+    self.charter_parser = CharterParser()
 
   def init_embedders(self):
-    self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
-    self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
-    self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
-    # self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
-    self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    pass
 
   @staticmethod
   def get_instance(init_embedder=False) -> 'Runner':
@@ -66,7 +55,7 @@ class BaseProcessor:
       db_document.retry_number = 0
 
     if db_document.retry_number > 2:
-      logger.error(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
+      logger.error(f'{db_document.documentType} {db_document._id} exceeds maximum retries for analysis and is skipped')
       return None
 
     legal_doc = db_document.asLegalDoc()

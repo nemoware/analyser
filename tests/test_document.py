@@ -71,8 +71,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
     legal_doc = LegalDocument("1. ЮРИДИЧЕСКИЙ содержание 4.").parse()
-    charter = CharterDocument().parse()
-    charter += legal_doc
+    charter = CharterDocument(legal_doc).parse()
     charter_parser = CharterParser(emb, emb)
     actx = AuditContext()
     charter_parser.find_org_date_number(charter, actx)
