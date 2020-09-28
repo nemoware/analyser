@@ -171,7 +171,6 @@ class ProtocolParser(ParsingContext):
     :return:
     """
     doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
-
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
 
     doc.org_tags = list(find_protocol_org(doc))
@@ -185,6 +184,8 @@ class ProtocolParser(ParsingContext):
     return doc
 
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
+
+    self.find_org_date_number(doc, ctx)
 
     if doc.sentences_embeddings is None or doc.embeddings is None:
       self.embedd(doc)  # lazy embedding

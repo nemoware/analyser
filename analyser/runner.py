@@ -50,16 +50,18 @@ class BaseProcessor:
   parser = None
 
   def preprocess(self, jdoc: DbJsonDoc, context: AuditContext):
+    # phase I
+    # TODO: include phase I into phase II, remove phase I
     if jdoc.is_user_corrected():
       logger.info(f"skipping doc {jdoc._id} because it is corrected by user")
       # TODO: update state?
     else:
       legal_doc = jdoc.asLegalDoc()
-      Runner.get_instance()
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(jdoc, legal_doc, state=DocumentState.Preprocessed.value)
 
   def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
+    # phase II
     if db_document.retry_number is None:
       db_document.retry_number = 0
 
@@ -212,26 +214,13 @@ def need_analysis(document: DbJsonDoc) -> bool:
   return _well_parsed and (document.isActiveCharter() or _is_not_a_charter)
 
 
-def audit_charters_phase_1():
-  """preprocess"""
-  charters = get_charters()
-  processor: BaseProcessor = document_processors['CHARTER']
-
-  for k, charter in enumerate(charters):
-    jdoc = DbJsonDoc(charter)
-    logger.info(f'......pre-processing {k} of {len(charters)} CHARTER {jdoc._id}')
-    ctx = AuditContext()
-    processor.preprocess(jdoc, context=ctx)
-
-
 def audit_phase_1(audit, kind=None):
+  logger.info(f'.....processing audit {audit["_id"]}')
   ctx = AuditContext(audit["subsidiary"]["name"])
 
-  logger.info(f'.....processing audit {audit["_id"]}')
-
   document_ids = get_docs_by_audit_id(audit["_id"], states=[DocumentState.New.value], kind=kind, id_only=True)
-  if audit.get("charters") is not None:
-    document_ids.extend(audit["charters"])
+  _charter_ids = audit.get("charters", [])
+  document_ids.extend(_charter_ids)
 
   for k, document_id in enumerate(document_ids):
     _document = finalizer.get_doc_by_id(document_id)
@@ -273,27 +262,43 @@ def audit_phase_2(audit, kind=None):
   change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
 
 
+def audit_charters_phase_1():
+  """preprocess"""
+  charters = get_charters()
+  processor: BaseProcessor = document_processors['CHARTER']
+
+  for k, charter in enumerate(charters):
+    jdoc = DbJsonDoc(charter)
+    logger.info(f'......pre-processing {k} of {len(charters)} CHARTER {jdoc._id}')
+    ctx = AuditContext()
+    processor.preprocess(jdoc, context=ctx)
+
+
 def audit_charters_phase_2():
   charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
                                   kind="CHARTER")
 
   for k, _document in enumerate(charters):
     jdoc = DbJsonDoc(_document)
-    processor: BaseProcessor = document_processors.get(jdoc.documentType, None)
-    if processor is not None:
-      logger.info(f'......processing  {k} of {len(charters)}   {jdoc.documentType} {jdoc._id}')
-      ctx = AuditContext()
-      processor.process(jdoc, audit=None, context=ctx)
+    processor: BaseProcessor = document_processors['CHARTER']
+
+    logger.info(f'......processing  {k} of {len(charters)}  CHARTER {jdoc._id}')
+    ctx = AuditContext()
+    processor.process(jdoc, audit=None, context=ctx)
 
 
 def run(run_pahse_2=True, kind=None):
   # -----------------------
+  # NIL (сорян, в системе римских цифр отсутствует ноль)
+  logger.info('-> PHASE 0 (charters)...')
+  audit_charters_phase_1()
+  if run_pahse_2:
+    audit_charters_phase_2()
+
+  # -----------------------
   # I
   logger.info('-> PHASE I...')
-  audit_charters_phase_1()
-
-  audits = get_audits()
-  for audit in audits:
+  for audit in get_audits():
     audit_phase_1(audit, kind)
 
   # -----------------------
@@ -301,20 +306,15 @@ def run(run_pahse_2=True, kind=None):
   logger.info('-> PHASE II..')
   if run_pahse_2:
     # phase 2
-    runner = Runner.get_instance(init_embedder=False)
-    runner.init_embedders()
-    audits = get_audits()
-    for audit in audits:
+    for audit in get_audits():
       audit_phase_2(audit, kind)
-
-    audit_charters_phase_2()
 
   else:
     logger.info("phase 2 is skipped")
 
   # -----------------------
   # III
-  print('-> PHASE II...')
+  logger.info('-> PHASE III (finalize)...')
   finalizer.finalize()
 
 
