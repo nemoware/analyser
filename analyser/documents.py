@@ -1,3 +1,4 @@
+import hashlib
 import os
 import pickle
 import sys
@@ -5,14 +6,19 @@ import traceback
 import warnings
 
 import nltk
-import numpy as np
 
 from analyser.hyperparams import models_path
+
+nltk.data.path.append(os.path.join(models_path, 'nltk'))
+import numpy as np
+
 from analyser.ml_tools import spans_to_attention
-from analyser.text_tools import Tokens, untokenize, replace_tokens, tokenize_text, split_into_sentences
+from analyser.text_tools import Tokens, untokenize, replace_tokens, split_into_sentences
 
 TEXT_PADDING_SYMBOL = ' '
-nltk.download('punkt')
+
+
+# nltk.download('punkt')
 
 
 class TextMap:
@@ -22,10 +28,25 @@ class TextMap:
     self._offset_chars = 0
     if map is None:
       self.map = TOKENIZER_DEFAULT.tokens_map(text)
+      self.cleanup()
     else:
       self.map = list(map)
 
     self.untokenize = self.text_range  # alias
+
+  def getcopy(self):
+    tm = TextMap(self._full_text, self.map)
+    tm._offset_chars = self._offset_chars
+    return tm
+
+  def cleanup(self):
+    warnings.warn("fix tokenization instead of using it, also, it breaks attributes mapping", DeprecationWarning)
+    '''
+    removes empty span (for obsolete docs
+    :return:
+    '''
+
+    self.map = [x for x in self.map if x[0] != x[1]]
 
   def __add__(self, other):
     off = len(self._full_text)
@@ -44,8 +65,15 @@ class TextMap:
     return spans_to_attention(matches, len(self))
 
   def set_token(self, index, new_token):
-    assert len(new_token) == self.map[index][1] - self.map[index][0]
-    self._full_text = self._full_text[: self.map[index][0]] + new_token + self._full_text[self.map[index][1]:]
+    span = self.map[index]
+    tlen = span[1] - span[0]
+    if len(new_token) == tlen:
+      self._full_text = self._full_text[: span[0]] + new_token + self._full_text[span[1]:]
+    else:
+      et = self.text_range(span)
+      q = self.text_range((span[0] - 10, span[1] + 10))
+      msg = f'index:{index}; len of replacement [{new_token}] {len(new_token)} is not equal to len of existing token [{et}] {tlen}, quote="{q}"'
+      raise AssertionError(msg)
 
   def finditer(self, regexp):
     for m in regexp.finditer(self.text):
@@ -154,7 +182,10 @@ class TextMap:
     return ret
 
   def remap_span(self, span, target_map: 'TextMap'):
-    assert self._full_text == target_map._full_text
+    if self._full_text != target_map._full_text:
+      msg = f'remap: texts differ {len(self._full_text)}!={len(target_map._full_text)}'
+      raise ValueError(msg)
+
 
     char_range = self.char_range(span)
     target_range = target_map.token_indices_by_char_range(char_range)
@@ -202,18 +233,21 @@ class TextMap:
     elif isinstance(key, int):
 
       r = self.map[key]
-      # print('__getitem__', key)
       return self._full_text[r[0]:r[1]]
     else:
       raise TypeError("Invalid argument type.")
 
-  def get_tokens(self)->Tokens:
+  def get_tokens(self) -> Tokens:
     return [
       self._full_text[tr[0]:tr[1]] for tr in self.map
     ]
 
-  tokens = property(get_tokens, None)
-  text = property(get_text, None)
+  tokens: Tokens = property(get_tokens, None)
+  text: str = property(get_text, None)
+
+  def get_checksum(self):
+    _reconstructed = '|'.join(self.tokens).encode('utf-8')
+    return hashlib.md5(_reconstructed).hexdigest()
 
 
 def split_sentences_into_map(substr, max_len_chars=150) -> TextMap:
@@ -229,23 +263,36 @@ class CaseNormalizer:
     self.__dict__ = self.__shared_state
     if 'replacements_map' not in self.__dict__:
       p = os.path.join(models_path, 'word_cases_stats.pickle')
-      print('loading word cases stats model', p)
+      print('loading word cases stats model from:', p)
 
       with open(p, 'rb') as handle:
-        self.replacements_map = pickle.load(handle)
+        self.replacements_map: dict = pickle.load(handle)
 
-  def normalize_tokens_map_case(self, map: TextMap) -> TextMap:
-    norm_tokens = replace_tokens(map.tokens, self.replacements_map)
-    norm_map = TextMap(map._full_text, map.map)
-    for k in range(len(map)):
-      norm_map.set_token(k, norm_tokens[k])
-    # chars = list(map.text)
-    # for i in range(0, len(map)):
-    #   r = map.map[i]
-    #   chars[r[0]:r[1]] = norm_tokens[i]
-    # norm_map = TextMap(''.join(chars), list(map.map))
-    # # XXXX
-    # dfdfdfdf
+      # selfcheck
+      mn = {}
+      for k, v in self.replacements_map.items():
+        if len(k) != len(v):
+          raise ValueError('cannot replace token with one of a diff. length')
+
+        if len(k) > 1:
+          mn[k] = v
+      self.replacements_map = mn
+
+  def normalize_tokens_map_case(self, tmap: TextMap) -> TextMap:
+    norm_tokens = replace_tokens(tmap.tokens, self.replacements_map)
+    norm_map: TextMap = tmap.getcopy()
+
+    if len(norm_tokens) != len(tmap.tokens):
+      raise ValueError('len(norm_tokens) != len(tmap.tokens)')
+
+    for k in range(len(tmap)):
+      span = tmap.map[k]
+      if span[0] != span[1] > 0:
+        norm_map.set_token(k, norm_tokens[k])
+      else:
+        msg = f'empty span at index {k}'
+        warnings.warn(msg)
+
     return norm_map
 
   def normalize_tokens(self, tokens: Tokens) -> Tokens:
@@ -255,7 +302,8 @@ class CaseNormalizer:
     warnings.warn(
       "Deprecated, because this class must not perform tokenization. Use normalize_tokens or  normalize_tokens_map_case",
       DeprecationWarning)
-    tokens = tokenize_text(text)
+    tm = TextMap(text)
+    tokens = tm.tokens
     tokens = self.normalize_tokens(tokens)
     return untokenize(tokens)
 
@@ -267,32 +315,9 @@ class CaseNormalizer:
 
 
 class GTokenizer:
+
   def tokenize(self, s) -> Tokens:
     raise NotImplementedError()
-
-  def untokenize(self, t: Tokens) -> str:
-    raise NotImplementedError()
-
-
-def span_tokenize(text):
-  start_from = 0
-  text = text.replace('`', '!')
-  text = text.replace('"', '!')
-  tokens = list(nltk.word_tokenize(text))
-  __debug = []
-
-  for search_token in tokens:
-
-    ix_new = text.find(search_token, start_from)
-    if ix_new < 0:
-      msg = f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
-      warnings.warn(msg)
-    else:
-      start_from = ix_new
-      end = start_from + len(search_token)
-      __debug.append((search_token, start_from, end))
-      yield [start_from, end]
-      start_from = end
 
 
 class DefaultGTokenizer(GTokenizer):
@@ -303,8 +328,28 @@ class DefaultGTokenizer(GTokenizer):
     # nltk.download('punkt', download_dir=pth)
     pass
 
+  def span_tokenize(self, text):
+    start_from = 0
+    text = text.replace('`', '!')
+    text = text.replace('"', '!')
+    tokens = list(nltk.word_tokenize(text, language='russian'))
+    __debug = []
+
+    for search_token in tokens:
+
+      ix_new = text.find(search_token, start_from)
+      if ix_new < 0:
+        msg = f'ACHTUNG! [{search_token}] not found with text.find, next text is: {text[start_from:start_from + 30]}'
+        warnings.warn(msg)
+      else:
+        start_from = ix_new
+        end = start_from + len(search_token)
+        __debug.append((search_token, start_from, end))
+        yield [start_from, end]
+        start_from = end
+
   def tokenize_line(self, line):
-    return [line[t[0]:t[1]] for t in span_tokenize(line)]
+    return [line[t[0]:t[1]] for t in self.span_tokenize(line)]
 
   def tokenize(self, text) -> Tokens:
     return [text[t[0]:t[1]] for t in self.tokens_map(text)]
@@ -317,7 +362,7 @@ class DefaultGTokenizer(GTokenizer):
       if text[i] == '\n':
         result.append([i, i + 1])
 
-    result += [s for s in span_tokenize(text)]
+    result += [s for s in self.span_tokenize(text)]
 
     result.sort(key=lambda x: x[0])
     return result

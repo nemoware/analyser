@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import random
+import warnings
+
+import numpy as np
 
 from analyser.documents import CaseNormalizer
 from analyser.structures import OrgStructuralLevel, ContractSubject
-from analyser.text_tools import *
+from analyser.text_tools import dist_mean_cosine, min_index, Tokens
 from analyser.transaction_values import ValueConstraint
 
-load_punkt = False
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
@@ -50,9 +52,6 @@ class FuzzyPattern():
     _pat = self.embeddings
 
     window_size = wnd_mult * len(_pat) + whd_padding
-    # if window_size > len(_text):
-    #   print('---ERROR: pattern: "{}" window:{} > len(_text):{} (padding={} mult={})'.format(self.name, window_size, len(_text), whd_padding, wnd_mult)  )
-    #   return None
 
     for word_index in range(0, len(_text)):
       _fragment = _text[word_index: word_index + window_size]
@@ -176,54 +175,10 @@ class ExclusivePattern(CompoundPattern):
     return distances_per_pattern, ranges, winning_patterns
 
 
-class CoumpoundFuzzyPattern(CompoundPattern):
-  """
-  finds average
-  """
-
-  def __init__(self, name="no name"):
-    self.name = name
-    self.patterns = {}
-
-  def add_pattern(self, pat, weight=1.0):
-    assert pat is not None
-    self.patterns[pat] = weight
-
-  def find(self, text_ebd):
-    sums = self._find_patterns(text_ebd)
-
-    meaninful_sums = sums
-
-    min_i = min_index(meaninful_sums)
-    min = sums[min_i]
-    mean = meaninful_sums.mean()
-
-    # confidence = sums[min_i] / mean
-    sandard_deviation = np.std(meaninful_sums)
-    deviation_from_mean = abs(min - mean)
-    confidence = sandard_deviation / deviation_from_mean
-    return min_i, sums, confidence
-
-  def _find_patterns(self, text_ebd):
-    sums = np.zeros(len(text_ebd))
-    total_weight = 0
-    for p in self.patterns:
-      # print('CoumpoundFuzzyPattern, finding', str(p))
-      weight = self.patterns[p]
-      sp = p._find_patterns(text_ebd)
-
-      sums += sp * weight
-      total_weight += abs(weight)
-    # norm
-    sums /= total_weight
-    return sums
-
-
 class AbstractPatternFactory:
 
-  def __init__(self, embedder):
-    self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
-    self.patterns: List[FuzzyPattern] = []
+  def __init__(self):
+    self.patterns: [FuzzyPattern] = []
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
@@ -232,14 +187,14 @@ class AbstractPatternFactory:
     self.patterns_dict[pattern_name] = fp
     return fp
 
-  def embedd(self):
+  def embedd(self, embedder):
     # collect patterns texts
     arr = []
     for p in self.patterns:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb, regions = self.embedder.embedd_contextualized_patterns(arr)
+    patterns_emb, regions = embedder.embedd_contextualized_patterns(arr)
     assert len(patterns_emb) == len(self.patterns)
     # =========
 
@@ -280,11 +235,11 @@ _case_normalizer = CaseNormalizer()
 
 
 class AbstractPatternFactoryLowCase(AbstractPatternFactory):
-  def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+  def __init__(self):
+    AbstractPatternFactory.__init__(self)
     self.patterns_dict = {}
 
-  def create_pattern(self, pattern_name, ppp):
+  def create_pattern(self, pattern_name, ppp: [str]):
     _ppp = (_case_normalizer.normalize_text(ppp[0]),
             _case_normalizer.normalize_text(ppp[1]),
             _case_normalizer.normalize_text(ppp[2]))
@@ -345,7 +300,7 @@ class PatternMatch():
       'subj': ContractSubject.Other,
       'confidence': 0
     }
-    self.constraints: List[ValueConstraint] = []
+    self.constraints: [ValueConstraint] = []
     self.region: slice = region
     self.confidence: float = 0
     self.pattern_prefix: str = None
@@ -382,7 +337,7 @@ class PatternSearchResult(PatternMatch):
 class ConstraintsSearchResult:
   def __init__(self):
     warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
-    self.constraints: List[ValueConstraint] = []
+    self.constraints: [ValueConstraint] = []
     self.subdoc: PatternSearchResult = None
 
   def get_context(self) -> PatternSearchResult:  # alias
@@ -392,7 +347,7 @@ class ConstraintsSearchResult:
   context = property(get_context)
 
 
-PatternSearchResults = List[PatternSearchResult]
+PatternSearchResults = [PatternSearchResult]
 
 
 def create_value_negation_patterns(f: AbstractPatternFactory, name='not_sum_'):

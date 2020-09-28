@@ -173,6 +173,8 @@ data = {
       "aliases": [
         "РМЗ ГПН-ОНПЗ"
         'РМЗ «ГПН-ОНПЗ»',
+        "Ремонтно-механический завод «ГПН-ОНПЗ»",
+        "Ремонтно-механический завод «Газпромнефть-ОНПЗ»"
       ]
     },
     {
@@ -368,7 +370,8 @@ data = {
       "_id": "Газпромнефть НТЦ",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Газпромнефть НТЦ"
+        "Газпромнефть НТЦ",
+        "Газпромнефть Научно-Технический Центр"
       ]
     },
     {
@@ -578,7 +581,8 @@ data = {
       "_id": "Газпромнефть-Корпоративные продажи",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Газпромнефть-Корпоративные продажи"
+        "Газпромнефть-Корпоративные продажи",
+        "Газпром Нефть Корпоративные продажи"
       ]
     },
     {
@@ -681,17 +685,19 @@ def all_do_names():
 def estimate_subsidiary_name_match_min_jaro_similarity():
   top_similarity = 0
 
-  for name1 in all_do_names():
-    for name2 in all_do_names():
-      name1 = name1.replace('»', '').replace('«', '')
-      name2 = name2.replace('»', '').replace('«', '')
+  all_do_names_ = list(all_do_names())
+  all_do_names_fixed = []
+  for name1 in all_do_names_:
+    all_do_names_fixed.append(name1.replace('»', '').replace('«', '').lower())
 
-      if name1.lower() != name2.lower():
+  for name1 in all_do_names_fixed:
+    for name2 in all_do_names_fixed:
+
+      if name1 != name2:
 
         similarity = compare_masked_strings(name1, name2, [])
         if similarity > top_similarity:
           top_similarity = similarity
-          print(top_similarity, name1, name2)
 
   return top_similarity
 

@@ -1,6 +1,17 @@
 #!/usr/bin/env python
 import os
 import time
+import logging
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+
+logger = logging.getLogger('root')
+logger.addHandler(ch)
+
+
 
 import schedule
 
@@ -24,4 +35,6 @@ def main():
 
 
 if __name__ == '__main__':
+
+
   main()

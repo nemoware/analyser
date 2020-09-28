@@ -8,7 +8,7 @@ from analyser.ml_tools import *
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
   _find_most_relevant_paragraph
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
-from analyser.sections_finder import map_headlines_to_patterns
+
 from analyser.structures import *
 from analyser.transaction_values import number_re
 
@@ -24,7 +24,8 @@ class CharterDocument(LegalDocumentExt):
   def __init__(self, doc: LegalDocument = None):
     super().__init__(doc)
     if doc is not None:
-      self.__dict__ = {**super().__dict__, **doc.__dict__}
+      # self.__dict__ = {**super().__dict__, **doc.__dict__}
+      self.__dict__.update(doc.__dict__)
     self.org_tags = []
     self.charity_tags = []
     self.org_levels = []
@@ -168,56 +169,66 @@ class CharterParser(ParsingContext):
 
   }
 
-  def __init__(self, embedder: AbstractEmbedder = None, elmo_embedder_default: AbstractEmbedder = None):
-    ParsingContext.__init__(self, embedder)
-
-    self.embedder = embedder
-    self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
+  def __init__(self, embedder: AbstractEmbedder = None, sentence_embedder: AbstractEmbedder = None):
+    ParsingContext.__init__(self, embedder, sentence_embedder)
 
     self.patterns_dict: DataFrame = _make_org_level_patterns()
-    self.patterns_named_embeddings: DataFrame = None
 
-    if embedder is not None and elmo_embedder_default is not None:
-      self.init_embedders(embedder, elmo_embedder_default)
+    self._patterns_named_embeddings: DataFrame or None = None
+    self._subj_patterns_embeddings = None
+
+  def get_patterns_named_embeddings(self):
+    if self._patterns_named_embeddings is None:
+      __patterns_embeddings = self.get_sentence_embedder().embedd_strings(self.patterns_dict.values[0])
+      self._patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
+
+    return self._patterns_named_embeddings
+
+  def get_subj_patterns_embeddings(self):
+
+    if self._subj_patterns_embeddings is None:
+      self._subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
+                                                                       self.get_embedder())
+
+    return self._subj_patterns_embeddings
 
   def init_embedders(self, embedder, elmo_embedder_default):
-    self.embedder = embedder
-    self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
+                  DeprecationWarning)
+    raise NotImplementedError('init_embedders is removed for EVER')
 
-    self.subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
-                                                                    elmo_embedder_default)
+  def _embedd(self, charter: CharterDocument):
 
-    __patterns_embeddings = elmo_embedder_default.embedd_strings(self.patterns_dict.values[0])
-    self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
-
-  def _ebmedd(self, doc: CharterDocument):
-    assert self.elmo_embedder_default is not None, 'call init_embedders first'
     ### ⚙️🔮 SENTENCES embedding
-    doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
-    doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
-                                                                         self.patterns_named_embeddings)
 
-  def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
+    charter.sentences_embeddings = embedd_sentences(charter.sentence_map, self.get_sentence_embedder())
+    charter.distances_per_sentence_pattern_dict = calc_distances_per_pattern(charter.sentences_embeddings,
+                                                                             self.get_patterns_named_embeddings())
+
+  def find_org_date_number(self, doc: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding
     searching for attributes required for filtering
     :param charter:
     :return:
     """
-    # TODO move this call from here to CharterDoc
-    charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
-    charter.org_tags = find_charter_org(charter)
-    charter.date = find_document_date(charter)
+    # charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
 
-    return charter
+    doc.org_tags = find_charter_org(doc)
+    doc.date = find_document_date(doc)
+
+    return doc
 
   def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
+
+    self.find_org_date_number(_charter, ctx)
+
     margin_values = []
     org_levels = []
     constraint_tags = []
     if _charter.sentences_embeddings is None:
       # lazy embedding
-      self._ebmedd(_charter)
+      self._embedd(_charter)
 
     # reset for preventing tags doubling
     _charter.reset_attributes()
@@ -225,8 +236,7 @@ class CharterParser(ParsingContext):
     # --------------
     # (('Pattern name', 16), 0.8978644013404846),
     patterns_by_headers = map_headlines_to_patterns(_charter,
-                                                    self.patterns_named_embeddings,
-                                                    self.elmo_embedder_default)
+                                                    self.get_patterns_named_embeddings(), self.get_sentence_embedder())
 
     _parent_org_level_tag_keys = []
     for p_mapping in patterns_by_headers:
@@ -266,7 +276,7 @@ class CharterParser(ParsingContext):
 
   def find_attributes_in_sections(self, subdoc: LegalDocumentExt, parent_org_level_tag):
 
-    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)  # dictionary
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())  # dictionary
     subject_spans = collect_subjects_spans2(subdoc, subject_attentions_map)
 
     values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
@@ -325,11 +335,11 @@ class CharterParser(ParsingContext):
                                   parent_org_level_tag: SemanticTag,
                                   absolute_spans=True):
 
-    subject_attentions_map = get_charter_subj_attentions(subdoc, self.subj_patterns_embeddings)
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())
     all_subjects = [k for k in subject_attentions_map.keys()]
     constraint_tags = []
     # attribute sentences to subject
-    for sentence_number, contract_value_sentence_span in enumerate(unique_sentence_spans, start=1):
+    for contract_value_sentence_span in unique_sentence_spans:
 
       max_confidence = 0
       best_subject = None
@@ -346,7 +356,6 @@ class CharterParser(ParsingContext):
       # end for
 
       if best_subject is not None:
-        # $number_key(best_subject, sentence_number),
         constraint_tag = SemanticTag(best_subject.name,
                                      best_subject,
                                      contract_value_sentence_span,
@@ -440,33 +449,15 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
   return _distances_per_subj
 
 
-def collect_subjects_spans(subdoc, subject_attentions_map, min_len=20):
-  spans = []
-  for subj in subject_attentions_map.keys():
-
-    subject_attention = subject_attentions_map[subj]
-    paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
-                                                                                           subject_attention,
-                                                                                           min_len=min_len,
-                                                                                           return_delimiters=False)
-    if confidence > HyperParameters.charter_subject_attention_confidence:
-      if paragraph_span not in spans:
-        spans.append(paragraph_span)
-
-  unique_sentence_spans = merge_colliding_spans(spans, eps=1)
-
-  return unique_sentence_spans
-
-
 def collect_subjects_spans2(subdoc, subject_attentions_map, min_len=20):
   spans = []
   for subj in subject_attentions_map.keys():
 
     subject_attention = subject_attentions_map[subj]
-    paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
-                                                                                           subject_attention,
-                                                                                           min_len=min_len,
-                                                                                           return_delimiters=False)
+    paragraph_span, confidence, _ = _find_most_relevant_paragraph(subdoc,
+                                                                  subject_attention,
+                                                                  min_len=min_len,
+                                                                  return_delimiters=False)
     if confidence > HyperParameters.charter_subject_attention_confidence:
       if paragraph_span not in spans:
         spans.append(paragraph_span)
@@ -497,3 +488,18 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
     charter.warn(ParserWarnings.org_type_not_found)
 
   return ret
+
+
+def map_headlines_to_patterns(doc: LegalDocument,
+                              patterns_named_embeddings: DataFrame,
+                              elmo_embedder_default: AbstractEmbedder):
+  warnings.warn("consider using map_headers, it returns probalility distribution", DeprecationWarning)
+  headers: [str] = doc.headers_as_sentences()
+
+  if not headers:
+    return []
+
+  headers_embedding = elmo_embedder_default.embedd_strings(headers)
+
+  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
+  return attribute_patternmatch_to_index(header_to_pattern_distances)

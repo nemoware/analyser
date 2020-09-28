@@ -1,0 +1,3 @@
+include analyser/vocab/word_cases_stats.pickle
+include analyser/vocab/*.csv
+include analyser/vocab/*.weights

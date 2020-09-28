@@ -3,7 +3,6 @@
 # coding=utf-8
 
 
-import json
 import os
 import pickle
 import re
@@ -14,17 +13,11 @@ from analyser.contract_patterns import ContractPatternFactory
 from analyser.legal_docs import LegalDocument
 from analyser.ml_tools import SemanticTag
 from analyser.parsing import AuditContext
+from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re, ProtocolDocument
 from analyser.runner import Runner
 from analyser.structures import OrgStructuralLevel
-
-
-def load_json_sample(fn: str):
-  pth = os.path.dirname(__file__)
-  with open(os.path.join(pth, fn), 'rb') as handle:
-    data = json.load(handle)
-
-  return data
+from tests.test_utilits import load_json_sample
 
 
 class TestProtocolParser(unittest.TestCase):
@@ -35,11 +28,12 @@ class TestProtocolParser(unittest.TestCase):
 
   def test_protocol_processor(self):
     json_doc = load_json_sample('protocol_1.json')
+    jdoc = DbJsonDoc(json_doc)
+    legal_doc = jdoc.asLegalDoc()
 
     # print (doc)
 
     pp = Runner.get_instance().protocol_parser
-    legal_doc = Runner.get_instance().make_legal_doc(json_doc)
     pp.find_org_date_number(legal_doc, AuditContext())
 
     orgtags = legal_doc.org_tags
@@ -70,19 +64,20 @@ class TestProtocolParser(unittest.TestCase):
       print('😱 \t', doc.get_tag_text(p.header).strip(), '📂')
 
   def test_find_protocol_org_1(self):
-    suff = ' ' * 300
+    suff = ' ' * 1000
 
     txt = '''Протокол № 3/2019 Проведения итогов заочного голосования Совета директоров Общества с ограниченной ответственностью «Технологический центр «Бажен» (далее – ООО «Технологический центр «Бажен») г. Санкт-Петербург Дата составления протокола «__» _______ 2019 года
     Дата окончания приема бюллетеней для голосования членов Совета директоров «___»__________ 2019 года.
     ''' + suff
-    doc = ProtocolDocument(LegalDocument(txt).parse())
-
+    doc = ProtocolDocument(LegalDocument(txt))
+    doc.parse()
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)
     self.assertEqual('Общество с ограниченной ответственностью', tags[1].value)
 
   def test_find_protocol_org_2(self):
     doc = self.get_doc('Протокол_СД_ 3.docx.pickle')
+    doc.parse()
     print(doc[0:200].text)
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)

@@ -1,5 +1,9 @@
 import re
+import warnings
+from enum import Enum
 from typing import Iterator
+
+from pyjarowinkler import distance
 
 from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
   ContractAgent, _rename_org_tags, protocol_caption_complete_re, protocol_caption_complete_re_ignore_case
@@ -7,12 +11,16 @@ from analyser.doc_dates import find_document_date
 from analyser.doc_numbers import document_number_c, find_document_number_in_subdoc
 from analyser.documents import sentences_attention_to_words
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings, \
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings, \
   LegalDocumentExt
-from analyser.ml_tools import *
+from analyser.ml_tools import SemanticTag, calc_distances_per_pattern_dict, max_confident_tags, \
+  max_exclusive_pattern_by_prefix, relu, sum_probabilities, best_above, smooth_safe, spans_between_non_zero_attention, \
+  FixedVector, estimate_confidence_by_mean_top_non_zeros
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
-from analyser.patterns import *
-from analyser.structures import ORG_LEVELS_names
+from analyser.patterns import AbstractPatternFactory, FuzzyPattern, create_value_negation_patterns, \
+  create_value_patterns
+from analyser.structures import ORG_LEVELS_names, OrgStructuralLevel
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
@@ -31,9 +39,9 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 class ProtocolAV(Enum):
   '''AV fo Attention Vecotrs'''
-  bin_votes_attention = 1,
-  relu_deal_approval = 2,
-  digits_attention = 3,
+  bin_votes_attention = 1
+  relu_deal_approval = 2
+  digits_attention = 3
   relu_value_attention_vector = 4
 
 
@@ -43,7 +51,8 @@ class ProtocolDocument(LegalDocumentExt):
     super().__init__(doc)
 
     if doc is not None:
-      self.__dict__ = {**super().__dict__, **doc.__dict__}
+      # self.__dict__ = {**super().__dict__, **doc.__dict__}
+      self.__dict__.update(doc.__dict__)
 
     self.agents_tags: [SemanticTag] = []
     self.org_level: [SemanticTag] = []
@@ -111,38 +120,44 @@ class ProtocolParser(ParsingContext):
 
   ]
 
-  def __init__(self, embedder=None, elmo_embedder_default: AbstractEmbedder = None):
-    ParsingContext.__init__(self, embedder)
-    self.embedder = embedder
-    self.elmo_embedder_default = elmo_embedder_default
-    self.protocols_factory: ProtocolPatternFactory = None
-    self.patterns_embeddings = None
+  def __init__(self, embedder: AbstractEmbedder = None, sentence_embedder: AbstractEmbedder = None):
+    ParsingContext.__init__(self, embedder, sentence_embedder)
 
-    if embedder is not None and elmo_embedder_default is not None:
-      self.init_embedders(embedder, elmo_embedder_default)
+    self._protocols_factory: ProtocolPatternFactory or None = None
+    self._patterns_embeddings = None
 
   def init_embedders(self, embedder, elmo_embedder_default):
-    self.embedder = embedder
-    self.elmo_embedder_default = elmo_embedder_default
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
+                  DeprecationWarning)
+    raise NotImplementedError('init_embedders is removed for EVER')
 
-    self.protocols_factory: ProtocolPatternFactory = ProtocolPatternFactory(embedder)
-    patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
-    self.patterns_embeddings = elmo_embedder_default.embedd_strings(patterns_te)
+  def get_patterns_embeddings(self):
+    if self._patterns_embeddings is None:
+      patterns_te = [p[1] for p in ProtocolParser.patterns_dict]
+      self._patterns_embeddings = self.get_sentence_embedder().embedd_strings(patterns_te)
 
-  def ebmedd(self, doc: ProtocolDocument):
-    assert self.embedder is not None, 'call init_embedders first'
-    assert self.elmo_embedder_default is not None, 'call init_embedders first'
+    return self._patterns_embeddings
+
+  def get_protocols_factory(self):
+    if self._protocols_factory is None:
+      self._protocols_factory = ProtocolPatternFactory(self.get_embedder())
+
+    return self._protocols_factory
+
+  def embedd(self, doc: ProtocolDocument):
 
     ### ⚙️🔮 SENTENCES embedding
-    doc.sentences_embeddings = self.elmo_embedder_default.embedd_strings(doc.sentence_map.tokens)
+    # if doc.sentence_map is None:
+    #   doc.sentence_map = tokenize_doc_into_sentences_map(doc, HyperParameters.charter_sentence_max_len)
+    doc.sentences_embeddings = self.get_sentence_embedder().embedd_strings(doc.sentence_map.tokens)
 
-    ### ⚙️🔮 WORDS Ebmedding
-    doc.embedd_tokens(self.embedder)
+    ### ⚙️🔮 WORDS Embedding
+    doc.embedd_tokens(self.get_embedder())
 
-    doc.calculate_distances_per_pattern(self.protocols_factory)
+    doc.calculate_distances_per_pattern(self.get_protocols_factory())
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
                                                                               self.patterns_dict,
-                                                                              self.patterns_embeddings)
+                                                                              self.get_patterns_embeddings())
 
   def find_org_date_number(self, doc: ProtocolDocument, ctx: AuditContext) -> ProtocolDocument:
     """
@@ -151,8 +166,7 @@ class ProtocolParser(ParsingContext):
     :param charter:
     :return:
     """
-    doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
-
+    # doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
     doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
 
     doc.org_tags = list(find_protocol_org(doc))
@@ -167,23 +181,26 @@ class ProtocolParser(ParsingContext):
 
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
 
+    self.find_org_date_number(doc, ctx)
+
     if doc.sentences_embeddings is None or doc.embeddings is None:
-      self.ebmedd(doc)  # lazy embedding
+      self.embedd(doc)  # lazy embedding
 
     doc.agenda_questions = self.find_question_decision_sections(doc)
     doc.margin_values = self.find_margin_values(doc)
     doc.contract_numbers = self.find_contract_numbers(doc)
     doc.agents_tags = list(self.find_agents_in_all_sections(doc, doc.agenda_questions, ctx.audit_subsidiary_name))
 
-    self.validate(doc)
+    self.validate(doc, ctx)
     return doc
 
-  def validate(self, doc):
-    if not doc.agenda_questions:
-      doc.warn(ParserWarnings.protocol_agenda_not_found)
+  def validate(self, document: ProtocolDocument, ctx: AuditContext):
 
-    if not doc.margin_values and not doc.agents_tags and not doc.contract_numbers:
-      doc.warn(ParserWarnings.boring_agenda_questions)
+    if not document.agenda_questions:
+      document.warn(ParserWarnings.protocol_agenda_not_found)
+
+    if not document.margin_values and not document.agents_tags and not document.contract_numbers:
+      document.warn(ParserWarnings.boring_agenda_questions)
 
   def find_agents_in_all_sections(self,
                                   doc: LegalDocument,
@@ -212,13 +229,15 @@ class ProtocolParser(ParsingContext):
     return _rename_org_tags(all, 'contract_agent_', start_from=start_from)
 
   def find_margin_values(self, doc) -> [ContractValue]:
-    assert ProtocolAV.relu_value_attention_vector.name in doc.distances_per_pattern_dict, 'call find_question_decision_sections first'
+    if ProtocolAV.relu_value_attention_vector.name not in doc.distances_per_pattern_dict:
+      raise KeyError('call find_question_decision_sections first')
 
     values: [ContractValue] = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
+      relu_value_attention_vector = subdoc.distances_per_pattern_dict[ProtocolAV.relu_value_attention_vector.name]
       subdoc_values: [ContractValue] = find_value_sign_currency_attention(subdoc,
-                                                                          ProtocolAV.relu_value_attention_vector.name,
+                                                                          relu_value_attention_vector,
                                                                           parent_tag=agenda_question_tag,
                                                                           absolute_spans=True)
       values += subdoc_values
@@ -236,7 +255,7 @@ class ProtocolParser(ParsingContext):
     values = []
     for agenda_question_tag in doc.agenda_questions:
       subdoc = doc[agenda_question_tag.as_slice()]
-      # print(subdoc.text)
+
       numbers = find_document_number_in_subdoc(subdoc, tagname='number', parent=agenda_question_tag)
 
       for k, v in enumerate(numbers):
@@ -341,19 +360,21 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     return fp
 
   def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+    AbstractPatternFactory.__init__(self)
 
     create_value_negation_patterns(self)
     create_value_patterns(self)
 
-    self.embedd()
+    self.embedd(embedder)
 
 
-def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
+def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
   ret = []
-  x: List[SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words], max_names=1,
-                                        regex=protocol_caption_complete_re,
-                                        re_ignore_case=protocol_caption_complete_re_ignore_case)
+
+  x: [SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words],
+                                    max_names=1,
+                                    regex=protocol_caption_complete_re,
+                                    re_ignore_case=protocol_caption_complete_re_ignore_case)
 
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
@@ -367,11 +388,6 @@ def find_protocol_org(protocol: ProtocolDocument) -> List[SemanticTag]:
   else:
     protocol.warn(ParserWarnings.org_type_not_found)
   return ret
-
-
-import re
-
-from pyjarowinkler import distance
 
 
 def closest_name(pattern: str, knowns: [str]) -> (str, int):

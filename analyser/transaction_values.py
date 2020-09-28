@@ -8,7 +8,6 @@
 import math
 import re
 import warnings
-from typing import List
 
 from analyser.ml_tools import TokensWithAttention
 from analyser.text_tools import to_float
@@ -97,7 +96,6 @@ def extract_sum(_sentence: str, vat_percent=0.20) -> (float, str):
     r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
     if r_vat_percent:
       vat_percent = to_float(r_vat_percent) / 100
-      # print(f'vat_percent::{vat_percent}')
 
     number = number / (1. + vat_percent)
     # number = int(number * 100.) / 100.  # dumned truncate!
@@ -136,7 +134,7 @@ number_re = re.compile(r'^\d+[,.]?\d+', re.MULTILINE)
 VALUE_SIGN_MIN_TOKENS = 5
 
 
-def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, List[int], str, bool, float):
+def find_value_spans(_sentence: str, vat_percent=0.20) -> ([int], float, [int], str, bool, float):
   for match in complete_re.finditer(_sentence):
 
     ix = ''
@@ -146,17 +144,17 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
     # NUMBER
     number_span = match.span('digits' + ix)
 
-    number = to_float(_sentence[number_span[0]:number_span[1]])
+    number: float = to_float(_sentence[number_span[0]:number_span[1]])
 
     # NUMBER MULTIPLIER
     qualifier_span = match.span('qualifier' + ix)
     qualifier = _sentence[qualifier_span[0]:qualifier_span[1]]
     if qualifier:
       if qualifier.startswith('тыс'):
-        number *= 1000
+        number *= 1e3
       else:
         if qualifier.startswith('м'):
-          number *= 1000000
+          number *= 1e6
 
     # FRACTION (CENTS, KOPs)
     cents_span = match.span('cents' + ix)
@@ -183,7 +181,6 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
       r_vat_percent = _sentence[vat_percent_span[0]:vat_percent_span[1]]
       if r_vat_percent:
         vat_percent = to_float(r_vat_percent) / 100
-        # print(f'vat_percent::{vat_percent}')
 
       number = number / (1. + vat_percent)
       # number = int(number * 100.) / 100.  # dumned truncate!
@@ -192,9 +189,19 @@ def find_value_spans(_sentence: str, vat_percent=0.20) -> (List[int], float, Lis
 
     # TODO: include fration span to the return value
 
-    ret = number_span, number, currency_span, currencly_name, including_vat, original_sum
+    ret = number_span, number, currency_span, currencly_name, including_vat, original_sum, r_vat
 
     return ret
+
+
+class ValueSpansFinder:
+  def __init__(self, _sentence: str, vat_percent=0.20):
+    self.number_span, self.value, self.currency_span, self.currencly_name, self.including_vat, self.original_sum, self.vat = find_value_spans(
+      _sentence,
+      vat_percent=vat_percent)
+
+  def __str__(self):
+    return f'{self.number_span}, {self.value}, {self.currency_span}, {self.currencly_name}, {self.including_vat}, {self.original_sum}, vat = {self.vat}'
 
 
 if __name__ == '__main__':

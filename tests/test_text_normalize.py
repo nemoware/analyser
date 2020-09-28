@@ -9,7 +9,7 @@ from analyser.contract_agents import normalize_legal_entity_type
 from analyser.documents import CaseNormalizer, TextMap
 from analyser.legal_docs import LegalDocument
 from analyser.structures import legal_entity_types
-from analyser.text_normalize import *
+from analyser.text_normalize import normalize_company_name, normalize_text, replacements_regex
 
 
 class CaseNormalizerTestCase(unittest.TestCase):
@@ -50,7 +50,33 @@ class CaseNormalizerTestCase(unittest.TestCase):
 
 class TestTextNormalization(unittest.TestCase):
 
+  def test_normalize_company_name_2(self):
+
+    _, b = normalize_company_name('«Новые перспективы»')
+    self.assertEqual('Новые перспективы', b)
+
+    _, b = normalize_company_name('')
+    self.assertEqual('', b)
+
+    _, b = normalize_company_name(' обслуживания «Новые перспективы')
+    self.assertEqual('обслуживания «Новые перспективы»', b)
+
+    # _, b = normalize_company_name('«социального обслуживания «Новые перспективы» и «Старые тоже»')
+    # self.assertEqual('социального обслуживания «Новые перспективы» и «Старые тоже»', b)
+
+    _, b = normalize_company_name(' обслуживания «Новые» перспективы')
+    self.assertEqual('обслуживания «Новые» перспективы', b)
+
   def test_normalize_company_name(self):
+
+    a, b = normalize_company_name('«Институт повышения квалификации «МногоИкал')
+    self.assertEqual('', a)
+    self.assertEqual('Институт повышения квалификации «МногоИкал»', b)
+
+    a, b = normalize_company_name('«Дворец культуры «Бескулька»')
+    self.assertEqual('', a)
+    self.assertEqual('Дворец культуры «Бескулька»', b)
+
     a, b = normalize_company_name('Многофункциональный комплекс «Лахта центр»')
     self.assertEqual('', a)
     self.assertEqual('Многофункциональный комплекс «Лахта центр»', b)

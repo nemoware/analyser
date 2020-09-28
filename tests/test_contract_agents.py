@@ -46,14 +46,33 @@ class ContractAgentsTestCase(unittest.TestCase):
         self.assertEqual(s, 1)
 
   def test_find_closest_org_name_solo(self):
-    # s = compare_masked_strings('Многофункциональный комплекс «Лахта центр»',
-    #                            'Многофункциональный комплекс «Лахта центр»', [])
+    expected = 'Многофункциональный комплекс «Лахта центр»'
+    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс «Лахта центр»', 0)[0]
+    self.assertEqual(expected, s['_id'])
 
-    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс «Лахта центр»', 0)
-    print(s)
-    # print(s)
-    # for s1 in subsidiaries:
-    #   for name in s1['aliases']:
+    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс Лахта центр', 0)[0]
+    self.assertEqual(expected, s['_id'])
+
+    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс Лахта центр  ', 0)[0]
+    self.assertEqual(expected, s['_id'])
+
+    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс Лахта-центр  ', 0)[0]
+
+    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс Лахта-центр'.upper(), 0)[0]
+
+    s = find_closest_org_name(subsidiaries, 'Многофункциональный комплекс Лахта Центр', 0)[0]
+    self.assertEqual(expected, s['_id'])
+
+  def test_find_closest_org_name_solo2(self):
+    expected = 'Газпромнефть-МНПЗ'
+    s = find_closest_org_name(subsidiaries, 'Газпромнефть - МНПЗ', 0)[0]
+    self.assertEqual(expected, s['_id'])
+
+    expected = 'Газпромнефть-ОНПЗ'
+    s = find_closest_org_name(subsidiaries, 'Газпромнефть-ОНПЗ', 0)[0]
+    self.assertEqual(expected, s['_id'])
+
+
 
   def test_find_closest_org_names_self(self):
     _threshold = HyperParameters.subsidiary_name_match_min_jaro_similarity

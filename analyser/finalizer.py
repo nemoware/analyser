@@ -1,7 +1,7 @@
 import pymongo
 import numpy as np
 import textdistance
-
+from analyser.log import logger
 from integration.db import get_mongodb_connection
 
 currency_rates = {"RUB": 1.0, "USD": 63.72, "EURO": 70.59, "KZT": 0.17}
@@ -218,25 +218,42 @@ def check_contract(contract, charters, protocols, audit):
     for charter in charters:
         charter_attrs = get_attrs(charter)
         try:
-          if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
-            eligible_charter = charter
-            add_link(audit["_id"], contract["_id"], eligible_charter["_id"])
-            break
+            if charter_attrs["date"]["value"] <= contract_attrs["date"]["value"]:
+                eligible_charter = charter
+                add_link(audit["_id"], contract["_id"], eligible_charter["_id"])
+                break
         except Exception as e:
-          msg = f'audit {audit["_id"]} charter {charter["_id"]} contract{contract["_id"]}'
-          print('ERROR: ', e, msg)
+            msg = f'audit {audit["_id"]} charter {charter["_id"]} contract{contract["_id"]}'
+            print('ERROR: ', e, msg )
+
 
     if eligible_charter is None:
         json_charters = []
         for charter in charters:
             charter_attrs = get_attrs(charter)
             json_charters.append({"id": charter["_id"], "date": charter_attrs["date"]["value"]})
-        violations.append(create_violation({"id": contract["_id"], "number": contract_number, "type": contract["parse"]["documentType"]},
-                                           None,
-                                           None,
-                                           "charter_not_found",
-                                           {"contract": {"id": contract["_id"], "number": contract_number, "type": contract["parse"]["documentType"], "date": contract_attrs["date"]["value"]},
-                                            "charters": json_charters}))
+
+        violation_reason = {"contract":
+                              {"id": contract["_id"],
+                               "number": contract_number,
+                               "type": contract["parse"]["documentType"]
+                               },
+                            "charters": json_charters
+                            }
+        if 'date' in contract_attrs:
+          violation_reason["contract"]["date"] = contract_attrs["date"]["value"]
+
+        violations.append(create_violation(
+          document_id={
+            "id": contract["_id"],
+            "number": contract_number,
+            "type": contract["parse"]["documentType"]
+          },
+          founding_document_id = None,
+          reference = None,
+          violation_type = "charter_not_found",
+          violation_reason=violation_reason)
+        )
         return violations
     else:
         charter_subject_map, min_constraint = get_charter_diapasons(eligible_charter)
@@ -382,16 +399,54 @@ def check_contract(contract, charters, protocols, audit):
     return violations
 
 
+def exclude_same_charters(charters):
+    result = []
+    date_map = {}
+    for charter in charters:
+        if get_attrs(charter).get("date") is not None:
+            charter_date = get_attrs(charter)["date"]["value"]
+            same_charters = date_map.get(charter_date)
+            if same_charters is None:
+                date_map[charter_date] = [charter]
+            else:
+                same_charters.append(charter)
+
+    for date, same_charters in date_map.items():
+        if len(same_charters) == 1:
+            result.append(same_charters[0])
+        else:
+            best = same_charters[0]
+            for charter in same_charters[1:]:
+                if charter.get("user") is not None:
+                    if best.get("user") is not None:
+                        if charter["user"]["updateDate"] > best["user"]["updateDate"]:
+                            best = charter
+                    else:
+                        best = charter
+                else:
+                    if best.get("user") is None and best["analysis"]["analyze_timestamp"] > charter["analysis"]["analyze_timestamp"]:
+                        best = charter
+            result.append(best)
+    return result
+
+
 def finalize():
     audits = get_audits()
     for audit in audits:
         if audit["subsidiary"]["name"] == "Все ДО":
             print(f'.....audit {audit["_id"]} finalizing skipped')
             continue
-        print(f'.....finalizing audit {audit["_id"]}')
+        logger.info(f'.....finalizing audit {audit["_id"]}')
         violations = []
         contract_ids = get_docs_by_audit_id(audit["_id"], 15, "CONTRACT", id_only=True)
-        charters = sorted(get_docs_by_audit_id(audit["_id"], 15, "CHARTER"), key=lambda k: get_attrs(k)["date"]["value"])
+        charters = []
+        if audit.get("charters") is not None:
+            for charter_id in audit["charters"]:
+                charter = get_doc_by_id(charter_id)
+                if (charter.get("isActive") is None or charter["isActive"]) and charter["state"] == 15:
+                    charters.append(charter)
+            cleaned_charters = exclude_same_charters(charters)
+            charters = sorted(cleaned_charters, key=lambda k: get_attrs(k)["date"]["value"])
         protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL", without_large_fields=True)
 
         for contract_id in contract_ids:

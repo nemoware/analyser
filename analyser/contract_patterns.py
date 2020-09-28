@@ -50,7 +50,7 @@ head_subject_patterns_prefix = 'hds_'
 class ContractPatternFactory(AbstractPatternFactoryLowCase):
 
   def __init__(self, embedder=None):
-    AbstractPatternFactoryLowCase.__init__(self, embedder)
+    AbstractPatternFactoryLowCase.__init__(self)
     # self.headlines = ['subj', 'contract', 'def', 'price.', 'pricecond', 'terms', 'dates', 'break', 'rights', 'obl',
     #                   'resp', 'forcemajor', 'security', 'special', 'appl', 'addresses', 'conficts']
 
@@ -63,7 +63,7 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
     self._build_subject_patterns()
 
     if embedder is not None:
-      self.embedd()
+      self.embedd(embedder)
 
   def _build_head_subject_patterns(self):
 
