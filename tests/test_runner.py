@@ -51,8 +51,9 @@ class TestRunner(unittest.TestCase):
 
   def _preprocess_single_doc(self, kind):
     for doc in self._get_doc_from_db(kind):
+      d = DbJsonDoc(doc)
       processor = document_processors.get(kind, None)
-      processor.preprocess(doc, AuditContext())
+      processor.preprocess(d, AuditContext())
 
   # @unittest.skipIf(SKIP_TF, "requires TF")
 

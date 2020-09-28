@@ -49,17 +49,15 @@ class WordDocParser(DirDocProvider):
 def create_doc_by_type(t: str, doc_id, filename) -> CharterDocument or ContractDocument or ProtocolDocument:
   # TODO: check type of res
 
-
-
   if t == 'CONTRACT':
-    doc: LegalDocument = ContractDocument('')
+    doc = ContractDocument('')
   elif t == 'PROTOCOL':
-    doc: LegalDocument = ProtocolDocument()
+    doc = ProtocolDocument()
   elif t == 'CHARTER':
-    doc: LegalDocument = CharterDocument()
+    doc = CharterDocument()
   else:
     logging.warning(f"Unsupported document type: {t}")
-    doc: LegalDocument = LegalDocument('')
+    doc = LegalDocument('')
 
   doc._id = doc_id
   doc.filename = filename
@@ -114,8 +112,7 @@ def join_paragraphs(response, doc_id, filename=None) -> CharterDocument or Contr
     doc.paragraphs.append(para)
     last = len(doc.tokens_map)
 
-
-
+  doc.split_into_sentenses()
   return doc
 
 

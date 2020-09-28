@@ -329,7 +329,8 @@ class TestContractAgentsSearch(unittest.TestCase):
 
 Принятое решение по первому"""
 
-    doc = ProtocolDocument(LegalDocument(doc_text).parse())
+    doc = ProtocolDocument(LegalDocument(doc_text))
+    doc.parse()
     print(doc.text)
     tags: [SemanticTag] = find_protocol_org(doc)
     self._validate_org(tags, 1, ('Общество с ограниченной ответственностью', 'Газпромнефть Шиппинг', None))

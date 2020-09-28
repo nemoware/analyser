@@ -122,13 +122,13 @@ class AbstractEmbedder:
 
     return patterns_emb, regions
 
-  def embedd_large(self, text_map, max_tokens=8000, verbosity=2):
+  def embedd_large(self, text_map, max_tokens=8000, log_addon=''):
     overlap = max_tokens // 20
 
     number_of_windows = 1 + len(text_map) // max_tokens
     window = max_tokens
 
-    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
+    msg = f"{log_addon} Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
     elmo_logger.warning(msg)
 
     start = 0
@@ -137,7 +137,7 @@ class AbstractEmbedder:
     while start < len(text_map):
 
       subtokens: Tokens = text_map[start:start + window + overlap]
-      elmo_logger.debug(f"Embedding region: {start}, {len(subtokens)}")
+      elmo_logger.debug(f"{log_addon} Embedding region: {start}, {len(subtokens)}")
 
       sub_embeddings = self.embedd_tokens(subtokens)[0:window]
 

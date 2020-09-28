@@ -1,4 +1,3 @@
-import logging
 import traceback
 import warnings
 
@@ -10,44 +9,24 @@ from analyser import finalizer
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractParser
 from analyser.legal_docs import LegalDocument
+from analyser.log import logger
 from analyser.parsing import AuditContext
 from analyser.persistence import DbJsonDoc
 from analyser.protocol_parser import ProtocolParser
 from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
-from tf_support.embedder_elmo import ElmoEmbedder
-
-logger = logging.getLogger('root')
-
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.setLevel(logging.DEBUG)
-
-logger.addHandler(ch)
 
 
 class Runner:
   default_instance: 'Runner' = None
 
   def __init__(self, init_embedder=True):
-    self.elmo_embedder: ElmoEmbedder = None
-    self.elmo_embedder_default: ElmoEmbedder = None
-    if init_embedder:
-      self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
-      self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
-
-    self.protocol_parser = ProtocolParser(self.elmo_embedder, self.elmo_embedder_default)
-    self.contract_parser = ContractParser(self.elmo_embedder)
-    self.charter_parser = CharterParser(self.elmo_embedder, self.elmo_embedder_default)
+    self.protocol_parser = ProtocolParser()
+    self.contract_parser = ContractParser()
+    self.charter_parser = CharterParser()
 
   def init_embedders(self):
-    self.elmo_embedder = ElmoEmbedder.get_instance('elmo')
-    self.elmo_embedder_default = ElmoEmbedder.get_instance('default')
-    self.protocol_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
-    self.contract_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
-    self.charter_parser.init_embedders(self.elmo_embedder, self.elmo_embedder_default)
+    pass
 
   @staticmethod
   def get_instance(init_embedder=False) -> 'Runner':
@@ -59,23 +38,24 @@ class Runner:
 class BaseProcessor:
   parser = None
 
-  def preprocess(self, db_document: dict, context: AuditContext):
-    jdoc = DbJsonDoc(db_document)
+  def preprocess(self, jdoc: DbJsonDoc, context: AuditContext):
+    # phase I
+    # TODO: include phase I into phase II, remove phase I
     if jdoc.is_user_corrected():
       logger.info(f"skipping doc {jdoc._id} because it is corrected by user")
       # TODO: update state?
     else:
       legal_doc = jdoc.asLegalDoc()
-      Runner.get_instance()
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(jdoc, legal_doc, state=DocumentState.Preprocessed.value)
 
   def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
+    # phase II
     if db_document.retry_number is None:
       db_document.retry_number = 0
 
     if db_document.retry_number > 2:
-      logger.error(f'document {db_document._id} exceeds maximum retries for analysis and is skipped')
+      logger.error(f'{db_document.documentType} {db_document._id} exceeds maximum retries for analysis and is skipped')
       return None
 
     legal_doc = db_document.asLegalDoc()
@@ -162,7 +142,11 @@ def get_audits():
   return res
 
 
-def get_docs_by_audit_id(id: str, states=None, kind=None, id_only=False) -> []:
+def get_charters():
+  return get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
+
+
+def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False) -> []:
   db = get_mongodb_connection()
   documents_collection = db['documents']
 
@@ -212,88 +196,114 @@ def change_audit_status(audit, status):
   db["audits"].update_one({'_id': audit["_id"]}, {"$set": {"status": status}})
 
 
-def need_analysis(document) -> bool:
-  return document["parse"]["documentType"] != "CHARTER" or (document["parserResponseCode"] == 200 and
-    (document.get("isActive") is None or document["isActive"]))
+def need_analysis(document: DbJsonDoc) -> bool:
+  _is_not_a_charter = document.documentType != "CHARTER"
+  _well_parsed = document.parserResponseCode == 200
+
+  return _well_parsed and (document.isActiveCharter() or _is_not_a_charter)
+
+
+def audit_phase_1(audit, kind=None):
+  logger.info(f'.....processing audit {audit["_id"]}')
+  ctx = AuditContext(audit["subsidiary"]["name"])
+
+  document_ids = get_docs_by_audit_id(audit["_id"], states=[DocumentState.New.value], kind=kind, id_only=True)
+  _charter_ids = audit.get("charters", [])
+  document_ids.extend(_charter_ids)
+
+  for k, document_id in enumerate(document_ids):
+    _document = finalizer.get_doc_by_id(document_id)
+    jdoc = DbJsonDoc(_document)
+
+    processor: BaseProcessor = document_processors.get(jdoc.documentType, None)
+    if processor is None:
+      logger.warning(f'unknown/unsupported doc type: {jdoc.documentType}, cannot process {document_id}')
+    else:
+      logger.info(f'......pre-processing {k} of {len(document_ids)}  {jdoc.documentType}:{document_id}')
+      if need_analysis(jdoc) and jdoc.isNew():
+        processor.preprocess(jdoc=jdoc, context=ctx)
+
+
+def audit_phase_2(audit, kind=None):
+  ctx = AuditContext(audit["subsidiary"]["name"])
+
+  print(f'.....processing audit {audit["_id"]}')
+
+  document_ids = get_docs_by_audit_id(audit["_id"],
+                                      states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
+                                      kind=kind, id_only=True)
+
+  _charter_ids = audit.get("charters", [])
+  document_ids.extend(_charter_ids)
+
+  for k, document_id in enumerate(document_ids):
+    _document = finalizer.get_doc_by_id(document_id)
+    jdoc = DbJsonDoc(_document)
+
+    processor: BaseProcessor = document_processors.get(jdoc.documentType, None)
+    if processor is None:
+      logger.warning(f'unknown/unsupported doc type: {jdoc.documentType}, cannot process {document_id}')
+    else:
+      if need_analysis(jdoc) and jdoc.isPreprocessed():
+        logger.info(f'.....processing  {k} of {len(document_ids)}   {jdoc.documentType} {document_id}')
+        processor.process(jdoc, audit, ctx)
+
+  change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
+
+
+def audit_charters_phase_1():
+  """preprocess"""
+  charters = get_charters()
+  processor: BaseProcessor = document_processors['CHARTER']
+
+  for k, charter in enumerate(charters):
+    jdoc = DbJsonDoc(charter)
+    logger.info(f'......pre-processing {k} of {len(charters)} CHARTER {jdoc._id}')
+    ctx = AuditContext()
+    processor.preprocess(jdoc, context=ctx)
+
+
+def audit_charters_phase_2():
+  charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
+                                  kind="CHARTER")
+
+  for k, _document in enumerate(charters):
+    jdoc = DbJsonDoc(_document)
+    processor: BaseProcessor = document_processors['CHARTER']
+
+    logger.info(f'......processing  {k} of {len(charters)}  CHARTER {jdoc._id}')
+    ctx = AuditContext()
+    processor.process(jdoc, audit=None, context=ctx)
 
 
 def run(run_pahse_2=True, kind=None):
-  # phase 1
-  print('=' * 80)
-  print('PHASE 1')
-  runner = Runner.get_instance(init_embedder=False)
-  audits = get_audits()
-  for audit in audits:
+  # -----------------------
+  # NIL (сорян, в системе римских цифр отсутствует ноль)
+  logger.info('-> PHASE 0 (charters)...')
+  audit_charters_phase_1()
+  if run_pahse_2:
+    audit_charters_phase_2()
 
-    ctx = AuditContext()
-    ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
+  # -----------------------
+  # I
+  logger.info('-> PHASE I...')
+  for audit in get_audits():
+    audit_phase_1(audit, kind)
 
-    print('=' * 80)
-    logger.info(f'.....processing audit {audit["_id"]}')
-
-    document_ids = get_docs_by_audit_id(audit["_id"], states=[DocumentState.New.value], kind=kind, id_only=True)
-    if audit.get("charters") is not None:
-      document_ids.extend(audit["charters"])
-    for k, document_id in enumerate(document_ids):
-      document = finalizer.get_doc_by_id(document_id)
-      processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
-      if processor is not None and need_analysis(document) and (document.get("state") == DocumentState.New.value or document.get("state") is None):
-        print(f'......pre-processing {k} of {len(document_ids)}  {document["parse"]["documentType"]} {document["_id"]}')
-        processor.preprocess(db_document=document, context=ctx)
-
-  charters = get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
-  for k, document in enumerate(charters):
-    processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
-    if processor is not None and document.get("subsidiary") is not None:
-      print(f'......pre-processing {k} of {len(charters)}  {document["parse"]["documentType"]} {document["_id"]}')
-      ctx = AuditContext()
-      ctx.audit_subsidiary_name = document["subsidiary"]["name"]
-      processor.preprocess(db_document=document, context=ctx)
-
+  # -----------------------
+  # II
+  logger.info('-> PHASE II..')
   if run_pahse_2:
     # phase 2
-    print('=' * 80)
-    print('PHASE 2')
-    runner.init_embedders()
-    audits = get_audits()
-    for audit in audits:
-      ctx = AuditContext()
-      ctx.audit_subsidiary_name = audit["subsidiary"]["name"]
-
-      print('=' * 80)
-      print(f'.....processing audit {audit["_id"]}')
-
-      document_ids = get_docs_by_audit_id(audit["_id"],
-                                          states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
-                                          kind=kind, id_only=True)
-      if audit.get("charters") is not None:
-        document_ids.extend(audit["charters"])
-
-      for k, document_id in enumerate(document_ids):
-        document = finalizer.get_doc_by_id(document_id)
-
-        processor = document_processors.get(document["parse"]["documentType"], None)
-        if processor is not None and need_analysis(document) \
-                and (document.get("state") == DocumentState.Preprocessed.value or document.get("state") == DocumentState.Error.value):
-          jdoc = DbJsonDoc(document)
-          print(f'......processing  {k} of {len(document_ids)}   {document["parse"]["documentType"]} {document["_id"]}')
-          processor.process(jdoc, audit, ctx)
-
-      change_audit_status(audit, "Finalizing")  # TODO: check ALL docs in proper state
-
-    charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value], kind="CHARTER")
-    for k, document in enumerate(charters):
-      processor: BaseProcessor = document_processors.get(document["parse"]["documentType"], None)
-      if processor is not None and document.get("subsidiary") is not None:
-        jdoc = DbJsonDoc(document)
-        print(f'......processing  {k} of {len(charters)}   {document["parse"]["documentType"]} {document["_id"]}')
-        ctx = AuditContext()
-        ctx.audit_subsidiary_name = document["subsidiary"]["name"]
-        processor.process(jdoc, audit=None, context=ctx)
+    for audit in get_audits():
+      audit_phase_2(audit, kind)
 
   else:
-    warnings.warn("phase 2 is skipped")
+    logger.info("phase 2 is skipped")
 
+  # -----------------------
+  # III
+  logger.info('-> PHASE III (finalize)...')
   finalizer.finalize()
 
 

@@ -15,18 +15,35 @@ class DbJsonDoc:
     self.analysis = None
     self.user = None
 
+    self.parserResponseCode: int = -1
     self.state: int = -1
     self.parse = None
     self.filename = None
 
     self._id = None
+    self.isActive: bool or None = None
     self.retry_number: int = 0
-    self.__dict__.update(j)
+    self.__dict__.update(j)  # ------important
+    self.documentType = self.parse['documentType']
 
     if self.state == DocumentState.New.value:
       # reset user data, because it is bound to tokenisation map, re-tokenisation is possible
       self.user = None
       self.analysis = None
+
+  def isPreprocessed(self):
+    return self.state == DocumentState.Preprocessed.value or self.state == DocumentState.Error.value
+
+  def isNew(self):
+    return self.state == DocumentState.New.value or self.state is None
+
+  def isActiveCharter(self):
+    return (self.isActive or self.isActive is None) and self.documentType == 'CHARTER'
+
+  def is_user_corrected(self) -> bool:
+    if self.state == DocumentState.New.value:
+      return False
+    return self.user is not None and self.user.get('attributes', None) is not None
 
   def asLegalDoc(self):
 
@@ -39,6 +56,8 @@ class DbJsonDoc:
       doc.tokens_map = self.get_tokens_map_unchaged()
       if 'sentence_map' in doc.__dict__:
         doc.sentence_map = self.get_sentence_map()
+        if doc.sentence_map is None:
+          doc.split_into_sentenses()
 
       headers = self.analysis.get('headers', None)
       if headers is not None:
@@ -62,18 +81,18 @@ class DbJsonDoc:
     doc.user = self.user
     return doc
 
-  def get_tokens_map_unchaged(self):
+  def get_tokens_map_unchaged(self) -> TextMap:
     _map = self.analysis['tokenization_maps']['words']
     tokens_map = TextMap(self.analysis['normal_text'], _map)
     return tokens_map
 
-  def get_sentence_map(self):
+  def get_sentence_map(self) -> TextMap:
     if 'sentences' in self.analysis['tokenization_maps']:
       _map = self.analysis['tokenization_maps']['sentences']
       tokens_map = TextMap(self.analysis['normal_text'], _map)
       return tokens_map
 
-  def get_tokens_for_embedding(self):
+  def get_tokens_for_embedding(self) -> TextMap:
     _tokens_map = self.get_tokens_map_unchaged()
     tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(_tokens_map)
     return tokens_map_norm
@@ -85,10 +104,7 @@ class DbJsonDoc:
     arrr = self.analysis['tokenization_maps']['words']
     return len(arrr)
 
-  def is_user_corrected(self) -> bool:
-    if self.state == DocumentState.New.value:
-      return False
-    return self.user is not None and self.user.get('attributes', None) is not None
+
 
   def is_analyzed(self) -> bool:
     if self.state == DocumentState.New.value:

@@ -6,7 +6,6 @@
 # legal_docs.py
 import datetime
 import json
-import logging
 import warnings
 from enum import Enum
 
@@ -20,6 +19,7 @@ from analyser.doc_structure import get_tokenized_line_number
 from analyser.documents import split_sentences_into_map, TextMap, CaseNormalizer
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import HyperParameters
+from analyser.log import logger
 from analyser.ml_tools import SemanticTag, FixedVector, Embeddings, filter_values_by_key_prefix, rectifyed_sum, \
   conditional_p_sum
 from analyser.patterns import DIST_FUNC, AbstractPatternFactory, make_pattern_attention_vector
@@ -29,7 +29,6 @@ from analyser.text_tools import find_token_before_index
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
   ValueSpansFinder
 
-elmo_logger = logging.getLogger('elmo')
 REPORTED_DEPRECATED = {}
 
 
@@ -39,10 +38,10 @@ class ParserWarnings(Enum):
   org_struct_level_not_found = 3
   date_not_found = 4
   number_not_found = 5
-  #6? what about 6
+  # 6? what about 6
   value_section_not_found = 7
   contract_value_not_found = 8
-  subject_section_not_found = 6 #here it is
+  subject_section_not_found = 6  # here it is
   contract_subject_not_found = 9
 
   protocol_agenda_not_found = 10
@@ -107,7 +106,7 @@ class LegalDocument:
 
     appx = f'Для анализа документ обрезан из соображений производительности, допустимая длинна -- {maxsize} слов ✂️'
     wrn = f'{self._id}, {self.filename},  {appx}'
-    logging.warning(wrn)
+    logger.warning(wrn)
 
     self.warn(ParserWarnings.doc_too_big, appx)
 
@@ -283,10 +282,9 @@ class LegalDocument:
     return self.subdoc_slice(_s)
 
   @final
-  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
+  def embedd_tokens(self, embedder: AbstractEmbedder, max_tokens=8000):
     self.embeddings = embedd_tokens(self.tokens_map_norm,
                                     embedder,
-                                    verbosity=verbosity,
                                     max_tokens=max_tokens,
                                     log_key=self._id)
 
@@ -316,16 +314,22 @@ class LegalDocumentExt(LegalDocument):
 
   def __init__(self, doc: LegalDocument):
     super().__init__('')
-    if doc is not None:
-      self.__dict__ = doc.__dict__
-
     self.sentence_map: TextMap or None = None
+
+    if doc is not None:
+      # self.__dict__ = doc.__dict__
+      self.__dict__.update(doc.__dict__)
+
     self.sentences_embeddings: Embeddings = None
     self.distances_per_sentence_pattern_dict = {}
 
+  def split_into_sentenses(self):
+    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map._full_text,
+                                                        HyperParameters.protocol_sentence_max_len)
+
   def parse(self, txt=None):
     super().parse(txt)
-    self.sentence_map = tokenize_doc_into_sentences_map(self, HyperParameters.charter_sentence_max_len)
+    self.split_into_sentenses()
     return self
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -340,7 +344,8 @@ class LegalDocumentExt(LegalDocument):
       if self.sentences_embeddings is not None:
         sub.sentences_embeddings = self.sentences_embeddings[_slice]
     else:
-      warnings.warn('split into sentences first')
+      raise ValueError(f'split doc into sentences first {self._id}')
+
     return sub
 
 
@@ -525,20 +530,11 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
     return None
 
 
-def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
+def tokenize_doc_into_sentences_map(txt: str, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
 
-  # if doc.paragraphs:
-  #   for p in doc.paragraphs:
-  #     header_lines = doc.substr(p.header).splitlines(True)
-  #     for line in header_lines:
-  #       tm += split_sentences_into_map(line, max_len_chars)
-  #
-  #     body_lines = doc.substr(p.body).splitlines(True)
-  #     for line in body_lines:
-  #       tm += split_sentences_into_map(line, max_len_chars)
-  # else:
-  body_lines = doc.text.splitlines(True)
+  # body_lines = doc.tokens_map._full_text.splitlines(True)
+  body_lines = txt.splitlines(True)
   for line in body_lines:
     tm += split_sentences_into_map(line, max_len_chars)
 
@@ -548,11 +544,15 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 PARAGRAPH_DELIMITER = '\n'
 
 
-def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
+def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='', max_tokens=100):
   warnings.warn("use embedd_words", DeprecationWarning)
 
+  if text_map is None:
+    # https://github.com/nemoware/analyser/issues/224
+    raise ValueError('text_map must not be None')
+
   if len(text_map) > max_tokens:
-    return embedder.embedd_large(text_map, max_tokens, verbosity)
+    return embedder.embedd_large(text_map, max_tokens, log_addon)
   else:
     return embedder.embedd_tokens(text_map.tokens)
 
@@ -597,19 +597,19 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
   return av
 
 
-def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000, log_key=''):
+def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, max_tokens=8000, log_key=''):
   ch = tokens_map_norm.get_checksum()
 
   _cached = embedder.get_cached_embedding(ch)
   if _cached is not None:
-    elmo_logger.debug(f'getting embedding from cache {log_key}')
+    logger.debug(f'getting embedding from cache {log_key}')
     return _cached
   else:
-    elmo_logger.debug(f'embedding doc {log_key}')
+    logger.info(f'embedding doc {log_key}')
     if tokens_map_norm.tokens:
 
       if len(tokens_map_norm) > max_tokens:
-        embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, verbosity)
+        embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, log_key)
       else:
         embeddings = embedder.embedd_tokens(tokens_map_norm.tokens)
 
