@@ -52,7 +52,7 @@ class TestRunner(unittest.TestCase):
   def _preprocess_single_doc(self, kind):
     for doc in self._get_doc_from_db(kind):
       d = DbJsonDoc(doc)
-      processor = document_processors.get(kind, None)
+      processor = document_processors.get(kind)
       processor.preprocess(d, AuditContext())
 
   # @unittest.skipIf(SKIP_TF, "requires TF")
@@ -72,7 +72,7 @@ class TestRunner(unittest.TestCase):
     audit_id = next(get_audits())['_id']
     docs = get_docs_by_audit_id(audit_id, kind='CONTRACT')
     for doc in docs:
-      processor = document_processors.get('CONTRACT', None)
+      processor = document_processors.get('CONTRACT')
       processor.preprocess(doc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
@@ -81,7 +81,7 @@ class TestRunner(unittest.TestCase):
     audit_id = next(get_audits())['_id']
     docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
     for doc in docs:
-      processor = document_processors.get('CHARTER', None)
+      processor = document_processors.get('CHARTER')
       processor.preprocess(doc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")

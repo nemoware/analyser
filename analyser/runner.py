@@ -215,7 +215,7 @@ def audit_phase_1(audit, kind=None):
     _document = finalizer.get_doc_by_id(document_id)
     jdoc = DbJsonDoc(_document)
 
-    processor: BaseProcessor = document_processors.get(jdoc.documentType, None)
+    processor: BaseProcessor = document_processors.get(jdoc.documentType)
     if processor is None:
       logger.warning(f'unknown/unsupported doc type: {jdoc.documentType}, cannot process {document_id}')
     else:
@@ -240,7 +240,7 @@ def audit_phase_2(audit, kind=None):
     _document = finalizer.get_doc_by_id(document_id)
     jdoc = DbJsonDoc(_document)
 
-    processor: BaseProcessor = document_processors.get(jdoc.documentType, None)
+    processor: BaseProcessor = document_processors.get(jdoc.documentType)
     if processor is None:
       logger.warning(f'unknown/unsupported doc type: {jdoc.documentType}, cannot process {document_id}')
     else:
