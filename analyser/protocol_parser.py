@@ -12,7 +12,7 @@ from analyser.doc_numbers import document_number_c, find_document_number_in_subd
 from analyser.documents import sentences_attention_to_words
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import HyperParameters
-from analyser.legal_docs import LegalDocument, tokenize_doc_into_sentences_map, ContractValue, ParserWarnings, \
+from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings, \
   LegalDocumentExt
 from analyser.ml_tools import SemanticTag, calc_distances_per_pattern_dict, max_confident_tags, \
   max_exclusive_pattern_by_prefix, relu, sum_probabilities, best_above, smooth_safe, spans_between_non_zero_attention, \
@@ -194,13 +194,13 @@ class ProtocolParser(ParsingContext):
     self.validate(doc, ctx)
     return doc
 
-  def validate(self, doc: ProtocolDocument, ctx: AuditContext):
+  def validate(self, document: ProtocolDocument, ctx: AuditContext):
 
-    if not doc.agenda_questions:
-      doc.warn(ParserWarnings.protocol_agenda_not_found)
+    if not document.agenda_questions:
+      document.warn(ParserWarnings.protocol_agenda_not_found)
 
-    if not doc.margin_values and not doc.agents_tags and not doc.contract_numbers:
-      doc.warn(ParserWarnings.boring_agenda_questions)
+    if not document.margin_values and not document.agents_tags and not document.contract_numbers:
+      document.warn(ParserWarnings.boring_agenda_questions)
 
   def find_agents_in_all_sections(self,
                                   doc: LegalDocument,

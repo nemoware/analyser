@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 import numpy as np
 import tensorflow as tf
@@ -7,16 +6,18 @@ import tensorflow_hub as hub
 
 from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import tf_cache
-
 from analyser.text_tools import Tokens
 
 _e_instance: AbstractEmbedder = None
 
 import os
+
 if "TFHUB_CACHE_DIR" not in os.environ:
   os.environ["TFHUB_CACHE_DIR"] = tf_cache
 
 logger = logging.getLogger('root')
+
+
 class ElmoEmbedderWrapper(AbstractEmbedder):
   def __init__(self, instance: AbstractEmbedder, layer: str):
     self.instance: AbstractEmbedder = instance
@@ -28,9 +29,8 @@ class ElmoEmbedderWrapper(AbstractEmbedder):
     else:
       return self.instance.embedd_strings(tokens)
 
-
-  def embedd_tokenized_text(self, words: [Tokens], text_lens: [int]) -> np.ndarray:
-    return self.instance.embedd_tokenized_text(words, text_lens)
+  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
+    return self.instance.embedd_tokenized_text(words, lens)
 
   def embedd_strings(self, strings: Tokens) -> np.ndarray:
     return self.instance.embedd_strings(strings)
@@ -91,13 +91,13 @@ class ElmoEmbedderImpl(AbstractEmbedder):
 
     return self.embedd_tokenized_text([tokens], [len(tokens)])[0]
 
-  def embedd_tokenized_text(self, words: [Tokens], text_lens: [int]) -> np.ndarray:
+  def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
     if self.session is None:
       self._build_session_and_graph()  # lazy init
 
     feed_dict = {
       self.text_input: words,  # text_input
-      self.text_lengths: text_lens,  # text_lengths
+      self.text_lengths: lens,  # text_lengths
     }
 
     out = self.session.run(self.embedded_out_elmo, feed_dict=feed_dict)

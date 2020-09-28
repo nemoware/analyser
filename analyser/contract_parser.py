@@ -59,9 +59,9 @@ class ContractParser(ParsingContext):
     warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
                   DeprecationWarning)
 
-  def find_org_date_number(self, contract_full: ContractDocument, ctx: AuditContext) -> ContractDocument:
+  def find_org_date_number(self, doc: ContractDocument, ctx: AuditContext) -> ContractDocument:
 
-    contract = contract_full[0:300]  # warning, trimming doc for analysis phase 1
+    contract = doc[0:300]  # warning, trimming doc for analysis phase 1
     if contract.embeddings is None:
       logger.debug('embedding 300-trimmed contract')
       contract.embedd_tokens(self.get_embedder())
@@ -70,29 +70,29 @@ class ContractParser(ParsingContext):
     logger.debug('predicting semantic_map in 300-trimmed contract with NN')
     semantic_map, _ = nn_predict(self.subject_prediction_model, contract)
 
-    contract_full.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
-                                                  audit_subsidiary_name=ctx.audit_subsidiary_name)
+    doc.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
+                                        audit_subsidiary_name=ctx.audit_subsidiary_name)
 
     # TODO: maybe move contract.tokens_map into text map
-    contract_full.number = nn_get_contract_number(contract.tokens_map, semantic_map)
-    contract_full.date = nn_get_contract_date(contract.tokens_map, semantic_map)
+    doc.number = nn_get_contract_number(contract.tokens_map, semantic_map)
+    doc.date = nn_get_contract_date(contract.tokens_map, semantic_map)
 
-    return contract_full
+    return doc
 
-  def validate(self, contract: ContractDocument, ctx: AuditContext):
-    contract.clear_warnings()
+  def validate(self, document: ContractDocument, ctx: AuditContext):
+    document.clear_warnings()
 
-    if not contract.date:
-      contract.warn(ParserWarnings.date_not_found)
+    if not document.date:
+      document.warn(ParserWarnings.date_not_found)
 
-    if not contract.number:
-      contract.warn(ParserWarnings.number_not_found)
+    if not document.number:
+      document.warn(ParserWarnings.number_not_found)
 
-    if not contract.contract_values:
-      contract.warn(ParserWarnings.contract_value_not_found)
+    if not document.contract_values:
+      document.warn(ParserWarnings.contract_value_not_found)
 
-    if not contract.subjects:
-      contract.warn(ParserWarnings.contract_subject_not_found)
+    if not document.subjects:
+      document.warn(ParserWarnings.contract_subject_not_found)
 
     self.log_warnings()
 

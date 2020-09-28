@@ -79,7 +79,7 @@ class ParsingContext(ParsingSimpleContext):
   def init_embedders(self, embedder, elmo_embedder_default):
     raise NotImplementedError()
 
-  def find_org_date_number(self, document: LegalDocument, ctx: AuditContext) -> LegalDocument:
+  def find_org_date_number(self, doc: LegalDocument, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding TF, GPU, and things
     searching for attributes required for filtering

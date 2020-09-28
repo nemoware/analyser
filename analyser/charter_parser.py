@@ -205,7 +205,7 @@ class CharterParser(ParsingContext):
     charter.distances_per_sentence_pattern_dict = calc_distances_per_pattern(charter.sentences_embeddings,
                                                                              self.get_patterns_named_embeddings())
 
-  def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
+  def find_org_date_number(self, doc: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding
     searching for attributes required for filtering
@@ -214,10 +214,10 @@ class CharterParser(ParsingContext):
     """
     # charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
 
-    charter.org_tags = find_charter_org(charter)
-    charter.date = find_document_date(charter)
+    doc.org_tags = find_charter_org(doc)
+    doc.date = find_document_date(doc)
 
-    return charter
+    return doc
 
   def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
 
