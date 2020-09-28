@@ -15,18 +15,35 @@ class DbJsonDoc:
     self.analysis = None
     self.user = None
 
+    self.parserResponseCode: int = -1
     self.state: int = -1
     self.parse = None
     self.filename = None
 
     self._id = None
+    self.isActive: bool or None = None
     self.retry_number: int = 0
-    self.__dict__.update(j)
+    self.__dict__.update(j)  # ------important
+    self.documentType = self.parse['documentType']
 
     if self.state == DocumentState.New.value:
       # reset user data, because it is bound to tokenisation map, re-tokenisation is possible
       self.user = None
       self.analysis = None
+
+  def isPreprocessed(self):
+    return self.state == DocumentState.Preprocessed.value or self.state == DocumentState.Error.value
+
+  def isNew(self):
+    return self.state == DocumentState.New.value or self.state is None
+
+  def isActiveCharter(self):
+    return (self.isActive or self.isActive is None) and self.documentType == 'CHARTER'
+
+  def is_user_corrected(self) -> bool:
+    if self.state == DocumentState.New.value:
+      return False
+    return self.user is not None and self.user.get('attributes', None) is not None
 
   def asLegalDoc(self):
 
@@ -85,10 +102,7 @@ class DbJsonDoc:
     arrr = self.analysis['tokenization_maps']['words']
     return len(arrr)
 
-  def is_user_corrected(self) -> bool:
-    if self.state == DocumentState.New.value:
-      return False
-    return self.user is not None and self.user.get('attributes', None) is not None
+
 
   def is_analyzed(self) -> bool:
     if self.state == DocumentState.New.value:

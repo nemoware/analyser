@@ -53,8 +53,8 @@ class ParsingSimpleContext:
 
 class AuditContext:
 
-  def __init__(self):
-    self.audit_subsidiary_name: str = None
+  def __init__(self, audit_subsidiary_name=None):
+    self.audit_subsidiary_name: str = audit_subsidiary_name
 
 
 class ParsingContext(ParsingSimpleContext):
