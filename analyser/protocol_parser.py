@@ -126,10 +126,7 @@ class ProtocolParser(ParsingContext):
     self._protocols_factory: ProtocolPatternFactory or None = None
     self._patterns_embeddings = None
 
-  def init_embedders(self, embedder, elmo_embedder_default):
-    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
-                  DeprecationWarning)
-    raise NotImplementedError('init_embedders is removed for EVER')
+
 
   def get_patterns_embeddings(self):
     if self._patterns_embeddings is None:

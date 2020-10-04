@@ -76,12 +76,9 @@ class ParsingContext(ParsingSimpleContext):
       self._embedder = ElmoEmbedder.get_instance()
     return self._embedder
 
-  def init_embedders(self, embedder, elmo_embedder_default):
-    raise NotImplementedError()
-
   def find_org_date_number(self, doc: LegalDocument, ctx: AuditContext) -> LegalDocument:
     """
-    phase 1, before embedding TF, GPU, and things
+    phase I, before embedding TF, GPU, and things
     searching for attributes required for filtering
     :param charter:
     :return:
