@@ -54,10 +54,7 @@ class ContractParser(ParsingContext):
     ParsingContext.__init__(self, embedder, sentence_embedder)
     self.subject_prediction_model = load_subject_detection_trained_model()
 
-  def init_embedders(self, embedder, elmo_embedder_default):
-    # TODO: remove
-    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
-                  DeprecationWarning)
+
 
   def find_org_date_number(self, doc: ContractDocument, ctx: AuditContext) -> ContractDocument:
 

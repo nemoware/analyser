@@ -78,6 +78,7 @@ class LegalDocument:
 
     self.tokens_map: TextMap or None = None
     self.tokens_map_norm: TextMap or None = None
+    self.sentence_map: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
     self.paragraphs: [Paragraph] = []
@@ -126,7 +127,12 @@ class LegalDocument:
     return self
 
   def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
+    #TODO: employ elf.sentence_map
     return self.tokens_map.sentence_at_index(i, return_delimiters)
+
+  def split_into_sentenses(self):
+    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map._full_text,
+                                                        HyperParameters.protocol_sentence_max_len)
 
   def __len__(self):
     return self.tokens_map.get_len()
@@ -314,7 +320,7 @@ class LegalDocumentExt(LegalDocument):
 
   def __init__(self, doc: LegalDocument):
     super().__init__('')
-    self.sentence_map: TextMap or None = None
+
 
     if doc is not None:
       # self.__dict__ = doc.__dict__
@@ -323,14 +329,13 @@ class LegalDocumentExt(LegalDocument):
     self.sentences_embeddings: Embeddings = None
     self.distances_per_sentence_pattern_dict = {}
 
-  def split_into_sentenses(self):
-    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map._full_text,
-                                                        HyperParameters.protocol_sentence_max_len)
+
 
   def parse(self, txt=None):
     super().parse(txt)
     self.split_into_sentenses()
     return self
+
 
   def subdoc_slice(self, __s: slice, name='undef'):
     sub = super().subdoc_slice(__s, name)
