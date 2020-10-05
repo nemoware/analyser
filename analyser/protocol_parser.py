@@ -26,7 +26,7 @@ from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
 
 something = r'(\s*.{1,100}\s*)'
-itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
+itog1 = r_group(r'\n' + r_group(r'итоги\s*голосования' + '|' + r'результаты\s*голосования') + r"[:\n]?")
 
 _number_of_votes = r'(\s*[-: ]\s*)([0-9]|(нет)|[_]{1,10})[.;]*\s*'
 r_votes_za = r_group(r_quoted('за') + _number_of_votes)
