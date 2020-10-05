@@ -62,6 +62,7 @@ class BaseProcessor:
     try:
 
       # self.parser.find_org_date_number(legal_doc, context) # todo: remove this call
+      # todo: make sure it is done in phase 1, BUT phase 1 is deprecated ;-)
       # save_analysis(db_document, legal_doc, state=DocumentState.InWork.value)
 
       if audit is None or self.is_valid(audit, db_document):
@@ -75,7 +76,8 @@ class BaseProcessor:
         logger.info(f'analysis saved, doc._id={legal_doc._id}')
       else:
         logger.info(f"excluding doc {db_document._id}")
-        save_analysis(db_document, legal_doc, state=DocumentState.Excluded.value)
+        # we re not saving doc here cuz we had NOT search for attrs
+        change_doc_state(db_document, state=DocumentState.Excluded.value)
 
     except Exception as err:
       traceback.print_tb(err.__traceback__)
@@ -86,6 +88,7 @@ class BaseProcessor:
 
   def is_valid(self, audit, db_document: DbJsonDoc):
     # date must be ok
+    # TODO: rename: -> is_eligible
     _date = db_document.get_date_value()
     if _date is not None:
       date_is_ok = audit["auditStart"] <= _date <= audit["auditEnd"]
@@ -143,6 +146,7 @@ def get_audits():
 
 
 def get_all_new_charters():
+  #TODO: fetch chartes with unknown satate (might be)
   return get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
 
 
@@ -182,6 +186,7 @@ def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False)
 
 
 def save_analysis(db_document: DbJsonDoc, doc: LegalDocument, state: int, retry_number: int = 0):
+  # TODO: does not save attributes
   analyse_json_obj = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
@@ -189,6 +194,11 @@ def save_analysis(db_document: DbJsonDoc, doc: LegalDocument, state: int, retry_
   db_document.state = state
   db_document.retry_number = retry_number
   documents_collection.update({'_id': doc._id}, db_document.as_dict(), True)
+
+
+def change_doc_state(doc, state):
+  db = get_mongodb_connection()
+  db['documents'].update_one({'_id': doc._id}, {"$set": {"state": state}})
 
 
 def change_audit_status(audit, status):
@@ -200,7 +210,7 @@ def need_analysis(document: DbJsonDoc) -> bool:
   _is_not_a_charter = document.documentType != "CHARTER"
   _well_parsed = document.parserResponseCode == 200
 
-  need_analysis= _well_parsed and (_is_not_a_charter or document.isActiveCharter())
+  need_analysis = _well_parsed and (_is_not_a_charter or document.isActiveCharter())
   return need_analysis
 
 
@@ -264,7 +274,7 @@ def audit_charters_phase_1():
     processor.preprocess(jdoc, context=ctx)
 
 
-def audit_charters_phase_2(): #XXX: #TODO: DO NOT LOAD ALL CHARTERS AT ONCE
+def audit_charters_phase_2():  # XXX: #TODO: DO NOT LOAD ALL CHARTERS AT ONCE
   charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
                                   kind="CHARTER")
 
@@ -279,8 +289,8 @@ def audit_charters_phase_2(): #XXX: #TODO: DO NOT LOAD ALL CHARTERS AT ONCE
 
 def run(run_pahse_2=True, kind=None):
   # -----------------------
-  # NIL (сорян, в системе римских цифр отсутствует ноль)
   logger.info('-> PHASE 0 (charters)...')
+  # NIL (сорян, в системе римских цифр отсутствует ноль)
   audit_charters_phase_1()
   if run_pahse_2:
     audit_charters_phase_2()
