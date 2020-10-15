@@ -50,7 +50,7 @@ class DisplayStringEnumMeta(EnumMeta):
 
 @unique
 class DocumentState(Enum):
-
+  Unknown = -1
   New = 0
 
   Preprocessed = 5

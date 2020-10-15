@@ -26,7 +26,7 @@ from analyser.text_tools import is_long_enough, span_len
 from analyser.transaction_values import complete_re as values_re
 
 something = r'(\s*.{1,100}\s*)'
-itog1 = r_group(r'\n' + r_group('итоги\s*голосования' + '|' + 'результаты\s*голосования') + r"[:\n]?")
+itog1 = r_group(r'\n' + r_group(r'итоги\s*голосования' + '|' + r'результаты\s*голосования') + r"[:\n]?")
 
 _number_of_votes = r'(\s*[-: ]\s*)([0-9]|(нет)|[_]{1,10})[.;]*\s*'
 r_votes_za = r_group(r_quoted('за') + _number_of_votes)
@@ -126,10 +126,7 @@ class ProtocolParser(ParsingContext):
     self._protocols_factory: ProtocolPatternFactory or None = None
     self._patterns_embeddings = None
 
-  def init_embedders(self, embedder, elmo_embedder_default):
-    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
-                  DeprecationWarning)
-    raise NotImplementedError('init_embedders is removed for EVER')
+
 
   def get_patterns_embeddings(self):
     if self._patterns_embeddings is None:
