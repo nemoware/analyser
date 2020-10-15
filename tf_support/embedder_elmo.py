@@ -1,4 +1,4 @@
-import logging
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -8,14 +8,12 @@ from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import tf_cache
 from analyser.text_tools import Tokens
 
-_e_instance: AbstractEmbedder = None
-
-import os
+_e_instance: AbstractEmbedder or None = None
 
 if "TFHUB_CACHE_DIR" not in os.environ:
   os.environ["TFHUB_CACHE_DIR"] = tf_cache
 
-logger = logging.getLogger('root')
+from analyser.log import logger
 
 
 class ElmoEmbedderWrapper(AbstractEmbedder):
@@ -40,7 +38,7 @@ class ElmoEmbedderImpl(AbstractEmbedder):
 
   def __init__(self, module_url: str = 'https://storage.googleapis.com/az-nlp/elmo_ru-news_wmt11-16_1.5M_steps.tar.gz'):
     self.module_url = module_url
-    self.elmo = None
+    # self.elmo = None
     self.session = None
 
   def _build_session_and_graph(self):
@@ -50,7 +48,7 @@ class ElmoEmbedderImpl(AbstractEmbedder):
     with embedding_graph.as_default():
       logger.info(f'< loading ELMO module {self.module_url}')
       logger.info(f'TF hub cache dir is models{os.environ["TFHUB_CACHE_DIR"]}')
-      self.elmo = hub.Module(self.module_url, trainable=False)
+      _elmo = hub.Module(self.module_url, trainable=False)
       logger.info(f'ELMO module loaded >')
 
       self.text_input = tf.compat.v1.placeholder(dtype='string', name="text_input")
@@ -67,13 +65,13 @@ class ElmoEmbedderImpl(AbstractEmbedder):
 
     with embedding_graph.as_default():
       logger.info(f'ELMO: creating embedded_out_elmo')
-      self.embedded_out_elmo = self.elmo(
+      self.embedded_out_elmo = _elmo(
         inputs=inputs_elmo,
         signature="tokens",
         as_dict=True)['elmo']
 
       logger.info(f'ELMO: embedded_out_defaut embedded_out_elmo')
-      self.embedded_out_defaut = self.elmo(
+      self.embedded_out_defaut = _elmo(
         inputs=inputs_default,
         signature="default",
         as_dict=True)['default']

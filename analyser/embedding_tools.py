@@ -2,13 +2,14 @@ import logging
 from abc import abstractmethod
 
 import numpy as np
-
+import os
 from analyser.documents import TextMap
 from analyser.hyperparams import work_dir
 from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
 
-elmo_logger = logging.getLogger('elmo')
+from analyser.log import logger as elmo_logger
+
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
@@ -34,7 +35,7 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   return sentences_emb, None, lens
 
 
-import os
+
 
 
 class AbstractEmbedder:

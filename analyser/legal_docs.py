@@ -292,7 +292,7 @@ class LegalDocument:
     self.embeddings = embedd_tokens(self.tokens_map_norm,
                                     embedder,
                                     max_tokens=max_tokens,
-                                    log_key=self._id)
+                                    log_key=f'_id:{self._id}')
 
   def is_same_org(self, org_name: str) -> bool:
     tags: [SemanticTag] = self.get_tags()
