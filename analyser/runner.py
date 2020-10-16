@@ -137,8 +137,11 @@ def get_audits():
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  res = audits_collection.find({'status': 'InWork'}, cursor_type=CursorType.EXHAUST).sort(
+  cursor = audits_collection.find({'status': 'InWork'}).sort(
     [("createDate", pymongo.ASCENDING)])
+  res = []
+  for audit in cursor:
+    res.append(audit)
   return res
 
 
@@ -168,9 +171,9 @@ def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False)
     query["$and"].append({'parse.documentType': kind})
 
   if id_only:
-    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST, projection={'_id': True})
+    cursor = documents_collection.find(query, projection={'_id': True})
   else:
-    cursor = documents_collection.find(query, cursor_type=CursorType.EXHAUST)
+    cursor = documents_collection.find(query)
 
   res = []
   for doc in cursor:
