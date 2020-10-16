@@ -97,7 +97,7 @@ def create_violation(document_id, founding_document_id, reference, violation_typ
 def convert_to_rub(value_currency):
     value_currency["original_value"] = value_currency["value"]
     value_currency["original_currency"] = value_currency["currency"]
-    value_currency["value"] = currency_rates.get(value_currency["currency"], "RUB") * float(value_currency["value"])
+    value_currency["value"] = currency_rates.get(value_currency["currency"], 1.0) * float(value_currency["value"])
     value_currency["currency"] = "RUB"
     return value_currency
 
