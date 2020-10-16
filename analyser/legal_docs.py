@@ -549,9 +549,9 @@ def tokenize_doc_into_sentences_map(txt: str, max_len_chars=150) -> TextMap:
 PARAGRAPH_DELIMITER = '\n'
 
 
-def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='', max_tokens=100):
+def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='', max_tokens=HyperParameters.max_sentenses_to_embedd):
   warnings.warn("use embedd_words", DeprecationWarning)
-
+  logger.info(f'{log_addon} {len(text_map)}')
   if text_map is None:
     # https://github.com/nemoware/analyser/issues/224
     raise ValueError('text_map must not be None')

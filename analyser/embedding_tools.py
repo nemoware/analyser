@@ -123,7 +123,8 @@ class AbstractEmbedder:
 
     return patterns_emb, regions
 
-  def embedd_large(self, text_map, max_tokens=8000, log_addon=''):
+  def embedd_large(self, text_map, max_tokens=6000, log_addon=''):
+    elmo_logger.info(f'{log_addon} {len(text_map)} max_tokens={max_tokens}')
     overlap = max_tokens // 20
 
     number_of_windows = 1 + len(text_map) // max_tokens

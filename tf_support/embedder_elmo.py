@@ -82,6 +82,7 @@ class ElmoEmbedderImpl(AbstractEmbedder):
       self.session.run(init_op)
 
     embedding_graph.finalize()
+    logger.info(f'graph finalized >>')
 
   def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
     if self.session is None:

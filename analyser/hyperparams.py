@@ -18,6 +18,9 @@ print(f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
 
 
 class HyperParameters:
+
+  max_sentenses_to_embedd=60
+
   max_doc_size_tokens = 15000
   max_doc_size_chars = max_doc_size_tokens * 5
 
