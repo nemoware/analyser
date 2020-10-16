@@ -192,10 +192,6 @@ class CharterParser(ParsingContext):
 
     return self._subj_patterns_embeddings
 
-  def init_embedders(self, embedder, elmo_embedder_default):
-    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
-                  DeprecationWarning)
-    raise NotImplementedError('init_embedders is removed for EVER')
 
   def _embedd(self, charter: CharterDocument):
 

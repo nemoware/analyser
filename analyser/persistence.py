@@ -35,7 +35,7 @@ class DbJsonDoc:
     return self.state == DocumentState.Preprocessed.value or self.state == DocumentState.Error.value
 
   def isNew(self):
-    return self.state == DocumentState.New.value or self.state is None
+    return self.state == DocumentState.New.value or self.state is None or self.state == DocumentState.Unknown.value
 
   def isActiveCharter(self):
     return (self.isActive or self.isActive is None) and self.documentType == 'CHARTER'
