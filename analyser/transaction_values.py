@@ -10,15 +10,10 @@ import re
 import warnings
 
 from analyser.ml_tools import TokensWithAttention
+from analyser.structures import currencly_map
 from analyser.text_tools import to_float
 
-currencly_map = {
-  'руб': 'RUB',
-  'дол': 'USD',
-  'евр': 'EURO',
-  'тэн': 'KZT',
-  'тен': 'KZT',
-}
+
 
 
 class ValueConstraint:

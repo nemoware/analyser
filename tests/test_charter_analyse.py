@@ -12,7 +12,7 @@ from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 
 
-class TestAnalyse(unittest.TestCase):
+class TestCharterAnalyse(unittest.TestCase):
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_get_org_names(self):

@@ -5,7 +5,13 @@ from enum import Enum, unique, EnumMeta
 
 import numpy as np
 from keras.utils import to_categorical
-
+currencly_map = {
+  'руб': 'RUB',
+  'дол': 'USD',
+  'евр': 'EURO',
+  'тэн': 'KZT',
+  'тен': 'KZT',
+}
 legal_entity_types = {
   'Акционерное общество': 'АО',
   'Публичное акционерное общество': 'ПАО',
