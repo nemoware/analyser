@@ -11,14 +11,16 @@ from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_m
 tag_value_field_name = "_value"
 
 charter_schema = {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Charter",
-  "description": "A charter document attributes",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Legal document attributes",
+  "description": "Legal document attributes. Schema draft 4 is used for compatibility with Mongo DB",
 
   "definitions": {
 
     "tag": {
+      "description": "a piece of text, denoting an attributes",
       "type": "object",
+
       "properties": {
         "span": {
           "type": "array",
@@ -76,18 +78,47 @@ charter_schema = {
 
     },
 
-    # "date_tag": {
-    #   "allOf": [
-    #     {"$ref": "#/definitions/tag"},
-    #     {
-    #       "properties": {
-    #         tag_value_field_name: {
-    #           "type": "string",
-    #           "format": "date-time"
-    #         }
-    #       }
-    #     }],
-    # },
+    "agenda_contract": {
+
+      "properties": {
+
+        "number": {
+          "$ref": "#/definitions/string_tag"
+        },
+
+        "date": {
+          "$ref": "#/definitions/date_tag"
+        },
+
+        "warnings": {
+          "type": "string"
+        },
+
+        "orgs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/contract_agent",
+          }
+        },
+        "value": {
+          "$ref": "#/definitions/currency_value"
+        },
+
+      },
+      "additionalProperties": False
+
+    },
+    "agenda": {
+      "allOf": [
+        {"$ref": "#/definitions/tag"},
+        {
+          "properties": {
+            "contract": {"$ref": "#/definitions/agenda_contract"}
+          },
+          "required": ["span"],
+          # "additionalProperties": False
+        }],
+    },
 
     "currency": {
       "allOf": [
@@ -161,15 +192,6 @@ charter_schema = {
             "enum": OrgStructuralLevel._member_names_
           },
 
-          "span": {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 2
-          },
-
-          "span_map": {"type": "string"},
-          "confidence": {"type": "number"},
-
           "competences": {
             "type": "array",
             "items": {"$ref": "#/definitions/competence"},
@@ -177,53 +199,95 @@ charter_schema = {
         }},
       ],
 
-      "required": [tag_value_field_name, "competences", "span"],
-
-
     },
 
     "org": {
       "type": "object",
       "properties": {
         "name": {"$ref": "#/definitions/string_tag"},
-        "alias": {"$ref": "#/definitions/string_tag"},
         "type": {"$ref": "#/definitions/string_tag"}
       },
+      # "required": ["name", "type"]
+    },
+
+    "contract_agent": {
+      "allOf": [
+        {"$ref": "#/definitions/org"},
+        {
+          "properties": {
+            "alias": {"$ref": "#/definitions/string_tag"},
+          }
+        }
+      ]
+
       # "required": ["name", "type"]
     }
   },
 
   "properties": {
-    "date": {
-      "$ref": "#/definitions/date_tag"
-    },
 
+    "charter": {
+      "properties": {
 
-    #
-    # "number": {
-    #   "description": "Номер документа",
-    #   "$ref": "#/definitions/string_tag"
-    # },
-    #
-    "orgs": {
-      "type": "array",
-      "maxItems": 1,
-      "uniqueItems": True,
-      "items": {
-        "$ref": "#/definitions/org",
+        "date": {
+          "$ref": "#/definitions/date_tag"
+        },
+
+        "orgs": {
+          "type": "array",
+          "maxItems": 1,
+          "uniqueItems": True,
+          "items": {
+            "$ref": "#/definitions/org",
+          }
+        },
+
+        "structural_levels": {
+          "type": "array",
+          "uniqueItems": True,
+          "items": {
+            "$ref": "#/definitions/structural_level"
+          }
+        }
       }
     },
 
-    "structural_levels": {
-      "type": "array",
-      "uniqueItems": True,
-      "items": {
-        "$ref": "#/definitions/structural_level"
-      }
-    }
+    "protocol": {
+      "properties": {
+
+        "date": {
+          "$ref": "#/definitions/date_tag"
+        },
+
+        "number": {
+          "$ref": "#/definitions/number_tag"
+        },
+
+        "structural_level": {
+          "$ref": "#/definitions/structural_level"
+        },
+
+        "orgs": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/definitions/org",
+          }
+        },
+
+        "agenda_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/agenda",
+          }
+        },
+
+      },
+      "additionalProperties": False
+    },
+
   },
 
-  "additionalProperties": False
 }
 
 # ---------------------------
