@@ -48,6 +48,19 @@ charter_schema = {
           },
 
         }]
+    },
+
+"boolean_tag": {
+      "allOf": [
+        {"$ref": "#/definitions/tag"},
+        {
+          "properties": {
+            tag_value_field_name: {
+              "type": "boolean"
+            }
+          },
+
+        }]
 
     },
 
@@ -79,6 +92,7 @@ charter_schema = {
     },
 
     "agenda_contract": {
+      "description":"Атрибуты контракта, о котором идет речь в повестке",
 
       "properties": {
 
@@ -88,6 +102,10 @@ charter_schema = {
 
         "date": {
           "$ref": "#/definitions/date_tag"
+        },
+
+        "solution": {
+          "$ref": "#/definitions/boolean_tag"
         },
 
         "warnings": {
@@ -100,6 +118,7 @@ charter_schema = {
             "$ref": "#/definitions/contract_agent",
           }
         },
+
         "value": {
           "$ref": "#/definitions/currency_value"
         },
@@ -249,6 +268,30 @@ charter_schema = {
             "$ref": "#/definitions/structural_level"
           }
         }
+      }
+    },
+
+"contract": {
+      "properties": {
+
+        "date": {
+          "$ref": "#/definitions/date_tag"
+        },
+
+        "number": {
+          "$ref": "#/definitions/number_tag"
+        },
+
+        "orgs": {
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": True,
+          "items": {
+            "$ref": "#/definitions/org",
+          }
+        },
+
+
       }
     },
 

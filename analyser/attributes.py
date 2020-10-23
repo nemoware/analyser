@@ -125,10 +125,18 @@ def convert_agenda_item(path, attr: {}, items_arr):
   attr_name = path[-1]
   attr_name_parts = attr_name.split("-")
   attr_base_name = attr_name_parts[0]
-  if ("contract_agent_org" == attr_base_name):
+  if "contract_agent_org" == attr_base_name:
     convert_org(attr_name, path[-1], attr, c_node)
 
+  if len(path) == 2 and "sign_value_currency" == path[1]:
+    v_node = getput_node(c_node, "value", {})
+    copy_attr(attr, v_node)
 
+  if len(path)==3 and "sign_value_currency"== path[1]:
+    v_node = getput_node(c_node, "value", {})
+    _pname = path[2]
+    if _pname in ["value", "sign", "currency"]:
+      v_node[_pname] =  copy_attr(attr, {})
 
   if (attr_base_name == 'date' or attr_base_name == 'number'):
     c_node[attr_base_name] = copy_attr(attr, {})
@@ -197,12 +205,14 @@ def convert_charter_db_attributes_to_tree(attrs):
 if __name__ == '__main__':
   # charter: 5f64161009d100a445b7b0d6
   # protocol: 5ded4e214ddc27bcf92dd6cc
+  # contract: 5f0bb4bd138e9184feef1fa8
 
   db = get_mongodb_connection()
   doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))
   a = doc['analysis']['attributes']
   # tree = {"charter": convert_charter_db_attributes_to_tree(a)}
   tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
+  # tree = {"contract": convert_contract_db_attributes_to_tree(a)}
 
 
   # tree = convert_protocol_db_attributes_to_tree(a)
