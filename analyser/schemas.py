@@ -5,10 +5,72 @@
 
 # schemas.py
 
-
+from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
 
 tag_value_field_name = "_value"
+
+
+class DocumentSchema:
+  def __init__(self):
+    super().__init__()
+
+
+class HasOrgs(SemanticTagBase):
+  def __init__(self):
+    super().__init__()
+    self.orgs: [OrgItem] = []
+
+
+class ContractPrice(SemanticTagBase):
+  def __init__(self):
+    super().__init__()
+
+    self.amount: SemanticTagBase  # netto or brutto #deprecated
+    self.currency: SemanticTagBase
+    self.sign: SemanticTagBase
+    self.vat: SemanticTagBase  # number
+    self.vat_unit: SemanticTagBase  # percentage
+    self.value_brutto: SemanticTagBase  # netto + VAT
+    self.value_netto: SemanticTagBase  # value before VAT
+
+
+class AgendaItemContract(HasOrgs):
+  number: SemanticTagBase
+  date: SemanticTagBase
+
+  def __init__(self):
+    super().__init__()
+    self.price: ContractPrice=None
+
+
+class AgendaItem(SemanticTagBase):
+  solution: SemanticTagBase or None = None
+
+  def __init__(self):
+    super().__init__()
+    self.contract: AgendaItemContract or None = None
+
+
+class OrgItem():
+  def __init__(self):
+    super().__init__()
+    self.type: SemanticTagBase
+    self.name: SemanticTagBase
+
+
+class ProtocolSchema(DocumentSchema):
+
+  def __init__(self):
+    super().__init__()
+    self.org: OrgItem = OrgItem()
+
+    self.date: SemanticTagBase
+    self.number: SemanticTagBase
+    self.structural_level: SemanticTagBase
+
+    self.agenda_items: [AgendaItem] = []
+
 
 charter_schema = {
   "$schema": "http://json-schema.org/draft-04/schema#",
@@ -50,7 +112,7 @@ charter_schema = {
         }]
     },
 
-"boolean_tag": {
+    "boolean_tag": {
       "allOf": [
         {"$ref": "#/definitions/tag"},
         {
@@ -92,7 +154,7 @@ charter_schema = {
     },
 
     "agenda_contract": {
-      "description":"Атрибуты контракта, о котором идет речь в повестке",
+      "description": "Атрибуты контракта, о котором идет речь в повестке",
 
       "properties": {
 
@@ -271,7 +333,7 @@ charter_schema = {
       }
     },
 
-"contract": {
+    "contract": {
       "properties": {
 
         "date": {
@@ -290,7 +352,6 @@ charter_schema = {
             "$ref": "#/definitions/org",
           }
         },
-
 
       }
     },

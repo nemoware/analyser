@@ -38,7 +38,7 @@ protocol_votes_re = re.compile(protocol_votes_, re.IGNORECASE | re.UNICODE)
 
 
 class ProtocolAV(Enum):
-  '''AV fo Attention Vecotrs'''
+  '''AV for Attention Vecotrs'''
   bin_votes_attention = 1
   relu_deal_approval = 2
   digits_attention = 3

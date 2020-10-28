@@ -378,15 +378,27 @@ class TokensWithAttention:
 TAG_KEY_DELIMITER = '/'
 
 
-class SemanticTag:
+class SemanticTagBase:
+  value: str or Enum or int or float or None
+
+  span: (int, int)
+  confidence: float
+
+
+  def __init__(self):
+
+    super().__init__()
+
+
+class SemanticTag(SemanticTagBase):
 
   def __init__(self,
-               kind: str,
-               value: str or Enum or None,
-               span: (int, int),
+               kind: str = None,
+               value: str or Enum or None = None,
+               span: (int, int) = (-1, -1),
                span_map: str or None = 'words',
                parent: 'SemanticTag' = None):
-
+    super().__init__()
     self.kind = kind
     self.value: str or Enum or None = value
     '''name of the parent (or group) tag '''
@@ -399,7 +411,6 @@ class SemanticTag:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
     self.confidence = 1.0
-
 
   def as_json_attribute(self):
 
@@ -416,8 +427,6 @@ class SemanticTag:
       del attribute['_parent_tag']
 
     return key, attribute
-
-
 
   @staticmethod
   def number_key(base: str or Enum, number: int) -> str:

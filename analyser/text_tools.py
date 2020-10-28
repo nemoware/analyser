@@ -14,7 +14,7 @@ from pyjarowinkler import distance as jaro
 Tokens = List[str] or ndarray
 
 
-def to_float(string)->float:
+def to_float(string) -> float:
   try:
     return float(string.replace(" ", "").replace(",", ".").replace("=", "."))
   except:
@@ -262,7 +262,7 @@ def find_best_sentence_end(txt) -> (int, str):
   return len(txt), ''
 
 
-def split_into_sentences(txt, max_len_chars=150)->[]:
+def split_into_sentences(txt, max_len_chars=150) -> []:
   spans = []
   begin = 0
 

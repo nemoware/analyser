@@ -1,33 +1,63 @@
-import datetime
 import json
 
+import jsonpickle
 from bson import json_util
 from bson.objectid import ObjectId
 from jsonschema import validate, FormatChecker
 
 from analyser.finalizer import get_doc_by_id
-from analyser.schemas import  charter_schema
+from analyser.log import logger
+from analyser.ml_tools import SemanticTagBase
+from analyser.schemas import charter_schema, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
+  ContractPrice
 from analyser.structures import OrgStructuralLevel
 from integration.db import get_mongodb_connection
 
 
-def convert_org(attr_name: str, path: str, v, tree):
-  orgs_arr = tree.get('orgs', [])
-  tree['orgs'] = orgs_arr
+def convert_org(attr_name: str, attr: dict, dest: HasOrgs):
+  orgs_arr = dest.orgs
 
   name_parts = attr_name.split('-')
   _index = int(name_parts[1]) - 1
-  pad_array(orgs_arr, _index + 1)
+  pad_array(orgs_arr, _index + 1, OrgItem())
 
-  org_node = orgs_arr[_index]
+  org = orgs_arr[_index]
 
-  org_node[name_parts[-1]] = copy_attr(v, {})
+  field_name = name_parts[-1]
+
+  if field_name in ['type', 'name']:
+    copy_leaf_tag(field_name, src=attr, dest=org)
 
 
-def copy_attr(src, dest):
-  for key in ['span', 'span_map', 'confidence']:
-    dest[key] = src.get(key)
-  dest['_value'] = src.get('value')
+def copy_leaf_tag(field_name: str, src, dest: SemanticTagBase):
+  if hasattr(dest, field_name):
+    v = getattr(dest, field_name)
+    setattr(v, "warning", "ambiguity: multiple values, see 'alternatives' field")
+    logger.warning(f"{field_name} has multiple values")
+
+    alternatives = []
+    if not hasattr(v, "alternatives"):
+      setattr(v, "alternatives", alternatives)
+    else:
+      alternatives = getattr(v, "alternatives")
+
+    va = SemanticTagBase()
+
+    copy_attr(src, va)
+    alternatives.append(va)
+
+  else:
+    v = SemanticTagBase()
+    setattr(dest, field_name, v)
+
+    copy_attr(src, v)
+
+
+def copy_attr(src, dest: SemanticTagBase) -> SemanticTagBase:
+  for key in ['span', 'span_map', 'confidence', "value"]:
+    setattr(dest, key, src.get(key))
+  #   dest[key] = src.get(key)
+  # dest['_value'] = src.get('value')
   return dest
 
 
@@ -37,9 +67,11 @@ def getput_node(subtree, key_name, defaultValue):
   return _node
 
 
-def pad_array(arr, size):
+def pad_array(arr, size, pad_with=None):
   for _i in range(len(arr), size):
-    arr.append({})
+    if pad_with is None:
+      pad_with = {}
+    arr.append(pad_with)
 
 
 def _find_or_put_by_value(arr: [], value):
@@ -106,48 +138,89 @@ def clean_up_tree(tree):
       subj_node['constraints'] = l
 
 
-def index_of_key(s: str) -> int:
+def index_of_key(s: str) -> (str, int):
   n_i = s.split("-")
   _idx = 0
   if len(n_i) > 1:
     _idx = int(n_i[-1]) - 1
-  return _idx
+  return n_i[0], _idx
 
 
-def convert_agenda_item(path, attr: {}, items_arr):
-  _idx = index_of_key(path[0])
+def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
+  '''
 
-  pad_array(items_arr, _idx + 1)
-  _item_node = items_arr[_idx]
-  c_node = getput_node(_item_node, "contract", {})
-  copy_attr(attr, _item_node)
+  :param path: like 'agenda_item-1/contract_agent_org-1-type'
+  :param attr:
+  :param _item_node:
+  :return:
+  '''
+  if _item_node.contract is None:
+    _item_node.contract = AgendaItemContract()
 
-  attr_name = path[-1]
+  c_node: AgendaItemContract = _item_node.contract
+  # copy_attr(attr, _item_node)
+
+  attr_name = path[-1]  # 'contract_agent_org-1-type'
   attr_name_parts = attr_name.split("-")
-  attr_base_name = attr_name_parts[0]
+  attr_base_name = attr_name_parts[0]  # 'contract_agent_org'
   if "contract_agent_org" == attr_base_name:
-    convert_org(attr_name, path[-1], attr, c_node)
+    convert_org(attr_name, attr=attr, dest=c_node)
 
   if len(path) == 2 and "sign_value_currency" == path[1]:
-    v_node = getput_node(c_node, "value", {})
-    copy_attr(attr, v_node)
-
-  if len(path)==3 and "sign_value_currency"== path[1]:
-    v_node = getput_node(c_node, "value", {})
+    if c_node.price is None:
+      c_node.price = ContractPrice()
+    # v_node = getput_node(c_node, "value", {})
+    copy_attr(attr, c_node.price)
+  #
+  if len(path) == 3 and "sign_value_currency" == path[1]:
     _pname = path[2]
+
     if _pname in ["value", "sign", "currency"]:
-      v_node[_pname] =  copy_attr(attr, {})
+      if c_node.price is None:
+        c_node.price = ContractPrice()
 
-  if (attr_base_name == 'date' or attr_base_name == 'number'):
-    c_node[attr_base_name] = copy_attr(attr, {})
-    if len(attr_name_parts) > 1:
-      #add warning
-      c_node['warnings'] = "ambigous values"
-  pass
+    if _pname in ["sign", "currency"]:
+      copy_leaf_tag(_pname, attr, c_node.price)
+    if _pname == "value":
+      copy_leaf_tag('amount', attr, c_node.price)
+
+  if attr_base_name in ['date', 'number']:
+    copy_leaf_tag(attr_base_name, src=attr, dest=c_node)
+
+  # pass
 
 
-def convert_protocol_db_attributes_to_tree(attrs):
-  tree = {}
+def map_tag(src, dest: SemanticTagBase = None) -> SemanticTagBase:
+  if dest is None:
+    dest = SemanticTagBase()
+
+  _fields = ['value', 'span', 'confidence']
+  for f in _fields:
+    setattr(dest, f, src.get(f))
+
+  return dest
+
+
+def map_org(attr_name: str, v, dest: OrgItem) -> OrgItem:
+  name_parts = attr_name.split('-')
+  _index = int(name_parts[1]) - 1
+  _field = name_parts[-1]
+  if _field in ['name', 'type']:
+    setattr(dest, _field, map_tag(v))
+
+  return dest
+
+
+def convert_protocol_db_attributes_to_tree(attrs) -> ProtocolSchema:
+  tree = ProtocolSchema()
+
+  # collect agenda_items roots
+  for path, v in attrs.items():
+    key_s: [] = path.split('/')
+    attr_name: str = key_s[-1]
+    attr_name_clean = attr_name.split("-")
+    if ("agenda_item" == attr_name_clean[0]):
+      tree.agenda_items.append(map_tag(v, AgendaItem()))
 
   for path, v in attrs.items():
     key_s: [] = path.split('/')
@@ -157,23 +230,27 @@ def convert_protocol_db_attributes_to_tree(attrs):
 
       # handle org
       if attr_name.startswith('org-'):
-        convert_org(attr_name, path, v, tree)
+        tree.org = map_org(attr_name, v, tree.org)
 
       # handle date and number
-      if (attr_name == 'date' or attr_name == 'number'):
-        tree[attr_name] = copy_attr(v, {})
+      if (attr_name == 'date'):
+        tree.date = map_tag(v)
+
+      if (attr_name == 'number'):
+        tree.number = map_tag(v)
 
       if (attr_name == 'org_structural_level'):
-        tree['structural_level'] = copy_attr(v, {})
+        tree.structural_level = map_tag(v)
 
       # handle agenda item
-      root = key_s[0]
-      root = root.split("-")
+      root = key_s[0].split('-')
+      # _i, _n = index_of_key( key_s[0])
+      # root = root.split("-")
       if (root[0] == "agenda_item"):
-        items_arr = getput_node(tree, "agenda_items", [])
-        convert_agenda_item(key_s, v, items_arr)
-
-  clean_up_tree(tree)
+        _, _i = index_of_key(key_s[0])
+        convert_agenda_item(key_s, v, tree.agenda_items[_i])
+  #
+  # clean_up_tree(tree)
   return tree
 
 
@@ -211,25 +288,21 @@ if __name__ == '__main__':
   doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))
   a = doc['analysis']['attributes']
   # tree = {"charter": convert_charter_db_attributes_to_tree(a)}
-  tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
-  # tree = {"contract": convert_contract_db_attributes_to_tree(a)}
+  tree = convert_protocol_db_attributes_to_tree(a)
 
+  # jsonpickle.handlers.register(ArrayHandler())
+  json_str = jsonpickle.encode(tree, unpicklable=False, indent=4)
 
-  # tree = convert_protocol_db_attributes_to_tree(a)
-
-  # print(tree)
-
-  def defaultd(o):
-    if isinstance(o, (datetime.date, datetime.datetime)):
-      return o.astimezone().isoformat()
-    return str(o)
-
-
-  json_str = json.dumps(tree, default=defaultd)
   print(json_str)
+
+  # tree_dict = {"protocol": todict(tree)}
+  # json_str = json.dumps(tree_dict, default=defaultd, sort_keys=True, indent=4, ensure_ascii=False)
+  # json_str = json.dumps(tree, default=defaultd, sort_keys=True, indent=4)
+  # print()
+
   j = json.loads(json_str, object_hook=json_util.object_hook)
-  validate(instance=j, schema=charter_schema, format_checker=FormatChecker())
-  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": tree}})
+  validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
+  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
 
   # coll = db["schemas"]
   # coll.delete_many({})
