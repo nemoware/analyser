@@ -1,5 +1,6 @@
 import math
 import warnings
+from datetime import datetime
 from enum import Enum
 from typing import List, TypeVar, Iterable, Generic
 
@@ -379,7 +380,7 @@ TAG_KEY_DELIMITER = '/'
 
 
 class SemanticTagBase:
-  value: str or Enum or int or float or None
+  value: str or Enum or int or float or datetime.date or None
 
   span: (int, int)
   confidence: float

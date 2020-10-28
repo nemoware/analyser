@@ -7,6 +7,7 @@
 
 from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
+import datetime
 
 tag_value_field_name = "_value"
 
@@ -38,10 +39,11 @@ class ContractPrice(SemanticTagBase):
 class AgendaItemContract(HasOrgs):
   number: SemanticTagBase
   date: SemanticTagBase
+  price: ContractPrice = None
 
   def __init__(self):
     super().__init__()
-    self.price: ContractPrice=None
+
 
 
 class AgendaItem(SemanticTagBase):
@@ -57,6 +59,18 @@ class OrgItem():
     super().__init__()
     self.type: SemanticTagBase
     self.name: SemanticTagBase
+
+
+class ContractSchema(DocumentSchema, HasOrgs):
+
+  price: ContractPrice=None
+
+  def __init__(self):
+    super().__init__()
+    # self.orgs: [OrgItem] = []
+    self.date: SemanticTagBase
+    self.number: SemanticTagBase
+    self.subject: SemanticTagBase
 
 
 class ProtocolSchema(DocumentSchema):

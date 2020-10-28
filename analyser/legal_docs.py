@@ -127,7 +127,7 @@ class LegalDocument:
     return self
 
   def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
-    #TODO: employ elf.sentence_map
+    # TODO: employ elf.sentence_map
     return self.tokens_map.sentence_at_index(i, return_delimiters)
 
   def split_into_sentenses(self):
@@ -321,7 +321,6 @@ class LegalDocumentExt(LegalDocument):
   def __init__(self, doc: LegalDocument):
     super().__init__('')
 
-
     if doc is not None:
       # self.__dict__ = doc.__dict__
       self.__dict__.update(doc.__dict__)
@@ -329,13 +328,10 @@ class LegalDocumentExt(LegalDocument):
     self.sentences_embeddings: Embeddings = None
     self.distances_per_sentence_pattern_dict = {}
 
-
-
   def parse(self, txt=None):
     super().parse(txt)
     self.split_into_sentenses()
     return self
-
 
   def subdoc_slice(self, __s: slice, name='undef'):
     sub = super().subdoc_slice(__s, name)
@@ -549,7 +545,8 @@ def tokenize_doc_into_sentences_map(txt: str, max_len_chars=150) -> TextMap:
 PARAGRAPH_DELIMITER = '\n'
 
 
-def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='', max_tokens=HyperParameters.max_sentenses_to_embedd):
+def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='',
+                     max_tokens=HyperParameters.max_sentenses_to_embedd):
   warnings.warn("use embedd_words", DeprecationWarning)
   logger.info(f'{log_addon} {len(text_map)}')
   if text_map is None:

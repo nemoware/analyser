@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, date
 
 import jsonpickle
 from bson import json_util
@@ -9,7 +10,7 @@ from analyser.finalizer import get_doc_by_id
 from analyser.log import logger
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import charter_schema, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
-  ContractPrice
+  ContractPrice, ContractSchema
 from analyser.structures import OrgStructuralLevel
 from integration.db import get_mongodb_connection
 
@@ -25,7 +26,7 @@ def convert_org(attr_name: str, attr: dict, dest: HasOrgs):
 
   field_name = name_parts[-1]
 
-  if field_name in ['type', 'name']:
+  if field_name in ['type', 'name', 'alias']:
     copy_leaf_tag(field_name, src=attr, dest=org)
 
 
@@ -158,7 +159,6 @@ def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
     _item_node.contract = AgendaItemContract()
 
   c_node: AgendaItemContract = _item_node.contract
-  # copy_attr(attr, _item_node)
 
   attr_name = path[-1]  # 'contract_agent_org-1-type'
   attr_name_parts = attr_name.split("-")
@@ -166,23 +166,8 @@ def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
   if "contract_agent_org" == attr_base_name:
     convert_org(attr_name, attr=attr, dest=c_node)
 
-  if len(path) == 2 and "sign_value_currency" == path[1]:
-    if c_node.price is None:
-      c_node.price = ContractPrice()
-    # v_node = getput_node(c_node, "value", {})
-    copy_attr(attr, c_node.price)
-  #
-  if len(path) == 3 and "sign_value_currency" == path[1]:
-    _pname = path[2]
-
-    if _pname in ["value", "sign", "currency"]:
-      if c_node.price is None:
-        c_node.price = ContractPrice()
-
-    if _pname in ["sign", "currency"]:
-      copy_leaf_tag(_pname, attr, c_node.price)
-    if _pname == "value":
-      copy_leaf_tag('amount', attr, c_node.price)
+  if len(path) > 1 and "sign_value_currency" == path[1]:
+    convert_sign_value_currency(path[1:], attr, c_node)
 
   if attr_base_name in ['date', 'number']:
     copy_leaf_tag(attr_base_name, src=attr, dest=c_node)
@@ -211,19 +196,60 @@ def map_org(attr_name: str, v, dest: OrgItem) -> OrgItem:
   return dest
 
 
+def list_tags(attrs):
+  for path, v in attrs.items():
+    key_s: [] = path.split('/')
+
+    if v.get('span', None):
+      yield key_s, v
+
+
+def convert_contract_db_attributes_to_tree(attrs) -> ContractSchema:
+  tree = ContractSchema()
+  for path, v in list_tags(attrs):
+    attr_name: str = path[-1]
+
+    # handle date and number
+    if attr_name in ['date', 'number', 'subject']:
+      copy_leaf_tag(attr_name, v, tree)
+
+    if attr_name.startswith('org-'):
+      convert_org(attr_name, attr=v, dest=tree)
+
+    if "sign_value_currency" == path[0]:
+      convert_sign_value_currency(path, v, tree)
+
+  return tree
+
+
+def convert_sign_value_currency(path, v, tree):
+  if tree.price is None:
+    tree.price = ContractPrice()
+
+  if len(path) == 1:
+    copy_attr(v, tree.price)
+
+  if len(path) == 2:
+    _pname = path[1]
+
+    if _pname in ["sign", "currency"]:
+      copy_leaf_tag(_pname, v, tree.price)
+    if _pname == "value":
+      copy_leaf_tag('amount', v, tree.price)
+
+
 def convert_protocol_db_attributes_to_tree(attrs) -> ProtocolSchema:
   tree = ProtocolSchema()
 
   # collect agenda_items roots
-  for path, v in attrs.items():
-    key_s: [] = path.split('/')
+  for key_s, v in list_tags(attrs):
+
     attr_name: str = key_s[-1]
     attr_name_clean = attr_name.split("-")
     if ("agenda_item" == attr_name_clean[0]):
       tree.agenda_items.append(map_tag(v, AgendaItem()))
 
-  for path, v in attrs.items():
-    key_s: [] = path.split('/')
+  for key_s, v in list_tags(attrs):
     attr_name: str = key_s[-1]
 
     if v.get('span', None):  # only tags (leafs)
@@ -285,22 +311,30 @@ if __name__ == '__main__':
   # contract: 5f0bb4bd138e9184feef1fa8
 
   db = get_mongodb_connection()
-  doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))
+  doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))  # protocol
+  # doc = get_doc_by_id(ObjectId('5f0bb4bd138e9184feef1fa8'))  # contract
+  # a = doc['user']['attributes']
   a = doc['analysis']['attributes']
   # tree = {"charter": convert_charter_db_attributes_to_tree(a)}
   tree = convert_protocol_db_attributes_to_tree(a)
 
-  # jsonpickle.handlers.register(ArrayHandler())
+
+  # tree = convert_contract_db_attributes_to_tree(a)
+
+  class DatetimeHandler(jsonpickle.handlers.BaseHandler):
+    def flatten(self, obj: datetime, data):
+      return json_util.default(obj)
+
+
+  jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
+  jsonpickle.handlers.registry.register(date, DatetimeHandler)
+
   json_str = jsonpickle.encode(tree, unpicklable=False, indent=4)
 
   print(json_str)
 
-  # tree_dict = {"protocol": todict(tree)}
-  # json_str = json.dumps(tree_dict, default=defaultd, sort_keys=True, indent=4, ensure_ascii=False)
-  # json_str = json.dumps(tree, default=defaultd, sort_keys=True, indent=4)
-  # print()
-
   j = json.loads(json_str, object_hook=json_util.object_hook)
+  j = {"protocol": j}
   validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
   db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
 
