@@ -7,12 +7,14 @@
 
 from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
-import datetime
 
 tag_value_field_name = "_value"
 
 
 class DocumentSchema:
+  date: SemanticTagBase
+  number: SemanticTagBase
+
   def __init__(self):
     super().__init__()
 
@@ -45,7 +47,6 @@ class AgendaItemContract(HasOrgs):
     super().__init__()
 
 
-
 class AgendaItem(SemanticTagBase):
   solution: SemanticTagBase or None = None
 
@@ -62,8 +63,7 @@ class OrgItem():
 
 
 class ContractSchema(DocumentSchema, HasOrgs):
-
-  price: ContractPrice=None
+  price: ContractPrice = None
 
   def __init__(self):
     super().__init__()
@@ -78,12 +78,36 @@ class ProtocolSchema(DocumentSchema):
   def __init__(self):
     super().__init__()
     self.org: OrgItem = OrgItem()
-
-    self.date: SemanticTagBase
-    self.number: SemanticTagBase
     self.structural_level: SemanticTagBase
-
     self.agenda_items: [AgendaItem] = []
+
+
+class CharterConstraint:
+  def __init__(self):
+    super().__init__()
+    self.margins: [ContractPrice] = []
+
+
+class Competence(SemanticTagBase):
+  def __init__(self):
+    super().__init__()
+    # self.value: OrgStructuralLevel = None
+    self.constraints: [CharterConstraint] = []
+
+
+class CharterStructuralLevel(SemanticTagBase):
+  def __init__(self):
+    super().__init__()
+    # self.value: OrgStructuralLevel = None
+    self.competences: [Competence] = []
+
+
+class CharterSchema(DocumentSchema):
+  org: OrgItem = OrgItem()
+
+  def __init__(self):
+    super().__init__()
+    self.structural_levels: [CharterStructuralLevel] = []
 
 
 charter_schema = {

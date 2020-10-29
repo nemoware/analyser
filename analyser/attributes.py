@@ -10,19 +10,17 @@ from analyser.finalizer import get_doc_by_id
 from analyser.log import logger
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import charter_schema, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
-  ContractPrice, ContractSchema
+  ContractPrice, ContractSchema, CharterSchema, CharterStructuralLevel, Competence
 from analyser.structures import OrgStructuralLevel
 from integration.db import get_mongodb_connection
 
 
-def convert_org(attr_name: str, attr: dict, dest: HasOrgs):
-  orgs_arr = dest.orgs
-
+def convert_org(attr_name: str,
+                attr: dict,
+                dest: HasOrgs):
   name_parts = attr_name.split('-')
   _index = int(name_parts[1]) - 1
-  pad_array(orgs_arr, _index + 1, OrgItem())
-
-  org = orgs_arr[_index]
+  org = array_set_or_get_at(dest.orgs, _index, lambda: OrgItem())
 
   field_name = name_parts[-1]
 
@@ -30,7 +28,7 @@ def convert_org(attr_name: str, attr: dict, dest: HasOrgs):
     copy_leaf_tag(field_name, src=attr, dest=org)
 
 
-def copy_leaf_tag(field_name: str, src, dest: SemanticTagBase):
+def copy_leaf_tag(field_name: str, src, dest):
   if hasattr(dest, field_name):
     v = getattr(dest, field_name)
     setattr(v, "warning", "ambiguity: multiple values, see 'alternatives' field")
@@ -54,11 +52,14 @@ def copy_leaf_tag(field_name: str, src, dest: SemanticTagBase):
     copy_attr(src, v)
 
 
-def copy_attr(src, dest: SemanticTagBase) -> SemanticTagBase:
-  for key in ['span', 'span_map', 'confidence', "value"]:
-    setattr(dest, key, src.get(key))
-  #   dest[key] = src.get(key)
-  # dest['_value'] = src.get('value')
+def map_tag(src, dest: SemanticTagBase = None) -> SemanticTagBase:
+  if dest is None:
+    dest = SemanticTagBase()
+
+  _fields = ['value', 'span', 'confidence']
+  for f in _fields:
+    setattr(dest, f, src.get(f))
+
   return dest
 
 
@@ -68,75 +69,71 @@ def getput_node(subtree, key_name, defaultValue):
   return _node
 
 
-def pad_array(arr, size, pad_with=None):
-  for _i in range(len(arr), size):
-    if pad_with is None:
-      pad_with = {}
-    arr.append(pad_with)
+def array_set_or_get_at(arr, index, builder):
+  for _i in range(len(arr), index + 1):
+    arr.append(None)
+
+  preexistent = arr[index]
+  if preexistent is None:
+    preexistent = builder()
+    arr[index] = preexistent
+  return preexistent
 
 
-def _find_or_put_by_value(arr: [], value):
+def _find_by_value(arr: [SemanticTagBase], value):
   for c in arr:
-    if c['_value'] == value:
+    if c.value == value:
       return c
 
-  nv = {'_value': value}
-  arr.append(nv)
-  return nv
 
-
-def get_or_create_constraint_node(path, tree):
-  path_s: [] = path.split('/')
-
-  # attr_name: str = path_s[-1]
-
-  _structural_levels_arr = getput_node(tree, 'structural_levels', [])
-
-  structural_level_node = _find_or_put_by_value(_structural_levels_arr, path_s[0])
-  # getput_node(_structural_levels_dict, path_s[0], {})
-  if len(path_s) == 1:
-    return structural_level_node
-
-  subjects_arr = getput_node(structural_level_node, 'competences', [])
-  subject_node = _find_or_put_by_value(subjects_arr, path_s[1])
-
-  if len(path_s) == 2:
-    return subject_node
-
-  constraint = path_s[2].split('-')
-  # constraint_margin = constraint[1]  # min max
+def convert_competence(path_s: [str], attr, subject_node: Competence):
+  constraint = path_s[0].split('-')  # example: 'constraint-min-2'
   constraint_margin_index = 0
   if len(constraint) == 3:
     constraint_margin_index = int(constraint[2]) - 1
 
-  constraints_arr = getput_node(subject_node, "constraints", [])
-  pad_array(constraints_arr, constraint_margin_index + 1)
-  margin_node = constraints_arr[constraint_margin_index]
-  if len(path_s) == 3:
-    return margin_node
+  # extending array
+  margin_node = array_set_or_get_at(subject_node.constraints, constraint_margin_index, lambda: ContractPrice())
 
-  summ_node = getput_node(margin_node, path_s[3], {})
-  return summ_node
+  if len(path_s) == 1:
+    copy_attr(attr, dest=margin_node)
+  else:
+    handle_sign_value_currency(path_s[1:], attr, margin_node)
 
 
-def convert_constraints(attr_name: str, path: str, v, tree):
-  node = get_or_create_constraint_node(path, tree)
-  if node is not None:
-    copy_attr(v, node)
+def handle_sign_value_currency(path: [str], v, dest: ContractPrice):
+  if len(path) == 1:
+    _pname = path[0]
+
+    if path[0] in ["sign", "currency"]:
+      copy_leaf_tag(_pname, v, dest)
+    if path[0] == "value":
+      copy_leaf_tag('amount', v, dest)
+
+
+def convert_constraints(path_s: [str], attr, structural_level_node: CharterStructuralLevel):
+  subject_node = _find_by_value(structural_level_node.competences, path_s[0])
+  if subject_node is None:
+    subject_node = Competence()
+    structural_level_node.competences.append(subject_node)
+
+  if len(path_s) == 1:
+    copy_attr(attr, dest=subject_node)
+  else:
+    convert_competence(path_s[1:], attr, subject_node)
+  # ------------
 
 
 def remove_empty_from_list(lst):
-  l = [v for v in lst if len(v) > 0]
+  l = [v for v in lst if v is not None]
   return l
 
 
-def clean_up_tree(tree):
-  pass
-
-  for s_node in tree.get('structural_levels', []):
-    for subj_node in s_node.get('competences', []):
-      l = remove_empty_from_list(subj_node.get("constraints", []))
-      subj_node['constraints'] = l
+def clean_up_tree(tree: CharterSchema):
+  for s_node in tree.structural_levels:
+    for subj_node in s_node.competences:
+      l = remove_empty_from_list(subj_node.constraints)
+      subj_node.constraints = l
 
 
 def index_of_key(s: str) -> (str, int):
@@ -175,13 +172,9 @@ def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
   # pass
 
 
-def map_tag(src, dest: SemanticTagBase = None) -> SemanticTagBase:
-  if dest is None:
-    dest = SemanticTagBase()
-
-  _fields = ['value', 'span', 'confidence']
-  for f in _fields:
-    setattr(dest, f, src.get(f))
+def copy_attr(src, dest: SemanticTagBase) -> SemanticTagBase:
+  for key in ['span', 'span_map', 'confidence', "value"]:
+    setattr(dest, key, src.get(key))
 
   return dest
 
@@ -222,20 +215,15 @@ def convert_contract_db_attributes_to_tree(attrs) -> ContractSchema:
   return tree
 
 
-def convert_sign_value_currency(path, v, tree):
-  if tree.price is None:
-    tree.price = ContractPrice()
+def convert_sign_value_currency(path: [str], v, dest):
+  if dest.price is None:
+    dest.price = ContractPrice()
 
   if len(path) == 1:
-    copy_attr(v, tree.price)
+    copy_attr(v, dest.price)
 
-  if len(path) == 2:
-    _pname = path[1]
-
-    if _pname in ["sign", "currency"]:
-      copy_leaf_tag(_pname, v, tree.price)
-    if _pname == "value":
-      copy_leaf_tag('amount', v, tree.price)
+  elif len(path) == 2:
+    handle_sign_value_currency(path[1:], v, dest.price)
 
 
 def convert_protocol_db_attributes_to_tree(attrs) -> ProtocolSchema:
@@ -252,79 +240,68 @@ def convert_protocol_db_attributes_to_tree(attrs) -> ProtocolSchema:
   for key_s, v in list_tags(attrs):
     attr_name: str = key_s[-1]
 
-    if v.get('span', None):  # only tags (leafs)
+    # handle org
+    if attr_name.startswith('org-'):
+      tree.org = map_org(attr_name, v, tree.org)
 
-      # handle org
-      if attr_name.startswith('org-'):
-        tree.org = map_org(attr_name, v, tree.org)
+    # handle date and number
+    if (attr_name == 'date'):
+      tree.date = map_tag(v)
 
-      # handle date and number
-      if (attr_name == 'date'):
-        tree.date = map_tag(v)
+    if (attr_name == 'number'):
+      tree.number = map_tag(v)
 
-      if (attr_name == 'number'):
-        tree.number = map_tag(v)
+    if (attr_name == 'org_structural_level'):
+      tree.structural_level = map_tag(v)
 
-      if (attr_name == 'org_structural_level'):
-        tree.structural_level = map_tag(v)
-
-      # handle agenda item
-      root = key_s[0].split('-')
-      # _i, _n = index_of_key( key_s[0])
-      # root = root.split("-")
-      if (root[0] == "agenda_item"):
-        _, _i = index_of_key(key_s[0])
-        convert_agenda_item(key_s, v, tree.agenda_items[_i])
+    # handle agenda item
+    root = key_s[0].split('-')
+    # _i, _n = index_of_key( key_s[0])
+    # root = root.split("-")
+    if (root[0] == "agenda_item"):
+      _, _i = index_of_key(key_s[0])
+      convert_agenda_item(key_s, v, tree.agenda_items[_i])
   #
   # clean_up_tree(tree)
   return tree
 
 
 def convert_charter_db_attributes_to_tree(attrs):
-  tree = {}
+  tree = CharterSchema()
+  for key_s, v in list_tags(attrs):
 
-  for path, v in attrs.items():
-    key_s: [] = path.split('/')
     attr_name: str = key_s[-1]
 
-    if v.get('span', None):  # only tags (leafs)
+    if attr_name in ['date', 'number']:
+      copy_leaf_tag(attr_name, v, tree)
 
-      # handle org
-      if attr_name.startswith('org-'):
-        convert_org(attr_name, path, v, tree)
+    # handle org
+    elif attr_name.startswith('org-'):
+      tree.org = map_org(attr_name, v, tree.org)
 
-      # handle date
-      if ('date' == attr_name):
-        tree[attr_name] = copy_attr(v, {})
 
-      # handle constraints
-      if (key_s[0] in OrgStructuralLevel._member_names_):
-        convert_constraints(attr_name, path, v, tree)
+    # handle constraints
+    elif (key_s[0] in OrgStructuralLevel._member_names_):
+      structural_level_node = _find_by_value(tree.structural_levels, key_s[0])
+      if structural_level_node is None:
+        structural_level_node = CharterStructuralLevel()
+        tree.structural_levels.append(structural_level_node)
+
+      if len(key_s) == 1:
+        copy_attr(v, dest=structural_level_node)
+      else:
+        convert_constraints(key_s[1:], v, structural_level_node)
 
   clean_up_tree(tree)
   return tree
 
 
-if __name__ == '__main__':
-  # charter: 5f64161009d100a445b7b0d6
-  # protocol: 5ded4e214ddc27bcf92dd6cc
-  # contract: 5f0bb4bd138e9184feef1fa8
+# ----------------------
 
-  db = get_mongodb_connection()
-  doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))  # protocol
-  # doc = get_doc_by_id(ObjectId('5f0bb4bd138e9184feef1fa8'))  # contract
-  # a = doc['user']['attributes']
-  a = doc['analysis']['attributes']
-  # tree = {"charter": convert_charter_db_attributes_to_tree(a)}
-  tree = convert_protocol_db_attributes_to_tree(a)
-
-
-  # tree = convert_contract_db_attributes_to_tree(a)
-
+def to_json(tree):
   class DatetimeHandler(jsonpickle.handlers.BaseHandler):
     def flatten(self, obj: datetime, data):
       return json_util.default(obj)
-
 
   jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
   jsonpickle.handlers.registry.register(date, DatetimeHandler)
@@ -334,7 +311,57 @@ if __name__ == '__main__':
   print(json_str)
 
   j = json.loads(json_str, object_hook=json_util.object_hook)
-  j = {"protocol": j}
+
+  return j, json_str
+
+
+def test_protocol():
+  doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))  # protocol
+  a = doc['analysis']['attributes']
+  tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
+
+  j, json_str = to_json(tree)
+
+  return j, json_str, doc
+
+
+def test_charter():
+  doc = get_doc_by_id(ObjectId('5f64161009d100a445b7b0d6'))
+  a = doc['analysis']['attributes']
+  tree = {"charter": convert_protocol_db_attributes_to_tree(a)}
+
+  j, json_str = to_json(tree)
+
+  return j, json_str, doc
+
+
+def test_contract():
+  doc = get_doc_by_id(ObjectId('5f0bb4bd138e9184feef1fa8'))
+  a = doc['user']['attributes']
+  tree = {"contract": convert_contract_db_attributes_to_tree(a)}
+
+  j, json_str = to_json(tree)
+
+  return j, json_str, doc
+
+
+if __name__ == '__main__':
+  # charter: 5f64161009d100a445b7b0d6
+  # protocol: 5ded4e214ddc27bcf92dd6cc
+  # contract: 5f0bb4bd138e9184feef1fa8
+
+  db = get_mongodb_connection()
+  # a = doc['user']['attributes']
+
+  j, json_str, doc = test_protocol()
+  validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
+  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+
+  j, json_str, doc = test_charter()
+  validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
+  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+
+  j, json_str, doc = test_contract()
   validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
   db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
 
