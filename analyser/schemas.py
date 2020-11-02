@@ -4,11 +4,11 @@
 
 
 # schemas.py
-
+import analyser
 from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
 
-tag_value_field_name = "_value"
+tag_value_field_name = "value"
 
 
 class DocumentSchema:

@@ -16,6 +16,8 @@ from analyser.protocol_parser import ProtocolParser
 from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
 
+CHARTER = 'CHARTER'
+
 
 class Runner:
   default_instance: 'Runner' = None
@@ -153,6 +155,8 @@ def get_all_new_charters():
   return get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
 
 
+
+
 def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False) -> []:
   db = get_mongodb_connection()
   documents_collection = db['documents']
@@ -268,7 +272,7 @@ def audit_phase_2(audit, kind=None):
 def audit_charters_phase_1():
   """preprocess"""
   charters = get_all_new_charters()
-  processor: BaseProcessor = document_processors['CHARTER']
+  processor: BaseProcessor = document_processors[CHARTER]
 
   for k, charter in enumerate(charters):
     jdoc = DbJsonDoc(charter)
@@ -279,11 +283,11 @@ def audit_charters_phase_1():
 
 def audit_charters_phase_2():  # XXX: #TODO: DO NOT LOAD ALL CHARTERS AT ONCE
   charters = get_docs_by_audit_id(id=None, states=[DocumentState.Preprocessed.value, DocumentState.Error.value],
-                                  kind="CHARTER")
+                                  kind=CHARTER)
 
   for k, _document in enumerate(charters):
     jdoc = DbJsonDoc(_document)
-    processor: BaseProcessor = document_processors['CHARTER']
+    processor: BaseProcessor = document_processors[CHARTER]
 
     logger.info(f'......processing  {k} of {len(charters)}  CHARTER {jdoc._id}')
     ctx = AuditContext()

@@ -380,7 +380,7 @@ TAG_KEY_DELIMITER = '/'
 
 
 class SemanticTagBase:
-  value: str or Enum or int or float or datetime.date or None
+  value: str or Enum or int or float or datetime.date or None=None
 
   span: (int, int)
   confidence: float

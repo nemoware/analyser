@@ -6,12 +6,13 @@ from bson import json_util
 from bson.objectid import ObjectId
 from jsonschema import validate, FormatChecker
 
+import analyser
 from analyser.finalizer import get_doc_by_id
 from analyser.log import logger
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import charter_schema, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
   ContractPrice, ContractSchema, CharterSchema, CharterStructuralLevel, Competence
-from analyser.structures import OrgStructuralLevel
+from analyser.structures import OrgStructuralLevel, DocumentState
 from integration.db import get_mongodb_connection
 
 
@@ -145,13 +146,6 @@ def index_of_key(s: str) -> (str, int):
 
 
 def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
-  '''
-
-  :param path: like 'agenda_item-1/contract_agent_org-1-type'
-  :param attr:
-  :param _item_node:
-  :return:
-  '''
   if _item_node.contract is None:
     _item_node.contract = AgendaItemContract()
 
@@ -256,13 +250,14 @@ def convert_protocol_db_attributes_to_tree(attrs) -> ProtocolSchema:
 
     # handle agenda item
     root = key_s[0].split('-')
-    # _i, _n = index_of_key( key_s[0])
-    # root = root.split("-")
+
     if (root[0] == "agenda_item"):
       _, _i = index_of_key(key_s[0])
-      convert_agenda_item(key_s, v, tree.agenda_items[_i])
-  #
-  # clean_up_tree(tree)
+      try:
+        convert_agenda_item(key_s, v, tree.agenda_items[_i])
+      except:
+        print('EEE')
+
   return tree
 
 
@@ -308,7 +303,7 @@ def to_json(tree):
 
   json_str = jsonpickle.encode(tree, unpicklable=False, indent=4)
 
-  print(json_str)
+  # print(json_str)
 
   j = json.loads(json_str, object_hook=json_util.object_hook)
 
@@ -316,7 +311,7 @@ def to_json(tree):
 
 
 def test_protocol():
-  doc = get_doc_by_id(ObjectId('5ded4e214ddc27bcf92dd6cc'))  # protocol
+  doc = get_doc_by_id(ObjectId('5df7a66b200a3f4d0fad786f'))  # protocol
   a = doc['analysis']['attributes']
   tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
 
@@ -328,7 +323,7 @@ def test_protocol():
 def test_charter():
   doc = get_doc_by_id(ObjectId('5f64161009d100a445b7b0d6'))
   a = doc['analysis']['attributes']
-  tree = {"charter": convert_protocol_db_attributes_to_tree(a)}
+  tree = {"charter": convert_charter_db_attributes_to_tree(a)}
 
   j, json_str = to_json(tree)
 
@@ -345,7 +340,52 @@ def test_contract():
   return j, json_str, doc
 
 
-if __name__ == '__main__':
+def get_attributes_tree(id: str):
+  # x = json.loads(data, object_hook=lambda d: SimpleNamespace(**d))
+  # print(x.name, x.hometown.name, x.hometown.id)
+  db = get_mongodb_connection()
+  doc = get_doc_by_id(ObjectId(id))
+
+  analysis = doc.get('analysis')
+  if analysis:
+    tree = analysis.get('attributes_tree')
+    r = dotdict(tree)
+
+    return r.charter
+
+
+class dotdict(dict):
+  """dot.notation access to dictionary attributes"""
+  __getattr__ = dict.get
+  __setattr__ = dict.__setitem__
+  __delattr__ = dict.__delitem__
+
+
+def get_legacy_docs_ids() -> []:
+  db = get_mongodb_connection()
+  documents_collection = db['documents']
+
+  vv = analyser.__version_ints__  # TODO: check version
+  query = {"$and": [
+    {"parse.documentType": {'$exists': True}},
+    {"analysis.attributes": {'$exists': True}},
+    {"state": DocumentState.Done.value},
+    {"$or": [
+      {"analysis.attributes_tree": {'$exists': False}},
+      {"analysis.attributes_tree.version": {'$exists': False}},
+      {"analysis.attributes_tree.version.1": {'$lt': vv[1]}}, # TODO: check version prima
+    ]}]}
+
+  cursor = documents_collection.find(query, projection={'_id': True})
+
+  res = []
+  for doc in cursor:
+    res.append(doc["_id"])
+
+  return res
+
+
+def test_convert():
   # charter: 5f64161009d100a445b7b0d6
   # protocol: 5ded4e214ddc27bcf92dd6cc
   # contract: 5f0bb4bd138e9184feef1fa8
@@ -370,3 +410,65 @@ if __name__ == '__main__':
   # coll.insert_one( {"charter":charter_schema })
 
   # db.create_collection("test_charters", {"validator": {"$jsonSchema": charter_schema}})
+
+
+def convert_one(db, doc: dict):
+  logger.debug(f'updating {doc["_id"]} ....')
+
+  kind: str = doc['parse']['documentType']
+  kind = kind.lower()
+  a_attr_tree = None
+  u_attr_tree = None
+
+  u = None
+  a = doc['analysis'].get('attributes')
+  if 'user' in doc:
+    u = doc['user'].get('attributes')
+
+  kind2method = {
+    "protocol": convert_protocol_db_attributes_to_tree,
+    "charter": convert_charter_db_attributes_to_tree,
+    "contract": convert_contract_db_attributes_to_tree,
+  }
+
+  if kind in kind2method:
+    a_attr_tree = {kind: kind2method[kind](a)}
+    if u is not None:
+      u_attr_tree = {kind: kind2method[kind](u)}
+
+    a_attr_tree['version'] = analyser.__version_ints__
+    a_attr_tree['creation_date'] = datetime.now()
+    j, json_str = to_json(a_attr_tree)
+    db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+    logger.debug(f'updated {kind} {doc["_id"]} analysis.attributes_tree')
+    if u_attr_tree is not None:
+      u_attr_tree['version'] = analyser.__version_ints__
+      u_attr_tree['creation_date'] = datetime.now()
+      j, json_str = to_json(u_attr_tree)
+      db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"user.attributes_tree": j}})
+      logger.debug(f'updated {kind} {doc["_id"]} user.attributes_tree')
+
+
+def convert_all_docs():
+  # print("Are you sure you want to convert legacy docs data in DB? (it's safe, trust me)\n Type YES to convert")
+  # yesno = str(input())
+  # if yesno == 'YES':
+  ids = get_legacy_docs_ids()
+  db = get_mongodb_connection()
+  documents_collection = db['documents']
+
+  for id in ids:
+    doc = documents_collection.find_one({"_id": id}, projection={
+      '_id': True,
+      'analysis.attributes': True,
+      'user.attributes': True,
+      'parse.documentType': True})
+
+    convert_one(db, doc)
+
+  logger.warning(f"converted {len(ids)} documents")
+if __name__ == '__main__':
+  test_convert()
+  # convert_all_docs()
+  # at = get_attributes_tree('5f64161009d100a445b7b0d6')
+  # print(at)
