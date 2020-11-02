@@ -7,7 +7,7 @@ import unittest
 
 from jsonschema import validate, ValidationError,FormatChecker
 
-from analyser.schemas import charter_schema
+from analyser.schemas import document_schemas
 
 
 class TestSchema(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestSchema(unittest.TestCase):
     }
 
     with self.assertRaises(ValidationError) as context:
-      validate(instance=tree, schema=charter_schema, format_checker= FormatChecker())
+      validate(instance=tree, schema=document_schemas, format_checker= FormatChecker())
 
     self.assertIsNotNone(context.exception)
     print(context.exception)
@@ -39,7 +39,7 @@ class TestSchema(unittest.TestCase):
     }
 
     with self.assertRaises(ValidationError) as context:
-      validate(instance=tree, schema=charter_schema, format_checker=FormatChecker())
+      validate(instance=tree, schema=document_schemas, format_checker=FormatChecker())
 
     self.assertIsNotNone(context.exception)
     print(context.exception)
@@ -56,7 +56,7 @@ class TestSchema(unittest.TestCase):
     }
 
     with self.assertRaises(ValidationError) as context:
-      validate(instance=tree, schema=charter_schema)
+      validate(instance=tree, schema=document_schemas)
 
     self.assertIsNotNone(context.exception)
 
@@ -71,7 +71,7 @@ class TestSchema(unittest.TestCase):
       },
     }
 
-    validate(instance=tree, schema=charter_schema)
+    validate(instance=tree, schema=document_schemas)
 
   def test_org_correct(self):
     tree = {"orgs": [{
@@ -89,7 +89,7 @@ class TestSchema(unittest.TestCase):
       }
     }]}
 
-    validate(instance=tree, schema=charter_schema)
+    validate(instance=tree, schema=document_schemas)
 
   def test_org_wrong(self):
     tree = {"orgs": [{
@@ -108,7 +108,7 @@ class TestSchema(unittest.TestCase):
     }]}
 
     with self.assertRaises(ValidationError) as context:
-      validate(instance=tree, schema=charter_schema)
+      validate(instance=tree, schema=document_schemas)
 
     self.assertIsNotNone(context.exception)
 

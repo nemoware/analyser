@@ -10,7 +10,7 @@ import analyser
 from analyser.finalizer import get_doc_by_id
 from analyser.log import logger
 from analyser.ml_tools import SemanticTagBase
-from analyser.schemas import charter_schema, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
+from analyser.schemas import document_schemas, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
   ContractPrice, ContractSchema, CharterSchema, CharterStructuralLevel, Competence
 from analyser.structures import OrgStructuralLevel, DocumentState
 from integration.db import get_mongodb_connection
@@ -141,7 +141,10 @@ def index_of_key(s: str) -> (str, int):
   n_i = s.split("-")
   _idx = 0
   if len(n_i) > 1:
-    _idx = int(n_i[-1]) - 1
+    try:
+      _idx = int(n_i[-1]) - 1
+    except ValueError as e:
+      return s, 0
   return n_i[0], _idx
 
 
@@ -151,7 +154,7 @@ def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
 
   c_node: AgendaItemContract = _item_node.contract
 
-  attr_name = path[-1]  # 'contract_agent_org-1-type'
+  attr_name = path[0]  # 'contract_agent_org-1-type'
   attr_name_parts = attr_name.split("-")
   attr_base_name = attr_name_parts[0]  # 'contract_agent_org'
   if "contract_agent_org" == attr_base_name:
@@ -223,40 +226,27 @@ def convert_sign_value_currency(path: [str], v, dest):
 def convert_protocol_db_attributes_to_tree(attrs) -> ProtocolSchema:
   tree = ProtocolSchema()
 
-  # collect agenda_items roots
-  for key_s, v in list_tags(attrs):
-
-    attr_name: str = key_s[-1]
-    attr_name_clean = attr_name.split("-")
-    if ("agenda_item" == attr_name_clean[0]):
-      tree.agenda_items.append(map_tag(v, AgendaItem()))
-
-  for key_s, v in list_tags(attrs):
-    attr_name: str = key_s[-1]
-
+  for paths, v in list_tags(attrs):
+    attr_name: str = paths[0]
+    attr_name_clean, _i = index_of_key(attr_name)
+    if ("agenda_item" == attr_name_clean):
+      agenda_item_node = array_set_or_get_at(tree.agenda_items, _i, lambda: AgendaItem())
+      if len(paths) == 1:
+        copy_attr(v, dest=agenda_item_node)
+      else:
+        convert_agenda_item(paths[1:], v, agenda_item_node)
     # handle org
-    if attr_name.startswith('org-'):
+    elif attr_name.startswith('org-'):
       tree.org = map_org(attr_name, v, tree.org)
 
     # handle date and number
-    if (attr_name == 'date'):
+    elif (attr_name == 'date'):
       tree.date = map_tag(v)
-
-    if (attr_name == 'number'):
+    elif (attr_name == 'number'):
       tree.number = map_tag(v)
 
-    if (attr_name == 'org_structural_level'):
+    elif (attr_name == 'org_structural_level'):
       tree.structural_level = map_tag(v)
-
-    # handle agenda item
-    root = key_s[0].split('-')
-
-    if (root[0] == "agenda_item"):
-      _, _i = index_of_key(key_s[0])
-      try:
-        convert_agenda_item(key_s, v, tree.agenda_items[_i])
-      except:
-        print('EEE')
 
   return tree
 
@@ -311,13 +301,17 @@ def to_json(tree):
 
 
 def test_protocol():
+  db = get_mongodb_connection()
+
   doc = get_doc_by_id(ObjectId('5df7a66b200a3f4d0fad786f'))  # protocol
-  a = doc['analysis']['attributes']
-  tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
+  convert_one(db, doc)
 
-  j, json_str = to_json(tree)
+  # a = doc['analysis']['attributes']
+  # tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
+  #
+  # j, json_str = to_json(tree)
 
-  return j, json_str, doc
+  # return j, json_str, doc
 
 
 def test_charter():
@@ -332,7 +326,7 @@ def test_charter():
 
 def test_contract():
   doc = get_doc_by_id(ObjectId('5f0bb4bd138e9184feef1fa8'))
-  a = doc['user']['attributes']
+  a = doc['analysis']['attributes']
   tree = {"contract": convert_contract_db_attributes_to_tree(a)}
 
   j, json_str = to_json(tree)
@@ -373,7 +367,7 @@ def get_legacy_docs_ids() -> []:
     {"$or": [
       {"analysis.attributes_tree": {'$exists': False}},
       {"analysis.attributes_tree.version": {'$exists': False}},
-      {"analysis.attributes_tree.version.1": {'$lt': vv[1]}}, # TODO: check version prima
+      {"analysis.attributes_tree.version.1": {'$lt': vv[1]}},  # TODO: check version prima
     ]}]}
 
   cursor = documents_collection.find(query, projection={'_id': True})
@@ -392,17 +386,17 @@ def test_convert():
 
   db = get_mongodb_connection()
   # a = doc['user']['attributes']
-
-  j, json_str, doc = test_protocol()
-  validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
-  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+  test_protocol()
+  # j, json_str, doc = test_protocol()
+  # validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
+  # db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
 
   j, json_str, doc = test_charter()
-  validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
+  validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
   db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
 
   j, json_str, doc = test_contract()
-  validate(instance=json_str, schema=charter_schema, format_checker=FormatChecker())
+  validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
   db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
 
   # coll = db["schemas"]
@@ -450,25 +444,27 @@ def convert_one(db, doc: dict):
 
 
 def convert_all_docs():
-  # print("Are you sure you want to convert legacy docs data in DB? (it's safe, trust me)\n Type YES to convert")
-  # yesno = str(input())
-  # if yesno == 'YES':
-  ids = get_legacy_docs_ids()
-  db = get_mongodb_connection()
-  documents_collection = db['documents']
+  print("Are you sure you want to convert legacy docs data in DB? (it's safe, trust me)\n Type YES to convert")
+  yesno = str(input())
+  if yesno == 'YES':
+    ids = get_legacy_docs_ids()
+    db = get_mongodb_connection()
+    documents_collection = db['documents']
 
-  for id in ids:
-    doc = documents_collection.find_one({"_id": id}, projection={
-      '_id': True,
-      'analysis.attributes': True,
-      'user.attributes': True,
-      'parse.documentType': True})
+    for id in ids:
+      doc = documents_collection.find_one({"_id": id}, projection={
+        '_id': True,
+        'analysis.attributes': True,
+        'user.attributes': True,
+        'parse.documentType': True})
 
-    convert_one(db, doc)
+      convert_one(db, doc)
 
-  logger.warning(f"converted {len(ids)} documents")
+    logger.info(f"converted {len(ids)} documents")
+
+
 if __name__ == '__main__':
-  test_convert()
-  # convert_all_docs()
+  # test_convert()
+  convert_all_docs()
   # at = get_attributes_tree('5f64161009d100a445b7b0d6')
   # print(at)

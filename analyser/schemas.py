@@ -110,7 +110,7 @@ class CharterSchema(DocumentSchema):
     self.structural_levels: [CharterStructuralLevel] = []
 
 
-charter_schema = {
+document_schemas = {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "Legal document attributes",
   "description": "Legal document attributes. Schema draft 4 is used for compatibility with Mongo DB",
