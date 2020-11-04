@@ -1,6 +1,7 @@
 import os
 import warnings
 from pathlib import Path
+from analyser.log import logger
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 gpn_home = __location__path = Path(__location__)
@@ -14,7 +15,8 @@ else:
   work_dir = os.path.join(__location__path.parent, 'work')
   warnings.warn('please set GPN_WORK_DIR environment variable')
 
-print(f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
+
+logger.info (f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
 
 
 class HyperParameters:

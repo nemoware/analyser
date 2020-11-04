@@ -7,7 +7,7 @@ from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 from pandas import DataFrame
 
 from analyser.hyperparams import models_path
-
+from analyser.log import logger
 
 class KerasTrainingContext:
 
@@ -22,6 +22,7 @@ class KerasTrainingContext:
     self.steps_per_epoch = 1
 
     self.reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=5, min_lr=1E-6, verbose=1)
+    logger.info(f"model_checkpoint_path: {checkpoints_path}")
 
   def set_batch_size_and_trainset_size(self, batch_size: int, test_samples: int, train_samples: int) -> None:
     self.steps_per_epoch = max(1, int(train_samples / batch_size))

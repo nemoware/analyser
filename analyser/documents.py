@@ -8,6 +8,7 @@ import warnings
 import nltk
 
 from analyser.hyperparams import models_path
+from analyser.log import logger
 
 nltk.data.path.append(os.path.join(models_path, 'nltk'))
 import numpy as np
@@ -186,7 +187,6 @@ class TextMap:
       msg = f'remap: texts differ {len(self._full_text)}!={len(target_map._full_text)}'
       raise ValueError(msg)
 
-
     char_range = self.char_range(span)
     target_range = target_map.token_indices_by_char_range(char_range)
     return target_range
@@ -263,7 +263,7 @@ class CaseNormalizer:
     self.__dict__ = self.__shared_state
     if 'replacements_map' not in self.__dict__:
       p = os.path.join(models_path, 'word_cases_stats.pickle')
-      print('loading word cases stats model from:', p)
+      logger.info(f'loading word cases stats model from: {p}')
 
       with open(p, 'rb') as handle:
         self.replacements_map: dict = pickle.load(handle)
