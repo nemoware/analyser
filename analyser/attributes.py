@@ -300,40 +300,6 @@ def to_json(tree):
   return j, json_str
 
 
-def test_protocol():
-  db = get_mongodb_connection()
-
-  doc = get_doc_by_id(ObjectId('5df7a66b200a3f4d0fad786f'))  # protocol
-  convert_one(db, doc)
-
-  # a = doc['analysis']['attributes']
-  # tree = {"protocol": convert_protocol_db_attributes_to_tree(a)}
-  #
-  # j, json_str = to_json(tree)
-
-  # return j, json_str, doc
-
-
-def test_charter():
-  doc = get_doc_by_id(ObjectId('5f64161009d100a445b7b0d6'))
-  a = doc['analysis']['attributes']
-  tree = {"charter": convert_charter_db_attributes_to_tree(a)}
-
-  j, json_str = to_json(tree)
-
-  return j, json_str, doc
-
-
-def test_contract():
-  doc = get_doc_by_id(ObjectId('5f0bb4bd138e9184feef1fa8'))
-  a = doc['analysis']['attributes']
-  tree = {"contract": convert_contract_db_attributes_to_tree(a)}
-
-  j, json_str = to_json(tree)
-
-  return j, json_str, doc
-
-
 def get_attributes_tree(id: str):
   # x = json.loads(data, object_hook=lambda d: SimpleNamespace(**d))
   # print(x.name, x.hometown.name, x.hometown.id)
@@ -360,14 +326,33 @@ def get_legacy_docs_ids() -> []:
   documents_collection = db['documents']
 
   vv = analyser.__version_ints__  # TODO: check version
+
+  updated_by_user =  {
+      '$and': [
+        {
+          'user.attributes_tree.creation_date': {
+            '$exists': True
+          }
+        }, {
+          '$expr': {
+            '$gt': [
+              '$user.updateDate', '$user.attributes_tree.creation_date'
+            ]
+          }
+        }
+      ]
+    } # TODO: do something about this
+
   query = {"$and": [
     {"parse.documentType": {'$exists': True}},
     {"analysis.attributes": {'$exists': True}},
-    {"state": DocumentState.Done.value},
+    # {"state": DocumentState.Done.value},
     {"$or": [
-      {"analysis.attributes_tree": {'$exists': False}},
-      {"analysis.attributes_tree.version": {'$exists': False}},
-      {"analysis.attributes_tree.version.1": {'$lt': vv[1]}},  # TODO: check version prima
+      updated_by_user,
+      # {"analysis.attributes_tree": {'$exists': False}},
+      # {"analysis.attributes_tree.version": {'$exists': False}},
+      {"analysis.attributes_tree.version.1": {'$lt': vv[1]}}  # TODO: check version prima []
+
     ]}]}
 
   cursor = documents_collection.find(query, projection={'_id': True})
@@ -377,33 +362,6 @@ def get_legacy_docs_ids() -> []:
     res.append(doc["_id"])
 
   return res
-
-
-def test_convert():
-  # charter: 5f64161009d100a445b7b0d6
-  # protocol: 5ded4e214ddc27bcf92dd6cc
-  # contract: 5f0bb4bd138e9184feef1fa8
-
-  db = get_mongodb_connection()
-  # a = doc['user']['attributes']
-  test_protocol()
-  # j, json_str, doc = test_protocol()
-  # validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
-  # db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
-
-  j, json_str, doc = test_charter()
-  validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
-  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
-
-  j, json_str, doc = test_contract()
-  validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
-  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
-
-  # coll = db["schemas"]
-  # coll.delete_many({})
-  # coll.insert_one( {"charter":charter_schema })
-
-  # db.create_collection("test_charters", {"validator": {"$jsonSchema": charter_schema}})
 
 
 def convert_one(db, doc: dict):
@@ -444,10 +402,17 @@ def convert_one(db, doc: dict):
 
 
 def convert_all_docs():
-  print("Are you sure you want to convert legacy docs data in DB? (it's safe, trust me)\n Type YES to convert")
+  ids = get_legacy_docs_ids()
+  if len(ids) == 0:
+    logger.info(f"Migration: no legacy docs found in DB")
+    return
+
+  print(
+    f"{len(ids)} legacy doc(s) found in DB. If you want to convert (migrate) them, type YES (it's safe, trust me)")
   yesno = str(input())
+
   if yesno == 'YES':
-    ids = get_legacy_docs_ids()
+
     db = get_mongodb_connection()
     documents_collection = db['documents']
 
@@ -461,6 +426,63 @@ def convert_all_docs():
       convert_one(db, doc)
 
     logger.info(f"converted {len(ids)} documents")
+  else:
+    print('Skipping migration. Re-run when you change your mind.')
+
+# ---------------------------------------------------------- self-TESTS:
+
+def _test_protocol():
+  db = get_mongodb_connection()
+
+  doc = get_doc_by_id(ObjectId('5df7a66b200a3f4d0fad786f'))  # protocol
+  convert_one(db, doc)
+
+
+def _test_charter():
+  doc = get_doc_by_id(ObjectId('5f64161009d100a445b7b0d6'))
+  a = doc['analysis']['attributes']
+  tree = {"charter": convert_charter_db_attributes_to_tree(a)}
+
+  j, json_str = to_json(tree)
+
+  return j, json_str, doc
+
+
+def _test_contract():
+  doc = get_doc_by_id(ObjectId('5f0bb4bd138e9184feef1fa8'))
+  a = doc['analysis']['attributes']
+  tree = {"contract": convert_contract_db_attributes_to_tree(a)}
+
+  j, json_str = to_json(tree)
+
+  return j, json_str, doc
+
+
+def _test_convert():
+  # charter: 5f64161009d100a445b7b0d6
+  # protocol: 5ded4e214ddc27bcf92dd6cc
+  # contract: 5f0bb4bd138e9184feef1fa8
+
+  db = get_mongodb_connection()
+  # a = doc['user']['attributes']
+  _test_protocol()
+  # j, json_str, doc = test_protocol()
+  # validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
+  # db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+
+  j, json_str, doc = _test_charter()
+  validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
+  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+
+  j, json_str, doc = _test_contract()
+  validate(instance=json_str, schema=document_schemas, format_checker=FormatChecker())
+  db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
+
+  # coll = db["schemas"]
+  # coll.delete_many({})
+  # coll.insert_one( {"charter":charter_schema })
+
+  # db.create_collection("test_charters", {"validator": {"$jsonSchema": charter_schema}})
 
 
 if __name__ == '__main__':

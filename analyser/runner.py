@@ -2,7 +2,6 @@ import traceback
 import warnings
 
 import pymongo
-from pymongo import CursorType
 
 import analyser
 from analyser import finalizer
@@ -138,7 +137,7 @@ class ContractProcessor(BaseProcessor):
 document_processors = {"CONTRACT": ContractProcessor(), "CHARTER": CharterProcessor(), "PROTOCOL": ProtocolProcessor()}
 
 
-def get_audits():
+def get_audits() -> [dict]:
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
@@ -151,10 +150,8 @@ def get_audits():
 
 
 def get_all_new_charters():
-  #TODO: fetch chartes with unknown satate (might be)
+  # TODO: fetch chartes with unknown satate (might be)
   return get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
-
-
 
 
 def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False) -> []:
