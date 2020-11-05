@@ -5,10 +5,11 @@
 
 import unittest
 
+import numpy as np
+
 from analyser.charter_parser import CharterParser, CharterDocument
-from analyser.contract_parser import ContractAnlysingContext, ContractDocument
-from analyser.legal_docs import *
-from analyser.legal_docs import _embedd_large
+from analyser.contract_parser import ContractParser, ContractDocument
+from analyser.legal_docs import LegalDocument, DocumentJson
 from analyser.parsing import AuditContext
 from tests.test_utilits import FakeEmbedder
 
@@ -22,7 +23,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     ld = LegalDocument('a b c d e f g h').parse()
     print(ld.tokens)
 
-    _embedd_large(ld.tokens_map_norm, emb, 5)
+    emb.embedd_large(ld.tokens_map_norm, 5)
 
     # print(ld.embeddings)
     print(ld.tokens)
@@ -34,10 +35,10 @@ class LegalDocumentTestCase(unittest.TestCase):
     self.assertEqual(1, len(d.tokens))
 
   def test_analyze_contract_0(self):
-    point1 = [1, 6, 4]
+    point1 = np.random.rand(1024)
     emb = FakeEmbedder(point1)
 
-    ctx = ContractAnlysingContext(emb)
+    ctx = ContractParser(emb)
     contract = ContractDocument("1. ЮРИДИЧЕСКИЙ содержание 4.")
     contract.parse()
     actx = AuditContext()
@@ -47,21 +48,16 @@ class LegalDocumentTestCase(unittest.TestCase):
     ctx._logstep("analyze_contract")
 
   def test_checksum(self):
-    d0 = LegalDocument("aasasasasas aasasas")
-    d0.parse()
+    d0 = LegalDocument("aasasasasas aasasas").parse()
+    d = LegalDocument("aasasasasas aasasas").parse()
+    d1 = LegalDocument("bgfgjfgdfg dfgj d gj").parse()
 
-    d1 = LegalDocument("bgfgjfgdfg dfgj d gj")
-    d1.parse()
-
-    d = LegalDocument("aasasasasas aasasas")
-    d.parse()
     print(d.checksum)
     self.assertIsNotNone(d.checksum)
     self.assertTrue(d.checksum != 0)
 
     self.assertEqual(d0.checksum, d.checksum)
     self.assertNotEqual(d0.checksum, d1.checksum)
-
 
     self.assertEqual(d0.checksum, DocumentJson(d0).checksum)
     self.assertEqual(d.checksum, DocumentJson(d).checksum)
@@ -75,8 +71,7 @@ class LegalDocumentTestCase(unittest.TestCase):
     point1 = [1, 6, 4]
     emb = FakeEmbedder(point1)
     legal_doc = LegalDocument("1. ЮРИДИЧЕСКИЙ содержание 4.").parse()
-    charter = CharterDocument().parse()
-    charter += legal_doc
+    charter = CharterDocument(legal_doc).parse()
     charter_parser = CharterParser(emb, emb)
     actx = AuditContext()
     charter_parser.find_org_date_number(charter, actx)

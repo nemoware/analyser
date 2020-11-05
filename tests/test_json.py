@@ -11,14 +11,15 @@ import unittest
 
 from bson import json_util
 
-from analyser.contract_parser import ContractAnlysingContext, ContractDocument
+from analyser.contract_parser import ContractParser, ContractDocument
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.documents import TextMap
 from analyser.legal_docs import DocumentJson
 from analyser.ml_tools import SemanticTag
 from analyser.parsing import AuditContext
 
-
+# 5ded4e284ddc27bcf92dd6cf
+# 5ded4e284ddc27bcf92dd6ce
 class TestJsonExport(unittest.TestCase):
 
   def _get_doc(self) -> (ContractDocument, ContractPatternFactory):
@@ -37,10 +38,9 @@ class TestJsonExport(unittest.TestCase):
   def _get_doc_factory_ctx(self):
     doc, factory = self._get_doc()
 
-    ctx = ContractAnlysingContext(embedder={}, pattern_factory=factory)
+    ctx = ContractParser(embedder={} )
     ctx.verbosity_level = 3
-    ctx.sections_finder.find_sections(doc, ctx.pattern_factory, ctx.pattern_factory.headlines,
-                                      headline_patterns_prefix='headline.')
+
     return doc, factory, ctx
 
   def print_semantic_tag(self, tag: SemanticTag, map: TextMap):
@@ -71,7 +71,7 @@ class TestJsonExport(unittest.TestCase):
     json_struct = DocumentJson(doc)
     json_string = json.dumps(json_struct.__dict__, indent=4, ensure_ascii=False, default=json_util.default)
 
-    restored: DocumentJson = DocumentJson.from_json(json_string)
+    restored: DocumentJson = DocumentJson.from_json_str(json_string)
     for key in restored.__dict__:
       print(key)
       self.assertIn(key, json_struct.__dict__.keys())

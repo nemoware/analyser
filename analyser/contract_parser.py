@@ -1,32 +1,27 @@
-from analyser.contract_agents import find_org_names
-from analyser.contract_patterns import ContractPatternFactory
-from analyser.doc_dates import find_document_date
-from analyser.doc_numbers import find_document_number
-from analyser.legal_docs import LegalDocument, extract_sum_sign_currency, ContractValue, ParserWarnings
+from overrides import overrides
+
+from analyser.contract_agents import ContractAgent, normalize_contract_agent
+from analyser.doc_dates import find_date
+from analyser.documents import TextMap
+from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
+from analyser.log import logger
 from analyser.ml_tools import *
-from analyser.parsing import ParsingContext, AuditContext
+from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AV_SOFT, AV_PREFIX
-from analyser.sections_finder import FocusingSectionsFinder
-from analyser.structures import ContractSubject
-from analyser.transaction_values import complete_re as transaction_values_re
-
-contract_subjects = [ContractSubject.RealEstate, ContractSubject.Charity, ContractSubject.Deal]
+from analyser.text_tools import find_top_spans
+from tf_support.tf_subject_model import load_subject_detection_trained_model, decode_subj_prediction, \
+  nn_predict
 
 
-class ContractDocument3(LegalDocument):
-  '''
-
-  '''
-
-  # TODO: rename it
+class ContractDocument(LegalDocument):
 
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-    self.subjects = []
+    self.subjects: SemanticTag or None = None
     self.contract_values: List[ContractValue] = []
 
-    self.agents_tags = []
+    self.agents_tags: [SemanticTag] = []
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
@@ -50,296 +45,235 @@ class ContractDocument3(LegalDocument):
     return tags
 
 
-ContractDocument = ContractDocument3  # Alias!
+ContractDocument3 = ContractDocument
 
 
-class ContractAnlysingContext(ParsingContext):
-  # TODO: rename this class
+class ContractParser(ParsingContext):
 
-  def __init__(self, embedder=None, pattern_factory: ContractPatternFactory = None):
-    ParsingContext.__init__(self, embedder)
-
-    self.pattern_factory: ContractPatternFactory or None = pattern_factory
-    if embedder is not None:
-      self.init_embedders(embedder, None)
-
-    self.sections_finder = FocusingSectionsFinder(self)
+  def __init__(self, embedder=None, sentence_embedder=None):
+    ParsingContext.__init__(self, embedder, sentence_embedder)
+    self.subject_prediction_model = load_subject_detection_trained_model()
 
   def init_embedders(self, embedder, elmo_embedder_default):
-    self.embedder = embedder
-    if self.pattern_factory is None:
-      self.pattern_factory = ContractPatternFactory(embedder)
+    # TODO: remove
+    warnings.warn('init_embedders will be removed in future versions, embbeders will be lazyly inited on demand',
+                  DeprecationWarning)
 
-  def find_org_date_number(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
-    """
-    phase 1, before embedding TF, GPU, and things
-    searching for attributes required for filtering
-    :param charter:
-    :return:
-    """
-    contract.agents_tags = find_org_names(contract[0:2000], max_names=2, audit_subsidiary_name=ctx.audit_subsidiary_name)
-    contract.date = find_document_date(contract)
-    contract.number = find_document_number(contract)
+  def find_org_date_number(self, doc: ContractDocument, ctx: AuditContext) -> ContractDocument:
 
-    if not contract.number:
-      contract.warn(ParserWarnings.number_not_found)
-    if not contract.date:
-      contract.warn(ParserWarnings.date_not_found)
+    contract = doc[0:300]  # warning, trimming doc for analysis phase 1
+    if contract.embeddings is None:
+      logger.debug('embedding 300-trimmed contract')
+      contract.embedd_tokens(self.get_embedder())
 
-    return contract
+    # predicting with NN
+    logger.debug('predicting semantic_map in 300-trimmed contract with NN')
+    semantic_map, _ = nn_predict(self.subject_prediction_model, contract)
 
+    doc.agents_tags = nn_find_org_names(contract.tokens_map, semantic_map,
+                                        audit_subsidiary_name=ctx.audit_subsidiary_name)
+
+    # TODO: maybe move contract.tokens_map into text map
+    doc.number = nn_get_contract_number(contract.tokens_map, semantic_map)
+    doc.date = nn_get_contract_date(contract.tokens_map, semantic_map)
+
+    return doc
+
+  def validate(self, document: ContractDocument, ctx: AuditContext):
+    document.clear_warnings()
+
+    if not document.date:
+      document.warn(ParserWarnings.date_not_found)
+
+    if not document.number:
+      document.warn(ParserWarnings.number_not_found)
+
+    if not document.contract_values:
+      document.warn(ParserWarnings.contract_value_not_found)
+
+    if not document.subjects:
+      document.warn(ParserWarnings.contract_subject_not_found)
+
+    self.log_warnings()
+
+  @overrides
   def find_attributes(self, contract: ContractDocument, ctx: AuditContext) -> ContractDocument:
-    assert self.embedder is not None, 'call `init_embedders` first'
     """
     this analyser should care about embedding, because it decides wheater it needs (NN) embeddings or not  
     """
 
     self._reset_context()
 
+    _contract_cut = contract
+    if len(contract) > HyperParameters.max_doc_size_tokens:
+      contract.warn_trimmed(HyperParameters.max_doc_size_tokens)
+      _contract_cut = contract[0:HyperParameters.max_doc_size_tokens]  # warning, trimming doc for analysis phase 1
+
     # ------ lazy embedding
-    if contract.embeddings is None:
-      contract.embedd_tokens(self.embedder)
+    if _contract_cut.embeddings is None:
+      _contract_cut.embedd_tokens(self.get_embedder())
 
-    self._logstep("parsing document 👞 and detecting document high-level structure")
+    # self.find_org_date_number(_contract_cut, ctx)
 
-    # ------ structure
-    self.sections_finder.find_sections(contract, self.pattern_factory, self.pattern_factory.headlines,
-                                       headline_patterns_prefix='headline.')
+    semantic_map, subj_1hot = nn_predict(self.subject_prediction_model, _contract_cut)
+
+    # repeat phase 1
+    # ---
+
+    if not contract.number:
+      contract.number = nn_get_contract_number(_contract_cut.tokens_map, semantic_map)
+
+    if not contract.date:
+      contract.date = nn_get_contract_date(_contract_cut.tokens_map, semantic_map)
+
+    if len(contract.agents_tags) < 2:
+      contract.agents_tags = nn_find_org_names(_contract_cut.tokens_map, semantic_map,
+                                               audit_subsidiary_name=ctx.audit_subsidiary_name)
+    # -------------------------------subject
+    contract.subjects = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
 
     # -------------------------------values
-    contract.contract_values = self.find_contract_value_NEW(contract)
-    if not contract.contract_values:
-      contract.warn(ParserWarnings.contract_value_not_found)
-    self._logstep("finding contract values")
+    contract.contract_values = nn_find_contract_value(_contract_cut, semantic_map)
 
-    # -------------------------------subject
-    contract.subjects = self.find_contract_subject_region(contract)
-    if not contract.subjects:
-      contract.warn(ParserWarnings.contract_subject_not_found)
-    self._logstep("detecting contract subject")
+    self._logstep("finding contract values")
     # --------------------------------------
 
-    self.log_warnings()
+    self.validate(contract, ctx)
 
     return contract
-    # , self.contract.contract_values
-
-  def select_most_confident_if_almost_equal(self, a: ProbableValue, alternative: ProbableValue, m_convert,
-                                            equality_range=0.0):
-
-    if abs(m_convert(a.value).value - m_convert(alternative.value).value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-    return a
-
-  def __sub_attention_names(self, subj: ContractSubject):
-    a = f'x_{subj}'
-    b = AV_PREFIX + f'x_{subj}'
-    c = AV_SOFT + a
-    return a, b, c
-
-  def make_subject_attention_vector_3(self, section, subject_kind: ContractSubject, addon=None) -> FixedVector:
-
-    pattern_prefix, attention_vector_name, attention_vector_name_soft = self.__sub_attention_names(subject_kind)
-
-    _vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, pattern_prefix)
-    if addon is not None:
-      _vectors = list(_vectors)
-      _vectors.append(addon)
-
-    vectors = []
-    for v in _vectors:
-      vectors.append(best_above(v, 0.4))
-
-    x = max_exclusive_pattern(vectors)
-    x = relu(x, 0.6)
-    section.distances_per_pattern_dict[attention_vector_name_soft] = x
-    section.distances_per_pattern_dict[attention_vector_name] = x
-
-    return x
-
-  def find_contract_subject_region(self, doc) -> SemanticTag:
-    if 'subj' in doc.sections:
-      subj_section = doc.sections['subj']
-      subject_subdoc = subj_section.body
-      denominator = 1
-    else:
-      doc.warn(ParserWarnings.subject_section_not_found)
-      self.warning('раздел о предмете договора не найден, ищем предмет договора в первых 1500 словах')
-      doc.warn(ParserWarnings.contract_subject_section_not_found)
-      subject_subdoc = doc[0:1500]
-      denominator = 0.7
-
-    return self.find_contract_subject_regions(subject_subdoc, denominator=denominator)
-
-  def find_contract_subject_regions(self, section: LegalDocument, denominator: float = 1.0) -> SemanticTag:
-    # TODO: build trainset on contracts, train simple model for detectin start and end of contract subject region
-    # TODO: const(loss) function should measure distance from actual span to expected span
-
-    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='x_ContractSubject')
-    section.calculate_distances_per_pattern(self.pattern_factory, merge=True, pattern_prefix='headline.subj')
-
-    all_subjects_headlines_vectors = filter_values_by_key_prefix(section.distances_per_pattern_dict, 'headline.subj')
-
-    subject_headline_attention: FixedVector = max_exclusive_pattern(all_subjects_headlines_vectors)
-    subject_headline_attention = best_above(subject_headline_attention, 0.5)
-    subject_headline_attention = momentum_t(subject_headline_attention, half_decay=120)
-    subject_headline_attention_max = max(subject_headline_attention)
-
-    section.distances_per_pattern_dict['subject_headline_attention'] = subject_headline_attention  # for debug
-
-    max_confidence = 0
-    max_subject_kind = None
-    max_paragraph_span = None
-
-    for subject_kind in contract_subjects:  # like ContractSubject.RealEstate ..
-      subject_attention_vector: FixedVector = self.make_subject_attention_vector_3(section, subject_kind, None)
-      if subject_headline_attention_max > 0.2:
-        subject_attention_vector *= subject_headline_attention
-
-      paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(section,
-                                                                                             subject_attention_vector,
-                                                                                             min_len=20,
-                                                                                             return_delimiters=False)
-      if len(subject_attention_vector) < 400:
-        confidence = estimate_confidence_by_mean_top_non_zeros(subject_attention_vector)
-
-      if self.verbosity_level > 2:
-        print(f'--------------------confidence {subject_kind}=', confidence)
-      if confidence > max_confidence:
-        max_confidence = confidence
-        max_subject_kind = subject_kind
-        max_paragraph_span = paragraph_span
-
-    if max_subject_kind:
-      subject_tag = SemanticTag('subject', max_subject_kind.name, max_paragraph_span)
-      subject_tag.confidence = max_confidence * denominator
-      subject_tag.offset(section.start)
-
-      return subject_tag
-
-  def find_contract_value_NEW(self, contract: ContractDocument) -> List[ContractValue]:
-    # preconditions
-    assert contract.sections is not None, 'find sections first'
-
-    search_sections_order = [
-      ['cvalue', 1], ['pricecond', 0.75], ['subj', 0.75], [None, 0.5]  # todo: check 'price', not 'price.'
-    ]
-
-    for section, confidence_k in search_sections_order:
-      if section in contract.sections or section is None:
-
-        if section in contract.sections:
-          value_section = contract.sections[section].body
-          _section_name = contract.sections[section].subdoc.text.strip()
-        else:
-          value_section = contract
-          _section_name = 'entire contract'
-
-        if self.verbosity_level > 1:
-          self._logstep(f'searching for transaction values in section ["{section}"] "{_section_name}"')
-
-        values_list: List[ContractValue] = find_value_sign_currency(value_section, self.pattern_factory)
-
-        if not values_list:
-          # search in next section
-          msg = f'В разделе "{_section_name}" ["{section}"] стоимость сделки не найдена!'
-          contract.warn(ParserWarnings.value_section_not_found,
-                        f'В разделе "{_section_name}" стоимость сделки не найдена')
-          self.warning(msg)
-
-        else:
-          # decrease confidence:
-          for g in values_list:
-            g *= confidence_k
-
-          # ------
-          # reduce number of found values
-          # take only max value and most confident ones (we hope, it is the same finding)
-
-          max_confident_cv = max_confident(values_list)
-          max_valued_cv = max_value(values_list)
-          if max_confident_cv == max_valued_cv:
-            return [max_confident_cv]
-          else:
-            # TODO:
-            max_valued_cv *= 0.5
-            return [max_valued_cv]
 
 
-      else:
-        self.warning(f'Раздел [{section}]  не обнаружен')
+# --------------- END of CLASS
 
 
-def find_value_sign_currency(value_section_subdoc: LegalDocument, factory: ContractPatternFactory = None) -> List[
-  ContractValue]:
-  if factory is not None:
-    value_section_subdoc.calculate_distances_per_pattern(factory)
-    vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
-    # merge dictionaries of attention vectors
-    value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
-
-    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
-  else:
-    # HATI-HATI: this case is for Unit Testing only
-    attention_vector_tuned = None
-
-  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned)
-
-
-def find_value_sign_currency_attention(value_section_subdoc: LegalDocument, attention_vector_tuned=None,
-                                       parent_tag=None) -> List[
-  ContractValue]:
-  spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
-  values_list = []
-
-  for span in spans:
-    value_sign_currency = extract_sum_sign_currency(value_section_subdoc, span)
-    if value_sign_currency is not None:
-
-      # Estimating confidence by looking at attention vector
-      if attention_vector_tuned is not None:
-        # offsetting spans
-        value_sign_currency += value_section_subdoc.start
-
-        for t in value_sign_currency.as_list():
-          t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
-            attention_vector_tuned[t.slice]))
-
-        value_sign_currency.parent.set_parent_tag(parent_tag)
-
-      values_list.append(value_sign_currency)
-
-  return values_list
+ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove
 
 
 def max_confident(vals: List[ContractValue]) -> ContractValue:
+  if len(vals) == 0:
+    return None
   return max(vals, key=lambda a: a.integral_sorting_confidence())
 
 
 def max_value(vals: List[ContractValue]) -> ContractValue:
+  if len(vals) == 0:
+    return None
   return max(vals, key=lambda a: a.value.value)
 
 
-def _find_most_relevant_paragraph(section: LegalDocument, subject_attention_vector: FixedVector, min_len: int,
-                                  return_delimiters=True):
-  # paragraph_attention_vector = smooth(attention_vector, 6)
+def _sub_attention_names(subj: Enum):
+  a = f'x_{subj}'
+  b = AV_PREFIX + f'x_{subj}'
+  c = AV_SOFT + a
+  return a, b, c
 
-  _blur = HyperParameters.subject_paragraph_attention_blur
-  _padding = _blur * 2 + 1
 
-  paragraph_attention_vector = smooth_safe(np.pad(subject_attention_vector, _padding, mode='constant'), _blur)[
-                               _padding:-_padding]
+def nn_find_org_names(textmap: TextMap, semantic_map: DataFrame,
+                      audit_subsidiary_name=None) -> [SemanticTag]:
+  cas = []
+  for o in [1, 2]:
+    ca = ContractAgent()
+    for n in ['name', 'alias', 'type']:
+      tagname = f'org-{o}-{n}'
+      tag = nn_get_tag_value(tagname, textmap, semantic_map)
+      setattr(ca, n, tag)
+    normalize_contract_agent(ca)
+    cas.append(ca)
 
-  top_index = int(np.argmax(paragraph_attention_vector))
-  span = section.tokens_map.sentence_at_index(top_index)
-  if min_len is not None and span[1] - span[0] < min_len:
-    next_span = section.tokens_map.sentence_at_index(span[1] + 1, return_delimiters)
-    span = (span[0], next_span[1])
+  def name_val_safe(a):
+    if a.name is not None:
+      return a.name.value
+    return ''
 
-  # confidence = paragraph_attention_vector[top_index]
-  confidence_region = subject_attention_vector[span[0]:span[1]]
-  confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
-  return span, confidence, paragraph_attention_vector
+  if audit_subsidiary_name:
+    # known subsidiary goes first
+    cas = sorted(cas, key=lambda a: name_val_safe(a) != audit_subsidiary_name)
+  else:
+    cas = sorted(cas, key=lambda a: name_val_safe(a))
+
+  return _swap_org_tags(cas)
+
+
+def _swap_org_tags(all_: [ContractAgent]) -> [SemanticTag]:
+  tags = []
+  for n, agent in enumerate(all_):
+    for tag in agent.as_list():
+      tagname = f"org-{n + 1}-{tag.kind.split('-')[-1]}"
+      tag.kind = tagname
+      tags.append(tag)
+
+  return tags
+
+
+def nn_find_contract_value(contract: ContractDocument, semantic_map: DataFrame) -> [ContractValue]:
+  _keys = ['sign_value_currency/value', 'sign_value_currency/currency', 'sign_value_currency/sign']
+  attention_vector = semantic_map[_keys].values.sum(axis=-1)
+
+  values_list: [ContractValue] = find_value_sign_currency_attention(contract, attention_vector)
+  if len(values_list) == 0:
+    return []
+  # ------
+  # reduce number of found values
+  # take only max value and most confident ones (we hope, it is the same finding)
+
+  max_confident_cv: ContractValue = max_confident(values_list)
+  if max_confident_cv.value.confidence < 0.1:
+    return []
+
+  return [max_confident_cv]
+
+  # max_valued_cv: ContractValue = max_value(values_list)
+  # if max_confident_cv == max_valued_cv:
+  #   return [max_confident_cv]
+  # else:
+  #   # TODO: Insurance docs have big value, its not what we're looking for. Biggest is not the best see https://github.com/nemoware/analyser/issues/55
+  #   # TODO: cannot compare diff. currencies
+  #   max_valued_cv *= 0.5
+  #   return [max_valued_cv]
+
+
+def nn_get_subject(textmap: TextMap, semantic_map: DataFrame, subj_1hot) -> SemanticTag:
+  predicted_subj_name, confidence, _ = decode_subj_prediction(subj_1hot)
+
+  tag = SemanticTag('subject', predicted_subj_name.name, span=None)
+  tag.confidence = confidence
+
+  tag_ = nn_get_tag_value('subject', textmap, semantic_map)
+  if tag_ is not None:
+    tag.span = tag_.span
+
+  return tag
+
+
+def nn_get_contract_number(textmap: TextMap, semantic_map: DataFrame) -> SemanticTag:
+  tag = nn_get_tag_value('number', textmap, semantic_map)
+  if tag is not None:
+    tag.value = tag.value.strip().lstrip('№').lstrip().lstrip(':').lstrip('N ').lstrip().rstrip('.')
+    nn_fix_span(tag)
+  return tag
+
+
+def nn_get_contract_date(textmap: TextMap, semantic_map: DataFrame) -> SemanticTag:
+  tag = nn_get_tag_value('date', textmap, semantic_map)
+  if tag is not None:
+    _, dt = find_date(tag.value)
+    tag.value = dt
+    if dt is not None:
+      return tag
+
+
+def nn_get_tag_value(tagname: str, textmap: TextMap, semantic_map: DataFrame, threshold=0.3) -> SemanticTag or None:
+  att = semantic_map[tagname].values
+  slices = find_top_spans(att, threshold=threshold, limit=1)  # TODO: estimate per-tag thresholds
+
+  if len(slices) > 0:
+    span = slices[0].start, slices[0].stop
+    value = textmap.text_range(span)
+    tag = SemanticTag(tagname, value, span)
+    tag.confidence = float(att[slices[0]].mean())
+    return tag
+  return None
+
+
+def nn_fix_span(tag: SemanticTag):
+  return tag

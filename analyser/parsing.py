@@ -1,10 +1,22 @@
 import time
 from functools import wraps
+from typing import List
 
-from analyser.legal_docs import LegalDocument
-from analyser.structures import ContractSubject
+import numpy as np
+
+from analyser.contract_patterns import ContractPatternFactory
+from analyser.documents import TextMap
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument, ContractValue, extract_sum_sign_currency
+from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe, relu
+from analyser.transaction_values import complete_re as transaction_values_re
+from tf_support.embedder_elmo import ElmoEmbedder
 
 PROF_DATA = {}
+
+import logging
+
+logger = logging.getLogger('analyser')
 
 
 class ParsingSimpleContext:
@@ -22,11 +34,11 @@ class ParsingSimpleContext:
 
   def _logstep(self, name: str) -> None:
     s = self.__step
-    print(f'❤️ ACCOMPLISHED: \t {s}.\t {name}')
+    print(f'{s}.\t❤️ ACCOMPLISHED:\t {name}')
     self.__step += 1
 
   def warning(self, text):
-    t_ = '⚠️ WARNING: - ' + text
+    t_ = '\t - ⚠️ WARNING: - ' + text
     self.warnings.append(t_)
     print(t_)
 
@@ -34,28 +46,40 @@ class ParsingSimpleContext:
     return '\n'.join(self.warnings)
 
   def log_warnings(self):
+
     if len(self.warnings) > 0:
-      print("Recent parsing warnings:")
+      logger.warning("Recent analyser warnings:")
 
       for w in self.warnings:
-        print('\t\t', w)
+        logger.warning(w)
 
 
 class AuditContext:
 
-  def __init__(self):
-    self.audit_subsidiary_name: str = None
+  def __init__(self, audit_subsidiary_name=None):
+    self.audit_subsidiary_name: str = audit_subsidiary_name
 
 
 class ParsingContext(ParsingSimpleContext):
-  def __init__(self, embedder=None):
+  def __init__(self, embedder=None, sentence_embedder=None):
     ParsingSimpleContext.__init__(self)
-    self.embedder = embedder
+    self._embedder = embedder
+    self._sentence_embedder = sentence_embedder
+
+  def get_sentence_embedder(self):
+    if self._sentence_embedder is None:
+      self._sentence_embedder = ElmoEmbedder.get_instance('default')
+    return self._sentence_embedder
+
+  def get_embedder(self):
+    if self._embedder is None:
+      self._embedder = ElmoEmbedder.get_instance()
+    return self._embedder
 
   def init_embedders(self, embedder, elmo_embedder_default):
     raise NotImplementedError()
 
-  def find_org_date_number(self, document: LegalDocument, ctx: AuditContext) -> LegalDocument:
+  def find_org_date_number(self, doc: LegalDocument, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding TF, GPU, and things
     searching for attributes required for filtering
@@ -66,6 +90,9 @@ class ParsingContext(ParsingSimpleContext):
 
   def find_attributes(self, document: LegalDocument, ctx: AuditContext):
     raise NotImplementedError()
+
+  def validate(self, document: LegalDocument, ctx: AuditContext):
+    pass
 
 
 def profile(fn):
@@ -109,7 +136,94 @@ head_types_dict = {'head.directors': 'Совет директоров',
                    'head.unknown': '*Неизвестный орган управления*'}
 head_types = ['head.directors', 'head.all', 'head.gen', 'head.pravlenie']
 
-known_subjects = [
-  ContractSubject.Charity,
-  ContractSubject.RealEstate,
-  ContractSubject.Lawsuit]
+
+def find_value_sign_currency(value_section_subdoc: LegalDocument,
+                             factory: ContractPatternFactory = None) -> List[ContractValue]:
+  if factory is not None:
+    value_section_subdoc.calculate_distances_per_pattern(factory)
+    vectors = factory.make_contract_value_attention_vectors(value_section_subdoc)
+    # merge dictionaries of attention vectors
+    value_section_subdoc.distances_per_pattern_dict = {**value_section_subdoc.distances_per_pattern_dict, **vectors}
+
+    attention_vector_tuned = value_section_subdoc.distances_per_pattern_dict['value_attention_vector_tuned']
+  else:
+    # HATI-HATI: this case is for Unit Testing only
+    attention_vector_tuned = None
+
+  return find_value_sign_currency_attention(value_section_subdoc, attention_vector_tuned, absolute_spans=True)
+
+
+def find_value_sign_currency_attention(value_section_subdoc: LegalDocument,
+                                       attention_vector_tuned: FixedVector or None,
+                                       parent_tag=None,
+                                       absolute_spans=False) -> List[ContractValue]:
+  spans = [m for m in value_section_subdoc.tokens_map.finditer(transaction_values_re)]
+  values_list = []
+
+  for span in spans:
+    value_sign_currency: ContractValue = extract_sum_sign_currency(value_section_subdoc, span)
+    if value_sign_currency is not None:
+
+      # Estimating confidence by looking at attention vector
+      if attention_vector_tuned is not None:
+
+        for t in value_sign_currency.as_list():
+          t.confidence *= (HyperParameters.confidence_epsilon + estimate_confidence_by_mean_top_non_zeros(
+            attention_vector_tuned[t.slice]))
+      # ---end if
+
+      value_sign_currency.parent.set_parent_tag(parent_tag)
+      value_sign_currency.parent.span = value_sign_currency.span()  ##fix span
+      values_list.append(value_sign_currency)
+
+  # offsetting
+  if absolute_spans:  # TODO: do not offset here!!!!
+    for value in values_list:
+      value += value_section_subdoc.start
+
+  return values_list
+
+
+def _find_most_relevant_paragraph(section: LegalDocument,
+                                  attention_vector: FixedVector,
+                                  min_len: int,
+                                  return_delimiters=True):
+  _blur = HyperParameters.subject_paragraph_attention_blur
+  _padding = _blur * 2 + 1
+
+  paragraph_attention_vector = smooth_safe(np.pad(attention_vector, _padding, mode='constant'), _blur)[
+                               _padding:-_padding]
+
+  top_index = int(np.argmax(paragraph_attention_vector))
+  span = section.sentence_at_index(top_index)
+  if min_len is not None and span[1] - span[0] < min_len:
+    next_span = section.sentence_at_index(span[1] + 1, return_delimiters)
+    span = (span[0], next_span[1])
+
+  # confidence = paragraph_attention_vector[top_index]
+  confidence_region = attention_vector[span[0]:span[1]]
+  confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
+  return span, confidence, paragraph_attention_vector
+
+
+def find_most_relevant_paragraphs(section: TextMap,
+                                  attention_vector: FixedVector,
+                                  min_len: int = 20,
+                                  return_delimiters=True, threshold=0.45):
+  _blur = int(HyperParameters.subject_paragraph_attention_blur)
+  _padding = int(_blur * 2 + 1)
+
+  paragraph_attention_vector = smooth_safe(np.pad(attention_vector, _padding, mode='constant'), _blur)[
+                               _padding:-_padding]
+
+  paragraph_attention_vector = relu(paragraph_attention_vector, threshold)
+
+  top_indices = [i for i, v in enumerate(paragraph_attention_vector) if v > 0.00001]
+  spans = []
+  for i in top_indices:
+    span = section.sentence_at_index(i, return_delimiters)
+    if min_len is not None and span[1] - span[0] < min_len:
+      if not span in spans:
+        spans.append(span)
+
+  return spans, paragraph_attention_vector

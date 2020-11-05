@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # coding=utf-8
-import csv
 import json
 import sys
 import traceback
@@ -10,18 +9,17 @@ import pymongo
 from pandas import DataFrame
 
 from analyser.contract_agents import find_org_names
+from analyser.contract_parser import ContractDocument
 from analyser.documents import TOKENIZER_DEFAULT
+from analyser.legal_docs import LegalDocument
 from integration.word_document_parser import WordDocParser, join_paragraphs
-from analyser.legal_docs import DocumentJson
-
-files_dir = '/Users/artem/Downloads/Telegram Desktop/X0/'
 
 
-def read_all_contracts():
+
+def read_all_docs(files_dir: str, doc_type='CONTRACT'):
   db = get_mongodb_connection()
   collection = db['legaldocs']
-  # headers_collection = db['headers']
-  contracts_collection = db['contracts']
+
   wp = WordDocParser()
   filenames = wp.list_filenames(files_dir)
 
@@ -30,7 +28,6 @@ def read_all_contracts():
   unknowns = 0
   nodate = 0
 
-  rows = []
 
   def stats():
     print(f'processed:{cnt};\t failures:\t{failures}\t unknown type: {unknowns}\t unknown date: {nodate}')
@@ -44,27 +41,19 @@ def read_all_contracts():
     cnt += 1
     print(cnt, fn)
 
-    res = collection.find_one({"_id": _doc_id})
-    if res is None:
+    docs = collection.find_one({"_id": _doc_id, 'version': wp.version})
+    if docs is None:
+      # parse and save to DB
       try:
-        # parse and save to DB
-        res = wp.read_doc(fn)
+        docs = wp.read_doc(fn)
 
-        res['short_filename'] = shortfn
-        res['path'] = pth
-        res['_id'] = _doc_id
+        # for res in docs['documents']:
+        docs['short_filename'] = shortfn
+        docs['path'] = pth
+        docs['_id'] = _doc_id
 
-        # for p in res['paragraphs']:
-        #   header_text = p['paragraphHeader']['text']
-        #   header = {
-        #     'text': header_text,
-        #     'len': len(header_text),
-        #     'has_newlines': header_text.find('\n') >= 0
-        #   }
-        #   headers_collection.insert_one(header)
-
-        collection.insert_one(res)
-
+        collection.delete_many({"_id": _doc_id})
+        collection.insert_one(docs)
 
       except Exception:
         print(f"{fn}\nException in WordDocParser code:")
@@ -72,66 +61,36 @@ def read_all_contracts():
         failures += 1
         err = True
         res = None
-    else:
-      print(cnt, res["documentDate"], res["documentType"])
 
-    row = [cnt, shortfn, None, None, None, None, None, None, pth, None]
-    if res:
-      row[2:4] = [res["documentType"], res["documentDate"]]
+    if docs:
+      for res in docs['documents']:
 
-      if 'UNKNOWN' == res["documentType"]:
-        unknowns += 1
-        stats()
+        if doc_type == res["documentType"]:
+          _doc = _parse_doc(res, _doc_id)
+          yield _doc
 
-      if res["documentDate"] is None:
-        nodate += 1
-        stats()
+          # if False:
+          #   contract: ContractDocument = _parse_contract(_doc, row)
+          #   json_struct = DocumentJson(contract).__dict__
+          #
+          #   if contracts_collection.find_one({"_id": _doc_id}) is None:
+          #     contracts_collection.insert_one(json_struct)
 
-      if 'CONTRACT' == res["documentType"]:
-        contract = _parse_contract(res, _doc_id, row)
-        json_struct = DocumentJson(contract).__dict__
-        # json_struct['_id'] = _doc_id
-        #
-        # if res["documentDate"]:
-        #   date_time_obj = datetime.datetime.strptime(res["documentDate"], '%Y-%m-%d')
-        #   json_struct['attributes']['documentDate'] = {
-        #     'value': date_time_obj,
-        #     'display_value': res["documentDate"]
-        #   }
-        #
-
-        if contracts_collection.find_one({"_id": _doc_id}) is None:
-          contracts_collection.insert_one(json_struct)
-
-        # else:
-        #   contracts_collection.update_one({'$setOnInsert':json_struct})
-
-    rows.append(row)
-
-    if cnt % 20 == 0:
-      # print(rows)
-      export_csv(rows)
   stats()
   # print(f'failures:\t{failures}\t unknowns: {unknowns}\t nodate: {nodate}' )
 
 
-def _parse_contract(res, doc_id, row):
-  contract = join_paragraphs(res, doc_id)
+def _parse_doc(res, doc_id) -> LegalDocument:
+  return join_paragraphs(res, doc_id)
 
+
+def _parse_contract(contract, row) -> ContractDocument:
   contract.agents_tags = find_org_names(contract)
   row[4:8] = [contract.tag_value('org.1.name'),
               contract.tag_value('org.1.alias'),
               contract.tag_value('org.2.name'),
               contract.tag_value('org.2.alias')]
   return contract
-
-
-def export_csv(rows, headline=['1', '2', '3', '4', '5', '6', '7', '8', '9']):
-  with open(f'{files_dir}contracts-stats.csv', mode='w') as csv_file:
-    _writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    _writer.writerow(headline)
-    for l in rows:
-      _writer.writerow(l)
 
 
 def dump_contracts_from_db_to_jsons(output_path):
@@ -230,7 +189,7 @@ def find_top_headers():
 
 
 if __name__ == '__main__':
-  find_top_headers()
+  # find_top_headers()
   # analyse_headers()
-  # read_all_contracts()
+  read_all_docs('_files_dir')
   # dump_contracts_from_db_to_jsons('/Users/artem/work/nemo/goil/OUT/jsons')

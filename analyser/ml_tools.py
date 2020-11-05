@@ -1,20 +1,31 @@
 import math
 import warnings
+from enum import Enum
 from typing import List, TypeVar, Iterable, Generic
 
 import numpy as np
 import scipy.spatial.distance as distance
 from pandas import DataFrame
+from scipy import special as scs
 
 from analyser.hyperparams import HyperParameters
 from analyser.text_tools import Tokens
+
+Embedding = 'np.ndarray[float]' or [float]
+Embeddings = 'np.ndarray[Embedding]' or [Embedding]
 
 FixedVector = TypeVar('FixedVector', List[float], np.ndarray)
 Vector = TypeVar('Vector', FixedVector, Iterable[float])
 Vectors = TypeVar('Vectors', List[Vector], Iterable[Vector])
 FixedVectors = TypeVar('FixedVectors', List[FixedVector], Iterable[FixedVector])
 
+Spans = [(int, int)]
+
 T = TypeVar('T')  # just type variable
+
+
+def span_to_slice(span) -> slice:
+  return slice(span[0], span[1])
 
 
 class ProbableValue(Generic[T]):
@@ -123,7 +134,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
     raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
   s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-  # print(len(s))
+
   if window == 'flat':  # moving average
     w = np.ones(window_len, 'd')
   else:
@@ -137,6 +148,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
 
 
 def relu(x: np.ndarray, relu_th: float = 0.0) -> np.ndarray:
+  """deprecated: use np.maximum( )"""
   assert type(x) is np.ndarray
 
   _relu = x * (x > relu_th)
@@ -172,8 +184,8 @@ def make_echo(av: FixedVector, k=0.5) -> np.ndarray:
 def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
-  for i in range(len(x)):
-    m += x[i]
+  for i, xi in enumerate(x):
+    m += xi
     innertia[i] = m
     m *= decay
 
@@ -183,8 +195,8 @@ def momentum_(x: FixedVector, decay=0.99) -> np.ndarray:
 def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
   innertia = np.zeros(len(x))
   m = 0
-  for i in range(len(x)):
-    m = max(m, x[i])
+  for i, xi in enumerate(x):
+    m = max(m, xi)
     innertia[i] = m
     m *= decay
 
@@ -368,9 +380,15 @@ TAG_KEY_DELIMITER = '/'
 
 class SemanticTag:
 
-  def __init__(self, kind, value, span: (int, int), span_map='words', parent: 'SemanticTag' = None):
+  def __init__(self,
+               kind: str,
+               value: str or Enum or None,
+               span: (int, int),
+               span_map: str or None = 'words',
+               parent: 'SemanticTag' = None):
+
     self.kind = kind
-    self.value = value
+    self.value: str or Enum or None = value
     '''name of the parent (or group) tag '''
 
     self._parent_tag: 'SemanticTag' = parent
@@ -382,8 +400,30 @@ class SemanticTag:
     self.span_map = span_map
     self.confidence = 1.0
 
+
+  def as_json_attribute(self):
+
+    key = self.get_key()
+    attribute = self.__dict__.copy()
+
+    if isinstance(self.value, Enum):
+      attribute['value'] = self.value.name
+
+    del attribute['kind']
+    if '_parent_tag' in attribute:
+      if self.parent is not None:
+        attribute['parent'] = self.parent
+      del attribute['_parent_tag']
+
+    return key, attribute
+
+
+
   @staticmethod
-  def number_key(base, number) -> str:
+  def number_key(base: str or Enum, number: int) -> str:
+    if isinstance(base, Enum):
+      base = base.name
+
     return f'{base}-{number}'
 
   def get_parent(self) -> str or None:
@@ -396,6 +436,14 @@ class SemanticTag:
 
   def __len__(self) -> int:
     return self.span[1] - self.span[0]
+
+  def __add__(self, addon: int) -> 'SemanticTag':
+    self.span = self.span[0] + addon, self.span[1] + addon
+    return self
+
+  def offset(self, span_add: int):
+    self.span = self.span[0] + span_add, self.span[1] + span_add
+    return self
 
   def get_key(self):
     key = self.kind.replace('.', '-').replace(TAG_KEY_DELIMITER, '-')
@@ -421,14 +469,11 @@ class SemanticTag:
       if s.kind == kind and s.value == val:
         return s
 
-  def offset(self, span_add: int):
-    self.span = self.span[0] + span_add, self.span[1] + span_add
-
   def set_parent_tag(self, pt):
     self._parent_tag = pt
 
-  def is_nested(self, other: [int]) -> bool:
-    return self.span[0] <= other[0] and self.span[1] >= other[1]
+  def contains(self, child: [int]) -> bool:
+    return self.span[0] <= child[0] and child[1] <= self.span[1]
 
   def __str__(self):
     return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'
@@ -478,21 +523,6 @@ def estimate_confidence_by_mean_top(x: FixedVector, head_size: int = 10) -> floa
   return float(np.mean(sorted(x)[-head_size:]))
 
 
-def select_most_confident_if_almost_equal(a: ProbableValue, alternative: ProbableValue,
-                                          equality_range=0.0) -> ProbableValue:
-  try:
-    if abs(a.value.value - alternative.value.value) < equality_range:
-      if a.confidence > alternative.confidence:
-        return a
-      else:
-        return alternative
-  except:
-    # TODO: why dan hell we should have an exception here??
-    return a
-
-  return a
-
-
 def combined_attention_vectors(vectors_dict, vector_names):
   vectors = [vectors_dict[v] for v in vector_names]
   return sum_probabilities(vectors)
@@ -501,12 +531,12 @@ def combined_attention_vectors(vectors_dict, vector_names):
 sum_probabilities_by_name = combined_attention_vectors
 
 
-def find_non_zero_spans(tokens_map, attention_vector_relu):
-  nonzeros = np.argwhere(attention_vector_relu > 0.001)[:, 0]
-  return np.unique([tokens_map.sentence_at_index(i) for i in nonzeros], axis=0)
-
-
-find_sentences_with_attention = find_non_zero_spans
+# def find_non_zero_spans(tokens_map, attention_vector_relu):
+#   nonzeros = np.argwhere(attention_vector_relu > 0.001)[:, 0]
+#   return np.unique([tokens_map.sentence_at_index(i) for i in nonzeros], axis=0)
+#
+#
+# find_sentences_with_attention = find_non_zero_spans
 
 
 def find_first_gt(indx: int, indices) -> int or None:
@@ -531,21 +561,34 @@ def remove_colliding_spans(spans, eps=0):
   return np.array(ret)
 
 
-def merge_colliding_spans(spans, eps=0):
-  if len(spans) == 0:
+# def merge_colliding_spans(spans: Spans, eps=0) -> Spans:
+#
+#   sorted_spans = sorted(spans, lambda x:x[0])
+
+# def span_intersect
+
+def merge_colliding_spans(spans: Spans, eps=0) -> Spans:
+  sorted_spans = sorted(spans, key=lambda x: x[0])
+  sorted_spans = [[s[0], s[1]] for s in sorted_spans]
+  if len(sorted_spans) == 0:
     return []
   """
   [0..2][2..4][4..5] -> [0..5]
   """
-  ret = [spans[0]]
+  ret = [sorted_spans[0]]
 
-  for i in range(1, len(spans)):
-    distance_to_next = abs(ret[-1][1] - spans[i][0])
+  for i in range(1, len(sorted_spans)):
+    span_a = ret[-1]
+    span_b = sorted_spans[i]
+
+    distance_to_next = span_b[0] - span_a[1]
     if distance_to_next > eps:  # sections is not empty
-      ret.append(spans[i])
+      ret.append(span_b)
     else:
-      ret[-1][1] = spans[i][1]
+      # merge
+      span_a[1] = span_b[1]
 
+  ret = [(s[0], s[1]) for s in ret]
   return np.array(ret)
 
 
@@ -666,7 +709,7 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
   for __header_index in range(headers_n):
 
     header_index, pattern_index, maxval = _find_max_xy_in_matrix(vals)
-    # print(header_index, pattern_index,maxval )
+
     pattern_name = header_to_pattern_distances_.columns[pattern_index]
     max_pair = ((pattern_name, header_index), maxval)
 
@@ -677,3 +720,46 @@ def attribute_patternmatch_to_index(header_to_pattern_distances_: pd.DataFrame,
     vals[header_index, :] = -1
 
   return pairs
+
+
+def attention_vector(pattern_emb, text_emb: Embeddings) -> FixedVector:
+  return np.array([1.0 - distance.cosine(e, pattern_emb) for e in text_emb])
+
+
+def multi_attention_vector(patterns_emb: Embeddings, text_emb: Embeddings) -> FixedVector:
+  vectors: FixedVectors = []
+  for pattern_emb in patterns_emb:
+    av = attention_vector(pattern_emb, text_emb)
+    vectors.append(av)
+
+  return max_exclusive_pattern(vectors)
+
+
+def best_window(attention_vector, wnd_len) -> (int, float, float):
+  max_sum = 0
+  best_index = 0
+  for k in range(len(attention_vector) - wnd_len + 1):
+    wnd = attention_vector[k:k + wnd_len]
+    _sum = sum(wnd)
+    if _sum > max_sum:
+      max_sum = _sum
+      best_index = k
+  return best_index, max_sum, max_sum / wnd_len
+
+
+def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column: str) -> Embeddings:
+  centroids = []
+  for cn in np.unique(clustered[labels_column]):
+    items = clustered[clustered[labels_column] == cn]
+    m = embeddings[items.index].mean(axis=0)
+    centroids.append(m)
+
+  return np.array(centroids)
+
+
+def softmax_rows(headers_df: DataFrame, columns):
+  _x = headers_df[columns]
+  _x = scs.softmax(_x, axis=1)
+  headers_df[columns] = _x
+
+  return headers_df
