@@ -93,7 +93,7 @@ class KerasTrainingContext:
       model_name = model_name_override
 
     model = model_factory_fn(name=model_name, ctx=self, trained=trained)
-    model.name = model_name
+    # model.name = model_name
     if verbose > 1:
       model.summary()
 

@@ -407,6 +407,7 @@ def convert_all_docs():
     logger.info(f"Migration: no legacy docs found in DB")
     return
 
+  print('\a')
   print(
     f"{len(ids)} legacy doc(s) found in DB. If you want to convert (migrate) them, type YES (it's safe, trust me)")
   yesno = str(input())

@@ -74,7 +74,7 @@ class TestRunner(unittest.TestCase):
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_contracts_phase_1(self):
-    runner = Runner.get_instance()
+    # runner = Runner.get_instance()
 
     audits = get_audits()
     if len(audits) == 0:
@@ -84,9 +84,10 @@ class TestRunner(unittest.TestCase):
     audit_id = audits[0]['_id']
 
     docs = get_docs_by_audit_id(audit_id, kind='CONTRACT')
-    for doc in docs:
-      processor = document_processors.get('CONTRACT')
-      processor.preprocess(doc, AuditContext())
+    processor = document_processors.get('CONTRACT')
+    for _doc in docs:
+      jdoc = DbJsonDoc(_doc)
+      processor.preprocess(jdoc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_charters_phase_1(self):
@@ -96,10 +97,11 @@ class TestRunner(unittest.TestCase):
       return
 
     audit_id = audits[0]['_id']
-    docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
-    for doc in docs:
-      processor = document_processors.get('CHARTER')
-      processor.preprocess(doc, AuditContext())
+    docs: [dict] = get_docs_by_audit_id(audit_id, kind='CHARTER')
+    processor = document_processors.get('CHARTER')
+    for _doc in docs:
+      jdoc = DbJsonDoc(_doc)
+      processor.preprocess(jdoc, AuditContext())
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_process_protocols_phase_1(self):
