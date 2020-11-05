@@ -4,7 +4,6 @@
 
 
 # schemas.py
-import analyser
 from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
 
