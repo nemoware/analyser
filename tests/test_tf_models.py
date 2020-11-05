@@ -21,7 +21,7 @@ class TestLoadTfModel(unittest.TestCase):
     sm = _get_semantic_map(DbJsonDoc(json_dict))
     print(sm.shape)
 
-  def test_load_uber_model_001(self):
+  def test_uber_detection_model_001(self):
     ctx = KerasTrainingContext()
     model = ctx.init_model(uber_detection_model_001, verbose=2)
     self.assertIsNotNone(model)
