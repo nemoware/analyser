@@ -355,7 +355,7 @@ class TokenisationTestCase(unittest.TestCase):
     text = 'этилен мама этилен'
     __doc = LegalDocument(text)
     __doc.parse()
-    tm: TextMap = __doc.tokens_map
+
     subdoc = __doc.subdoc_slice(slice(1, 3))
     del __doc
 
@@ -507,7 +507,7 @@ class TokenisationTestCase(unittest.TestCase):
 
     N = 10
     expected_tokens = len(tm1.tokens) + N * len(tm2.tokens)
-    for i in range(N):
+    for _ in range(N):
       tm1 += tm2
 
     self.assertEqual(expected_tokens, len(tm1))
@@ -519,7 +519,7 @@ class TokenisationTestCase(unittest.TestCase):
 
     N = 10
     expected_tokens = len(tm1.tokens) + N * len(tm2.tokens)
-    for i in range(N):
+    for _ in range(N):
       tm1 += tm2
 
     # //tm1.parse()
@@ -532,7 +532,7 @@ class TokenisationTestCase(unittest.TestCase):
 
     N = 10
     expected_tokens = len(tm1.tokens_cc) + N * len(tm2.tokens_cc)
-    for i in range(N):
+    for _ in range(N):
       tm1 += tm2
 
     print(tm1.tokens_map_norm._full_text)

@@ -600,7 +600,7 @@ def plot_subject_confusion_matrix(image_save_path, model, steps=12, generator=No
 def plot_compare_models(ctx, models: [str], metrics, image_save_path):
   _metrics = [m for m in metrics if not m.startswith('val_')]
 
-  for i, m in enumerate(models):
+  for _, m in enumerate(models):
 
     data: pd.DataFrame = ctx.get_log(m)
 

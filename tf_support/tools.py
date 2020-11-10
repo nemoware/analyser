@@ -51,20 +51,8 @@ class KerasTrainingContext:
     return stats, stats_path
 
   def save_stats(self, model_name):
-    # h = self.HISTORIES[model_name]
-    stats, stats_path = self.get_stats_df()
-    #
-    # for m in h.params['metrics']:
-    #   if m not in stats:
-    #     stats[m] = float('nan')
-    # for m in h.params['metrics']:
-    #   if m in h.history:
-    #     stats.at[model_name, m] = h.history[m][-1]
-    #
-    # stats.at[model_name, 'epoch'] = h.epoch[-1]
-    #
-    # stats.to_csv(stats_path)
-    # stats.to_csv('stats.csv')
+    stats, _ = self.get_stats_df()
+
     return stats
 
   def get_log(self, model_name: str) -> pd.DataFrame:
@@ -86,7 +74,7 @@ class KerasTrainingContext:
     else:
       return None, 0
 
-  def resave_model_h5(self,  model_factory_fn):
+  def resave_model_h5(self, model_factory_fn):
     model = self.init_model(model_factory_fn, load_weights=False)
     model.summary()
     model_name = model_factory_fn.__name__

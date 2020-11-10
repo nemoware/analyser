@@ -15,7 +15,6 @@ from analyser.legal_docs import LegalDocument
 from integration.word_document_parser import WordDocParser, join_paragraphs
 
 
-
 def read_all_docs(files_dir: str, doc_type='CONTRACT'):
   db = get_mongodb_connection()
   collection = db['legaldocs']
@@ -27,7 +26,6 @@ def read_all_docs(files_dir: str, doc_type='CONTRACT'):
   failures = 0
   unknowns = 0
   nodate = 0
-
 
   def stats():
     print(f'processed:{cnt};\t failures:\t{failures}\t unknown type: {unknowns}\t unknown date: {nodate}')
@@ -59,8 +57,6 @@ def read_all_docs(files_dir: str, doc_type='CONTRACT'):
         print(f"{fn}\nException in WordDocParser code:")
         traceback.print_exc(file=sys.stdout)
         failures += 1
-        err = True
-        res = None
 
     if docs:
       for res in docs['documents']:
