@@ -13,6 +13,7 @@ from analyser.documents import TextMap
 from analyser.ml_tools import SemanticTag
 from analyser.parsing import AuditContext
 from analyser.protocol_parser import ProtocolDocument
+from analyser.schemas import ContractSchema
 from analyser.structures import ContractTags
 from tf_support.tf_subject_model import nn_predict
 
@@ -72,6 +73,7 @@ class TestContractParser(unittest.TestCase):
     doc, factory, ctx = self._get_doc_factory_ctx()
     doc.__dict__['number'] = None  # hack for old pickles
     doc.__dict__['date'] = None  # hack for old pickles
+    doc.__dict__['attributes_tree'] = ContractSchema()  # hack for old pickles
 
     ctx.find_attributes(doc, AuditContext())
     tags: [SemanticTag] = doc.get_tags()

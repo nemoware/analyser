@@ -20,6 +20,9 @@ from analyser.parsing import AuditContext
 
 # 5ded4e284ddc27bcf92dd6cf
 # 5ded4e284ddc27bcf92dd6ce
+from analyser.schemas import ContractSchema
+
+
 class TestJsonExport(unittest.TestCase):
 
   def _get_doc(self) -> (ContractDocument, ContractPatternFactory):
@@ -52,6 +55,7 @@ class TestJsonExport(unittest.TestCase):
     doc.__dict__['number'] = None  # hack for old pickles
     doc.__dict__['date'] = None  # hack for old pickles
     doc.__dict__['warnings'] = []  # hack for old pickles
+    doc.__dict__['attributes_tree'] = ContractSchema()  # hack for old pickles
 
     actx = AuditContext()
     ctx.find_attributes(doc, actx)
@@ -66,6 +70,7 @@ class TestJsonExport(unittest.TestCase):
     doc.__dict__['number'] = None  # hack for old pickles
     doc.__dict__['date'] = None  # hack for old pickles
     doc.__dict__['warnings'] = []  # hack for old pickles
+    doc.__dict__['attributes_tree'] = ContractSchema()  # hack for old pickles
     actx = AuditContext()
     ctx.find_attributes(doc, actx)
     json_struct = DocumentJson(doc)
