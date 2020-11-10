@@ -1,4 +1,5 @@
-from integration.db import get_mongodb_connection
+from analyser.hyperparams import HyperParameters
+from analyser.text_tools import compare_masked_strings
 
 data = {
   "Subsidiary": [
@@ -7,6 +8,13 @@ data = {
       "legal_entity_type": "ПАО",
       "aliases": [
         "Газпром нефть"
+      ]
+    },
+    {
+      "_id": "Газпромнефть Шиппинг",
+      "legal_entity_type": "ООО",
+      "aliases": [
+        "Газпромнефть Шиппинг"
       ]
     },
     {
@@ -82,13 +90,6 @@ data = {
       ]
     },
     {
-      "_id": "Газпромнефть-ОНПЗ",
-      "legal_entity_type": "АО",
-      "aliases": [
-        "Газпромнефть-ОНПЗ"
-      ]
-    },
-    {
       "_id": "Газпромнефть-Каталитические системы",
       "legal_entity_type": "ООО",
       "aliases": [
@@ -148,10 +149,17 @@ data = {
       "_id": "Газпромнефть-МНПЗ",
       "legal_entity_type": "АО",
       "aliases": [
-        "Газпромнефть-МНПЗ",
         "Газпромнефть–Московский НПЗ"
       ]
     },
+    {
+      "_id": "Газпромнефть-ОНПЗ",
+      "legal_entity_type": "АО",
+      "aliases": [
+        "Газпромнефть-Омский НПЗ"
+      ]
+    },
+
     {
       "_id": "Нефтехимремонт",
       "legal_entity_type": "ООО",
@@ -164,6 +172,9 @@ data = {
       "legal_entity_type": "ООО",
       "aliases": [
         "РМЗ ГПН-ОНПЗ"
+        'РМЗ «ГПН-ОНПЗ»',
+        "Ремонтно-механический завод «ГПН-ОНПЗ»",
+        "Ремонтно-механический завод «Газпромнефть-ОНПЗ»"
       ]
     },
     {
@@ -245,7 +256,6 @@ data = {
       "aliases": [
         "МФК Лахта Центр",
         'МФК «Лахта центр»',
-        "Многофункциональный комплекс «Лахта центр»",
         "Многофункциональный комплекс Лахта центр"
       ]
     },
@@ -253,14 +263,14 @@ data = {
       "_id": "ГПН-Инвест",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Инвест"
+        "Газпромнефть-Инвест"
       ]
     },
     {
       "_id": "ГПН-ЗС",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-ЗС"
+        "Газпромнефть-ЗС"
       ]
     },
     {
@@ -274,14 +284,14 @@ data = {
       "_id": "ГПН-Финанс",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Финанс"
+        "Газпромнефть-Финанс"
       ]
     },
     {
       "_id": "ГПН-Энерго",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-Энерго"
+        "Газпромнефть-Энерго"
       ]
     },
     {
@@ -295,7 +305,7 @@ data = {
       "_id": "ГПН-проект",
       "legal_entity_type": "ООО",
       "aliases": [
-        "ГПН-проект"
+        "Газпромнефть-проект"
       ]
     },
     {
@@ -360,7 +370,8 @@ data = {
       "_id": "Газпромнефть НТЦ",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Газпромнефть НТЦ"
+        "Газпромнефть НТЦ",
+        "Газпромнефть Научно-Технический Центр"
       ]
     },
     {
@@ -439,7 +450,8 @@ data = {
       "_id": "Южно-Приобский ГПЗ",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Южно-Приобский ГПЗ"
+        "Южно-Приобский ГПЗ",
+        "Южно-Приобский газоперерабатывающий завод"
       ]
     },
     {
@@ -511,6 +523,7 @@ data = {
       "legal_entity_type": "ООО",
       "aliases": [
         "ГПН-Сахалин",
+        "Газпромнефть-Сахалин",
         "Газпромнефть-Сахалин"
       ]
     },
@@ -568,7 +581,8 @@ data = {
       "_id": "Газпромнефть-Корпоративные продажи",
       "legal_entity_type": "ООО",
       "aliases": [
-        "Газпромнефть-Корпоративные продажи"
+        "Газпромнефть-Корпоративные продажи",
+        "Газпром Нефть Корпоративные продажи"
       ]
     },
     {
@@ -596,7 +610,8 @@ data = {
       "_id": "Газпромнефть-Новосибирск",
       "legal_entity_type": "АО",
       "aliases": [
-        "Газпромнефть-Новосибирск"
+        "Газпромнефть-Новосибирск",
+        "Газпромнефть-Новосибирск (НБ)"
       ]
     },
     {
@@ -660,7 +675,33 @@ data = {
 
 subsidiaries = data['Subsidiary']
 
-if __name__ == '__main__':
-  db = get_mongodb_connection()
-  # db['Subsidiary'].insert_many( subsidiaries)
-# if db:
+
+def all_do_names():
+  for s in subsidiaries:
+    for alias in s['aliases'] + [s['_id']]:
+      yield alias
+
+
+def estimate_subsidiary_name_match_min_jaro_similarity():
+  top_similarity = 0
+
+  all_do_names_ = list(all_do_names())
+  all_do_names_fixed = []
+  for name1 in all_do_names_:
+    all_do_names_fixed.append(name1.replace('»', '').replace('«', '').lower())
+
+  for name1 in all_do_names_fixed:
+    for name2 in all_do_names_fixed:
+
+      if name1 != name2:
+
+        similarity = compare_masked_strings(name1, name2, [])
+        if similarity > top_similarity:
+          top_similarity = similarity
+
+  return top_similarity
+
+
+HyperParameters.subsidiary_name_match_min_jaro_similarity = estimate_subsidiary_name_match_min_jaro_similarity()
+print('HyperParameters.subsidiary_name_match_min_jaro_similarity',
+      HyperParameters.subsidiary_name_match_min_jaro_similarity)

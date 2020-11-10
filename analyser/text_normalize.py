@@ -52,13 +52,14 @@ r_name = r_group(_r_name, 'name')
 """Puts name into qotes"""
 r_human_name_part = r_capitalized
 
-r_human_full_name = r_group(r_human_name_part + r'\s*' + r_human_name_part + '\s*' + r_human_name_part + '?\w')
-r_human_abbr_name = r_group(r_human_name_part + r'\s*' + '([А-ЯA-Z][.]\s?){1,2}')
+r_human_full_name = r_group(r_human_name_part + r'\s*' + r_human_name_part + r'\s*' + r_human_name_part + r'?\w')
+r_human_abbr_name = r_group(r_human_name_part + r'\s*' + r'([А-ЯA-Z][.]\s?){1,2}')
 r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name')
 
 
 def r_quoted(x):
-  assert x is not None
+  if x is None:
+    raise ValueError('provide x please')
   return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
 
 
@@ -69,8 +70,9 @@ spaces_regex = [
   (re.compile(_bell), '\n'),
   (re.compile(r'\t'), ' '),
   (re.compile(r'[ ]{2}'), ' '),
-  (re.compile(r' '), ' ')  # this is not just space char! this is weird invisible symbol
+  (re.compile(r' '), ' '),  # this is not just space char! this is weird invisible symbol
 
+  (re.compile(r'№(?=\S)'), '№ ')
   # ,
   # (re.compile(r'\n{2}'), '\n')
 ]
@@ -147,6 +149,13 @@ numbers_regex = [
 ]
 
 fixtures_regex = [
+
+  (re.compile(r'\(в том числе нескольких взаимосвязанных сделок\)'), ''),
+  (re.compile(r'\(или эквивалент указанной суммы в любой другой валюте\)'), ''),
+  (re.compile(r'\(или эквивалента указанной суммы в любой другой валюте\)'), ''),
+  (re.compile(r'аренду/субаренду'), 'аренду / субаренду'),
+  (re.compile(r'арендой/субарендой'), 'арендой / субарендой'),
+
   (re.compile(r'(?<=[А-Я][)])\n'), '.\n'),
   (re.compile(r'(?<=[А-Я])\n'), '.\n'),
   (re.compile(r'(У\sС\sТ\sА\sВ)', re.IGNORECASE | re.MULTILINE), 'УСТАВ'),
@@ -188,6 +197,28 @@ r_quoted_name_contents = r_quote_open + r'\s*' + r_group(_r_name, 'r_quoted_name
 r_quoted_name_contents_c = re.compile(r_quoted_name_contents)
 
 
+def fix_ru_quotes(s):
+  if s is None:
+    return None
+
+  s = s.lstrip('«').rstrip('»')
+  s = unquote(s)
+  if s.find('«') >= 0 and s.find('»') < 0:  # TODO: hack
+    s += '»'
+
+  if s.find('»') >= 0 and s.find('«') < 0:  # TODO: hack
+    s = '«' + s
+
+  findings = r_quoted_name_contents_c.finditer(s)
+
+  rr = re.sub(r'[«»]', ' ', s)
+  for match in findings:
+    span = match.span()
+    rr = rr[:span[0]] + s[span[0]:span[1]] + rr[span[1]:]
+
+  return rr.strip()
+
+
 def normalize_company_name(name: str) -> (str, str):
   legal_entity_type = ''
   normal_name = name
@@ -205,16 +236,7 @@ def normalize_company_name(name: str) -> (str, str):
   normal_name = re.sub(r'\s+', ' ', normal_name)
   normal_name = re.sub(r'[\s ]*[-–][\s ]*', '-', normal_name)
 
-  # x = r_quoted_name_contents_c.search(normal_name)
-  # if x is not None and x['r_quoted_name_contents'] is not None:
-  #   normal_name = x['r_quoted_name_contents']
-
-  # normal_name = re.sub(r'["\']', '', normal_name)
-
-  normal_name = unquote(normal_name)
-
-  if normal_name.find('«') >= 0 and normal_name.find('»') < 0:  # TODO: hack
-    normal_name += '»'
+  normal_name = fix_ru_quotes(normal_name)
 
   return legal_entity_type, normal_name
 

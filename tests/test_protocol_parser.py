@@ -9,14 +9,44 @@ import re
 import unittest
 
 from analyser.contract_agents import ORG_LEVELS_re
-from analyser.contract_parser import ContractDocument
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.legal_docs import LegalDocument
-from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re
+from analyser.ml_tools import SemanticTag
+from analyser.parsing import AuditContext
+from analyser.persistence import DbJsonDoc
+from analyser.protocol_parser import find_protocol_org, find_org_structural_level, protocol_votes_re, ProtocolDocument
+from analyser.runner import Runner
 from analyser.structures import OrgStructuralLevel
+from tests.test_utilits import load_json_sample
 
 
 class TestProtocolParser(unittest.TestCase):
+
+  def test_read_json(self):
+    data = load_json_sample('protocol_1.json')
+    print(data['parse'])
+
+  def test_protocol_processor(self):
+    json_doc = load_json_sample('protocol_1.json')
+    jdoc = DbJsonDoc(json_doc)
+    legal_doc = jdoc.asLegalDoc()
+
+    # print (doc)
+
+    pp = Runner.get_instance().protocol_parser
+    pp.find_org_date_number(legal_doc, AuditContext())
+
+    orgtags = legal_doc.org_tags
+    for t in orgtags:
+      print(t)
+
+    def tag_val(name):
+      tag = SemanticTag.find_by_kind(orgtags, name)
+      if tag is not None:
+        return tag.value
+
+    self.assertEqual('Газпромнефть Шиппинг', tag_val('org-1-name'))
+    self.assertEqual('Общество с ограниченной ответственностью', tag_val('org-1-type'))
 
   def get_doc(self, fn) -> (LegalDocument, ContractPatternFactory):
     pth = os.path.dirname(__file__)
@@ -34,20 +64,20 @@ class TestProtocolParser(unittest.TestCase):
       print('😱 \t', doc.get_tag_text(p.header).strip(), '📂')
 
   def test_find_protocol_org_1(self):
-    suff = ' ' * 300
+    suff = ' ' * 1000
 
     txt = '''Протокол № 3/2019 Проведения итогов заочного голосования Совета директоров Общества с ограниченной ответственностью «Технологический центр «Бажен» (далее – ООО «Технологический центр «Бажен») г. Санкт-Петербург Дата составления протокола «__» _______ 2019 года
     Дата окончания приема бюллетеней для голосования членов Совета директоров «___»__________ 2019 года.
     ''' + suff
-    doc = ContractDocument(txt)
+    doc = ProtocolDocument(LegalDocument(txt))
     doc.parse()
-
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)
     self.assertEqual('Общество с ограниченной ответственностью', tags[1].value)
 
   def test_find_protocol_org_2(self):
     doc = self.get_doc('Протокол_СД_ 3.docx.pickle')
+    doc.parse()
     print(doc[0:200].text)
     tags = find_protocol_org(doc)
     self.assertEqual('Технологический центр «Бажен»', tags[0].value)

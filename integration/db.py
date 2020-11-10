@@ -45,8 +45,3 @@ def _get_local_mongodb_connection():
     msg = f'{err}'
     warnings.warn(msg)
   return None
-
-
-if __name__ == '__main__':
-  x = get_mongodb_connection()
-  assert x is not None

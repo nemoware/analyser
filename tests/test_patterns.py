@@ -1,6 +1,8 @@
 import unittest
 
-from analyser.patterns import *
+import numpy as np
+
+from analyser.patterns import ExclusivePattern, FuzzyPattern
 
 
 class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
@@ -40,34 +42,6 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
 
     print("ranges")
     print(ranges)
-
-  def test_eval_distances_soft_pattern2(self):
-    point1 = [1, 3]
-    point2 = [1, 7]
-
-    point3 = [1, 6]
-    point35 = [1, 6.5]
-
-    fp1 = FuzzyPattern(None)
-    fp1.set_embeddings(np.array([point3]))
-
-    fp2 = FuzzyPattern(None)
-    fp2.set_embeddings(np.array([point35]))
-
-    cp = CoumpoundFuzzyPattern()
-    cp.add_pattern(fp2)
-    cp.add_pattern(fp1)
-
-    text_emb = np.array([point1, point3, point2, point2])
-    sums = cp._find_patterns(text_emb)
-    self.assertEqual(len(text_emb), len(sums))
-
-    line0 = sums
-    print(line0)
-
-    self.assertGreater(line0[2], line0[1])
-    self.assertGreater(line0[0], line0[1])
-    self.assertGreater(line0[3], line0[1])
 
   def test_eval_distances(self):
     point1 = [1, 3]
@@ -154,26 +128,6 @@ class CoumpoundFuzzyPatternTestCase(unittest.TestCase):
     # self.assertGreater(distances[0], distances[2])
     #
     # self.assertEqual(2, np.argmin(distances))
-
-  def test_coumpound_find(self):
-    point1 = [1, 3]
-    point2 = [1, 7]
-    point3 = [1, 6]
-
-    fp2 = FuzzyPattern(None)
-    fp2.set_embeddings(np.array([point2]), (0, 1))
-    # fp2 = FuzzyPattern(np.array([[point2]]))
-
-    cp = CoumpoundFuzzyPattern()
-    cp.add_pattern(fp2, 0.5)
-    # cp.add_pattern(fp2, 2)
-
-    text_emb = np.array([point1, point2, point3])
-    min_i, sums, confidence = cp.find(text_emb)
-
-    print(min_i, sums, confidence)
-
-    self.assertEqual(1, min_i)
 
   def test_etimate_confidence(self):
     from analyser.ml_tools import estimate_confidence

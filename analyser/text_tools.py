@@ -6,38 +6,17 @@
 import warnings
 from typing import List
 
-import nltk
 import numpy as np
 import scipy.spatial.distance as distance
 from numpy.core.multiarray import ndarray
+from pyjarowinkler import distance as jaro
 
 Tokens = List[str] or ndarray
 
 
-def find_ner_end(tokens, start, max_len=20):
-  # TODO: use regex
-  for i in range(start, len(tokens)):
-    if tokens[i] == '"':
-      return i
-
-    elif tokens[i] == '»':
-      return i
-
-    elif tokens[i] == '\n':
-      return i
-
-    elif tokens[i] == '.':
-      return i
-
-    elif tokens[i] == ';':
-      return i
-
-  return min(len(tokens), start + max_len)
-
-
-def to_float(string):
+def to_float(string) -> float:
   try:
-    return float(string.replace(" ", "").replace(",", "."))
+    return float(string.replace(" ", "").replace(",", ".").replace("=", "."))
   except:
     return np.nan
 
@@ -110,62 +89,12 @@ def dist_euclidean_min_mean(u, v):
     return distance.cdist(v, u, 'euclidean').min(0).mean()
 
 
-"""
-
-Kind of Moving Earth (or Fréchet distance)
-ACHTUNG! This is not WMD
-
-inspired by https://en.wikipedia.org/wiki/Earth_mover%27s_distance https://markroxor.github.io/gensim/static/notebooks/WMD_tutorial.html
-
-Compute matrix of pair-wize distances between words of 2 sentences (each 2 each)
-For each word in sentence U, find the Distance to semantically nearest one in the other sentence V
-The Sum of these minimal distances (or mean) is sort of effort required to transform U sentence to another, V sentence.
-For balance (symmetry) swap U & V and find the effort required to strech V sentence to U.
-
-
-"""
-
-
-def dist_frechet_cosine_directed(u, v):
-  d_ = distance.cdist(u, v, 'cosine')
-  return d_.min(0).sum()
-
-
-def dist_frechet_cosine_undirected(u, v):
-  d1 = dist_frechet_cosine_directed(u, v)
-  d2 = dist_frechet_cosine_directed(v, u)
-  return round((d1 + d2) / 2, 2)
-
-
-def dist_frechet_eucl_directed(u, v):
-  d_ = distance.cdist(u, v, 'euclidean')
-  return d_.min(0).sum()
-
-
-def dist_frechet_eucl_undirected(u, v):
-  d1 = dist_frechet_eucl_directed(u, v)
-  d2 = dist_frechet_eucl_directed(v, u)
-  return round((d1 + d2) / 2, 2)
-
-
-def dist_mean_cosine_frechet(u, v):
-  return dist_frechet_cosine_undirected(u, v) + dist_mean_cosine(u, v)
-
-
-def dist_cosine_housedorff_directed(u, v):
-  d_ = distance.cdist(u, v, 'cosine')
-  return d_.min(0).max()
-
-
-def dist_cosine_housedorff_undirected(u, v):
-  d1 = dist_cosine_housedorff_directed(u, v)
-  d2 = dist_cosine_housedorff_directed(v, u)
-  return round((d1 + d2) / 2, 2)
-
-
 # ----------------------------------------------------------------
 # MISC
 # ----------------------------------------------------------------
+def split_version(v: str) -> [int]:
+  arr = (v + ".0.0.0").replace('v', '').replace('_', '.').split('.')
+  return [int(a) for a in arr][:3]
 
 
 def norm_matrix(mtx):
@@ -210,20 +139,6 @@ def untokenize(tokens: Tokens) -> str:
   return "".join([" " + i if not i.startswith("'") and i not in my_punctuation else i for i in tokens]).strip()
 
 
-def tokenize_text(text):
-  warnings.warn("deprecated, use TextMap(text)", DeprecationWarning)
-
-  sentences = text.split('\n')
-  result = []
-  for i in range(len(sentences)):
-    sentence = sentences[i]
-    result += nltk.word_tokenize(sentence)
-    if i < len(sentences) - 1:
-      result += ['\n']
-
-  return result
-
-
 def find_token_before_index(tokens: Tokens, index, token, default_ret=-1):
   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
   for i in reversed(range(min(index, len(tokens)))):
@@ -238,25 +153,6 @@ def find_token_after_index(tokens: Tokens, index, token, default_ret=-1):
     if tokens[i] == token:
       return i
   return default_ret
-
-
-#
-# def get_sentence_bounds_at_index(index, tokens):
-#   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
-#   start = find_token_before_index(tokens, index, '\n', 0)
-#   end = find_token_after_index(tokens, index, '\n', len(tokens) - 1)
-#   return start + 1, end
-
-
-# def get_sentence_slices_at_index(index, tokens) -> slice:
-#   warnings.warn("deprecated: method must be moved to TextMap class", DeprecationWarning)
-#   start = find_token_before_index(tokens, index, '\n')
-#   end = find_token_after_index(tokens, index, '\n')
-#   if start < 0:
-#     start = 0
-#   if end < 0:
-#     end = len(tokens)
-#   return slice(start + 1, end)
 
 
 def hot_quotes(tokens: Tokens) -> (np.ndarray, np.ndarray):
@@ -289,15 +185,8 @@ def acronym(n):
   return ''.join([x[0] for x in n.split(' ') if len(x) > 1]).upper()
 
 
-def replace_tokens(tokens: Tokens, replacements_map):
-  result = []
-  for t in tokens:
-    key = t.lower()
-    if key in replacements_map:
-      result.append(replacements_map[key])
-    else:
-      result.append(t)
-  return result
+def replace_tokens(tokens: Tokens, replacements_map: dict):
+  return [replacements_map.get(t.lower(), t) for t in tokens]
 
 
 def roman_to_arabic(n) -> int or None:
@@ -360,7 +249,7 @@ def unquote(s):
   return s
 
 
-def find_best_sentence_end(txt) -> int:
+def find_best_sentence_end(txt) -> (int, str):
   delimiters_prio = ['\n', '•', '.!?', ';', ',', "-—", ')', ':', ' ']
 
   for delimiters in delimiters_prio:
@@ -368,17 +257,21 @@ def find_best_sentence_end(txt) -> int:
     for i in reversed(range(len(txt))):
       c = txt[i:i + 1]
       if delimiters.find(c) >= 0:
-        return i + 1
+        return i + 1, c
 
-  return len(txt)
+  return len(txt), ''
 
 
-def split_into_sentences(txt, max_len_chars=150):
+def split_into_sentences(txt, max_len_chars=150) -> []:
   spans = []
   begin = 0
+
   while begin < len(txt):
     segment = txt[begin:begin + max_len_chars]
-    end = find_best_sentence_end(segment)
+    if len(segment) < max_len_chars:
+      end = len(segment)
+    else:
+      end, __char = find_best_sentence_end(segment)
     span = begin, begin + end
     begin = span[1]
     spans.append(span)
@@ -416,11 +309,43 @@ def _count_digits(txt):
   return s
 
 
-if __name__ == '__main__':
-  x = '12345 aaaa.1234 ttt. dfdfd. 0123456789'
-  be = find_best_sentence_end(x)
-  spans = split_into_sentences(x, max_len_chars=12)
-  for span in spans:
-    print('S >>>', x[span[0]:span[1]])
+def compare_masked_strings(a, b, masked_substrings):
+  a1 = a
+  b1 = b
+  for masked in masked_substrings:
+    if a1.find(masked) >= 0 and b1.find(masked) >= 0:
+      a1 = a1.replace(masked, '')
+      b1 = b1.replace(masked, '')
 
-  # print('E >>>', x[be:])
+  return jaro.get_jaro_distance(a1, b1, winkler=False, scaling=0.1)
+
+
+def find_top_spans(paragraph_attention_vector, threshold=0.5, maxgap=2, limit=None) -> []:
+  result = []
+  top_indices = [i for i, v in enumerate(paragraph_attention_vector) if v > threshold]
+  if len(top_indices) == 0:
+    return result
+
+  span_start = top_indices[0]
+  averages = []
+  i_prev = span_start
+
+  for _p, i in enumerate(top_indices):
+    if i - i_prev > maxgap:  # break
+      sp = slice(span_start, i_prev + 1)
+      result.append(sp)
+      averages.append(np.mean(paragraph_attention_vector[sp]))
+      span_start = i
+
+    i_prev = i
+
+  sp = slice(span_start, top_indices[-1] + 1)
+  averages.append(np.mean(paragraph_attention_vector[sp]))
+  result.append(sp)
+
+  tops = np.argsort(averages, )[::-1]
+  result = [result[i] for i in tops]
+  if limit is not None:
+    result = result[:limit]
+
+  return result

@@ -2,14 +2,15 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 import random
+import warnings
+
+import numpy as np
 
 from analyser.documents import CaseNormalizer
-from analyser.ml_tools import relu, filter_values_by_key_prefix, rectifyed_sum
-from analyser.structures import ContractSubject, OrgStructuralLevel
-from analyser.text_tools import *
+from analyser.structures import OrgStructuralLevel, ContractSubject
+from analyser.text_tools import dist_mean_cosine, min_index, Tokens
 from analyser.transaction_values import ValueConstraint
 
-load_punkt = False
 # DIST_FUNC = dist_frechet_cosine_undirected
 DIST_FUNC = dist_mean_cosine
 # DIST_FUNC = dist_cosine_housedorff_undirected
@@ -31,7 +32,7 @@ class FuzzyPattern():
 
   def set_embeddings(self, pattern_embedding, region=None):
     # TODO: check dimensions
-    assert pattern_embedding[0][0]
+
     self.embeddings = pattern_embedding
     self.region = region
 
@@ -51,9 +52,6 @@ class FuzzyPattern():
     _pat = self.embeddings
 
     window_size = wnd_mult * len(_pat) + whd_padding
-    # if window_size > len(_text):
-    #   print('---ERROR: pattern: "{}" window:{} > len(_text):{} (padding={} mult={})'.format(self.name, window_size, len(_text), whd_padding, wnd_mult)  )
-    #   return None
 
     for word_index in range(0, len(_text)):
       _fragment = _text[word_index: word_index + window_size]
@@ -157,7 +155,7 @@ class ExclusivePattern(CompoundPattern):
     for row in distances_per_pattern:
       b = row
 
-      if len(b):
+      if len(b) > 0:
         min = np.nanmin(b)
         max = np.nanmax(b)
         mean = np.nanmean(b)
@@ -177,54 +175,10 @@ class ExclusivePattern(CompoundPattern):
     return distances_per_pattern, ranges, winning_patterns
 
 
-class CoumpoundFuzzyPattern(CompoundPattern):
-  """
-  finds average
-  """
-
-  def __init__(self, name="no name"):
-    self.name = name
-    self.patterns = {}
-
-  def add_pattern(self, pat, weight=1.0):
-    assert pat is not None
-    self.patterns[pat] = weight
-
-  def find(self, text_ebd):
-    sums = self._find_patterns(text_ebd)
-
-    meaninful_sums = sums
-
-    min_i = min_index(meaninful_sums)
-    min = sums[min_i]
-    mean = meaninful_sums.mean()
-
-    # confidence = sums[min_i] / mean
-    sandard_deviation = np.std(meaninful_sums)
-    deviation_from_mean = abs(min - mean)
-    confidence = sandard_deviation / deviation_from_mean
-    return min_i, sums, confidence
-
-  def _find_patterns(self, text_ebd):
-    sums = np.zeros(len(text_ebd))
-    total_weight = 0
-    for p in self.patterns:
-      # print('CoumpoundFuzzyPattern, finding', str(p))
-      weight = self.patterns[p]
-      sp = p._find_patterns(text_ebd)
-
-      sums += sp * weight
-      total_weight += abs(weight)
-    # norm
-    sums /= total_weight
-    return sums
-
-
 class AbstractPatternFactory:
 
-  def __init__(self, embedder):
-    self.embedder = embedder  # TODO: do not keep it here, take as an argument for embedd()
-    self.patterns: List[FuzzyPattern] = []
+  def __init__(self):
+    self.patterns: [FuzzyPattern] = []
     self.patterns_dict = {}
 
   def create_pattern(self, pattern_name, prefix_pattern_suffix_tuples):
@@ -233,15 +187,16 @@ class AbstractPatternFactory:
     self.patterns_dict[pattern_name] = fp
     return fp
 
-  def embedd(self):
+  def embedd(self, embedder):
     # collect patterns texts
     arr = []
     for p in self.patterns:
       arr.append(p.prefix_pattern_suffix_tuple)
 
     # =========
-    patterns_emb, regions = self.embedder.embedd_contextualized_patterns(arr)
-    assert len(patterns_emb) == len(self.patterns)
+    patterns_emb, regions = embedder.embedd_contextualized_patterns(arr)
+    if len(patterns_emb) != len(self.patterns):
+      raise RuntimeError("len(patterns_emb) != len(self.patterns)")
     # =========
 
     for i in range(len(patterns_emb)):
@@ -262,7 +217,8 @@ class AbstractPatternFactory:
         else:
           av_emb += p_av_emb
 
-    assert cnt > 0
+    if cnt <= 0:
+      raise RuntimeError("count must be >0")
 
     av_emb /= cnt
 
@@ -281,11 +237,11 @@ _case_normalizer = CaseNormalizer()
 
 
 class AbstractPatternFactoryLowCase(AbstractPatternFactory):
-  def __init__(self, embedder):
-    AbstractPatternFactory.__init__(self, embedder)
+  def __init__(self):
+    AbstractPatternFactory.__init__(self)
     self.patterns_dict = {}
 
-  def create_pattern(self, pattern_name, ppp):
+  def create_pattern(self, pattern_name, ppp: [str]):
     _ppp = (_case_normalizer.normalize_text(ppp[0]),
             _case_normalizer.normalize_text(ppp[1]),
             _case_normalizer.normalize_text(ppp[2]))
@@ -318,7 +274,9 @@ def make_pattern_attention_vector(pat: FuzzyPattern, embeddings, dist_function=D
 
 
 def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
-  assert attention_vector is not None
+  if attention_vector is None:
+    raise ValueError("please provide non empty attention_vector")
+
   if name is None:
     name = 's-meta-na-' + str(random.random())
 
@@ -333,27 +291,6 @@ def make_smart_meta_click_pattern(attention_vector, embeddings, name=None):
 
 """ 💔🛐  ===========================📈=================================  ✂️ """
 
-
-def improve_attention_vector(embeddings, vv, relu_th=0.5, mix=1):
-  assert vv is not None
-  meta_pattern, meta_pattern_confidence, best_id = make_smart_meta_click_pattern(vv, embeddings)
-  meta_pattern_attention_v = make_pattern_attention_vector(meta_pattern, embeddings)
-  meta_pattern_attention_v = relu(meta_pattern_attention_v, relu_th)
-
-  meta_pattern_attention_v = meta_pattern_attention_v * mix + vv * (1.0 - mix)
-  return meta_pattern_attention_v, best_id
-
-
-""" ❤️  =============================📈=================================  ✂️ """
-
-
-def make_improved_attention_vector(distances_per_pattern_dict, embeddings, pattern_prefix, relu_th: float):
-  vvvvv = filter_values_by_key_prefix(distances_per_pattern_dict, pattern_prefix)
-  _max_hit_attention, _ = rectifyed_sum(vvvvv, relu_th)
-  improved = improve_attention_vector(embeddings, _max_hit_attention, mix=1)
-  return improved
-
-
 AV_SOFT = 'soft$.'
 AV_PREFIX = '$at_'
 
@@ -362,12 +299,12 @@ class PatternMatch():
 
   def __init__(self, region):
     warnings.warn("use SemanticTag", DeprecationWarning)
-    assert region.stop - region.start > 0
+
     self.subject_mapping = {
       'subj': ContractSubject.Other,
       'confidence': 0
     }
-    self.constraints: List[ValueConstraint] = []
+    self.constraints: [ValueConstraint] = []
     self.region: slice = region
     self.confidence: float = 0
     self.pattern_prefix: str = None
@@ -396,25 +333,21 @@ class PatternMatch():
 class PatternSearchResult(PatternMatch):
   def __init__(self, org_level: OrgStructuralLevel, region):
     warnings.warn("use SemanticTag", DeprecationWarning)
-    super(PatternSearchResult, self).__init__(region)
-
+    super().__init__(region)
     self.org_level: OrgStructuralLevel = org_level
 
 
 class ConstraintsSearchResult:
   def __init__(self):
     warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
-    self.constraints: List[ValueConstraint] = []
-    self.subdoc: PatternSearchResult = None
+    self.constraints: [ValueConstraint] = []
+    self.subdoc = None
 
-  def get_context(self) -> PatternSearchResult:  # alias
+  def get_context(self):  # alias
     warnings.warn("ConstraintsSearchResult is deprecated, use PatternSearchResult.constraints", DeprecationWarning)
     return self.subdoc
 
   context = property(get_context)
-
-
-PatternSearchResults = List[PatternSearchResult]
 
 
 def create_value_negation_patterns(f: AbstractPatternFactory, name='not_sum_'):
