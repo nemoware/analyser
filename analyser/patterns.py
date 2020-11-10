@@ -155,7 +155,7 @@ class ExclusivePattern(CompoundPattern):
     for row in distances_per_pattern:
       b = row
 
-      if len(b):
+      if len(b) > 0:
         min = np.nanmin(b)
         max = np.nanmax(b)
         mean = np.nanmean(b)

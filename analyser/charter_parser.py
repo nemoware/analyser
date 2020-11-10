@@ -1,15 +1,22 @@
 # origin: charter_parser.py
+import warnings
+
+import pandas as pd
+from pandas import DataFrame
+
 from analyser.contract_agents import find_org_names
 from analyser.doc_dates import find_document_date
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
-  embedd_sentences, ParserWarnings, tokenize_doc_into_sentences_map
-from analyser.ml_tools import *
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
+from analyser.legal_docs import LegalDocumentExt, remap_attention_vector, embedd_sentences
+from analyser.ml_tools import SemanticTag, calc_distances_per_pattern, merge_colliding_spans, TAG_KEY_DELIMITER, Spans, \
+  FixedVector, span_to_slice, estimate_confidence_by_mean_top_non_zeros, calc_distances_per_pattern_dict, \
+  max_exclusive_pattern_by_prefix, relu, attribute_patternmatch_to_index
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
   _find_most_relevant_paragraph
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
-
-from analyser.structures import *
+from analyser.structures import OrgStructuralLevel, ContractSubject
 from analyser.transaction_values import number_re
 
 WARN = '\033[1;31m'
@@ -191,7 +198,6 @@ class CharterParser(ParsingContext):
                                                                        self.get_embedder())
 
     return self._subj_patterns_embeddings
-
 
   def _embedd(self, charter: CharterDocument):
 
@@ -387,8 +393,8 @@ def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contrac
   return unique_sentence_spans
 
 
-def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
-        List[List[str]], List[int], List[slice]):
+def split_by_number_2(tokens: [str], attention: FixedVector, threshold) -> (
+        [[str]], [int], [slice]):
   indexes = []
   last_token_is_number = False
   for i, token in enumerate(tokens):
@@ -401,7 +407,7 @@ def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
       last_token_is_number = False
 
   text_fragments = []
-  ranges: List[slice] = []
+  ranges: [slice] = []
   if len(indexes) > 0:
     for i in range(1, len(indexes)):
       _slice = slice(indexes[i - 1], indexes[i])
@@ -470,7 +476,7 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
   :return:
   """
   ret = []
-  x: List[SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words], max_names=1)
+  x: [SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words], max_names=1)
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)

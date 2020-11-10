@@ -16,7 +16,7 @@ from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
 
 CHARTER = 'CHARTER'
-CONTRACT='CONTRACT'
+CONTRACT = 'CONTRACT'
 
 
 class Runner:
@@ -44,7 +44,7 @@ class BaseProcessor:
     # phase I
     # TODO: include phase I into phase II, remove phase I
     if jdoc.is_user_corrected():
-      logger.info(f"skipping doc {jdoc._id} because it is corrected by user")
+      logger.info(f"skipping doc {jdoc.get_id()} because it is corrected by user")
       # TODO: update state?
     else:
       legal_doc = jdoc.asLegalDoc()
@@ -57,7 +57,8 @@ class BaseProcessor:
       db_document.retry_number = 0
 
     if db_document.retry_number > 2:
-      logger.error(f'{db_document.documentType} {db_document._id} exceeds maximum retries for analysis and is skipped')
+      logger.error(
+        f'{db_document.documentType} {db_document.get_id()} exceeds maximum retries for analysis and is skipped')
       return None
 
     legal_doc = db_document.asLegalDoc()
@@ -70,20 +71,20 @@ class BaseProcessor:
       if audit is None or self.is_valid(audit, db_document):
 
         if db_document.is_user_corrected():
-          logger.info(f"skipping doc {db_document._id} postprocessing because it is corrected by user")
+          logger.info(f"skipping doc {db_document.get_id()} postprocessing because it is corrected by user")
         else:
           self.parser.find_attributes(legal_doc, context)
 
         save_analysis(db_document, legal_doc, state=DocumentState.Done.value)
-        logger.info(f'analysis saved, doc._id={legal_doc._id}')
+        logger.info(f'analysis saved, doc._id={legal_doc.get_id()}')
       else:
-        logger.info(f"excluding doc {db_document._id}")
+        logger.info(f"excluding doc {db_document.get_id()}")
         # we re not saving doc here cuz we had NOT search for attrs
         change_doc_state(db_document, state=DocumentState.Excluded.value)
 
     except Exception as err:
       traceback.print_tb(err.__traceback__)
-      logger.exception(f'cant process document {db_document._id}')
+      logger.exception(f'cant process document {db_document.get_id()}')
       save_analysis(db_document, legal_doc, DocumentState.Error.value, db_document.retry_number + 1)
 
     return legal_doc
@@ -192,18 +193,18 @@ def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False)
 
 def save_analysis(db_document: DbJsonDoc, doc: LegalDocument, state: int, retry_number: int = 0):
   # TODO: does not save attributes
-  analyse_json_obj:dict = doc.to_json_obj()
+  analyse_json_obj: dict = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
   db_document.analysis = analyse_json_obj
   db_document.state = state
   db_document.retry_number = retry_number
-  documents_collection.update({'_id': doc._id}, db_document.as_dict(), True)
+  documents_collection.update({'_id': doc.get_id()}, db_document.as_dict(), True)
 
 
 def change_doc_state(doc, state):
   db = get_mongodb_connection()
-  db['documents'].update_one({'_id': doc._id}, {"$set": {"state": state}})
+  db['documents'].update_one({'_id': doc.get_id()}, {"$set": {"state": state}})
 
 
 def change_audit_status(audit, status):
@@ -274,7 +275,7 @@ def audit_charters_phase_1():
 
   for k, charter in enumerate(charters):
     jdoc = DbJsonDoc(charter)
-    logger.info(f'......pre-processing {k} of {len(charters)} CHARTER {jdoc._id}')
+    logger.info(f'......pre-processing {k} of {len(charters)} CHARTER {jdoc.get_id()}')
     ctx = AuditContext()
     processor.preprocess(jdoc, context=ctx)
 
@@ -287,7 +288,7 @@ def audit_charters_phase_2():  # XXX: #TODO: DO NOT LOAD ALL CHARTERS AT ONCE
     jdoc = DbJsonDoc(_document)
     processor: BaseProcessor = document_processors[CHARTER]
 
-    logger.info(f'......processing  {k} of {len(charters)}  CHARTER {jdoc._id}')
+    logger.info(f'......processing  {k} of {len(charters)}  CHARTER {jdoc.get_id()}')
     ctx = AuditContext()
     processor.process(jdoc, audit=None, context=ctx)
 

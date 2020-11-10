@@ -1,12 +1,17 @@
+import warnings
+from enum import Enum
+
 from overrides import overrides
+from pandas import DataFrame
 
 from analyser.attributes import to_json
 from analyser.contract_agents import ContractAgent, normalize_contract_agent
 from analyser.doc_dates import find_date
 from analyser.documents import TextMap
+from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.log import logger
-from analyser.ml_tools import *
+from analyser.ml_tools import SemanticTag, clean_semantic_tag_copy
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AV_SOFT, AV_PREFIX
 from analyser.schemas import ContractSchema
@@ -21,7 +26,7 @@ class ContractDocument(LegalDocument):
     LegalDocument.__init__(self, original_text)
 
     self.subjects: SemanticTag or None = None
-    self.contract_values: List[ContractValue] = []
+    self.contract_values: [ContractValue] = []
 
     self.agents_tags: [SemanticTag] = []
     self.attributes_tree = ContractSchema()
@@ -169,13 +174,13 @@ class ContractParser(ParsingContext):
 ContractAnlysingContext = ContractParser  ##just alias, for ipnb compatibility. TODO: remove
 
 
-def max_confident(vals: List[ContractValue]) -> ContractValue:
+def max_confident(vals: [ContractValue]) -> ContractValue:
   if len(vals) == 0:
     return None
   return max(vals, key=lambda a: a.integral_sorting_confidence())
 
 
-def max_value(vals: List[ContractValue]) -> ContractValue:
+def max_value(vals: [ContractValue]) -> ContractValue:
   if len(vals) == 0:
     return None
   return max(vals, key=lambda a: a.value.value)

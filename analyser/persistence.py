@@ -31,6 +31,9 @@ class DbJsonDoc:
       self.user = None
       self.analysis = None
 
+  def get_id(self):
+    return self._id
+
   def isPreprocessed(self):
     return self.state == DocumentState.Preprocessed.value or self.state == DocumentState.Error.value
 

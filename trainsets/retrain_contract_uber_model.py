@@ -106,7 +106,7 @@ class UberModelTrainsetManager:
   def save_contract_data_arrays(self, db_json_doc: DbJsonDoc, id_override=None):
     # TODO: trim long documens according to contract parser
 
-    id_ = db_json_doc._id
+    id_ = db_json_doc.get_id()
     if id_override is not None:
       id_ = id_override
 
@@ -118,7 +118,7 @@ class UberModelTrainsetManager:
                                log_key=f'id={id_} chs={tokens_map.get_checksum()}')
 
     token_features: DataFrame = get_tokens_features(db_json_doc.get_tokens_map_unchaged().tokens)
-    semantic_map:DataFrame = _get_semantic_map(db_json_doc, 1.0)
+    semantic_map: DataFrame = _get_semantic_map(db_json_doc, 1.0)
 
     if embeddings.shape[0] != token_features.shape[0]:
       msg = f'{id_} embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
@@ -133,8 +133,7 @@ class UberModelTrainsetManager:
     np.save(self._dp_fn(id_, 'embeddings'), embeddings)
 
   def save_contract_datapoint(self, d: DbJsonDoc):
-    _id = str(d._id)
-
+    _id = str(d.get_id())
 
     self.save_contract_data_arrays(d)
 

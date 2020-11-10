@@ -126,8 +126,6 @@ class ProtocolParser(ParsingContext):
     self._protocols_factory: ProtocolPatternFactory or None = None
     self._patterns_embeddings = None
 
-
-
   def get_patterns_embeddings(self):
     if self._patterns_embeddings is None:
       patterns_te = [p[1] for p in ProtocolParser.patterns_dict]

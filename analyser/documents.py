@@ -40,6 +40,9 @@ class TextMap:
     tm._offset_chars = self._offset_chars
     return tm
 
+  def get_full_text(self):
+    return str(self._full_text)
+
   def cleanup(self):
     warnings.warn("fix tokenization instead of using it, also, it breaks attributes mapping", DeprecationWarning)
     '''
@@ -174,7 +177,8 @@ class TextMap:
     return start - self._offset_chars, stop - self._offset_chars
 
   def remap_spans(self, spans, target_map: 'TextMap'):
-    assert self._full_text == target_map._full_text
+    if self._full_text != target_map._full_text:
+      raise ValueError("_full_text != target_map._full_text")
     ret = []
     for span in spans:
       char_range = self.char_range(span)

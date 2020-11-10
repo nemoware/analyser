@@ -24,8 +24,8 @@ class ElmoEmbedderWrapper(AbstractEmbedder):
   def embedd_tokens(self, tokens: Tokens) -> np.ndarray:
     if self.layer_name == 'elmo':
       return self.instance.embedd_tokenized_text([tokens], [len(tokens)])[0]
-    else:
-      return self.instance.embedd_strings(tokens)
+
+    return self.instance.embedd_strings(tokens)
 
   def embedd_tokenized_text(self, words: [Tokens], lens: [int]) -> np.ndarray:
     return self.instance.embedd_tokenized_text(words, lens)

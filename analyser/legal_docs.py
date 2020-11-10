@@ -94,6 +94,9 @@ class LegalDocument:
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
 
+  def get_id(self):
+    return self._id
+
   def clear_warnings(self):
     self.warnings = []
 
@@ -133,7 +136,7 @@ class LegalDocument:
     return self.tokens_map.sentence_at_index(i, return_delimiters)
 
   def split_into_sentenses(self):
-    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map._full_text,
+    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map.get_full_text(),
                                                         HyperParameters.protocol_sentence_max_len)
 
   def __len__(self):
