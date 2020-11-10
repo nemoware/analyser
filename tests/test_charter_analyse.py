@@ -5,17 +5,26 @@
 
 import unittest
 
-from analyser.charter_parser import CharterDocument
-from analyser.runner import *
+from analyser.charter_parser import CharterDocument, CharterParser
+from analyser.log import logger
+from analyser.parsing import AuditContext
+from analyser.runner import get_audits, get_docs_by_audit_id
+from integration.db import get_mongodb_connection
+from integration.word_document_parser import join_paragraphs
 
 
-class TestAnalyse(unittest.TestCase):
+class TestCharterAnalyse(unittest.TestCase):
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_get_org_names(self):
     parser = CharterParser()
 
-    audit_id = next(get_audits())['_id']
+    audits = get_audits()
+    if len(audits) == 0:
+      logger.warning('no audits')
+      return
+
+    audit_id = audits[0]['_id']
     docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
 
     for db_document in docs:
@@ -24,6 +33,7 @@ class TestAnalyse(unittest.TestCase):
       parsed_p_json = db_document['parse']
       charter: CharterDocument = join_paragraphs(parsed_p_json, doc_id=db_document['_id'])
 
+      # TODO: mind, this could be slow if embedding is required
       parser.find_org_date_number(charter, AuditContext())
 
       for tag in charter.get_tags():

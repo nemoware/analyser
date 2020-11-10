@@ -6,41 +6,51 @@
 # legal_docs.py
 import datetime
 import json
+import warnings
 from enum import Enum
 
+import numpy as np
 from bson import json_util
+from overrides import final
+from pandas import DataFrame
 
 import analyser
 from analyser.doc_structure import get_tokenized_line_number
-from analyser.documents import TextMap
+from analyser.documents import split_sentences_into_map, TextMap, CaseNormalizer
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.ml_tools import SemanticTag, conditional_p_sum, \
-  FixedVector, attribute_patternmatch_to_index, calc_distances_per_pattern
-from analyser.patterns import *
+from analyser.hyperparams import HyperParameters
+from analyser.log import logger
+from analyser.ml_tools import SemanticTag, FixedVector, Embeddings, filter_values_by_key_prefix, rectifyed_sum, \
+  conditional_p_sum, clean_semantic_tag_copy
+from analyser.patterns import DIST_FUNC, AbstractPatternFactory, make_pattern_attention_vector
+from analyser.schemas import ContractPrice
 from analyser.structures import ContractTags
-from analyser.text_normalize import *
-from analyser.text_tools import *
+from analyser.text_normalize import normalize_text, replacements_regex
+from analyser.text_tools import find_token_before_index
 from analyser.transaction_values import _re_greather_then, _re_less_then, _re_greather_then_1, VALUE_SIGN_MIN_TOKENS, \
-  find_value_spans
-from tests.test_text_tools import split_sentences_into_map
+  ValueSpansFinder
 
 REPORTED_DEPRECATED = {}
 
 
 class ParserWarnings(Enum):
-  org_name_not_found = 1,
-  org_type_not_found = 2,
-  org_struct_level_not_found = 3,
+  org_name_not_found = 1
+  org_type_not_found = 2
+  org_struct_level_not_found = 3
   date_not_found = 4
-  number_not_found = 5,
-  value_section_not_found = 7,
-  contract_value_not_found = 8,
-  subject_section_not_found = 6,
-  contract_subject_not_found = 9,
-  contract_subject_section_not_found = 12,
-  protocol_agenda_not_found = 10,
+  number_not_found = 5
+  # 6? what about 6
+  value_section_not_found = 7
+  contract_value_not_found = 8
+  subject_section_not_found = 6  # here it is
+  contract_subject_not_found = 9
+
+  protocol_agenda_not_found = 10
 
   boring_agenda_questions = 11
+  contract_subject_section_not_found = 12
+
+  doc_too_big = 13
 
 
 class Paragraph:
@@ -62,7 +72,6 @@ class LegalDocument:
 
     self.filename = None
     self._original_text = original_text
-    self._normal_text = None
     self.warnings: [str] = []
 
     # todo: use pandas' DataFrame
@@ -70,17 +79,26 @@ class LegalDocument:
 
     self.tokens_map: TextMap or None = None
     self.tokens_map_norm: TextMap or None = None
+    self.sentence_map: TextMap or None = None
 
     self.sections = None  # TODO:deprecated
-    self.paragraphs: List[Paragraph] = []
+    self.paragraphs: [Paragraph] = []
     self.name = name
 
     # subdocs
     self.start = 0
     self.end = None  # TODO:
 
+    self.user: dict = {}
+
     # TODO: probably we don't have to keep embeddings, just distances_per_pattern_dict
     self.embeddings = None
+
+  def get_id(self):
+    return self._id
+
+  def clear_warnings(self):
+    self.warnings = []
 
   def warn(self, msg: ParserWarnings, comment: str = None):
     w = {}
@@ -89,16 +107,37 @@ class LegalDocument:
     w['code'] = msg.name
     self.warnings.append(w)
 
+  def warn_trimmed(self, maxsize: int):
+
+    appx = f'Для анализа документ обрезан из соображений производительности, допустимая длинна -- {maxsize} слов ✂️'
+    wrn = f'{self._id}, {self.filename},  {appx}'
+    logger.warning(wrn)
+
+    self.warn(ParserWarnings.doc_too_big, appx)
+
+  def get_headers_as_subdocs(self):
+    return [self.subdoc_slice(p.header.as_slice()) for p in self.paragraphs]
+
   def parse(self, txt=None):
     if txt is None:
       txt = self.original_text
 
-    assert txt is not None
+    if txt is None:
+      raise ValueError('text is a must')
 
-    self._normal_text = self.preprocess_text(txt)
-    self.tokens_map = TextMap(self._normal_text)
+    _preprocessed_text = self.preprocess_text(txt)
+    self.tokens_map = TextMap(_preprocessed_text)
     self.tokens_map_norm = CaseNormalizer().normalize_tokens_map_case(self.tokens_map)
+
     return self
+
+  def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
+    # TODO: employ elf.sentence_map
+    return self.tokens_map.sentence_at_index(i, return_delimiters)
+
+  def split_into_sentenses(self):
+    self.sentence_map = tokenize_doc_into_sentences_map(self.tokens_map.get_full_text(),
+                                                        HyperParameters.protocol_sentence_max_len)
 
   def __len__(self):
     return self.tokens_map.get_len()
@@ -111,11 +150,7 @@ class LegalDocument:
     :param suffix: doc to add
     :return: self + suffix
     '''
-    assert self._normal_text is not None
-    assert suffix._normal_text is not None
-
     self.distances_per_pattern_dict = {}
-    self._normal_text += suffix.normal_text
     self._original_text += suffix.original_text
 
     self.tokens_map += suffix.tokens_map
@@ -136,6 +171,32 @@ class LegalDocument:
   def headers_as_sentences(self) -> [str]:
     return headers_as_sentences(self)
 
+  def get_semantic_map(self, confidence_override=None) -> DataFrame:
+
+    '''
+    #TODO: do not ignore user corrections
+    used in jupyter notebooks
+    :return:
+    '''
+
+    _tags = self.get_tags()
+    _attention = np.zeros((len(_tags), self.__len__()))
+
+    df = DataFrame()
+    for i, t in enumerate(_tags):
+      df[t.kind] = 0
+      _conf = t.confidence
+      if confidence_override is not None:
+        _conf = confidence_override
+
+      _attention[i][t.as_slice()] = _conf
+
+    for i, t in enumerate(_tags):
+      df[t.kind] = 0
+      df[t.kind] = _attention[i]
+
+    return df
+
   def get_tags_attention(self) -> FixedVector:
     _attention = np.zeros(self.__len__())
 
@@ -143,7 +204,7 @@ class LegalDocument:
       _attention[t.as_slice()] += t.confidence
     return _attention
 
-  def to_json_obj(self):
+  def to_json_obj(self) -> dict:
     j = DocumentJson(self)
     return j.__dict__
 
@@ -160,14 +221,14 @@ class LegalDocument:
   def get_original_text(self):
     return self._original_text
 
-  def get_normal_text(self):
-    return self._normal_text
+  def get_normal_text(self) -> str:
+    return self.tokens_map.text
 
   def get_text(self):
     return self.tokens_map.text
 
   def get_checksum(self):
-    return hash(self._normal_text)
+    return self.tokens_map_norm.get_checksum()
 
   tokens_cc = property(get_tokens_cc)
   tokens = property(get_tokens)
@@ -177,7 +238,8 @@ class LegalDocument:
   checksum = property(get_checksum, None)
 
   def preprocess_text(self, txt):
-    assert txt is not None
+    if txt is None:
+      raise ValueError('text is a must')
     return normalize_text(txt, replacements_regex)
 
   def find_sentence_beginnings(self, indices):
@@ -186,7 +248,9 @@ class LegalDocument:
   # @profile
   def calculate_distances_per_pattern(self, pattern_factory: AbstractPatternFactory, dist_function=DIST_FUNC,
                                       verbosity=1, merge=False, pattern_prefix=None):
-    assert self.embeddings is not None
+    if self.embeddings is None:
+      raise UnboundLocalError(f'Embedd document first, {self._id}')
+
     self.distances_per_pattern_dict = calculate_distances_per_pattern(self, pattern_factory, dist_function, merge=merge,
                                                                       verbosity=verbosity,
                                                                       pattern_prefix=pattern_prefix)
@@ -194,7 +258,10 @@ class LegalDocument:
     return self.distances_per_pattern_dict
 
   def subdoc_slice(self, __s: slice, name='undef'):
-    assert self.tokens_map is not None
+
+    if self.tokens_map is None:
+      raise RuntimeError('self.tokens_map is required, tokenize first')
+
     # TODO: support None in slice begin
     _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
@@ -229,16 +296,12 @@ class LegalDocument:
     _s = slice(max(0, start), end)
     return self.subdoc_slice(_s)
 
-  def embedd_tokens(self, embedder: AbstractEmbedder, verbosity=2, max_tokens=8000):
-    warnings.warn("use embedd_words", DeprecationWarning)
-    if self.tokens:
-      max_tokens = max_tokens
-      if len(self.tokens_map_norm) > max_tokens:
-        self.embeddings = _embedd_large(self.tokens_map_norm, embedder, max_tokens, verbosity)
-      else:
-        self.embeddings = embedder.embedd_tokens(self.tokens)
-    else:
-      raise ValueError(f'cannot embed doc {self.filename}, no tokens')
+  @final
+  def embedd_tokens(self, embedder: AbstractEmbedder, max_tokens=8000):
+    self.embeddings = embedd_tokens(self.tokens_map_norm,
+                                    embedder,
+                                    max_tokens=max_tokens,
+                                    log_key=f'_id:{self._id}')
 
   def is_same_org(self, org_name: str) -> bool:
     tags: [SemanticTag] = self.get_tags()
@@ -248,7 +311,7 @@ class LegalDocument:
           return True
     return False
 
-  def get_tag_text(self, tag: SemanticTag):
+  def get_tag_text(self, tag: SemanticTag) -> str:
     return self.tokens_map.text_range(tag.span)
 
   def substr(self, tag: SemanticTag) -> str:
@@ -266,16 +329,17 @@ class LegalDocumentExt(LegalDocument):
 
   def __init__(self, doc: LegalDocument):
     super().__init__('')
-    if doc is not None:
-      self.__dict__ = doc.__dict__
 
-    self.sentence_map: TextMap or None = None
-    self.sentences_embeddings: [] = None
+    if doc is not None:
+      # self.__dict__ = doc.__dict__
+      self.__dict__.update(doc.__dict__)
+
+    self.sentences_embeddings: Embeddings = None
     self.distances_per_sentence_pattern_dict = {}
 
   def parse(self, txt=None):
     super().parse(txt)
-    self.sentence_map = tokenize_doc_into_sentences_map(self, 200)
+    self.split_into_sentenses()
     return self
 
   def subdoc_slice(self, __s: slice, name='undef'):
@@ -290,14 +354,15 @@ class LegalDocumentExt(LegalDocument):
       if self.sentences_embeddings is not None:
         sub.sentences_embeddings = self.sentences_embeddings[_slice]
     else:
-      warnings.warn('split into sentences first')
+      raise ValueError(f'split doc into sentences first {self._id}')
+
     return sub
 
 
 class DocumentJson:
 
   @staticmethod
-  def from_json(json_string: str) -> 'DocumentJson':
+  def from_json_str(json_string: str) -> 'DocumentJson':
     jsondata = json.loads(json_string, object_hook=json_util.object_hook)
 
     c = DocumentJson(None)
@@ -315,9 +380,12 @@ class DocumentJson:
 
     self.analyze_timestamp = datetime.datetime.now()
     self.tokenization_maps = {}
+    self.size = {}
 
     if doc is None:
       return
+
+    # ---------------- bred
     self.checksum = doc.get_checksum()
     self.warnings: [str] = list(doc.warnings)
 
@@ -337,28 +405,16 @@ class DocumentJson:
 
     attributes = []
     for t in _tags:
-      key, attr = self.__tag_to_attribute(t)
+      key, attr = t.as_json_attribute()
       attributes.append(attr)
 
     return attributes
-
-  def __tag_to_attribute(self, t: SemanticTag):
-
-    key = t.get_key()
-    attribute = t.__dict__.copy()
-    del attribute['kind']
-    if '_parent_tag' in attribute:
-      if t.parent is not None:
-        attribute['parent'] = t.parent
-      del attribute['_parent_tag']
-
-    return key, attribute
 
   def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
 
     attributes = {}
     for t in _tags:
-      key, attr = self.__tag_to_attribute(t)
+      key, attr = t.as_json_attribute()
 
       if key in attributes:
         raise RuntimeError(key + ' duplicated key')
@@ -397,8 +453,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
       distances_per_pattern_dict[pat.name] = dists
       c += 1
 
-  # if verbosity > 0:
-  #   print(distances_per_pattern_dict.keys())
   if c == 0:
     raise ValueError('no pattern with prefix: ' + pattern_prefix)
 
@@ -406,12 +460,6 @@ def calculate_distances_per_pattern(doc: LegalDocument, pattern_factory: Abstrac
 
 
 def find_value_sign(txt: TextMap) -> (int, (int, int)):
-  """
-  todo: rename to 'find_value_sign'
-  :param txt:
-  :return:
-  """
-
   a = next(txt.finditer(_re_greather_then_1), None)  # не менее, не превышающую
   if a:
     return +1, a
@@ -429,10 +477,19 @@ def find_value_sign(txt: TextMap) -> (int, (int, int)):
 
 class ContractValue:
   def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
-    self.value = value
-    self.sign = sign
-    self.currency = currency
-    self.parent = parent
+    self.value: SemanticTag = value
+    self.sign: SemanticTag = sign
+    self.currency: SemanticTag = currency
+    self.parent: SemanticTag = parent
+
+  def as_ContractPrice(self) -> ContractPrice:
+    o: ContractPrice = ContractPrice()
+
+    o.amount = clean_semantic_tag_copy(self.value)
+    o.currency = clean_semantic_tag_copy(self.currency)
+    o.sign = clean_semantic_tag_copy(self.sign)
+
+    return o
 
   def as_list(self) -> [SemanticTag]:
     if self.sign.value != 0:
@@ -440,7 +497,7 @@ class ContractValue:
     else:
       return [self.value, self.currency, self.parent]
 
-  def __add__(self, addon):
+  def __add__(self, addon: int) -> 'ContractValue':
     for t in self.as_list():
       t.offset(addon)
     return self
@@ -466,44 +523,39 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
   # ======================================
-  results = find_value_spans(subdoc.text)
+  results = ValueSpansFinder(subdoc.text)
   # ======================================
 
   if results:
-    value_char_span, value, currency_char_span, currency, including_vat, original_value = results
-    value_span = subdoc.tokens_map.token_indices_by_char_range(value_char_span)
-    currency_span = subdoc.tokens_map.token_indices_by_char_range(currency_char_span)
+    value_span = subdoc.tokens_map.token_indices_by_char_range(results.number_span)
+    currency_span = subdoc.tokens_map.token_indices_by_char_range(results.currency_span)
 
-    group = SemanticTag('sign_value_currency', None, region)
+    group = SemanticTag('sign_value_currency', value=None, span=region)
 
     sign = SemanticTag(ContractTags.Sign.display_string, _sign, _sign_span, parent=group)
     sign.offset(subdoc.start)
 
-    value_tag = SemanticTag(ContractTags.Value.display_string, value, value_span, parent=group)
+    value_tag = SemanticTag(ContractTags.Value.display_string, results.value, value_span, parent=group)
     value_tag.offset(subdoc.start)
 
-    currency = SemanticTag(ContractTags.Currency.display_string, currency, currency_span, parent=group)
+    currency = SemanticTag(ContractTags.Currency.display_string, results.currencly_name, currency_span, parent=group)
     currency.offset(subdoc.start)
+
+    groupspan = [0, 0]
+    groupspan[0] = min(sign.span[0], value_tag.span[0], currency.span[0], group.span[0])
+    groupspan[1] = max(sign.span[1], value_tag.span[1], currency.span[1], group.span[1])
+    group.span = groupspan
 
     return ContractValue(sign, value_tag, currency, group)
   else:
     return None
 
 
-def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> TextMap:
+def tokenize_doc_into_sentences_map(txt: str, max_len_chars=150) -> TextMap:
   tm = TextMap('', [])
 
-  # if doc.paragraphs:
-  #   for p in doc.paragraphs:
-  #     header_lines = doc.substr(p.header).splitlines(True)
-  #     for line in header_lines:
-  #       tm += split_sentences_into_map(line, max_len_chars)
-  #
-  #     body_lines = doc.substr(p.body).splitlines(True)
-  #     for line in body_lines:
-  #       tm += split_sentences_into_map(line, max_len_chars)
-  # else:
-  body_lines = doc.text.splitlines(True)
+  # body_lines = doc.tokens_map._full_text.splitlines(True)
+  body_lines = txt.splitlines(True)
   for line in body_lines:
     tm += split_sentences_into_map(line, max_len_chars)
 
@@ -513,50 +565,22 @@ def tokenize_doc_into_sentences_map(doc: LegalDocument, max_len_chars=150) -> Te
 PARAGRAPH_DELIMITER = '\n'
 
 
-def _embedd_large(text_map, embedder, max_tokens=8000, verbosity=2):
-  overlap = max_tokens // 20
-
-  number_of_windows = 1 + len(text_map) // max_tokens
-  window = max_tokens
-
-  if verbosity > 1:
-    msg = f"WARNING: Document is too large for embedding: {len(text_map)} tokens. Splitting into {number_of_windows} windows overlapping with {overlap} tokens "
-    warnings.warn(msg)
-
-  start = 0
-  embeddings = None
-  # tokens = []
-  while start < len(text_map):
-
-    subtokens: Tokens = text_map[start:start + window + overlap]
-    if verbosity > 2:
-      print("Embedding region:", start, len(subtokens))
-
-    sub_embeddings = embedder.embedd_tokens(subtokens)[0:window]
-
-    if embeddings is None:
-      embeddings = sub_embeddings
-    else:
-      embeddings = np.concatenate([embeddings, sub_embeddings])
-
-    start += window
-
-  return embeddings
-  # self.tokens = tokens
-
-
-def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, verbosity=2, max_tokens=100):
+def embedd_sentences(text_map: TextMap, embedder: AbstractEmbedder, log_addon='',
+                     max_tokens=HyperParameters.max_sentenses_to_embedd):
   warnings.warn("use embedd_words", DeprecationWarning)
+  logger.info(f'{log_addon} {len(text_map)}')
+  if text_map is None:
+    # https://github.com/nemoware/analyser/issues/224
+    raise ValueError('text_map must not be None')
 
-  max_tokens = max_tokens
   if len(text_map) > max_tokens:
-    return _embedd_large(text_map, embedder, max_tokens, verbosity)
+    return embedder.embedd_large(text_map, max_tokens, log_addon)
   else:
     return embedder.embedd_tokens(text_map.tokens)
 
 
 def make_headline_attention_vector(doc):
-  parser_headline_attention_vector = np.zeros(len(doc.tokens_map))
+  parser_headline_attention_vector = np.zeros(len(doc))
 
   for p in doc.paragraphs:
     parser_headline_attention_vector[p.header.slice] = 1
@@ -584,20 +608,6 @@ def headers_as_sentences(doc: LegalDocument, normal_case=True, strip_number=True
   return stripped
 
 
-def map_headlines_to_patterns(doc: LegalDocument,
-                              patterns_named_embeddings,
-                              elmo_embedder_default: AbstractEmbedder):
-  headers: [str] = doc.headers_as_sentences()
-
-  if not headers:
-    return []
-
-  headers_embedding = elmo_embedder_default.embedd_strings(headers)
-
-  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
-  return attribute_patternmatch_to_index(header_to_pattern_distances)
-
-
 def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: TextMap) -> FixedVector:
   av = np.zeros(len(target_map))
 
@@ -607,3 +617,25 @@ def remap_attention_vector(v: FixedVector, source_map: TextMap, target_map: Text
     t_span = source_map.remap_span(span, target_map)
     av[t_span[0]:t_span[1]] = v[i]
   return av
+
+
+def embedd_tokens(tokens_map_norm: TextMap, embedder: AbstractEmbedder, max_tokens=8000, log_key=''):
+  ch = tokens_map_norm.get_checksum()
+
+  _cached = embedder.get_cached_embedding(ch)
+  if _cached is not None:
+    logger.debug(f'getting embedding from cache {log_key}')
+    return _cached
+  else:
+    logger.info(f'embedding doc {log_key}')
+    if tokens_map_norm.tokens:
+
+      if len(tokens_map_norm) > max_tokens:
+        embeddings = embedder.embedd_large(tokens_map_norm, max_tokens, log_key)
+      else:
+        embeddings = embedder.embedd_tokens(tokens_map_norm.tokens)
+
+      embedder.cache_embedding(ch, embeddings)
+      return embeddings
+    else:
+      raise ValueError(f'cannot embedd doc {log_key}, no tokens')

@@ -1,20 +1,29 @@
 # origin: charter_parser.py
-from analyser.contract_agents import find_org_names
-from analyser.contract_parser import _find_most_relevant_paragraph, find_value_sign_currency_attention
-from analyser.doc_dates import find_document_date
+import warnings
 
+import pandas as pd
+from pandas import DataFrame
+
+from analyser.contract_agents import find_org_names
+from analyser.doc_dates import find_document_date
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.legal_docs import LegalDocument, LegalDocumentExt, remap_attention_vector, ContractValue, \
-  tokenize_doc_into_sentences_map, embedd_sentences, map_headlines_to_patterns, ParserWarnings
-from analyser.ml_tools import *
-from analyser.parsing import ParsingContext, AuditContext
+from analyser.hyperparams import HyperParameters
+from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
+from analyser.legal_docs import LegalDocumentExt, remap_attention_vector, embedd_sentences
+from analyser.ml_tools import SemanticTag, calc_distances_per_pattern, merge_colliding_spans, TAG_KEY_DELIMITER, Spans, \
+  FixedVector, span_to_slice, estimate_confidence_by_mean_top_non_zeros, calc_distances_per_pattern_dict, \
+  max_exclusive_pattern_by_prefix, relu, attribute_patternmatch_to_index
+from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
+  _find_most_relevant_paragraph
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
-from analyser.structures import *
+from analyser.structures import OrgStructuralLevel, ContractSubject
 from analyser.transaction_values import number_re
 
 WARN = '\033[1;31m'
 
 competence_headline_pattern_prefix = 'headline'
+
+number_key = SemanticTag.number_key
 
 
 class CharterDocument(LegalDocumentExt):
@@ -22,16 +31,33 @@ class CharterDocument(LegalDocumentExt):
   def __init__(self, doc: LegalDocument = None):
     super().__init__(doc)
     if doc is not None:
-      self.__dict__ = {**super().__dict__, **doc.__dict__}
+      # self.__dict__ = {**super().__dict__, **doc.__dict__}
+      self.__dict__.update(doc.__dict__)
     self.org_tags = []
     self.charity_tags = []
-    # self.charity_tags = []
-
     self.org_levels = []
     self.constraint_tags = []
     self.org_level_tags = []
 
     self.margin_values: [ContractValue] = []
+
+  def reset_attributes(self):
+    # reset for preventing doubling tags
+    self.margin_values = []
+    self.constraint_tags = []
+    self.charity_tags = []
+    self.org_levels = []
+    self.org_level_tags = []
+
+  # def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
+  #
+  #   char_range = self.tokens_map.char_range((i, i + 1))
+  #   sentences_range = self.sentence_map.token_indices_by_char_range(char_range)
+  #
+  #   char_range = self.sentence_map.char_range(sentences_range)
+  #   words_range = self.tokens_map.token_indices_by_char_range(char_range)
+  #
+  #   return words_range
 
   def get_tags(self) -> [SemanticTag]:
     tags = []
@@ -52,9 +78,6 @@ class CharterDocument(LegalDocumentExt):
       tags += mv.as_list()
 
     return tags
-
-
-""" ❤️ == GOOD CharterDocumentParser  ====================================== """
 
 
 def _make_org_level_patterns() -> pd.DataFrame:
@@ -81,157 +104,211 @@ def _make_org_level_patterns() -> pd.DataFrame:
 class CharterParser(ParsingContext):
   strs_subjects_patterns = {
 
-    CharterSubject.Deal: [
+    ContractSubject.Deal: [
       'принятие решений о совершении сделок'
     ],
 
-    CharterSubject.Charity: [
-      'пожертвований на политические или благотворительные цели',
-      'предоставление безвозмездной финансовой помощи',
-      'сделок дарения',
-      'договоров спонсорского и благотворительного характера',
-      'передача в безвозмездное пользование',
-      'мены, дарения, безвозмездное отчуждение '
+    ContractSubject.BigDeal: [
+      'совершение крупных сделок',
+      'согласие на совершение или одобрение крупных сделок'
     ],
 
-    CharterSubject.Lawsuit: [
-      'о начале/урегулировании любых судебных споров и разбирательств',
-      'заключении Обществом мирового соглашения по судебному делу с ценой иска '
+    ContractSubject.Charity: [
+      "оплата (встречное предоставление) в неденежной форме",
+      "пожертвования на политические или благотворительные цели",
+      "предоставление безвозмездной финансовой помощи",
+      "сделки дарения",
+      'безвозмездное отчуждение имущества',
+      "договоры спонсорского и благотворительного характера",
+      "передача в безвозмездное пользование",
+      "мена, дарение, безвозмездное отчуждение",
+      'внесение вкладов или пожертвований на политические или благотворительные цели'
     ],
 
-    CharterSubject.RealEstate: [
-      'стоимость отчуждаемого имущества',
+    ContractSubject.Lawsuit: [
+      'урегулирование любых судебных споров и разбирательств',
+      'заключение мирового соглашения по судебному делу с ценой иска '
+    ],
+
+    ContractSubject.RealEstate: [
       'сделки с имуществом Общества',
+      'стоимость отчуждаемого имущества',
       'сделок ( в том числе нескольких взаимосвязанных сделок ) с имуществом Общества'
     ],
 
-    CharterSubject.Insurance: [
+    ContractSubject.Insurance: [
       'заключение договоров страхования',
-      'возобновления договоров страхования'
+      'возобновления договоров страхования',
       'совершение сделок страхования'
     ],
 
-    CharterSubject.Consulting: [
-      'договора оказания консультационных услуг',
-      'заключения агентского договора',
-      'согласование договора оказания консультационных услуг или агентского договора',
-      'оказания обществу информационных юридических услуг '
+    ContractSubject.Service: [
+      'оказания консультационных услуг',
+      'заключение агентского договора',
+      'оказание обществу информационных юридических услуг'
     ],
 
-    CharterSubject.Other: [
-      'решения о взыскании с Генерального директора убытков',
-      'заключение договоров об отступном , новации и/или прощении долга , договоров об уступке права требования и переводе долга',
-      'о выдаче или получении Обществом векселей , производстве по ним передаточных надписей , авалей , платежей',
-      'нецелевое расходование Обществом денежных средств'
+    # CharterSubject.Other: [
+    #   'решения о взыскании с Генерального директора убытков',
+    #   'заключение договоров об отступном, новации или прощении долга, договоров об уступке права требования и переводе долга',
+    #   'нецелевое расходование Обществом денежных средств'
+    # ],
+
+    ContractSubject.Loans: [
+      'получение или предоставление займов, кредитов (в том числе вексельных)',
+      'предоставление гарантий и поручительств по обязательствам',
+      'предоставление займа или получения заимствования, кредита, финансирования, выплаты или отсрочки по займу, кредиту, финансированию или задолженности',
+      'предоставление обеспечений исполнения обязательств',
+      'получение банковских гарантий'
+      # 'о выдаче или получении Обществом векселей, производстве по ним передаточных надписей, авалей, платежей',
+    ],
+
+    ContractSubject.Renting: [
+      'получение в аренду или субаренду недвижимого имущества',
+      'о совершении сделок, связанных с получением в аренду недвижимоcти'
+    ],
+
+    ContractSubject.RentingOut: [
+      'передача в аренду или субаренду недвижимого имущества',
+      'о совершении сделок, связанных с передачей в аренду недвижимоcти'
+
     ]
 
   }
 
-  def __init__(self, embedder: AbstractEmbedder = None, elmo_embedder_default: AbstractEmbedder = None):
-    ParsingContext.__init__(self, embedder)
-
-    self.embedder = embedder
-    self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
+  def __init__(self, embedder: AbstractEmbedder = None, sentence_embedder: AbstractEmbedder = None):
+    ParsingContext.__init__(self, embedder, sentence_embedder)
 
     self.patterns_dict: DataFrame = _make_org_level_patterns()
-    self.patterns_named_embeddings: DataFrame = None
 
-    if embedder is not None and elmo_embedder_default is not None:
-      self.init_embedders(embedder, elmo_embedder_default)
+    self._patterns_named_embeddings: DataFrame or None = None
+    self._subj_patterns_embeddings = None
 
-  def init_embedders(self, embedder, elmo_embedder_default):
-    self.embedder = embedder
-    self.elmo_embedder_default: AbstractEmbedder = elmo_embedder_default
+  def get_patterns_named_embeddings(self):
+    if self._patterns_named_embeddings is None:
+      __patterns_embeddings = self.get_sentence_embedder().embedd_strings(self.patterns_dict.values[0])
+      self._patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
 
-    self.subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
-                                                                    elmo_embedder_default)
+    return self._patterns_named_embeddings
 
-    __patterns_embeddings = elmo_embedder_default.embedd_strings(self.patterns_dict.values[0])
-    self.patterns_named_embeddings = pd.DataFrame(__patterns_embeddings.T, columns=self.patterns_dict.columns)
+  def get_subj_patterns_embeddings(self):
 
-  def _ebmedd(self, doc: CharterDocument):
-    assert self.elmo_embedder_default is not None, 'call init_embedders first'
+    if self._subj_patterns_embeddings is None:
+      self._subj_patterns_embeddings = embedd_charter_subject_patterns(CharterParser.strs_subjects_patterns,
+                                                                       self.get_embedder())
+
+    return self._subj_patterns_embeddings
+
+  def _embedd(self, charter: CharterDocument):
+
     ### ⚙️🔮 SENTENCES embedding
-    doc.sentences_embeddings = embedd_sentences(doc.sentence_map, self.elmo_embedder_default)
-    doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern(doc.sentences_embeddings,
-                                                                         self.patterns_named_embeddings)
 
-  def find_org_date_number(self, charter: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
+    charter.sentences_embeddings = embedd_sentences(charter.sentence_map, self.get_sentence_embedder())
+    charter.distances_per_sentence_pattern_dict = calc_distances_per_pattern(charter.sentences_embeddings,
+                                                                             self.get_patterns_named_embeddings())
+
+  def find_org_date_number(self, doc: LegalDocumentExt, ctx: AuditContext) -> LegalDocument:
     """
     phase 1, before embedding
     searching for attributes required for filtering
     :param charter:
     :return:
     """
+    # charter.sentence_map = tokenize_doc_into_sentences_map(charter, HyperParameters.charter_sentence_max_len)
 
-    # TODO move this call from here to CharterDoc
-    charter.sentence_map = tokenize_doc_into_sentences_map(charter, 200)
-    charter.org_tags = find_charter_org(charter)
+    doc.org_tags = find_charter_org(doc)
+    doc.date = find_document_date(doc)
 
-    charter.date = find_document_date(charter)
+    return doc
 
-    return charter
+  def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
 
-  def find_attributes(self, charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
+    self.find_org_date_number(_charter, ctx)
 
-    if charter.sentences_embeddings is None:
+    margin_values = []
+    org_levels = []
+    constraint_tags = []
+    if _charter.sentences_embeddings is None:
       # lazy embedding
-      self._ebmedd(charter)
+      self._embedd(_charter)
 
-    # reset for preventing doubling tags
-    charter.margin_values = []
-    charter.constraint_tags = []
-    charter.charity_tags = []
-    charter.org_levels = []
-    charter.org_level_tags = []
+    # reset for preventing tags doubling
+    _charter.reset_attributes()
+
     # --------------
     # (('Pattern name', 16), 0.8978644013404846),
-    patterns_by_headers = map_headlines_to_patterns(charter,
-                                                    self.patterns_named_embeddings,
-                                                    self.elmo_embedder_default)
+    patterns_by_headers = map_headlines_to_patterns(_charter,
+                                                    self.get_patterns_named_embeddings(), self.get_sentence_embedder())
 
     _parent_org_level_tag_keys = []
     for p_mapping in patterns_by_headers:
-      # kkk += 1
-
-      _paragraph_id = p_mapping[0][1]
+      # for each 'competence' article
       _pattern_name = p_mapping[0][0]
+      _paragraph_id = p_mapping[0][1]
 
-      paragraph_body = charter.paragraphs[_paragraph_id].body
+      paragraph_body: SemanticTag = _charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
       _org_level_name = _pattern_name.split('/')[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
-      subdoc = charter.subdoc_slice(paragraph_body.as_slice())
-
-      parent_org_level_tag = SemanticTag(f"{org_level.name}", org_level.name, paragraph_body.span)
+      subdoc = _charter.subdoc_slice(paragraph_body.as_slice())
+      # --
+      parent_org_level_tag = SemanticTag(org_level.name, org_level, paragraph_body.span)
       parent_org_level_tag.confidence = confidence
+      # -------
+      # constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc,
+      #                                                                                   parent_org_level_tag)
 
-      constraint_tags, values, subject_attentions_map = self.attribute_charter_subjects(subdoc,
-                                                                                        self.subj_patterns_embeddings,
-                                                                                        parent_org_level_tag)
+      _constraint_tags, _margin_values = self.find_attributes_in_sections(subdoc, parent_org_level_tag)
+      margin_values += _margin_values
+      constraint_tags += _constraint_tags
+
+      if _constraint_tags:
+        # _key = parent_org_level_tag.get_key()
+        #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
+        #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
+        org_levels.append(parent_org_level_tag)
+        # _parent_org_level_tag_keys.append(_key)
+
+    # --------------- populate charter
+
+    _charter.org_levels = org_levels
+    _charter.constraint_tags = constraint_tags
+    _charter.margin_values = margin_values
+    return _charter
+
+  def find_attributes_in_sections(self, subdoc: LegalDocumentExt, parent_org_level_tag):
+
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())  # dictionary
+    subject_spans = collect_subjects_spans2(subdoc, subject_attentions_map)
+
+    values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
+    self._rename_margin_values_tags(values)
+    valued_sentence_spans = collect_sentences_having_constraint_values(subdoc, values, merge_spans=True)
+
+    united_spans = []
+    for c in valued_sentence_spans:
+      united_spans.append(c)
+    for c in subject_spans:
+      united_spans.append(c)
+
+    united_spans = merge_colliding_spans(united_spans, eps=-1)  # XXX: check this
+
+    constraint_tags, subject_attentions_map = self.attribute_spans_to_subjects(united_spans, subdoc,
+                                                                               parent_org_level_tag,
+                                                                               absolute_spans=False)
+
+    # nesting values
+    for parent_tag in constraint_tags:
       for value in values:
-        value += subdoc.start  # TODO: move into attribute_charter_subjects
+        v_group = value.parent
+        if parent_tag.contains(v_group.span):
+          v_group.set_parent_tag(parent_tag)
 
-      for constraint_tag in constraint_tags:
-        constraint_tag.offset(subdoc.start)  # TODO: move into attribute_charter_subjects
+    # offsetting tags to absolute values
+    for value in values: value += subdoc.start
+    for constraint_tag in constraint_tags: constraint_tag += subdoc.start
 
-      charter.margin_values += values  # TODO: collect all, then assign to charter
-      charter.constraint_tags += constraint_tags
-
-      if values:
-        _key = parent_org_level_tag.get_key()
-        if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
-          parent_org_level_tag.kind = _key + f"-{len(_parent_org_level_tag_keys)}"
-        charter.org_levels.append(parent_org_level_tag)  # TODO: collect all, then assign to charter
-        _parent_org_level_tag_keys.append(_key)
-
-      charity_subj_av_words = subject_attentions_map[CharterSubject.Charity]['words']
-      charity_tag = find_charity_paragraphs(parent_org_level_tag, subdoc, charity_subj_av_words)
-      # print('-----charity_tag', charity_tag)
-      if charity_tag is not None:
-        charter.charity_tags.append(charity_tag)
-
-    return charter
+    return constraint_tags, values
 
   def _rename_margin_values_tags(self, values):
 
@@ -254,90 +331,75 @@ class CharterParser(ParsingContext):
 
       known_keys.append(value.parent.get_key())
 
-  def attribute_charter_subjects(self, subdoc: LegalDocumentExt, emb_subj_patterns, parent_org_level_tag: SemanticTag):
-    """
-    :param subdoc:
-    :param emb_subj_patterns:
+  def attribute_spans_to_subjects(self,
+                                  unique_sentence_spans: Spans,
+                                  subdoc: LegalDocumentExt,
+                                  parent_org_level_tag: SemanticTag,
+                                  absolute_spans=True):
 
-          emb_subj_patterns[subj] = {
-            'patterns':patterns,
-            'embedding':patterns_emb
-          }
-
-    :return:
-    """
-
-    # ---------------
-    subject_attentions_map = get_charter_subj_attentions(subdoc, emb_subj_patterns)
-    contract_values: [ContractValue] = find_value_sign_currency_attention(subdoc, None)
-    # -------------------
-
-    # collect sentences having constraint values
-    unique_sentence_spans = collect_sentences_having_constraint_values(subdoc, contract_values)
-
-    # attribute sentences to subject
+    subject_attentions_map = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())
+    all_subjects = [k for k in subject_attentions_map.keys()]
     constraint_tags = []
-
-    for sentence_number, contract_value_sentence_span in enumerate(unique_sentence_spans, start=1):
+    # attribute sentences to subject
+    for contract_value_sentence_span in unique_sentence_spans:
 
       max_confidence = 0
-      best_subject: CharterSubject = CharterSubject.Other
+      best_subject = None
 
-      for subj in subject_attentions_map.keys():
-        av = subject_attentions_map[subj]['words']
+      for subj in all_subjects:
+        av: FixedVector = subject_attentions_map[subj]
 
-        confidence_region = av[contract_value_sentence_span[0]:contract_value_sentence_span[1]]
+        confidence_region: FixedVector = av[span_to_slice(contract_value_sentence_span)]
         confidence = estimate_confidence_by_mean_top_non_zeros(confidence_region)
 
         if confidence > max_confidence:
           max_confidence = confidence
           best_subject = subj
+      # end for
 
-      #
-      constraint_tag = SemanticTag(SemanticTag.number_key(best_subject.name, sentence_number),
-                                   best_subject.name, contract_value_sentence_span,
-                                   parent=parent_org_level_tag)
-      constraint_tag.confidence = max_confidence
-      constraint_tags.append(constraint_tag)
+      if best_subject is not None:
+        constraint_tag = SemanticTag(best_subject.name,
+                                     best_subject,
+                                     contract_value_sentence_span,
+                                     parent=parent_org_level_tag)
+        constraint_tag.confidence = max_confidence
+        constraint_tags.append(constraint_tag)
 
-      # nest values
-      for contract_value in contract_values:
-        if constraint_tag.is_nested(contract_value.parent.span):
-          contract_value.parent.set_parent_tag(constraint_tag)
+        all_subjects.remove(best_subject)  # taken: avoid duplicates
 
-      self._rename_margin_values_tags(contract_values)
+    # ofsetting
+    if absolute_spans:
+      for constraint_tag in constraint_tags:
+        constraint_tag.offset(subdoc.start)
 
-    return constraint_tags, contract_values, subject_attentions_map
+    return constraint_tags, subject_attentions_map
 
 
-def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contract_values: [ContractValue]):
+def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contract_values: [ContractValue],
+                                               merge_spans=True) -> Spans:
   # collect sentences having constraint values
-  unique_sentence_spans = []
+  unique_sentence_spans: Spans = []
   for contract_value in contract_values:
-    contract_value_sentence_span = subdoc.tokens_map.sentence_at_index(contract_value.parent.span[0],
-                                                                       return_delimiters=False)
+    contract_value_sentence_span = subdoc.sentence_at_index(contract_value.parent.span[0], return_delimiters=False)
+    if contract_value_sentence_span not in unique_sentence_spans:
+      unique_sentence_spans.append(contract_value_sentence_span)
+    contract_value_sentence_span = subdoc.sentence_at_index(contract_value.parent.span[1], return_delimiters=False)
     if contract_value_sentence_span not in unique_sentence_spans:
       unique_sentence_spans.append(contract_value_sentence_span)
   # --
-  unique_sentence_spans = merge_colliding_spans(unique_sentence_spans, eps=1)
+  # TODO: do not join here, join by subject
+  if merge_spans:
+    unique_sentence_spans = merge_colliding_spans(unique_sentence_spans, eps=1)
   return unique_sentence_spans
 
 
-def put_if_better(destination: dict, key, x, is_better: staticmethod):
-  if key in destination:
-    if is_better(x, destination[key]):
-      destination[key] = x
-  else:
-    destination[key] = x
-
-
-def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
-        List[List[str]], List[int], List[slice]):
+def split_by_number_2(tokens: [str], attention: FixedVector, threshold) -> (
+        [[str]], [int], [slice]):
   indexes = []
   last_token_is_number = False
-  for i in range(len(tokens)):
+  for i, token in enumerate(tokens):
 
-    if attention[i] > threshold and len(number_re.findall(tokens[i])) > 0:
+    if attention[i] > threshold and len(number_re.findall(token)) > 0:
       if not last_token_is_number:
         indexes.append(i)
       last_token_is_number = True
@@ -345,7 +407,7 @@ def split_by_number_2(tokens: List[str], attention: FixedVector, threshold) -> (
       last_token_is_number = False
 
   text_fragments = []
-  ranges: List[slice] = []
+  ranges: [slice] = []
   if len(indexes) > 0:
     for i in range(1, len(indexes)):
       _slice = slice(indexes[i - 1], indexes[i])
@@ -384,26 +446,27 @@ def get_charter_subj_attentions(subdoc: LegalDocumentExt, emb_subj_patterns):
     subj_av = relu(max_exclusive_pattern_by_prefix(patterns_distances, prefix), 0.6)  # TODO: use hyper parameter
     subj_av_words = remap_attention_vector(subj_av, subdoc.sentence_map, subdoc.tokens_map)
 
-    _distances_per_subj[subj] = {
-      'words': subj_av_words,
-      'sentences': subj_av,  ## TODO: this is not in use
-    }
+    _distances_per_subj[subj] = subj_av_words
+
   return _distances_per_subj
 
 
-def find_charity_paragraphs(parent_org_level_tag: SemanticTag, subdoc: LegalDocument,
-                            charity_subject_attention: FixedVector) -> SemanticTag:
-  paragraph_span, confidence, paragraph_attention_vector = _find_most_relevant_paragraph(subdoc,
-                                                                                         charity_subject_attention,
-                                                                                         min_len=20,
-                                                                                         return_delimiters=False)
+def collect_subjects_spans2(subdoc, subject_attentions_map, min_len=20):
+  spans = []
+  for subj in subject_attentions_map.keys():
 
-  if confidence > HyperParameters.charter_charity_attention_confidence:
-    subject_tag = SemanticTag(CharterSubject.Charity.name, CharterSubject.Charity.name, paragraph_span,
-                              parent=parent_org_level_tag)
-    subject_tag.offset(subdoc.start)
-    subject_tag.confidence = confidence
-    return subject_tag
+    subject_attention = subject_attentions_map[subj]
+    paragraph_span, confidence, _ = _find_most_relevant_paragraph(subdoc,
+                                                                  subject_attention,
+                                                                  min_len=min_len,
+                                                                  return_delimiters=False)
+    if confidence > HyperParameters.charter_subject_attention_confidence:
+      if paragraph_span not in spans:
+        spans.append(paragraph_span)
+
+  unique_sentence_spans = merge_colliding_spans(spans, eps=-1)
+
+  return unique_sentence_spans
 
 
 def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
@@ -413,7 +476,7 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
   :return:
   """
   ret = []
-  x: List[SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words], max_names=1)
+  x: [SemanticTag] = find_org_names(charter[0:HyperParameters.protocol_caption_max_size_words], max_names=1)
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:
     ret.append(nm)
@@ -427,3 +490,18 @@ def find_charter_org(charter: LegalDocument) -> [SemanticTag]:
     charter.warn(ParserWarnings.org_type_not_found)
 
   return ret
+
+
+def map_headlines_to_patterns(doc: LegalDocument,
+                              patterns_named_embeddings: DataFrame,
+                              elmo_embedder_default: AbstractEmbedder):
+  warnings.warn("consider using map_headers, it returns probalility distribution", DeprecationWarning)
+  headers: [str] = doc.headers_as_sentences()
+
+  if not headers:
+    return []
+
+  headers_embedding = elmo_embedder_default.embedd_strings(headers)
+
+  header_to_pattern_distances = calc_distances_per_pattern(headers_embedding, patterns_named_embeddings)
+  return attribute_patternmatch_to_index(header_to_pattern_distances)
