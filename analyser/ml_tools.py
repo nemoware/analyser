@@ -150,7 +150,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
 
 def relu(x: np.ndarray, relu_th: float = 0.0) -> np.ndarray:
   """deprecated: use np.maximum( )"""
-  assert type(x) is np.ndarray
+  # assert type(x) is np.ndarray
 
   _relu = x * (x > relu_th)
   return _relu
@@ -205,7 +205,7 @@ def momentum(x: FixedVector, decay=0.999) -> np.ndarray:
 
 
 def momentum_t(x: FixedVector, half_decay: int = 10, left=False) -> np.ndarray:
-  assert half_decay > 0
+  # assert half_decay > 0
 
   decay = math.pow(2, -1 / half_decay)
   innertia = np.zeros(len(x))
@@ -223,7 +223,7 @@ def momentum_t(x: FixedVector, half_decay: int = 10, left=False) -> np.ndarray:
 
 
 def momentum_p(x, half_decay: int = 10, left=False) -> np.ndarray:
-  assert half_decay > 0
+  # assert half_decay > 0
 
   decay = math.pow(2, -1 / half_decay)
   innertia = np.zeros(len(x))
@@ -316,7 +316,7 @@ def rectifyed_sum(vectors: FixedVectors, relu_th: float = 0.0) -> np.ndarray:
       _sum = np.zeros(len(x))
     _sum += relu(x, relu_th)
 
-  assert _sum is not None
+  # assert _sum is not None
 
   return _sum
 
@@ -371,7 +371,7 @@ def subtract_probability(a: FixedVector, b: FixedVector) -> FixedVector:
 class TokensWithAttention:
   def __init__(self, tokens: Tokens, attention: FixedVector):
     warnings.warn("TokensWithAttention is deprecated, use ...", DeprecationWarning)
-    assert len(tokens) == len(attention)
+    # assert len(tokens) == len(attention)
     self.tokens = tokens
     self.attention = attention
 
@@ -510,7 +510,6 @@ def max_confident_tags(vals: List[SemanticTag]) -> [SemanticTag]:
 
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
-  assert vector is not None
   if len(vector) == 0:
     return 0, np.nan, 0, np.nan
 
@@ -624,9 +623,9 @@ def merge_colliding_spans(spans: Spans, eps=0) -> Spans:
 
 def calc_distances_to_pattern(sentences_embeddings_: FixedVectors, pattern_embedding: FixedVector,
                               dist_func=distance.cosine) -> FixedVector:
-  assert len(pattern_embedding.shape) == 1
-  assert len(sentences_embeddings_.shape) == 2
-  assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
+  # assert len(pattern_embedding.shape) == 1
+  # assert len(sentences_embeddings_.shape) == 2
+  # assert sentences_embeddings_.shape[1] == pattern_embedding.shape[0]
 
   _distances = np.ones(len(sentences_embeddings_))
   for word_index in range(0, len(sentences_embeddings_)):
@@ -655,7 +654,7 @@ def calc_distances_per_pattern_dict(sentences_embeddings_: [], patterns_names: [
   # TODO: see https://keras.io/layers/merge/#dot
   # TODO: use pandas dataframes
   warnings.warn("use calc_distances_per_pattern", DeprecationWarning)
-  assert len(patterns_names) == len(patterns_embeddings)
+  # assert len(patterns_names) == len(patterns_embeddings)
   distances_per_pattern_dict = {}
   for i in range(len(patterns_names)):
     _distances = calc_distances_to_pattern(sentences_embeddings_, patterns_embeddings[i])

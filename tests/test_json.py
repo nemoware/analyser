@@ -5,7 +5,6 @@
 
 import json
 import os
-# import json
 import pickle
 import unittest
 
@@ -17,7 +16,6 @@ from analyser.documents import TextMap
 from analyser.legal_docs import DocumentJson
 from analyser.ml_tools import SemanticTag
 from analyser.parsing import AuditContext
-
 # 5ded4e284ddc27bcf92dd6cf
 # 5ded4e284ddc27bcf92dd6ce
 from analyser.schemas import ContractSchema
@@ -41,7 +39,7 @@ class TestJsonExport(unittest.TestCase):
   def _get_doc_factory_ctx(self):
     doc, factory = self._get_doc()
 
-    ctx = ContractParser(embedder={} )
+    ctx = ContractParser(embedder={})
     ctx.verbosity_level = 3
 
     return doc, factory, ctx

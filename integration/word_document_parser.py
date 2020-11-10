@@ -7,6 +7,7 @@ import warnings
 from analyser.charter_parser import CharterDocument
 from analyser.contract_parser import ContractDocument
 from analyser.legal_docs import LegalDocument, Paragraph, PARAGRAPH_DELIMITER
+from analyser.log import logger
 from analyser.ml_tools import SemanticTag
 from analyser.protocol_parser import ProtocolDocument
 from integration.doc_providers import DirDocProvider
@@ -18,7 +19,10 @@ class WordDocParser(DirDocProvider):
   def __init__(self):
 
     x = os.system("java -version")
-    assert x == 0
+
+    if x != 0:
+      raise RuntimeError(f'java executable returned {x}')
+
     if 'documentparser' in os.environ:
       self.documentparser = os.environ['documentparser']
     else:
@@ -30,12 +34,13 @@ class WordDocParser(DirDocProvider):
       self.documentparser = f'../libs/document-parser-{self.version}'
 
     self.cp = f"{self.documentparser}/classes:{self.documentparser}/lib/*"
-    print(self.cp)
+    logger.info(self.cp)
 
   def read_doc(self, fn) -> dict:
     fn = fn.encode('utf-8')
 
-    assert os.path.isfile(fn), f'{fn} does not exist'
+    if not os.path.isfile(fn):
+      raise ValueError(f'{fn} does not exist')
 
     s = ["java", "-cp", self.cp, "com.nemo.document.parser.App", "-i", fn]
     result = subprocess.run(s, stdout=subprocess.PIPE, encoding='utf-8')

@@ -58,7 +58,8 @@ r_human_name = r_group(r_human_full_name + '|' + r_human_abbr_name, 'human_name'
 
 
 def r_quoted(x):
-  assert x is not None
+  if x is None:
+    raise ValueError('provide x please')
   return r_quote_open + r'\s*' + x + r'\s*' + r_quote_close
 
 
@@ -161,7 +162,6 @@ fixtures_regex = [
 
   (re.compile(r'FORMTEXT'), ''),
   (re.compile(r''), ' ')  # ACHTUNG!! this is not just a space
-
 
 ]
 

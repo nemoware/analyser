@@ -119,7 +119,8 @@ class LegalDocument:
     if txt is None:
       txt = self.original_text
 
-    assert txt is not None
+    if txt is None:
+      raise ValueError('text is a must')
 
     _preprocessed_text = self.preprocess_text(txt)
     self.tokens_map = TextMap(_preprocessed_text)
@@ -234,7 +235,8 @@ class LegalDocument:
   checksum = property(get_checksum, None)
 
   def preprocess_text(self, txt):
-    assert txt is not None
+    if txt is None:
+      raise ValueError('text is a must')
     return normalize_text(txt, replacements_regex)
 
   def find_sentence_beginnings(self, indices):
@@ -253,7 +255,10 @@ class LegalDocument:
     return self.distances_per_pattern_dict
 
   def subdoc_slice(self, __s: slice, name='undef'):
-    assert self.tokens_map is not None
+
+    if self.tokens_map is None:
+      raise RuntimeError('self.tokens_map is required, tokenize first')
+
     # TODO: support None in slice begin
     _s = slice(max((0, __s.start)), max((0, __s.stop)))
 
