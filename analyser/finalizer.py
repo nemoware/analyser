@@ -85,6 +85,9 @@ def get_doc_by_id(doc_id:ObjectId):
     documents_collection = db['documents']
     return documents_collection.find_one({'_id': doc_id})
 
+def get_audit_by_id(aid:ObjectId):
+    db = get_mongodb_connection()
+    return db['audits'].find_one({'_id': aid})
 
 def save_violations(audit, violations):
     db = get_mongodb_connection()

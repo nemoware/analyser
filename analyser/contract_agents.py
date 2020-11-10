@@ -9,7 +9,8 @@ from pyjarowinkler import distance
 
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument
-from analyser.ml_tools import SemanticTag, put_if_better
+from analyser.ml_tools import SemanticTag, put_if_better, clean_semantic_tag_copy
+from analyser.schemas import OrgItem
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
   _r_name, r_quoted_name, ru_cap, normalize_company_name, r_alias_prefix, r_types, r_human_name, morphology_agnostic_re
@@ -73,6 +74,16 @@ class ContractAgent:
     self.alt_name: SemanticTag or None = None
     self.alias: SemanticTag or None = None
     self.type_ext: SemanticTag or None = None
+
+  def as_OrgItem(self) -> OrgItem:
+    o: OrgItem = OrgItem()
+
+    for a in ['name', 'human_name', 'type', 'alt_name', 'alias', 'type_ext']:
+      v = getattr(self, a)
+      if v is not None:
+        setattr(o, a, clean_semantic_tag_copy(v))
+
+    return o
 
   def as_list(self):
     return [self.__dict__[key] for key in org_pieces if self.__dict__[key] is not None]
@@ -189,7 +200,7 @@ def find_org_names_raw_by_re(doc: LegalDocument, regex, confidence_base: float, 
   return all_
 
 
-def normalize_contract_agent(ca: ContractAgent):
+def normalize_contract_agent(ca: ContractAgent or OrgItem):
   if ca.name is not None:
     _, val = normalize_company_name(ca.name.value)
     ca.name.value = val
@@ -206,7 +217,8 @@ def normalize_contract_agent(ca: ContractAgent):
     ca.type.confidence *= confidence_
 
 
-def find_closest_org_name(subsidiaries:dict, pattern:str, threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
+def find_closest_org_name(subsidiaries: dict, pattern: str,
+                          threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
   if pattern is None:
     return None, 0
   best_similarity = 0

@@ -21,8 +21,9 @@ from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import HyperParameters
 from analyser.log import logger
 from analyser.ml_tools import SemanticTag, FixedVector, Embeddings, filter_values_by_key_prefix, rectifyed_sum, \
-  conditional_p_sum
+  conditional_p_sum, clean_semantic_tag_copy
 from analyser.patterns import DIST_FUNC, AbstractPatternFactory, make_pattern_attention_vector
+from analyser.schemas import ContractPrice
 from analyser.structures import ContractTags
 from analyser.text_normalize import normalize_text, replacements_regex
 from analyser.text_tools import find_token_before_index
@@ -199,7 +200,7 @@ class LegalDocument:
       _attention[t.as_slice()] += t.confidence
     return _attention
 
-  def to_json_obj(self):
+  def to_json_obj(self) -> dict:
     j = DocumentJson(self)
     return j.__dict__
 
@@ -375,6 +376,8 @@ class DocumentJson:
 
     if doc is None:
       return
+
+    # ---------------- bred
     self.checksum = doc.get_checksum()
     self.warnings: [str] = list(doc.warnings)
 
@@ -470,6 +473,15 @@ class ContractValue:
     self.sign: SemanticTag = sign
     self.currency: SemanticTag = currency
     self.parent: SemanticTag = parent
+
+  def as_ContractPrice(self) -> ContractPrice:
+    o: ContractPrice = ContractPrice()
+
+    o.amount = clean_semantic_tag_copy(self.value)
+    o.currency = clean_semantic_tag_copy(self.currency)
+    o.sign = clean_semantic_tag_copy(self.sign)
+
+    return o
 
   def as_list(self) -> [SemanticTag]:
     if self.sign.value != 0:

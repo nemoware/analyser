@@ -192,7 +192,7 @@ def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False)
 
 def save_analysis(db_document: DbJsonDoc, doc: LegalDocument, state: int, retry_number: int = 0):
   # TODO: does not save attributes
-  analyse_json_obj = doc.to_json_obj()
+  analyse_json_obj:dict = doc.to_json_obj()
   db = get_mongodb_connection()
   documents_collection = db['documents']
   db_document.analysis = analyse_json_obj

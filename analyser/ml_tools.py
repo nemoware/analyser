@@ -380,14 +380,11 @@ TAG_KEY_DELIMITER = '/'
 
 
 class SemanticTagBase:
-  value: str or Enum or int or float or datetime.date or None=None
-
+  value: str or Enum or int or float or datetime.date or None = None
   span: (int, int)
   confidence: float
 
-
   def __init__(self):
-
     super().__init__()
 
 
@@ -489,6 +486,20 @@ class SemanticTag(SemanticTagBase):
     return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'
 
   slice = property(as_slice)
+
+
+def clean_semantic_tag_copy(t: SemanticTag) -> SemanticTagBase or None:
+  if t is None:
+    return None
+
+  r = SemanticTagBase()
+  for a in ['value', 'span', 'confidence']:
+    setattr(r, a, getattr(t, a))
+  return r
+
+
+def clean_semantic_tags_copy(tags: [SemanticTag]) -> [SemanticTagBase]:
+  return [clean_semantic_tag_copy(t) for t in tags]
 
 
 def max_confident_tags(vals: List[SemanticTag]) -> [SemanticTag]:

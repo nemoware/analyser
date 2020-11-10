@@ -18,7 +18,7 @@ class DocumentSchema:
     super().__init__()
 
 
-class HasOrgs(SemanticTagBase):
+class HasOrgs:
   def __init__(self):
     super().__init__()
     self.orgs: [OrgItem] = []
@@ -37,7 +37,7 @@ class ContractPrice(SemanticTagBase):
     self.value_netto: SemanticTagBase  # value before VAT
 
 
-class AgendaItemContract(HasOrgs):
+class AgendaItemContract(HasOrgs, SemanticTagBase):
   number: SemanticTagBase
   date: SemanticTagBase
   price: ContractPrice = None
@@ -59,6 +59,7 @@ class OrgItem():
     super().__init__()
     self.type: SemanticTagBase
     self.name: SemanticTagBase
+    self.alias: SemanticTagBase #a.k.a role in the contract
 
 
 class ContractSchema(DocumentSchema, HasOrgs):

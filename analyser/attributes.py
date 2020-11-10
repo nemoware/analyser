@@ -1,3 +1,4 @@
+import datetime
 import json
 from datetime import datetime, date
 
@@ -12,8 +13,23 @@ from analyser.log import logger
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import document_schemas, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
   ContractPrice, ContractSchema, CharterSchema, CharterStructuralLevel, Competence
-from analyser.structures import OrgStructuralLevel, DocumentState
+from analyser.structures import OrgStructuralLevel
 from integration.db import get_mongodb_connection
+
+
+def to_json(tree):
+  class DatetimeHandler(jsonpickle.handlers.BaseHandler):
+    def flatten(self, obj: datetime, data):
+      return json_util.default(obj)
+
+  jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
+  jsonpickle.handlers.registry.register(date, DatetimeHandler)
+
+  json_str = jsonpickle.encode(tree, unpicklable=False, indent=4)
+
+  j = json.loads(json_str, object_hook=json_util.object_hook)
+
+  return j, json_str
 
 
 def convert_org(attr_name: str,
@@ -283,22 +299,6 @@ def convert_charter_db_attributes_to_tree(attrs):
 
 # ----------------------
 
-def to_json(tree):
-  class DatetimeHandler(jsonpickle.handlers.BaseHandler):
-    def flatten(self, obj: datetime, data):
-      return json_util.default(obj)
-
-  jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
-  jsonpickle.handlers.registry.register(date, DatetimeHandler)
-
-  json_str = jsonpickle.encode(tree, unpicklable=False, indent=4)
-
-  # print(json_str)
-
-  j = json.loads(json_str, object_hook=json_util.object_hook)
-
-  return j, json_str
-
 
 def get_attributes_tree(id: str):
   # x = json.loads(data, object_hook=lambda d: SimpleNamespace(**d))
@@ -327,21 +327,21 @@ def get_legacy_docs_ids() -> []:
 
   vv = analyser.__version_ints__  # TODO: check version
 
-  updated_by_user =  {
-      '$and': [
-        {
-          'user.attributes_tree.creation_date': {
-            '$exists': True
-          }
-        }, {
-          '$expr': {
-            '$gt': [
-              '$user.updateDate', '$user.attributes_tree.creation_date'
-            ]
-          }
+  updated_by_user = {
+    '$and': [
+      {
+        'user.attributes_tree.creation_date': {
+          '$exists': True
         }
-      ]
-    } # TODO: do something about this
+      }, {
+        '$expr': {
+          '$gt': [
+            '$user.updateDate', '$user.attributes_tree.creation_date'
+          ]
+        }
+      }
+    ]
+  }  # TODO: do something about this
 
   query = {"$and": [
     {"parse.documentType": {'$exists': True}},
@@ -429,6 +429,7 @@ def convert_all_docs():
     logger.info(f"converted {len(ids)} documents")
   else:
     print('Skipping migration. Re-run when you change your mind.')
+
 
 # ---------------------------------------------------------- self-TESTS:
 
