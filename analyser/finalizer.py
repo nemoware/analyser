@@ -1,6 +1,8 @@
-import pymongo
 import numpy as np
+import pymongo
 import textdistance
+from bson import ObjectId
+
 from analyser.log import logger
 from integration.db import get_mongodb_connection
 
@@ -78,7 +80,7 @@ def get_docs_by_audit_id(id: str, state, kind=None, id_only=False, without_large
     return docs
 
 
-def get_doc_by_id(doc_id):
+def get_doc_by_id(doc_id:ObjectId):
     db = get_mongodb_connection()
     documents_collection = db['documents']
     return documents_collection.find_one({'_id': doc_id})

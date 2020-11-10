@@ -16,6 +16,7 @@ from analyser.structures import DocumentState
 from integration.db import get_mongodb_connection
 
 CHARTER = 'CHARTER'
+CONTRACT='CONTRACT'
 
 
 class Runner:
@@ -134,7 +135,7 @@ class ContractProcessor(BaseProcessor):
     self.parser = Runner.get_instance().contract_parser
 
 
-document_processors = {"CONTRACT": ContractProcessor(), "CHARTER": CharterProcessor(), "PROTOCOL": ProtocolProcessor()}
+document_processors = {CONTRACT: ContractProcessor(), CHARTER: CharterProcessor(), "PROTOCOL": ProtocolProcessor()}
 
 
 def get_audits() -> [dict]:
@@ -151,7 +152,7 @@ def get_audits() -> [dict]:
 
 def get_all_new_charters():
   # TODO: fetch chartes with unknown satate (might be)
-  return get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind="CHARTER")
+  return get_docs_by_audit_id(id=None, states=[DocumentState.New.value], kind=CHARTER)
 
 
 def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False) -> []:

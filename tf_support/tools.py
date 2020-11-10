@@ -1,13 +1,16 @@
 import os
 import warnings
 
+import keras
 import keras.backend as K
 import pandas as pd
+from keras import Model
 from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 from pandas import DataFrame
 
 from analyser.hyperparams import models_path
 from analyser.log import logger
+
 
 class KerasTrainingContext:
 
@@ -33,7 +36,6 @@ class KerasTrainingContext:
     print(f'test_samples:\t{test_samples}')
     print(f'steps_per_epoch:\t{self.steps_per_epoch}')
     print(f'validation_steps:\t{self.validation_steps}')
-
 
   def get_stats_df(self) -> (DataFrame, str):
     stats_path = os.path.join(self.model_checkpoint_path, 'train_statistics0.csv')
@@ -84,9 +86,26 @@ class KerasTrainingContext:
     else:
       return None, 0
 
+  def resave_model_h5(self,  model_factory_fn):
+    model = self.init_model(model_factory_fn, load_weights=False)
+    model.summary()
+    model_name = model_factory_fn.__name__
+    ch_fn_old = os.path.join(self.model_checkpoint_path, f"{model_name}.weights")
+    model.load_weights(ch_fn_old)
+    logger.info(f'model weights loaded: {ch_fn_old}')
+
+    ch_fn = os.path.join(self.model_checkpoint_path, f"{model_name}-{keras.__version__}.h5")
+
+    if not os.path.isfile(ch_fn):
+      model.save_weights(ch_fn)
+      logger.info(f"model weights saved to {ch_fn}")
+
+    else:
+      logger.info(f"model weights NOT saved, because file exists {ch_fn}")
+
   def init_model(self, model_factory_fn, model_name_override=None, weights_file_override=None,
                  verbose=0,
-                 trainable=True, trained=False, load_weights=True):
+                 trainable=True, trained=False, load_weights=True) -> Model:
 
     model_name = model_factory_fn.__name__
     if model_name_override is not None:
@@ -97,14 +116,15 @@ class KerasTrainingContext:
     if verbose > 1:
       model.summary()
 
-    ch_fn = os.path.join(self.model_checkpoint_path, model_name + ".weights")
+    ch_fn = os.path.join(self.model_checkpoint_path, f"{model_name}-{keras.__version__}.h5")
+
     if weights_file_override is not None:
-      ch_fn = os.path.join(self.model_checkpoint_path, weights_file_override + ".weights")
+      ch_fn = os.path.join(self.model_checkpoint_path, f"{weights_file_override}-{keras.__version__}.h5")
 
     if load_weights:
       try:
         model.load_weights(ch_fn)
-        print(f'weights loaded: {ch_fn}')
+        logger.info(f'weights loaded: {ch_fn}')
       except:
         msg = f'cannot load  {model_name} from  {ch_fn}'
         warnings.warn(msg)
