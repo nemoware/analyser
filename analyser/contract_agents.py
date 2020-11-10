@@ -27,12 +27,12 @@ def re_legal_entity_type(xx):
 
 
 legal_entity_types_re = {}
-for t in sorted(legal_entity_types, key=lambda x: -len(x)):
-  _regex = re_legal_entity_type(t)
+
+for __t in sorted(legal_entity_types, key=lambda x: -len(x)):
+  _regex = re_legal_entity_type(__t)
   rr = re.compile(_regex, re.IGNORECASE | re.UNICODE)
-  legal_entity_types_re[rr] = t
-  found = rr.match(t)[0]
-  assert t == found
+  legal_entity_types_re[rr] = __t
+  assert __t == rr.match(__t)[0]
 
 _is_valid = is_long_enough
 
@@ -217,7 +217,7 @@ def normalize_contract_agent(ca: ContractAgent or OrgItem):
     ca.type.confidence *= confidence_
 
 
-def find_closest_org_name(subsidiaries: dict, pattern: str,
+def find_closest_org_name(subsidiaries_: dict, pattern: str,
                           threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
   if pattern is None:
     return None, 0
@@ -225,7 +225,7 @@ def find_closest_org_name(subsidiaries: dict, pattern: str,
   finding = None
   _entity_type, pn = normalize_company_name(pattern)
 
-  for s in subsidiaries:
+  for s in subsidiaries_:
     for alias in s['aliases'] + [s['_id']]:
       similarity = compare_masked_strings(pn, alias, [])
       if similarity > best_similarity:

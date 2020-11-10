@@ -286,7 +286,3 @@ class ContractPatternFactory(AbstractPatternFactoryLowCase):
       cp('', 'Агент', 'обязуется совершать по поручению Принципала')
 
 
-if __name__ == '__main__':
-  CPF = ContractPatternFactory(ElmoEmbedder.get_instance('elmo'))
-  for p in CPF.patterns:
-    print(p.prefix_pattern_suffix_tuple)
