@@ -183,9 +183,9 @@ table_of_contents_regex = [
 ]
 
 
-def normalize_text(_t: str, replacements_regex):
+def normalize_text(_t: str, replacements_regex_):
   t = _t.replace("''", r'"')
-  for (reg, to) in replacements_regex:
+  for (reg, to) in replacements_regex_:
     t = reg.sub(to, t)
 
   return t

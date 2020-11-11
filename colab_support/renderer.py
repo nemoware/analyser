@@ -171,9 +171,8 @@ for k in colors_by_contract_subject:
 
 
 class HtmlRenderer(AbstractRenderer):
-  ''' AZ:-Rendering CHARITY🔥-----💸------💸-------💸------------------------------'''
 
-  def _to_color_text(self, _tokens, weights, mpl, colormap='coolwarm', _range=None, separator=' '):
+  def _to_color_text(self, _tokens, weights, mpl_, colormap='coolwarm', _range=None, separator=' '):
     tokens = [escaper.escape(t) for t in _tokens]
 
     if len(tokens) == 0:
@@ -190,8 +189,8 @@ class HtmlRenderer(AbstractRenderer):
       vmin = _range[0]
       vmax = _range[1]
 
-    norm = mpl.colors.Normalize(vmin=vmin - 0.5, vmax=vmax)
-    cmap = mpl.cm.get_cmap(colormap)
+    norm = mpl_.colors.Normalize(vmin=vmin - 0.5, vmax=vmax)
+    cmap = mpl_.cm.get_cmap(colormap)
 
     html = ""
 
@@ -281,10 +280,10 @@ def to_multicolor_text(tokens, vectors, colormap, min_color=None, _slice=None) -
   if _slice is not None:
     tokens = tokens[_slice]
 
-  colors = mixclr(colormap, vectors, min_color=min_color, _slice=_slice)
+  _colors = mixclr(colormap, vectors, min_color=min_color, _slice=_slice)
   html = ''
   for i in range(len(tokens)):
-    c = colors[i]
+    c = _colors[i]
     r = int(255 * c[0])
     g = int(255 * c[1])
     b = int(255 * c[2])

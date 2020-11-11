@@ -216,8 +216,8 @@ def need_analysis(document: DbJsonDoc) -> bool:
   _is_not_a_charter = document.documentType != "CHARTER"
   _well_parsed = document.parserResponseCode == 200
 
-  need_analysis = _well_parsed and (_is_not_a_charter or document.isActiveCharter())
-  return need_analysis
+  _need_analysis = _well_parsed and (_is_not_a_charter or document.isActiveCharter())
+  return _need_analysis
 
 
 def audit_phase_1(audit, kind=None):

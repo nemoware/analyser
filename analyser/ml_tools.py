@@ -755,16 +755,6 @@ def multi_attention_vector(patterns_emb: Embeddings, text_emb: Embeddings) -> Fi
   return max_exclusive_pattern(vectors)
 
 
-def best_window(attention_vector, wnd_len) -> (int, float, float):
-  max_sum = 0
-  best_index = 0
-  for k in range(len(attention_vector) - wnd_len + 1):
-    wnd = attention_vector[k:k + wnd_len]
-    _sum = sum(wnd)
-    if _sum > max_sum:
-      max_sum = _sum
-      best_index = k
-  return best_index, max_sum, max_sum / wnd_len
 
 
 def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column: str) -> Embeddings:

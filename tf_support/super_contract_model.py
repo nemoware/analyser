@@ -94,12 +94,12 @@ def uber_detection_model_001(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
 
   _out2 = Dense(CLASSES, activation='softmax', name='O2_subject')(_out2)
 
-  losses = {
+  _losses = {
     "O1_tagging": sigmoid_focal_crossentropy,
     "O2_subject": "binary_crossentropy",
   }
   model = Model(inputs=base_model_inputs, outputs=[_out, _out2], name=name)
-  model.compile(loss=losses, optimizer='adam', metrics=metrics)
+  model.compile(loss=_losses, optimizer='adam', metrics=metrics)
   return model
 
 
@@ -123,12 +123,12 @@ def uber_detection_model_003(name, ctx: KerasTrainingContext = DEFAULT_TRAIN_CTX
 
   _out2 = Dense(CLASSES, activation='softmax', name='O2_subject')(_out2)
 
-  losses = {
+  _losses = {
     "O1_tagging": sigmoid_focal_crossentropy,
     "O2_subject": "binary_crossentropy",
   }
   model = Model(inputs=base_model_inputs, outputs=[_out, _out2], name=name)
-  model.compile(loss=losses, optimizer='adam', metrics=metrics)
+  model.compile(loss=_losses, optimizer='adam', metrics=metrics)
   return model
 
 
