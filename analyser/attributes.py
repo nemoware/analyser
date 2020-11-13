@@ -327,33 +327,31 @@ def get_legacy_docs_ids() -> []:
 
   vv = analyser.__version_ints__  # TODO: check version
 
-  updated_by_user = {
+  _attr_updated_by_user = {
     '$and': [
+      {'user.attributes_tree.creation_date': {'$exists': True}},
       {
-        'user.attributes_tree.creation_date': {
-          '$exists': True
-        }
-      }, {
         '$expr': {
-          '$gt': [
-            '$user.updateDate', '$user.attributes_tree.creation_date'
-          ]
+          '$gt': ['$user.updateDate', '$user.attributes_tree.creation_date']
         }
       }
     ]
   }  # TODO: do something about this
 
-  query = {"$and": [
-    {"parse.documentType": {'$exists': True}},
-    {"analysis.attributes": {'$exists': True}},
-    # {"state": DocumentState.Done.value},
-    {"$or": [
-      updated_by_user,
-      # {"analysis.attributes_tree": {'$exists': False}},
-      # {"analysis.attributes_tree.version": {'$exists': False}},
-      {"analysis.attributes_tree.version.1": {'$lt': vv[1]}}  # TODO: check version prima []
+  _no_user_tree = {"$and": [
+    {"user.attributes": {'$exists': True}},
+    {"user.attributes_tree": {'$exists': False}},
+  ]}
 
-    ]}]}
+  _no_attr_tree = {"$and": [
+    {"analysis.attributes": {'$exists': True}},
+    {"analysis.attributes_tree": {'$exists': False}},
+  ]}
+
+  query = {"$or": [
+    _no_user_tree,
+    _attr_updated_by_user,
+    _no_attr_tree, ]}
 
   cursor = documents_collection.find(query, projection={'_id': True})
 
