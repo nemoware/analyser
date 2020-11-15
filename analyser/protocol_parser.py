@@ -5,6 +5,7 @@ from typing import Iterator
 
 from pyjarowinkler import distance
 
+from analyser.attributes import to_json
 from analyser.contract_agents import complete_re as agents_re, find_org_names, ORG_LEVELS_re, find_org_names_raw, \
   ContractAgent, _rename_org_tags, protocol_caption_complete_re, protocol_caption_complete_re_ignore_case
 from analyser.doc_dates import find_document_date
@@ -14,12 +15,13 @@ from analyser.embedding_tools import AbstractEmbedder
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings, \
   LegalDocumentExt
-from analyser.ml_tools import SemanticTag, calc_distances_per_pattern_dict, max_confident_tags, \
-  max_exclusive_pattern_by_prefix, relu, sum_probabilities, best_above, smooth_safe, spans_between_non_zero_attention, \
-  FixedVector, estimate_confidence_by_mean_top_non_zeros
+from analyser.ml_tools import SemanticTag, calc_distances_per_pattern_dict, max_exclusive_pattern_by_prefix, relu, \
+  sum_probabilities, best_above, smooth_safe, spans_between_non_zero_attention, \
+  FixedVector, estimate_confidence_by_mean_top_non_zeros, SemanticTagBase, max_confident_tag
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AbstractPatternFactory, FuzzyPattern, create_value_negation_patterns, \
   create_value_patterns
+from analyser.schemas import ProtocolSchema
 from analyser.structures import ORG_LEVELS_names, OrgStructuralLevel
 from analyser.text_normalize import r_group, r_quoted
 from analyser.text_tools import is_long_enough, span_len
@@ -55,22 +57,47 @@ class ProtocolDocument(LegalDocumentExt):
       self.__dict__.update(doc.__dict__)
 
     self.agents_tags: [SemanticTag] = []
-    self.org_level: [SemanticTag] = []
-    self.org_tags: [SemanticTag] = []
+    self.__org_level: [SemanticTag] = []
+    # self.org_tags: [SemanticTag] = []
     self.agenda_questions: [SemanticTag] = []
     self.margin_values: [ContractValue] = []
     self.contract_numbers: [SemanticTag] = []
 
+    self.attributes_tree = ProtocolSchema()
+
+  def get_org_tags(self):
+    org = self.attributes_tree.org
+    if org is not None:
+      return _rename_org_tags([org], prefix="", start_from=1)
+
+    return []
+
+  org_tags = property(get_org_tags)
+
+  def get_org_level(self) -> SemanticTagBase:
+    return self.attributes_tree.structural_level
+
+  def set_org_level(self, structural_level):
+    self.attributes_tree.structural_level = structural_level
+
+  org_level = property(get_org_level, set_org_level)
+
+  def get_date(self) -> SemanticTagBase:
+    return self.attributes_tree.date
+
+  def set_date(self, date):
+    self.attributes_tree.date = date
+
+  date = property(get_date, set_date)
+
   def get_tags(self) -> [SemanticTag]:
+    warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     tags = []
     if self.date is not None:
       tags.append(self.date)
 
-    if self.number is not None:
-      tags.append(self.number)
-
     tags += self.org_tags
-    tags += self.org_level
+    tags += [self.org_level]
     tags += self.agents_tags
     tags += self.agenda_questions
     tags += self.contract_numbers
@@ -79,8 +106,14 @@ class ProtocolDocument(LegalDocumentExt):
 
     return tags
 
+  def to_json_obj(self) -> dict:
+    j: dict = super().to_json_obj()
+    _attributes_tree_dict, _ = to_json(self.attributes_tree)
+    j['attributes_tree'] = {"contract": _attributes_tree_dict}
+    return j
 
-ProtocolDocument4 = ProtocolDocument  # aliasing #todo: remove it
+
+ProtocolDocument4 = ProtocolDocument  # aliasing #todo: remove it #still needed for old unit tests
 
 
 class ProtocolParser(ParsingContext):
@@ -150,6 +183,7 @@ class ProtocolParser(ParsingContext):
     doc.embedd_tokens(self.get_embedder())
 
     doc.calculate_distances_per_pattern(self.get_protocols_factory())
+    # TODO: should be made in analysys phase, not on embedding
     doc.distances_per_sentence_pattern_dict = calc_distances_per_pattern_dict(doc.sentences_embeddings,
                                                                               self.patterns_dict,
                                                                               self.get_patterns_embeddings())
@@ -162,16 +196,21 @@ class ProtocolParser(ParsingContext):
     :return:
     """
     # doc.sentence_map = tokenize_doc_into_sentences_map(doc, 250)
-    doc.org_level = max_confident_tags(list(find_org_structural_level(doc)))
 
-    doc.org_tags = list(find_protocol_org(doc))
+    doc.org_level = max_confident_tag(list(find_org_structural_level(doc)))
+    doc.attributes_tree.org = find_protocol_org_obj(doc)
     doc.date = find_document_date(doc)
+
+    if doc.attributes_tree.org is not None:
+      if doc.attributes_tree.org.name is None:
+        doc.warn(ParserWarnings.org_name_not_found)
 
     if not doc.date:
       doc.warn(ParserWarnings.date_not_found)
 
     if not doc.org_level:
       doc.warn(ParserWarnings.org_struct_level_not_found)
+
     return doc
 
   def find_attributes(self, doc: ProtocolDocument, ctx: AuditContext = None) -> ProtocolDocument:
@@ -363,13 +402,28 @@ class ProtocolPatternFactory(AbstractPatternFactory):
     self.embedd(embedder)
 
 
-def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
-  ret = []
+def find_protocol_org_obj(protocol: ProtocolDocument) -> ContractAgent or None:
+  _subdoc = protocol[0:HyperParameters.protocol_caption_max_size_words]
+  orgs: [ContractAgent] = find_org_names_raw(_subdoc, max_names=1, regex=protocol_caption_complete_re,
+                                             re_ignore_case=protocol_caption_complete_re_ignore_case)
+  if len(orgs) == 0:
+    return None
 
-  x: [SemanticTag] = find_org_names(protocol[0:HyperParameters.protocol_caption_max_size_words],
+  return orgs[0]
+
+
+def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
+  warnings.warn("please switch to find_protocol_org_obj", DeprecationWarning)
+
+  ret = []
+  _subdoc = protocol[0:HyperParameters.protocol_caption_max_size_words]
+  x: [SemanticTag] = find_org_names(_subdoc,
                                     max_names=1,
                                     regex=protocol_caption_complete_re,
                                     re_ignore_case=protocol_caption_complete_re_ignore_case)
+
+  # _all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
+  #                                            re_ignore_case=re_ignore_case)
 
   nm = SemanticTag.find_by_kind(x, 'org-1-name')
   if nm is not None:

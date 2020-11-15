@@ -387,6 +387,9 @@ class SemanticTagBase:
   def __init__(self):
     super().__init__()
 
+  def as_json_attribute(self):
+    raise NotImplementedError()
+
 
 class SemanticTag(SemanticTagBase):
 
@@ -502,11 +505,16 @@ def clean_semantic_tags_copy(tags: [SemanticTag]) -> [SemanticTagBase]:
   return [clean_semantic_tag_copy(t) for t in tags]
 
 
-def max_confident_tags(vals: List[SemanticTag]) -> [SemanticTag]:
+def max_confident_tags(vals: [SemanticTagBase]) -> [SemanticTagBase]:
   if vals:
     return [max(vals, key=lambda a: a.confidence)]
   else:
     return []
+
+
+def max_confident_tag(vals: [SemanticTagBase]) -> SemanticTagBase:
+  if vals:
+    return max(vals, key=lambda a: a.confidence)
 
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
@@ -753,8 +761,6 @@ def multi_attention_vector(patterns_emb: Embeddings, text_emb: Embeddings) -> Fi
     vectors.append(av)
 
   return max_exclusive_pattern(vectors)
-
-
 
 
 def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column: str) -> Embeddings:

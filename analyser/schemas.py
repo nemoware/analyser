@@ -4,6 +4,8 @@
 
 
 # schemas.py
+import warnings
+
 from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
 
@@ -11,8 +13,8 @@ tag_value_field_name = "value"
 
 
 class DocumentSchema:
-  date: SemanticTagBase
-  number: SemanticTagBase
+  date: SemanticTagBase or None = None
+  number: SemanticTagBase or None = None
 
   def __init__(self):
     super().__init__()
@@ -55,11 +57,16 @@ class AgendaItem(SemanticTagBase):
 
 
 class OrgItem():
+
   def __init__(self):
     super().__init__()
-    self.type: SemanticTagBase
-    self.name: SemanticTagBase
-    self.alias: SemanticTagBase #a.k.a role in the contract
+    self.type: SemanticTagBase or None = None
+    self.name: SemanticTagBase or None = None
+    self.alias: SemanticTagBase or None = None  # a.k.a role in the contract
+
+  def as_list(self) -> [SemanticTagBase]:
+    warnings.warn("use OrgItem", DeprecationWarning)
+    return [getattr(self, key) for key in ["type", "name", "alias"] if getattr(self, key) is not None]
 
 
 class ContractSchema(DocumentSchema, HasOrgs):
@@ -67,10 +74,7 @@ class ContractSchema(DocumentSchema, HasOrgs):
 
   def __init__(self):
     super().__init__()
-    # self.orgs: [OrgItem] = []
-    self.date: SemanticTagBase
-    self.number: SemanticTagBase
-    self.subject: SemanticTagBase
+    self.subject: SemanticTagBase or None = None
 
 
 class ProtocolSchema(DocumentSchema):

@@ -8,7 +8,7 @@ import unittest
 from analyser.charter_parser import CharterDocument, CharterParser
 from analyser.log import logger
 from analyser.parsing import AuditContext
-from analyser.runner import get_audits, get_docs_by_audit_id
+from analyser.runner import get_audits, get_docs_by_audit_id, CHARTER
 from integration.db import get_mongodb_connection
 from integration.word_document_parser import join_paragraphs
 
@@ -25,7 +25,7 @@ class TestCharterAnalyse(unittest.TestCase):
       return
 
     audit_id = audits[0]['_id']
-    docs = get_docs_by_audit_id(audit_id, kind='CHARTER')
+    docs = get_docs_by_audit_id(audit_id, kind=CHARTER)
 
     for db_document in docs:
       print(db_document['filename'])

@@ -12,10 +12,11 @@ from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.legal_docs import LegalDocumentExt, remap_attention_vector, embedd_sentences
 from analyser.ml_tools import SemanticTag, calc_distances_per_pattern, merge_colliding_spans, TAG_KEY_DELIMITER, Spans, \
   FixedVector, span_to_slice, estimate_confidence_by_mean_top_non_zeros, calc_distances_per_pattern_dict, \
-  max_exclusive_pattern_by_prefix, relu, attribute_patternmatch_to_index
+  max_exclusive_pattern_by_prefix, relu, attribute_patternmatch_to_index, SemanticTagBase
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention, \
   _find_most_relevant_paragraph
 from analyser.patterns import build_sentence_patterns, PATTERN_DELIMITER
+from analyser.schemas import CharterSchema
 from analyser.structures import OrgStructuralLevel, ContractSubject
 from analyser.transaction_values import number_re
 
@@ -41,6 +42,8 @@ class CharterDocument(LegalDocumentExt):
 
     self.margin_values: [ContractValue] = []
 
+    self.attributes_tree = CharterSchema()
+
   def reset_attributes(self):
     # reset for preventing doubling tags
     self.margin_values = []
@@ -49,17 +52,24 @@ class CharterDocument(LegalDocumentExt):
     self.org_levels = []
     self.org_level_tags = []
 
-  # def sentence_at_index(self, i: int, return_delimiters=True) -> (int, int):
-  #
-  #   char_range = self.tokens_map.char_range((i, i + 1))
-  #   sentences_range = self.sentence_map.token_indices_by_char_range(char_range)
-  #
-  #   char_range = self.sentence_map.char_range(sentences_range)
-  #   words_range = self.tokens_map.token_indices_by_char_range(char_range)
-  #
-  #   return words_range
+  def get_number(self) -> SemanticTagBase:
+    return self.attributes_tree.number
+
+  def set_number(self, number):
+    self.attributes_tree.number = number
+
+  number = property(get_number, set_number)
+
+  def get_date(self) -> SemanticTagBase:
+    return self.attributes_tree.date
+
+  def set_date(self, date):
+    self.attributes_tree.date = date
+
+  date = property(get_date, set_date)
 
   def get_tags(self) -> [SemanticTag]:
+    warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     tags = []
 
     if self.date is not None:

@@ -11,7 +11,7 @@ from analyser.documents import TextMap
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.log import logger
-from analyser.ml_tools import SemanticTag, clean_semantic_tag_copy
+from analyser.ml_tools import SemanticTag, clean_semantic_tag_copy, SemanticTagBase
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AV_SOFT, AV_PREFIX
 from analyser.schemas import ContractSchema
@@ -25,13 +25,14 @@ class ContractDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-    self.subjects: SemanticTag or None = None
+    # self.subjects: SemanticTag or None = None
     self.contract_values: [ContractValue] = []
-
     self.agents_tags: [SemanticTag] = []
+
     self.attributes_tree = ContractSchema()
 
   def get_tags(self) -> [SemanticTag]:
+    warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     tags = []
     if self.date is not None:
       tags.append(self.date)
@@ -42,8 +43,8 @@ class ContractDocument(LegalDocument):
     if self.agents_tags:
       tags += self.agents_tags
 
-    if self.subjects:
-      tags.append(self.subjects)
+    if self.subject:
+      tags.append(self.subject)
 
     if self.contract_values:
       for contract_value in self.contract_values:
@@ -53,11 +54,32 @@ class ContractDocument(LegalDocument):
     return tags
 
   def to_json_obj(self) -> dict:
-
     j: dict = super().to_json_obj()
     _attributes_tree_dict, _ = to_json(self.attributes_tree)
     j['attributes_tree'] = {"contract": _attributes_tree_dict}
     return j
+
+  def get_number(self) -> SemanticTagBase:
+    return self.attributes_tree.number
+
+  def set_number(self, number: SemanticTagBase):
+    self.attributes_tree.number = number
+
+  def get_date(self) -> SemanticTagBase:
+    return self.attributes_tree.date
+
+  def set_date(self, date: SemanticTagBase):
+    self.attributes_tree.date = date
+
+  def get_subject(self) -> SemanticTagBase:
+    return self.attributes_tree.subject
+
+  def set_subject(self, subject: SemanticTagBase):
+    self.attributes_tree.subject = subject
+
+  subject = property(get_subject, set_subject)
+  date = property(get_date, set_date)
+  number = property(get_number, set_number)
 
 
 ContractDocument3 = ContractDocument
@@ -89,9 +111,6 @@ class ContractParser(ParsingContext):
     contract.date = nn_get_contract_date(_head.tokens_map, semantic_map)
 
     ## Migrazzio
-
-    contract.attributes_tree.date = clean_semantic_tag_copy(contract.date)
-    contract.attributes_tree.number = clean_semantic_tag_copy(contract.number)
     contract.attributes_tree.orgs = [ca.as_OrgItem() for ca in cas]
 
     return contract
@@ -108,7 +127,7 @@ class ContractParser(ParsingContext):
     if not document.contract_values:
       document.warn(ParserWarnings.contract_value_not_found)
 
-    if not document.subjects:
+    if not document.subject:
       document.warn(ParserWarnings.contract_subject_not_found)
 
     self.log_warnings()
@@ -148,7 +167,7 @@ class ContractParser(ParsingContext):
                               audit_subsidiary_name=ctx.audit_subsidiary_name)
       contract.agents_tags = _unwrap_org_tags(cas)
     # -------------------------------subject
-    contract.subjects = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
+    contract.subject = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
 
     # -------------------------------values
     contract.contract_values = nn_find_contract_value(_contract_cut, semantic_map)
@@ -159,9 +178,7 @@ class ContractParser(ParsingContext):
     ##
     # migrate to attr_tree
 
-    contract.attributes_tree.subject = clean_semantic_tag_copy(contract.subjects)
-    contract.attributes_tree.date = clean_semantic_tag_copy(contract.date)
-    contract.attributes_tree.number = clean_semantic_tag_copy(contract.number)
+
     contract.attributes_tree.orgs = [ca.as_OrgItem() for ca in cas]
     if len(contract.contract_values) > 0:
       contract.attributes_tree.price = contract.contract_values[0].as_ContractPrice()

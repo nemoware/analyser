@@ -4,12 +4,13 @@
 
 
 import re
+import warnings
 
 from pyjarowinkler import distance
 
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument
-from analyser.ml_tools import SemanticTag, put_if_better, clean_semantic_tag_copy
+from analyser.ml_tools import SemanticTag, put_if_better
 from analyser.schemas import OrgItem
 from analyser.structures import ORG_LEVELS_names, legal_entity_types
 from analyser.text_normalize import r_group, r_bracketed, r_quoted, r_capitalized_ru, \
@@ -65,27 +66,20 @@ protocol_caption_complete_re_ignore_case = re.compile(complete_re_str_org,
 org_pieces = ['type', 'name', 'human_name', 'alt_name', 'alias', 'type_ext']
 
 
-class ContractAgent:
+class ContractAgent(OrgItem):
   # org_pieces = ['type', 'name', 'alt_name', 'alias', 'type_ext']
   def __init__(self):
-    self.name: SemanticTag or None = None
+    warnings.warn("use OrgItem", DeprecationWarning)
+    super().__init__()
     self.human_name: SemanticTag or None = None
-    self.type: SemanticTag or None = None
     self.alt_name: SemanticTag or None = None
-    self.alias: SemanticTag or None = None
     self.type_ext: SemanticTag or None = None
 
   def as_OrgItem(self) -> OrgItem:
-    o: OrgItem = OrgItem()
-
-    for a in ['name', 'human_name', 'type', 'alt_name', 'alias', 'type_ext']:
-      v = getattr(self, a)
-      if v is not None:
-        setattr(o, a, clean_semantic_tag_copy(v))
-
-    return o
+    return self
 
   def as_list(self):
+    warnings.warn("use OrgItem", DeprecationWarning)
     return [self.__dict__[key] for key in org_pieces if self.__dict__[key] is not None]
 
   def confidence(self):
@@ -118,10 +112,11 @@ def find_org_names(doc: LegalDocument,
   else:
     _all = sorted(_all, key=lambda a: a.name.value)
 
-  return _rename_org_tags(_all, tag_kind_prefix, start_from=1)
+  return _rename_org_tags(_all, prefix=tag_kind_prefix, start_from=1)
 
 
 def _rename_org_tags(all_: [ContractAgent], prefix='', start_from=1) -> [SemanticTag]:
+  warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
   tags = []
   for group, agent in enumerate(all_):
     for tag in agent.as_list():

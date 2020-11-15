@@ -67,8 +67,8 @@ class LegalDocument:
   def __init__(self, original_text=None, name="legal_doc"):
 
     self._id = None  # TODO
-    self.date: SemanticTag or None = None
-    self.number: SemanticTag or None = None
+    # self.date: SemanticTag or None = None
+    # self.number: SemanticTag or None = None
 
     self.filename = None
     self._original_text = original_text
@@ -166,6 +166,7 @@ class LegalDocument:
     return self
 
   def get_tags(self) -> [SemanticTag]:
+    warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     return []
 
   def headers_as_sentences(self) -> [str]:

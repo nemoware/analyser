@@ -17,6 +17,7 @@ from integration.db import get_mongodb_connection
 
 CHARTER = 'CHARTER'
 CONTRACT = 'CONTRACT'
+PROTOCOL = 'PROTOCOL'
 
 
 class Runner:
