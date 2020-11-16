@@ -3,6 +3,7 @@ import json
 from datetime import datetime, date
 
 import jsonpickle
+import numpy as np
 from bson import json_util
 from bson.objectid import ObjectId
 from jsonschema import validate, FormatChecker
@@ -17,18 +18,49 @@ from analyser.structures import OrgStructuralLevel
 from integration.db import get_mongodb_connection
 
 
+class DatetimeHandler(jsonpickle.handlers.BaseHandler):
+  def flatten(self, obj: datetime, data):
+    return json_util.default(obj)
+
+
+class NumpyFloatHandler(jsonpickle.handlers.BaseHandler):
+  def flatten(self, obj: np.float, data):
+    return round(obj, 6)
+
+
+jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
+jsonpickle.handlers.registry.register(date, DatetimeHandler)
+
+jsonpickle.handlers.registry.register(np.float, NumpyFloatHandler)
+jsonpickle.handlers.registry.register(np.float32, NumpyFloatHandler)
+jsonpickle.handlers.registry.register(np.float64, NumpyFloatHandler)
+
+
+def del_none(d):
+  """
+  Delete keys with the value ``None`` in a dictionary, recursively.
+
+  This alters the input so you may wish to ``copy`` the dict first.
+  """
+
+  for key, value in list(d.items()):
+    if value is None:
+      del d[key]
+    elif isinstance(value, dict):
+      del_none(value)
+
+    elif isinstance(value, list):
+      for itm in list(value):
+        if isinstance(itm, dict):
+          del_none(itm)
+  return d  # For convenience
+
+
 def to_json(tree):
-  class DatetimeHandler(jsonpickle.handlers.BaseHandler):
-    def flatten(self, obj: datetime, data):
-      return json_util.default(obj)
-
-  jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
-  jsonpickle.handlers.registry.register(date, DatetimeHandler)
-
   json_str = jsonpickle.encode(tree, unpicklable=False, indent=4)
 
   j = json.loads(json_str, object_hook=json_util.object_hook)
-
+  j = del_none(j)
   return j, json_str
 
 

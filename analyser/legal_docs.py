@@ -478,21 +478,32 @@ def find_value_sign(txt: TextMap) -> (int, (int, int)):
 
 class ContractValue:
   def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
+    warnings.warn("switch to ContractPrice struktur", DeprecationWarning)
     self.value: SemanticTag = value
     self.sign: SemanticTag = sign
     self.currency: SemanticTag = currency
     self.parent: SemanticTag = parent
 
-  def is_child_of(self, p:SemanticTag)->bool:
+  def is_child_of(self, p: SemanticTag) -> bool:
     return self.parent.is_child_of(p)
 
-  def as_ContractPrice(self) -> ContractPrice:
+  def as_ContractPrice(self) -> ContractPrice or None:
     warnings.warn("switch to attributes_tree struktur", DeprecationWarning)
+
+    if self.value is None and self.currency is None and self.sign is None:
+      return None
+
     o: ContractPrice = ContractPrice()
 
     o.amount = clean_semantic_tag_copy(self.value)
     o.currency = clean_semantic_tag_copy(self.currency)
     o.sign = clean_semantic_tag_copy(self.sign)
+    confidence = 0.0
+    if o.amount is not None:
+      confidence = o.amount.confidence
+
+    o.confidence = confidence
+    o.span = self.span()
 
     return o
 
