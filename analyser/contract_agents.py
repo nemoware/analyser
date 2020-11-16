@@ -76,6 +76,7 @@ class ContractAgent(OrgItem):
     self.type_ext: SemanticTag or None = None
 
   def as_OrgItem(self) -> OrgItem:
+    warnings.warn("switch to attributes_tree struktur", DeprecationWarning)
     return self
 
   def as_list(self):

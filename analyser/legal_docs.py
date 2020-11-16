@@ -483,7 +483,11 @@ class ContractValue:
     self.currency: SemanticTag = currency
     self.parent: SemanticTag = parent
 
+  def is_child_of(self, p:SemanticTag)->bool:
+    return self.parent.is_child_of(p)
+
   def as_ContractPrice(self) -> ContractPrice:
+    warnings.warn("switch to attributes_tree struktur", DeprecationWarning)
     o: ContractPrice = ContractPrice()
 
     o.amount = clean_semantic_tag_copy(self.value)
@@ -493,6 +497,7 @@ class ContractValue:
     return o
 
   def as_list(self) -> [SemanticTag]:
+    warnings.warn("switch to attributes_tree struktur", DeprecationWarning)
     if self.sign.value != 0:
       return [self.value, self.sign, self.currency, self.parent]
     else:

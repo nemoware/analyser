@@ -40,8 +40,8 @@ class ContractPrice(SemanticTagBase):
 
 
 class AgendaItemContract(HasOrgs, SemanticTagBase):
-  number: SemanticTagBase
-  date: SemanticTagBase
+  number: SemanticTagBase = None
+  date: SemanticTagBase = None
   price: ContractPrice = None
 
   def __init__(self):
@@ -53,8 +53,7 @@ class AgendaItem(SemanticTagBase):
 
   def __init__(self):
     super().__init__()
-    self.contract: AgendaItemContract or None = None
-
+    self.contract: AgendaItemContract = AgendaItemContract()
 
 class OrgItem():
 

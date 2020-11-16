@@ -413,6 +413,14 @@ class SemanticTag(SemanticTagBase):
     self.span_map = span_map
     self.confidence = 1.0
 
+  def clean_copy(self) -> SemanticTagBase :
+
+
+    r = SemanticTagBase()
+    for a in ['value', 'span', 'confidence']:
+      setattr(r, a, getattr(self, a))
+    return r
+
   def as_json_attribute(self):
 
     key = self.get_key()
@@ -435,6 +443,9 @@ class SemanticTag(SemanticTagBase):
       base = base.name
 
     return f'{base}-{number}'
+
+  def is_child_of(self, p:'SemanticTag')->bool:
+    return self._parent_tag == p
 
   def get_parent(self) -> str or None:
     if self._parent_tag is not None:
