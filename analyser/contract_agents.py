@@ -33,7 +33,9 @@ for __t in sorted(legal_entity_types, key=lambda x: -len(x)):
   _regex = re_legal_entity_type(__t)
   rr = re.compile(_regex, re.IGNORECASE | re.UNICODE)
   legal_entity_types_re[rr] = __t
-  assert __t == rr.match(__t)[0]
+  if __t != rr.match(__t)[0]:
+    raise RuntimeError(f"{__t}")
+
 
 _is_valid = is_long_enough
 
@@ -106,11 +108,11 @@ def find_org_names(doc: LegalDocument,
                    decay_confidence=True,
                    audit_subsidiary_name=None, regex=complete_re,
                    re_ignore_case=complete_re_ignore_case) -> [SemanticTag]:
-
+  warnings.warn("deprecated because it calls _rename_org_tags", DeprecationWarning)
   _all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
                                              re_ignore_case=re_ignore_case)
 
-  warnings.warn("deprecated because it calls _rename_org_tags", DeprecationWarning)
+
   if audit_subsidiary_name:
     _all = sorted(_all, key=lambda a: a.name.value != audit_subsidiary_name)
   else:

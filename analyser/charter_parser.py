@@ -33,25 +33,15 @@ class CharterDocument(LegalDocumentExt):
   def __init__(self, doc: LegalDocument = None):
     super().__init__(doc)
     if doc is not None:
-      # self.__dict__ = {**super().__dict__, **doc.__dict__}
       self.__dict__.update(doc.__dict__)
-    # self.org_tags = []
-    # self.charity_tags = []
-    self.org_levels = []
-    self.constraint_tags = []
-    self.org_level_tags = []
-
-    self.margin_values: [ContractValue] = []
-
     self.attributes_tree = CharterSchema()
 
   def reset_attributes(self):
-    # reset for preventing doubling tags
-    self.margin_values = []
-    self.constraint_tags = []
-    # self.charity_tags = []
-    self.org_levels = []
-    self.org_level_tags = []
+    """
+    reset for preventing doubling tags
+    :return:
+    """
+    self.attributes_tree = CharterSchema()
 
   def get_number(self) -> SemanticTagBase:
     return self.attributes_tree.number
@@ -244,18 +234,14 @@ class CharterParser(ParsingContext):
     return doc
 
   def find_attributes(self, _charter: CharterDocument, ctx: AuditContext) -> CharterDocument:
+    # reset for preventing tags doubling
+    _charter.reset_attributes()
 
     self.find_org_date_number(_charter, ctx)
 
-    margin_values = []
-    org_levels = []
-    constraint_tags = []
     if _charter.sentences_embeddings is None:
       # lazy embedding
       self._embedd(_charter)
-
-    # reset for preventing tags doubling
-    _charter.reset_attributes()
 
     # --------------
     # (('Pattern name', 16), 0.8978644013404846),
@@ -274,34 +260,17 @@ class CharterParser(ParsingContext):
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
       subdoc = _charter.subdoc_slice(paragraph_body.as_slice())
       # --
-      __parent_org_level_tag = SemanticTag(org_level.name, org_level, paragraph_body.span, confidence=confidence)
-      structurallevel = CharterStructuralLevel(__parent_org_level_tag)
+      structurallevel = CharterStructuralLevel()
+      structurallevel.value = org_level
+      structurallevel.set_confidence(confidence)
+      structurallevel.set_span(paragraph_body.span)
       _charter.attributes_tree.structural_levels.append(structurallevel)
 
-      _constraint_tags, _margin_values = self.find_attributes_in_sections(subdoc, structurallevel)
-      margin_values += _margin_values
-      constraint_tags += _constraint_tags
+      self.find_attributes_in_sections(subdoc, structurallevel)
 
-      if _constraint_tags:
-        # _key = parent_org_level_tag.get_key()
-        #   if _key in _parent_org_level_tag_keys:  # number keys to avoid duplicates
-        #     parent_org_level_tag.kind = number_key(_key, len(_parent_org_level_tag_keys))
-        org_levels.append(structurallevel)
-
-        # Migrazzio: TODO:
-
-        # _csl.competences.append(Competence(c))
-        # _parent_org_level_tag_keys.append(_key)
-
-    # --------------- populate charter
-
-    _charter.org_levels = org_levels
-    _charter.constraint_tags = constraint_tags
-    _charter.margin_values = margin_values
     return _charter
 
-  def find_attributes_in_sections(self, subdoc: LegalDocumentExt, structural_level: CharterStructuralLevel) \
-          -> ([SemanticTag], [ContractValue]):
+  def find_attributes_in_sections(self, subdoc: LegalDocumentExt, structural_level: CharterStructuralLevel):
 
     # finding Subjects
     _subject_attentions_map = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())  # dictionary
@@ -320,66 +289,27 @@ class CharterParser(ParsingContext):
 
     _united_spans = merge_colliding_spans(_united_spans, eps=-1)  # TODO: check this
 
-    constraint_tags: [SemanticTag] = self.attribute_spans_to_subjects(_united_spans,
-                                                                      subdoc,
-                                                                      structural_level,
-                                                                      # OrgStructuralLevel.BoardOfDirectors
-                                                                      absolute_spans=False)
+    self.attribute_spans_to_subjects(_united_spans,
+                                     subdoc,
+                                     structural_level  # OrgStructuralLevel.BoardOfDirectors
+                                     )
 
     # offsetting tags to absolute values
     for value in values: value += subdoc.start
-    for competence_tag in constraint_tags: competence_tag += subdoc.start
+    for competence_tag in structural_level.competences: competence_tag += subdoc.start
 
     # nesting values (assigning parents)
-    for competence_tag in constraint_tags:  # contract subjects
-      competence = Competence(competence_tag)
-      structural_level.competences.append(competence)
+    for competence in structural_level.competences:  # contract subjects
 
       for value in values:
         v_group = value.parent
-        if competence_tag.contains(v_group.span):
-          v_group.set_parent_tag(competence_tag)
+        if competence.contains(v_group.span):
+          # v_group.set_parent_tag(competence_tag)
           competence.constraints.append(value.as_ContractPrice())
 
-    return constraint_tags, values
-
-  def find_attributes_in_sections2(self, subdoc: LegalDocumentExt, parent_org_level_tag) -> (
-          [SemanticTag], [ContractValue]):
-
-    subject_attentions_map = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())  # dictionary
-    subject_spans = collect_subjects_spans2(subdoc, subject_attentions_map)
-
-    values: [ContractValue] = find_value_sign_currency_attention(subdoc, None, absolute_spans=False)
-    self._rename_margin_values_tags(values)
-    valued_sentence_spans = collect_sentences_having_constraint_values(subdoc, values, merge_spans=True)
-
-    united_spans = []
-    for c in valued_sentence_spans:
-      united_spans.append(c)
-    for c in subject_spans:
-      united_spans.append(c)
-
-    united_spans = merge_colliding_spans(united_spans, eps=-1)  # XXX: check this
-
-    constraint_tags = self.attribute_spans_to_subjects(united_spans, subdoc,
-                                                       parent_org_level_tag,
-                                                       absolute_spans=False)
-
-    # nesting values
-    for parent_tag in constraint_tags:
-      for value in values:
-        v_group = value.parent
-        if parent_tag.contains(v_group.span):
-          v_group.set_parent_tag(parent_tag)
-
-    # offsetting tags to absolute values
-    for value in values: value += subdoc.start
-    for constraint_tag in constraint_tags: constraint_tag += subdoc.start
-
-    return constraint_tags, values
-
   def _rename_margin_values_tags(self, values):
-
+    warnings.warn("deprecated", DeprecationWarning)
+    # TODO: remove this
     for value in values:
       if value.sign.value < 0:
         sfx = '-max'
@@ -402,12 +332,11 @@ class CharterParser(ParsingContext):
   def attribute_spans_to_subjects(self,
                                   unique_sentence_spans: Spans,
                                   subdoc: LegalDocumentExt,
-                                  parent_org_level_tag: CharterStructuralLevel,
-                                  absolute_spans=True) -> [SemanticTag]:
+                                  parent_org_level_tag: CharterStructuralLevel):
 
     subject_attentions_map: dict = get_charter_subj_attentions(subdoc, self.get_subj_patterns_embeddings())
-    all_subjects = [k for k in subject_attentions_map.keys()]
-    constraint_tags: [SemanticTag] = []
+    all_subjects = list(subject_attentions_map.keys())
+    parent_org_level_tag.competences = []
     # attribute sentences to subject
     for contract_value_sentence_span in unique_sentence_spans:
 
@@ -426,21 +355,14 @@ class CharterParser(ParsingContext):
       # end for
 
       if best_subject is not None:
-        constraint_tag = SemanticTag(best_subject.name,
-                                     best_subject,
-                                     contract_value_sentence_span,
-                                     parent=parent_org_level_tag)
-        constraint_tag.confidence = max_confidence
-        constraint_tags.append(constraint_tag)
+        competence = Competence()
+        competence.value = best_subject
+        competence.set_span(contract_value_sentence_span)
+        competence.set_confidence(max_confidence)
+
+        parent_org_level_tag.competences.append(competence)
 
         all_subjects.remove(best_subject)  # taken: avoid duplicates
-
-    # ofsetting
-    if absolute_spans:
-      for constraint_tag in constraint_tags:
-        constraint_tag.offset(subdoc.start)
-
-    return constraint_tags
 
 
 def collect_sentences_having_constraint_values(subdoc: LegalDocumentExt, contract_values: [ContractValue],

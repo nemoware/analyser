@@ -70,7 +70,7 @@ class TestSchema(unittest.TestCase):
     for k, v in dest.items():
       print(f"[{k}]", v)
 
-    self.assertTrue('BoardOfCompany/Charity/constraint-min-1' in dest)
+    self.assertTrue('BoardOfCompany/Charity/constraint-max-1' in dest)
     self.assertTrue('org-1-name' in dest)
     self.assertTrue('org-1-type' in dest)
     self.assertTrue('org-1-alias' in dest)

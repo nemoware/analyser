@@ -483,7 +483,7 @@ class Schema2LegacyListConverter:
       suffix = 'min'
       if hasattr(tag, 'sign'):
         amnt = tag.sign.value
-        if amnt > 0:
+        if amnt < 0:
           suffix = "max"
 
       return f"constraint-{suffix}"
