@@ -213,6 +213,19 @@ class LegalDocument:
     j = DocumentJson(self)
     return json.dumps(j.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
 
+  def tags_to_json_attributes(self) -> dict:
+    warnings.warn("use LegalDoc.tags_to_attributes_dict", DeprecationWarning)
+    attributes = {}
+    for t in self.get_tags():
+      key, attr = t.as_json_attribute()
+
+      if key in attributes:
+        raise RuntimeError(key + ' duplicated key')
+
+      attributes[key] = attr
+
+    return attributes
+
   def get_tokens_cc(self):
     return self.tokens_map.tokens
 
@@ -399,10 +412,10 @@ class DocumentJson:
     self.original_text = doc.original_text
     self.normal_text = doc.normal_text
 
-    self.attributes = self.__tags_to_attributes_dict(doc.get_tags())
+    self.attributes = doc.tags_to_json_attributes()
     self.headers = self.__tags_to_attributes_list([hi.header for hi in doc.paragraphs])
 
-  def __tags_to_attributes_list(self, _tags):
+  def __tags_to_attributes_list(self, _tags) -> []:
 
     attributes = []
     for t in _tags:
@@ -411,8 +424,8 @@ class DocumentJson:
 
     return attributes
 
-  def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
-
+  def __tags_to_attributes_dict(self, _tags: [SemanticTag]) -> dict:
+    warnings.warn("use LegalDoc.tags_to_attributes_dict", DeprecationWarning)
     attributes = {}
     for t in _tags:
       key, attr = t.as_json_attribute()

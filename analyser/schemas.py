@@ -5,6 +5,7 @@
 
 # schemas.py
 import warnings
+from enum import Enum
 
 from analyser.ml_tools import SemanticTagBase
 from analyser.structures import OrgStructuralLevel, ContractSubject, currencly_map
@@ -55,6 +56,7 @@ class AgendaItem(SemanticTagBase):
     super().__init__()
     self.contract: AgendaItemContract = AgendaItemContract()
 
+
 class OrgItem():
 
   def __init__(self):
@@ -85,23 +87,25 @@ class ProtocolSchema(DocumentSchema):
     self.agenda_items: [AgendaItem] = []
 
 
-class CharterConstraint:
-  def __init__(self):
-    super().__init__()
-    self.margins: [ContractPrice] = []
+# class CharterConstraint:
+#   def __init__(self):
+#     super().__init__()
+#     self.margins: [ContractPrice] = []
 
 
 class Competence(SemanticTagBase):
-  def __init__(self):
-    super().__init__()
-    # self.value: OrgStructuralLevel = None
-    self.constraints: [CharterConstraint] = []
+  """
+  child of CharterStructuralLevel
+  """
+
+  def __init__(self, tag: SemanticTagBase = None):
+    super().__init__(tag)
+    self.constraints: [ContractPrice] = []
 
 
 class CharterStructuralLevel(SemanticTagBase):
-  def __init__(self):
-    super().__init__()
-    # self.value: OrgStructuralLevel = None
+  def __init__(self, tag: SemanticTagBase = None):
+    super().__init__(tag)
     self.competences: [Competence] = []
 
 
@@ -435,6 +439,117 @@ document_schemas = {
 
 }
 
+
 # ---------------------------
 # self test
 # validate(instance={"date":{}}, schema=charter_schema)
+
+
+class Schema2LegacyListConverter:
+
+  def __init__(self):
+
+    self.attr_handlers = [
+      self.handleCharterStructuralLevel,
+      self.handleCompetence,
+      self.handleContractPrice,
+      self.handleValueTag,
+      self.handleCharterOrgItem]
+
+  @staticmethod
+  def handleCharterStructuralLevel(tag, key, parent_key):
+    if isinstance(tag, CharterStructuralLevel):
+      return tag.value.name
+
+  @staticmethod
+  def handleCompetence(tag, key, parent_key):
+    if isinstance(tag, Competence):
+      return tag.value.name
+
+  @staticmethod
+  def handleValueTag(tag, key, parent_key):
+    if key == 'amount':
+      return 'value'
+
+  @staticmethod
+  def handleCharterOrgItem(tag, key, parent_key):
+    if parent_key == 'org':
+      if key in ['type', 'name', 'alias']:
+        return None, f"org-1-{key}"
+
+  @staticmethod
+  def handleContractPrice(tag, key, parent_key):
+    if isinstance(tag, ContractPrice):
+      suffix = 'min'
+      if hasattr(tag, 'sign'):
+        amnt = tag.sign.value
+        if amnt > 0:
+          suffix = "max"
+
+      return f"constraint-{suffix}"
+
+  def key_of_attr(self, tag: SemanticTagBase, key, parent_key=None, index=-1) -> (str, str):
+    ret = key
+    for handler in self.attr_handlers:
+      s = handler(tag, key, parent_key)
+      if isinstance(s, tuple):
+        parent_key = s[0]
+        s = s[1]
+      if s is not None:
+        ret = s
+        break
+
+    if index != -1:
+      if not isinstance(tag.value, Enum):
+        # do not number enums
+        ret = f'{ret}-{index + 1}'
+
+    return parent_key, ret
+
+  def tag_to_attr(self, tag: SemanticTagBase, key: str = "", parent_key=None, index=-1):
+    v = tag.value
+    if isinstance(v, Enum):
+      v = v.name
+
+    parent_key, self_key = self.key_of_attr(tag, key, parent_key, index)
+    if parent_key:
+      full_key = f'{parent_key}/{self_key}'
+    else:
+      full_key = self_key
+    # full_key = self_key
+
+    ret = {}
+    ret['value'] = v
+    if hasattr(tag, "confidence"):
+      ret['confidence'] = tag.confidence
+    if hasattr(tag, "span"):
+      ret['span'] = tag.span
+    if parent_key is not None:
+      ret['parent'] = parent_key
+
+    return full_key, ret
+
+  def schema2list(self, dest: dict, d, attr_name: str = None, parent_key=None, index=-1):
+    _key = attr_name
+
+    if not hasattr(d, '__dict__'):
+      return
+
+    if isinstance(d, SemanticTagBase):
+      # print("\t\t\t >>> TAG", d.value, type(d))
+      _key, v = self.tag_to_attr(d, attr_name, parent_key, index)
+      dest[_key] = v
+
+    # dig into attributes
+    for a_name, attr_value in vars(d).items():
+
+      if isinstance(attr_value, list):
+        # print(f"\t\t\t\n [{attr}]...")
+        for i, itm in enumerate(attr_value):
+          self.schema2list(dest, itm, attr_name=a_name, parent_key=_key, index=i)
+
+      elif isinstance(attr_value, object) and not a_name.startswith('_'):
+        # print("OBJET", a_name, type(attr_value), type(d))
+        self.schema2list(dest, attr_value, attr_name=a_name, parent_key=_key)
+      # elif isinstance(v, dict):
+      #   pass

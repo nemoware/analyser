@@ -51,6 +51,7 @@ class BaseProcessor:
       legal_doc = jdoc.asLegalDoc()
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(jdoc, legal_doc, state=DocumentState.Preprocessed.value)
+      return legal_doc
 
   def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
     # phase II

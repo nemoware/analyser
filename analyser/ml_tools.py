@@ -384,8 +384,13 @@ class SemanticTagBase:
   span: (int, int)
   confidence: float
 
-  def __init__(self):
+  def __init__(self, tag=None):
     super().__init__()
+
+    if tag is not None:
+      self.value = tag.value
+      self.span = tag.span
+      self.confidence = tag.confidence
 
   def as_json_attribute(self):
     raise NotImplementedError()
@@ -398,7 +403,7 @@ class SemanticTag(SemanticTagBase):
                value: str or Enum or None = None,
                span: (int, int) = (-1, -1),
                span_map: str or None = 'words',
-               parent: 'SemanticTag' = None):
+               parent: 'SemanticTag' = None, confidence:float=1.0):
     super().__init__()
     self.kind = kind
     self.value: str or Enum or None = value
@@ -411,7 +416,7 @@ class SemanticTag(SemanticTagBase):
     else:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
-    self.confidence = 1.0
+    self.confidence = confidence
 
   def clean_copy(self) -> SemanticTagBase :
 

@@ -11,7 +11,7 @@ from analyser.finalizer import get_doc_by_id, get_audit_by_id
 from analyser.log import logger
 from analyser.parsing import AuditContext
 from analyser.persistence import DbJsonDoc
-from analyser.runner import BaseProcessor, document_processors, CONTRACT, get_audits, PROTOCOL, CHARTER
+from analyser.runner import BaseProcessor, document_processors, CONTRACT, PROTOCOL, CHARTER
 from integration.db import get_mongodb_connection
 
 
@@ -61,6 +61,7 @@ class AnalyzerTestCase(unittest.TestCase):
     ctx = AuditContext()
     processor.preprocess(jdoc, context=ctx)
     processor.process(jdoc, audit, ctx)
+
 
 #
 

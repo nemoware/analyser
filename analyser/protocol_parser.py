@@ -70,6 +70,8 @@ class ProtocolDocument(LegalDocumentExt):
 
     return []
 
+  org_tags = property(get_org_tags)
+
   def get_agents_tags(self) -> [SemanticTag]:
     warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     res = []
@@ -83,7 +85,7 @@ class ProtocolDocument(LegalDocumentExt):
 
     return res
 
-  org_tags = property(get_org_tags)
+
   agents_tags = property(get_agents_tags)
 
   def get_org_level(self) -> SemanticTagBase:
@@ -242,7 +244,7 @@ class ProtocolParser(ParsingContext):
       ai = AgendaItem()
       ai.span = aq.span
       ai.confidence = aq.confidence
-      setattr(ai, '_legacy_tag_ref', aq)
+      setattr(ai, '_legacy_tag_ref', aq) #TODO: remove this shit, it must not go to DB
       # ai.__dict__['_legacy_tag_ref'] = aq
       doc.attributes_tree.agenda_items.append(ai)
 
@@ -265,6 +267,8 @@ class ProtocolParser(ParsingContext):
 
     if not document.margin_values and not document.agents_tags and not document.contract_numbers:
       document.warn(ParserWarnings.boring_agenda_questions)
+
+    # TODO: add more warnings
 
   def find_orgs_in_agendas(self,
                              doc: ProtocolDocument,
@@ -433,21 +437,20 @@ def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
 
   ret = []
   _subdoc = protocol[0:HyperParameters.protocol_caption_max_size_words]
-  x: [SemanticTag] = find_org_names(_subdoc,
+  _flat_list: [SemanticTag] = find_org_names(_subdoc,
                                     max_names=1,
                                     regex=protocol_caption_complete_re,
                                     re_ignore_case=protocol_caption_complete_re_ignore_case)
 
-  # _all: [ContractAgent] = find_org_names_raw(doc, max_names, parent, decay_confidence, regex=regex,
-  #                                            re_ignore_case=re_ignore_case)
 
-  nm = SemanticTag.find_by_kind(x, 'org-1-name')
+
+  nm = SemanticTag.find_by_kind(_flat_list, 'org-1-name')
   if nm is not None:
     ret.append(nm)
   else:
     protocol.warn(ParserWarnings.org_name_not_found)
 
-  tp = SemanticTag.find_by_kind(x, 'org-1-type')
+  tp = SemanticTag.find_by_kind(_flat_list, 'org-1-type')
   if tp is not None:
     ret.append(tp)
   else:
