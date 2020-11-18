@@ -82,4 +82,3 @@ pip install --no-index --find-links=tmp/wheelhouse SomePackage
     sudo systemctl start nemoware-analyzer.service         #To start running service 
     sudo systemctl restart nemoware-analyzer.service       #To restart running service 
     ```
-
