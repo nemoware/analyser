@@ -27,6 +27,25 @@ def add_link(audit_id, doc_id1, doc_id2):
     audit_collection.update_one({"_id": audit_id}, {"$push": {"links": {"fromId": doc_id1, "toId": doc_id2, "type": "analysis"}}})
 
 
+def change_contract_subject(contract, new_subject):
+    db = get_mongodb_connection()
+    if contract.get("user") is not None:
+        db['documents'].update_one({"_id": contract['_id']}, {'$set': {'user.attributes.subject.value': new_subject}})
+    else:
+        db['documents'].update_one({"_id": contract['_id']}, {'$set': {'analysis.attributes.subject.value': new_subject}})
+    attrs = get_attrs(contract)
+    if attrs.get('subject') is None:
+        attrs['subject'] = {'value': new_subject}
+    else:
+        attrs['subject']['value'] = new_subject
+
+
+def get_book_value(audit, target_year: str):
+    for record in audit['bookValues']:
+        if target_year == record['year']:
+            return float(record['value'])
+
+
 def extract_text(span, words, text):
     first_idx = words[span[0]][0]
     last_idx = words[span[1]][0] - 1
@@ -133,6 +152,10 @@ def get_constraints_rub(key, attributes):
                         result["value"] = value3["value"]
                     elif key3.endswith("currency"):
                         result["currency"] = value3["value"]
+            if key2.endswith('-min'):
+                result['sign'] = 1
+            else:
+                result['sign'] = -1
             constraints.append(result)
     for constraint in constraints:
         convert_to_rub(constraint)
@@ -271,10 +294,20 @@ def check_contract(contract, charters, protocols, audit):
         contract_value = None
         if contract_attrs.get("sign_value_currency/value") is not None and contract_attrs.get("sign_value_currency/currency") is not None:
             contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
+        if contract_value is not None:
+            bookValue = get_book_value(audit, str(contract_attrs["date"]["value"].year - 1))
+            if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:
+                competences = {'BoardOfDirectors': {"min": bookValue * 0.25, "original_min": 25, "original_currency_min": "%", "max": bookValue * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
+                change_contract_subject(contract, 'BigDeal')
+            elif contract_value["value"] > bookValue * 0.5:
+                competences = {'ShareholdersGeneralMeeting': {"min": bookValue * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
+                change_contract_subject(contract, 'BigDeal')
+
         if competences is not None and contract_value is not None:
             eligible_protocol = None
             need_protocol_check = False
             competence_constraint = None
+
             for competence, constraint in competences.items():
                 if constraint["min"] <= contract_value["value"] <= constraint["max"]:
                     need_protocol_check = True
