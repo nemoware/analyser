@@ -44,6 +44,7 @@ def get_book_value(audit, target_year: str):
     for record in audit['bookValues']:
         if target_year == record['year']:
             return float(record['value'])
+    return None
 
 
 def extract_text(span, words, text):
@@ -296,12 +297,13 @@ def check_contract(contract, charters, protocols, audit):
             contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
         if contract_value is not None:
             bookValue = get_book_value(audit, str(contract_attrs["date"]["value"].year - 1))
-            if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:
-                competences = {'BoardOfDirectors': {"min": bookValue * 0.25, "original_min": 25, "original_currency_min": "%", "max": bookValue * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
-                change_contract_subject(contract, 'BigDeal')
-            elif contract_value["value"] > bookValue * 0.5:
-                competences = {'ShareholdersGeneralMeeting': {"min": bookValue * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
-                change_contract_subject(contract, 'BigDeal')
+            if bookValue is not None:
+                if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:
+                    competences = {'BoardOfDirectors': {"min": bookValue * 0.25, "original_min": 25, "original_currency_min": "%", "max": bookValue * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
+                    change_contract_subject(contract, 'BigDeal')
+                elif contract_value["value"] > bookValue * 0.5:
+                    competences = {'ShareholdersGeneralMeeting': {"min": bookValue * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
+                    change_contract_subject(contract, 'BigDeal')
 
         if competences is not None and contract_value is not None:
             eligible_protocol = None
