@@ -42,8 +42,8 @@ def change_contract_subject(contract, new_subject):
 
 def get_book_value(audit, target_year: str):
     for record in audit['bookValues']:
-        if target_year == record['year']:
-            return float(record['value'])
+        if record.get(target_year) is not None:
+            return float(record[target_year])
     return None
 
 
