@@ -93,12 +93,15 @@ class CharterDocument(LegalDocumentExt):
 
 def _make_org_level_patterns() -> pd.DataFrame:
   p = competence_headline_pattern_prefix  # just shortcut
+
   comp_str_pat = pd.DataFrame()
+
   for ol in OrgStructuralLevel:
-    comp_str_pat[PATTERN_DELIMITER.join([p, ol.name])] = [ol.display_string.lower()]
-    comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name])] = [
-      f'к компетенции {ol.display_string} относятся следующие вопросы'.lower()]
-    comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', ol.name])] = f"компетенции {ol.display_string}".lower()
+    display_strings:[str] = ol.display_string
+    for i, display_string in enumerate(display_strings):
+      comp_str_pat[PATTERN_DELIMITER.join([p, ol.name, str(i)])] = [display_string.lower()]
+      comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name, str(i)])] = [f'к компетенции {display_string} относятся следующие вопросы'.lower()]
+      comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', ol.name, str(i)])] = f"компетенции {display_string}".lower()
 
   _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.ShareholdersGeneralMeeting.name])
   comp_str_pat[_key] = ['Компетенция Общего собрания акционеров Общества'.lower()]
