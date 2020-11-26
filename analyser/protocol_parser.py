@@ -85,7 +85,6 @@ class ProtocolDocument(LegalDocumentExt):
 
     return res
 
-
   agents_tags = property(get_agents_tags)
 
   def get_org_level(self) -> SemanticTagBase:
@@ -244,7 +243,7 @@ class ProtocolParser(ParsingContext):
       ai = AgendaItem()
       ai.span = aq.span
       ai.confidence = aq.confidence
-      setattr(ai, '_legacy_tag_ref', aq) #TODO: remove this shit, it must not go to DB
+      setattr(ai, '_legacy_tag_ref', aq)  # TODO: remove this shit, it must not go to DB
       # ai.__dict__['_legacy_tag_ref'] = aq
       doc.attributes_tree.agenda_items.append(ai)
 
@@ -271,8 +270,8 @@ class ProtocolParser(ParsingContext):
     # TODO: add more warnings
 
   def find_orgs_in_agendas(self,
-                             doc: ProtocolDocument,
-                             audit_subsidiary_name: str):
+                           doc: ProtocolDocument,
+                           audit_subsidiary_name: str):
 
     for ai in doc.attributes_tree.agenda_items:
       span = ai.span
@@ -365,23 +364,23 @@ class ProtocolParser(ParsingContext):
   def find_question_decision_sections(self, doc: ProtocolDocument) -> [SemanticTag]:
 
     # DEAL APPROVAL SENTENCES
-    v_deal_approval = max_exclusive_pattern_by_prefix(doc.distances_per_sentence_pattern_dict, 'deal_approval_')
-    _spans, deal_approval_av = sentences_attention_to_words(v_deal_approval, doc.sentence_map,
-                                                            doc.tokens_map)
-    deal_approval_relu_av = best_above(deal_approval_av, 0.5)
+    _v_deal_approval: FixedVector = max_exclusive_pattern_by_prefix(doc.distances_per_sentence_pattern_dict,
+                                                                    'deal_approval_')
+    _spans, deal_approval_av = sentences_attention_to_words(_v_deal_approval, doc.sentence_map, doc.tokens_map)
+    deal_approval_relu_av: FixedVector = best_above(deal_approval_av, 0.5)
 
     # VOTES
-    votes_av = doc.tokens_map.regex_attention(protocol_votes_re)
+    votes_av: FixedVector = doc.tokens_map.regex_attention(protocol_votes_re)
 
     # DOC NUMBERS
-    numbers_av = doc.tokens_map.regex_attention(document_number_c)
+    numbers_av: FixedVector = doc.tokens_map.regex_attention(document_number_c)
 
     # DOC AGENTS orgs
-    agents_av = doc.tokens_map.regex_attention(agents_re)
+    agents_av: FixedVector = doc.tokens_map.regex_attention(agents_re)
 
     # DOC MARGIN VALUES
-    margin_values_av = self._get_value_attention_vector(doc)
-    margin_values_v = doc.tokens_map.regex_attention(values_re)
+    margin_values_av: FixedVector = self._get_value_attention_vector(doc)
+    margin_values_v: FixedVector = doc.tokens_map.regex_attention(values_re)
     margin_values_v *= margin_values_av
     doc.distances_per_pattern_dict[ProtocolAV.relu_value_attention_vector.name] = margin_values_av
 
@@ -393,11 +392,12 @@ class ProtocolParser(ParsingContext):
       votes_av / 2,
       numbers_av / 2])
 
-    combined_av_norm = best_above(combined_av, 0.2)
+    # TODO: this is exactly what we will get from NN out layer
+    combined_av_norm: FixedVector = best_above(combined_av, 0.2)
     # --------------
 
-    protocol_sections_edges = self.find_protocol_sections_edges(doc.distances_per_sentence_pattern_dict)
-    _question_spans_sent = spans_between_non_zero_attention(protocol_sections_edges)
+    _protocol_sections_edges = self.find_protocol_sections_edges(doc.distances_per_sentence_pattern_dict)
+    _question_spans_sent = spans_between_non_zero_attention(_protocol_sections_edges)
     question_spans_words = doc.sentence_map.remap_slices(_question_spans_sent, doc.tokens_map)
 
     agenda_questions = list(find_confident_spans(question_spans_words, combined_av_norm, 'agenda_item', 0.5))
@@ -438,11 +438,9 @@ def find_protocol_org(protocol: ProtocolDocument) -> [SemanticTag]:
   ret = []
   _subdoc = protocol[0:HyperParameters.protocol_caption_max_size_words]
   _flat_list: [SemanticTag] = find_org_names(_subdoc,
-                                    max_names=1,
-                                    regex=protocol_caption_complete_re,
-                                    re_ignore_case=protocol_caption_complete_re_ignore_case)
-
-
+                                             max_names=1,
+                                             regex=protocol_caption_complete_re,
+                                             re_ignore_case=protocol_caption_complete_re_ignore_case)
 
   nm = SemanticTag.find_by_kind(_flat_list, 'org-1-name')
   if nm is not None:

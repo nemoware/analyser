@@ -327,7 +327,7 @@ def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> Vectors:
       yield dictionary[p]
 
 
-def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
+def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix)->FixedVector:
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
 
   return max_exclusive_pattern(vectors)
