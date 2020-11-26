@@ -117,6 +117,7 @@ class ProtocolDocument(LegalDocumentExt):
     for mv in self.margin_values:
       tags += mv.as_list()
 
+    tags = [t for t in tags if t is not None] #TODO remove this weirdo
     return tags
 
   def to_json_obj(self) -> dict:

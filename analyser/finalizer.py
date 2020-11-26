@@ -157,7 +157,7 @@ def get_charter_diapasons(charter):
             if len(constraints) == 0:
                 min_constraint = 0
             for constraint in constraints:
-                if int(constraint["sign"]) > 0:
+                if int(constraint.get("sign", 0)) > 0: #sorry, there might be no 'sign'
                     if subject_map[value["parent"]]["min"] == 0:
                         subject_map[value["parent"]]["min"] = constraint["value"]
                         subject_map[value["parent"]]["original_min"] = constraint["original_value"]
