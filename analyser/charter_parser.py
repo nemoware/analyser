@@ -97,11 +97,12 @@ def _make_org_level_patterns() -> pd.DataFrame:
   comp_str_pat = pd.DataFrame()
 
   for ol in OrgStructuralLevel:
-    display_strings:[str] = ol.display_string
+    display_strings: [str] = ol.display_string
     for i, display_string in enumerate(display_strings):
-      comp_str_pat[PATTERN_DELIMITER.join([p, ol.name, str(i)])] = [display_string.lower()]
-      comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name, str(i)])] = [f'к компетенции {display_string} относятся следующие вопросы'.lower()]
-      comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', ol.name, str(i)])] = f"компетенции {display_string}".lower()
+      comp_str_pat[PATTERN_DELIMITER.join([str(i), p, ol.name])] = [display_string.lower()]
+      comp_str_pat[PATTERN_DELIMITER.join([str(i), p, 'comp', 'q', ol.name])] = [
+        f'к компетенции {display_string} относятся следующие вопросы'.lower()]
+      comp_str_pat[PATTERN_DELIMITER.join([str(i), p, 'comp', ol.name])] = f"компетенции {display_string}".lower()
 
   _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.ShareholdersGeneralMeeting.name])
   comp_str_pat[_key] = ['Компетенция Общего собрания акционеров Общества'.lower()]
@@ -259,7 +260,7 @@ class CharterParser(ParsingContext):
 
       paragraph_body: SemanticTag = _charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
-      _org_level_name = _pattern_name.split('/')[-1]
+      _org_level_name = _pattern_name.split(PATTERN_DELIMITER)[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
       subdoc = _charter.subdoc_slice(paragraph_body.as_slice())
       # --
