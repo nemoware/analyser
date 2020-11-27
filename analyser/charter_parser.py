@@ -4,12 +4,12 @@ import warnings
 import pandas as pd
 from overrides import overrides
 from pandas import DataFrame
-
+import os
 from analyser.attributes import to_json
 from analyser.contract_agents import find_org_names, ContractAgent, find_org_names_raw, _rename_org_tags
 from analyser.doc_dates import find_document_date
 from analyser.embedding_tools import AbstractEmbedder
-from analyser.hyperparams import HyperParameters
+from analyser.hyperparams import HyperParameters, models_path
 from analyser.legal_docs import LegalDocumentExt, remap_attention_vector, embedd_sentences, LegalDocument, \
   ContractValue, ParserWarnings
 from analyser.ml_tools import SemanticTag, calc_distances_per_pattern, merge_colliding_spans, TAG_KEY_DELIMITER, Spans, \
@@ -92,24 +92,12 @@ class CharterDocument(LegalDocumentExt):
 
 
 def _make_org_level_patterns() -> pd.DataFrame:
-  p = competence_headline_pattern_prefix  # just shortcut
-  comp_str_pat = pd.DataFrame()
-  for ol in OrgStructuralLevel:
-    comp_str_pat[PATTERN_DELIMITER.join([p, ol.name])] = [ol.display_string.lower()]
-    comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', 'q', ol.name])] = [
-      f'к компетенции {ol.display_string} относятся следующие вопросы'.lower()]
-    comp_str_pat[PATTERN_DELIMITER.join([p, 'comp', ol.name])] = f"компетенции {ol.display_string}".lower()
 
-  _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.ShareholdersGeneralMeeting.name])
-  comp_str_pat[_key] = ['Компетенция Общего собрания акционеров Общества'.lower()]
-
-  _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.BoardOfDirectors.name])
-  comp_str_pat[_key] = ['Компетенция Совета директоров Общества'.lower()]
-
-  _key = PATTERN_DELIMITER.join([p, 'comp', 'qr', OrgStructuralLevel.CEO.name])
-  comp_str_pat[_key] = ['Единоличный исполнительный орган Общества'.lower()]
-
+  p = os.path.join(models_path, 'charter_org_level_patterns.json')
+  comp_str_pat =  pd.read_json(p, orient='index')
   return comp_str_pat.astype('str')
+
+
 
 
 class CharterParser(ParsingContext):
@@ -256,7 +244,7 @@ class CharterParser(ParsingContext):
 
       paragraph_body: SemanticTag = _charter.paragraphs[_paragraph_id].body
       confidence = p_mapping[1]
-      _org_level_name = _pattern_name.split('/')[-1]
+      _org_level_name = _pattern_name.split(PATTERN_DELIMITER)[-1]
       org_level: OrgStructuralLevel = OrgStructuralLevel[_org_level_name]
       subdoc = _charter.subdoc_slice(paragraph_body.as_slice())
       # --
