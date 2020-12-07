@@ -76,11 +76,15 @@ def convert_org(attr_name: str,
   if field_name in ['type', 'name', 'alias']:
     copy_leaf_tag(field_name, src=attr, dest=org)
 
+def has_non_blanc_attr(dest, field_name:str)->bool:
+  if hasattr(dest, field_name):
+    return getattr(dest, field_name) is not None
+  return False
 
 def copy_leaf_tag(field_name: str, src, dest):
-  if hasattr(dest, field_name):
+  if has_non_blanc_attr(dest, field_name):
     v = getattr(dest, field_name)
-    setattr(v, "warning", "ambiguity: multiple values, see 'alternatives' field")
+    # setattr(v, "warning", "ambiguity: multiple values, see 'alternatives' field")
     logger.warning(f"{field_name} has multiple values")
 
     alternatives = []
