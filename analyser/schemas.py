@@ -52,8 +52,8 @@ class AgendaItemContract(HasOrgs, SemanticTagBase):
 class AgendaItem(SemanticTagBase):
   solution: SemanticTagBase or None = None
 
-  def __init__(self):
-    super().__init__()
+  def __init__(self, tag= None):
+    super().__init__(tag)
     self.contract: AgendaItemContract = AgendaItemContract()
 
 

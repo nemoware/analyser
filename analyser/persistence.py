@@ -1,4 +1,5 @@
 import datetime
+import warnings
 
 import numpy as np
 
@@ -107,9 +108,8 @@ class DbJsonDoc:
     arrr = self.analysis['tokenization_maps']['words']
     return len(arrr)
 
-
-
   def is_analyzed(self) -> bool:
+    #TODO: this is waaaaay to complex
     if self.state == DocumentState.New.value:
       return False
 
@@ -117,16 +117,26 @@ class DbJsonDoc:
             self.analysis.get('attributes', None) is not None)) or self.is_user_corrected()
 
   def get_attributes(self) -> dict:
+    warnings.warn("switch to attributes_tree", DeprecationWarning)
+    attributes = {}
     if self.user is not None:
       attributes = self.user.get('attributes', {})
-    else:
+    elif self.analysis is not None:
       attributes = self.analysis.get('attributes', {})
     return attributes
+
+  def get_attributes_tree(self) -> dict:
+    a = {}
+    if self.user is not None:
+      a = self.user.get('attributes_tree', {})
+    elif self.analysis is not None:
+      a = self.analysis.get('attributes_tree', {})
+    return a
 
   def get_subject(self) -> dict:
     return self.get_attribute('subject')
 
-  def get_attribute_value(self, attr) -> str or None:
+  def get_attribute_value(self, attr: str) -> str or None:
     a = self.get_attribute(attr)
     if a is not None:
       return a['value']

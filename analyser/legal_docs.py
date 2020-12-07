@@ -424,19 +424,6 @@ class DocumentJson:
 
     return attributes
 
-  def __tags_to_attributes_dict(self, _tags: [SemanticTag]) -> dict:
-    warnings.warn("use LegalDoc.tags_to_attributes_dict", DeprecationWarning)
-    attributes = {}
-    for t in _tags:
-      key, attr = t.as_json_attribute()
-
-      if key in attributes:
-        raise RuntimeError(key + ' duplicated key')
-
-      attributes[key] = attr
-
-    return attributes
-
   def dumps(self):
     return json.dumps(self.__dict__, indent=2, ensure_ascii=False, default=json_util.default)
 

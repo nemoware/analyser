@@ -70,8 +70,6 @@ class ProtocolDocument(LegalDocumentExt):
 
     return []
 
-  org_tags = property(get_org_tags)
-
   def get_agents_tags(self) -> [SemanticTag]:
     warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     res = []
@@ -86,6 +84,7 @@ class ProtocolDocument(LegalDocumentExt):
     return res
 
   agents_tags = property(get_agents_tags)
+  org_tags = property(get_org_tags)
 
   def get_org_level(self) -> SemanticTagBase:
     return self.attributes_tree.structural_level
@@ -117,7 +116,7 @@ class ProtocolDocument(LegalDocumentExt):
     for mv in self.margin_values:
       tags += mv.as_list()
 
-    tags = [t for t in tags if t is not None] #TODO remove this weirdo
+    tags = [t for t in tags if t is not None]  # TODO remove this weirdo
     return tags
 
   def to_json_obj(self) -> dict:
@@ -241,9 +240,8 @@ class ProtocolParser(ParsingContext):
 
     # migrazzio:
     for aq in doc.agenda_questions:
-      ai = AgendaItem()
-      ai.span = aq.span
-      ai.confidence = aq.confidence
+      ai = AgendaItem(tag=aq)
+
       setattr(ai, '_legacy_tag_ref', aq)  # TODO: remove this shit, it must not go to DB
       # ai.__dict__['_legacy_tag_ref'] = aq
       doc.attributes_tree.agenda_items.append(ai)
