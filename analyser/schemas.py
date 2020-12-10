@@ -50,10 +50,12 @@ class AgendaItemContract(HasOrgs, SemanticTagBase):
 
 
 class AgendaItem(SemanticTagBase):
-  solution: SemanticTagBase or None = None
+
 
   def __init__(self, tag= None):
     super().__init__(tag)
+    self.solution: SemanticTagBase or None = None
+
     self.contract: AgendaItemContract = AgendaItemContract()
 
 
@@ -83,7 +85,7 @@ class ProtocolSchema(DocumentSchema):
   def __init__(self):
     super().__init__()
     self.org: OrgItem = OrgItem()
-    self.structural_level: SemanticTagBase
+    self.structural_level: SemanticTagBase or None = None
     self.agenda_items: [AgendaItem] = []
 
 
