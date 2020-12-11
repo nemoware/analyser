@@ -67,21 +67,26 @@ def to_json(tree):
 def convert_org(attr_name: str,
                 attr: dict,
                 dest: HasOrgs):
+  if attr_name.endswith("-alt-name"):
+    attr_name = attr_name.replace("-alt-name", "-alt_name")
+
   name_parts = attr_name.split('-')
   _index = int(name_parts[1]) - 1
   org = array_set_or_get_at(dest.orgs, _index, lambda: OrgItem())
 
   field_name = name_parts[-1]
 
-  if field_name in ['type', 'name', 'alias']:
-    copy_leaf_tag(field_name, src=attr, dest=org)
+  if field_name in ['type', 'name', 'alias', 'alt_name']:
+    copy_leaf_tag(field_name, src=attr, dest=org, attr_name=field_name)
 
-def has_non_blanc_attr(dest, field_name:str)->bool:
+
+def has_non_blanc_attr(dest, field_name: str) -> bool:
   if hasattr(dest, field_name):
     return getattr(dest, field_name) is not None
   return False
 
-def copy_leaf_tag(field_name: str, src, dest):
+
+def copy_leaf_tag(field_name: str, src, dest, attr_name=None):
   if has_non_blanc_attr(dest, field_name):
     v = getattr(dest, field_name)
     # setattr(v, "warning", "ambiguity: multiple values, see 'alternatives' field")
@@ -374,6 +379,10 @@ def get_legacy_docs_ids() -> []:
     ]
   }  # TODO: do something about this
 
+  _small_version = {
+    "user.attributes_tree.version.2": {"$lt": 7}
+  }
+
   _no_user_tree = {"$and": [
     {"user.attributes": {'$exists': True}},
     {"user.attributes_tree": {'$exists': False}},
@@ -387,7 +396,8 @@ def get_legacy_docs_ids() -> []:
   query = {"$or": [
     _no_user_tree,
     _attr_updated_by_user,
-    _no_attr_tree, ]}
+    _no_attr_tree,
+    _small_version]}
 
   cursor = documents_collection.find(query, projection={'_id': True})
 
