@@ -18,3 +18,4 @@ jobs:
           python check_db.py >> report.md          
           python train.py 
           cml-send-comment report.md
+
