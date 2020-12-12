@@ -17,5 +17,5 @@ tensorflow-hub==0.10.0
 pyjarowinkler==1.8
 textdistance==4.2.0
 strict-rfc3339==0.7
-jsonpickle==1.4.1
+jsonpickle==1.4.2
 jsonschema==3.2.0
