@@ -14,5 +14,6 @@ jobs:
           echo 'Hi from CML @ nemo' >> report.md
           
           python --version >> report.md
-          ls -la >> report.md
+          python check_db.py >> report.md
+          
           cml-send-comment report.md
