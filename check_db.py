@@ -13,6 +13,8 @@ if __name__ == '__main__':
   audits_collection = db['audits']
 
   cursor = audits_collection.find({'status': 'Done'}).sort([("createDate", pymongo.ASCENDING)])
-  print("completed audits:")
+  print("audits in status 'Done':")
   for audit in cursor:
     print(audit['_id'])
+
+

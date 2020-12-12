@@ -284,7 +284,7 @@ class UberModelTrainsetManager:
     model_name = self.model_variant_fn.__name__
 
     model = self.model_variant_fn(name=model_name, ctx=ctx, trained=True)
-    model.name = model_name
+    # model.name = model_name
 
     weights_file_old = os.path.join(models_path, model_name + ".weights")
     weights_file_new = os.path.join(self.work_dir, model_name + ".weights")
@@ -648,12 +648,7 @@ if __name__ == '__main__':
   
   '''
 
-  ch = logging.StreamHandler()
-  ch.setLevel(logging.DEBUG)
-  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-  ch.setFormatter(formatter)
-  logger.addHandler(ch)
-  logger.info('logging started')
+
 
   # os.environ['GPN_DB_NAME'] = 'gpn'
   # os.environ['GPN_DB_HOST'] = '192.168.10.36'
