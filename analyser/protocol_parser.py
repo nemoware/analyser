@@ -73,11 +73,11 @@ class ProtocolDocument(LegalDocumentExt):
   def get_agents_tags(self) -> [SemanticTag]:
     warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     res = []
-    for ai in self.attributes_tree.agenda_items:
-      parent = ai._legacy_tag_ref
-      if ai.contract is not None:
+    for agenda_item in self.attributes_tree.agenda_items:
+      parent = agenda_item._legacy_tag_ref
+      if agenda_item.contract is not None:
 
-        _tags = _rename_org_tags(ai.contract.orgs, prefix='contract_agent_', start_from=2)
+        _tags = _rename_org_tags(agenda_item.contract.orgs, prefix='contract_agent_', start_from=2)
         for t in _tags:
           t._parent_tag = parent
 
@@ -240,19 +240,19 @@ class ProtocolParser(ParsingContext):
 
     # migrazzio:
     for aq in doc.agenda_questions:
-      ai = AgendaItem(tag=aq)
+      agenda_item = AgendaItem(tag=aq)
 
-      setattr(ai, '_legacy_tag_ref', aq)  # TODO: remove this shit, it must not go to DB
+      setattr(agenda_item, '_legacy_tag_ref', aq)  # TODO: remove this shit, it must not go to DB
       # ai.__dict__['_legacy_tag_ref'] = aq
-      doc.attributes_tree.agenda_items.append(ai)
+      doc.attributes_tree.agenda_items.append(agenda_item)
 
       for mv in doc.margin_values:
         if mv.is_child_of(aq):
-          ai.contract.price = mv.as_ContractPrice()
+          agenda_item.contract.price = mv.as_ContractPrice()
 
       for cn in doc.contract_numbers:
         if cn.is_child_of(aq):
-          ai.contract.number = cn.clean_copy()
+          agenda_item.contract.number = cn.clean_copy()
 
     self.find_orgs_in_agendas(doc, ctx.audit_subsidiary_name)
     self.validate(doc, ctx)
