@@ -6,9 +6,9 @@ nltk==3.4.5
 numpy==1.18.3
 overrides==3.1.0
 pandas==1.0.3
-pymongo==3.11.1
+pymongo==3.11.2
 python-dateutil==2.8.1
-requests==2.24.0
+requests==2.25.0
 schedule==0.6.0
 scikit-learn==0.23.2
 seaborn==0.10.0
@@ -17,5 +17,5 @@ tensorflow-hub==0.10.0
 pyjarowinkler==1.8
 textdistance==4.2.0
 strict-rfc3339==0.7
-jsonpickle==1.4.1
+jsonpickle==1.4.2
 jsonschema==3.2.0
