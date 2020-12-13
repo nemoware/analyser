@@ -20,7 +20,6 @@ from bson import json_util
 from keras import Model
 from keras.preprocessing.sequence import pad_sequences
 from pandas import DataFrame
-from pymongo import ASCENDING
 from sklearn.metrics import classification_report
 
 from analyser.documents import TextMap
@@ -193,13 +192,12 @@ class UberModelTrainsetManager:
 
     logger.debug(f'running DB query {query}')
     # TODO: sorting fails in MONGO
-    sorting = [('analysis.analyze_timestamp', ASCENDING),
-               ('user.updateDate', ASCENDING)]
-    # sorting = [
-    #            ('user.updateDate', pymongo.ASCENDING)]
-    res = documents_collection.find(filter=query, sort=None, projection={'_id': True})
+    # sorting = [('analysis.analyze_timestamp', ASCENDING),
+    #            ('user.updateDate', ASCENDING)]
+    sorting = None
+    res = documents_collection.find(filter=query, sort=sorting, projection={'_id': True})
 
-    res.limit(30)
+    res.limit(2000)
 
     logger.info('running DB query: DONE')
 
@@ -340,7 +338,6 @@ class UberModelTrainsetManager:
     train_indices, test_indices = split_trainset_evenly(self.stats, 'subject', seed=66)
     model, ctx = self.init_model()
     ctx.EVALUATE_ONLY = False
-
 
     ######################
     ## Phase I retraining
