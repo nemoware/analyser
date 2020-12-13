@@ -197,7 +197,7 @@ class UberModelTrainsetManager:
                ('user.updateDate', ASCENDING)]
     # sorting = [
     #            ('user.updateDate', pymongo.ASCENDING)]
-    res = documents_collection.find(filter=query, sort=sorting, projection={'_id': True})
+    res = documents_collection.find(filter=query, sort=None, projection={'_id': True})
 
     res.limit(2000)
 
@@ -410,9 +410,9 @@ class UberModelTrainsetManager:
 
   def export_docs_to_json(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
-    docs = self.get_updated_contracts()  # Cursor, not list
+    docs_ids = self.get_updated_contracts()  # Cursor, not list
 
-    export_updated_contracts_to_json(docs, self.work_dir)
+    export_updated_contracts_to_json(docs_ids, self.work_dir)
 
   def _dp_fn(self, doc_id, suffix):
     return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
@@ -544,11 +544,11 @@ class UberModelTrainsetManager:
     self.train(self.make_generator)
 
 
-def export_updated_contracts_to_json(documents, work_dir):
+def export_updated_contracts_to_json(document_ids, work_dir):
   arr = {}
   n = 0
-  for k, d in enumerate(documents):
-
+  for k, doc_id in enumerate(document_ids):
+    d = get_doc_by_id(doc_id["_id"])
     # if '_id' not in d['user']['author']:
     #   print(f'error: user attributes doc {d["_id"]} is not linked to any user')
 
