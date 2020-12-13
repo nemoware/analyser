@@ -25,7 +25,9 @@ jobs:
           
           MODEL_NAME="uber_detection_model_005_1_1"
           
-          echo '## Evaluating $MODEL_NAME' >> report.md
+          echo '## Evaluating ' >> report.md
+          echo $MODEL_NAME >> report.md
+          
           echo '### Subjects confusion matrix' >> report.md     
           cml-publish $GPN_WORK_DIR/subjects-confusion-matrix-$MODEL_NAME.png --md >> report.md
     
