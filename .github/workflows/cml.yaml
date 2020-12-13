@@ -23,14 +23,20 @@ jobs:
           python check_db.py           
           python train.py 
           
-          echo `## Subjects confusion matrix` >> report.md     
-          cml-publish $GPN_WORK_DIR/subjects-confusion-matrix-uber_detection_model_005_1_1.png --md >> report.md
+          MODEL_NAME="uber_detection_model_005_1_1"
           
-          echo `## Tagging binary crossentropy` >> report.md     
-          cml-publish $GPN_WORK_DIR/uber_detection_model_005_1_1-O1_tagging_binary_crossentropy.png --md >> report.md
+          echo '## Evaluating $MODEL_NAME' >> report.md
+          echo '### Subjects confusion matrix' >> report.md     
+          cml-publish $GPN_WORK_DIR/subjects-confusion-matrix-$MODEL_NAME.png --md >> report.md
           
-          echo `## Tagging loss` >> report.md     
-          cml-publish $GPN_WORK_DIR/uber_detection_model_005_1_1-O1_tagging_loss.png --md >> report.md
+          echo '### Tagging binary crossentropy' >> report.md     
+          cml-publish $GPN_WORK_DIR/$MODEL_NAME-O1_tagging_binary_crossentropy.png --md >> report.md
+          
+          echo '### Tagging loss' >> report.md     
+          cml-publish $GPN_WORK_DIR/$MODEL_NAME-O1_tagging_loss.png --md >> report.md
+          
+          echo '### Subjects prediction loss' >> report.md     
+          cml-publish $GPN_WORK_DIR/$MODEL_NAME-O2_subject_loss.pngg --md >> report.md
           
           
           cml-send-comment report.md
