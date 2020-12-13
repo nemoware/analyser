@@ -24,6 +24,7 @@ from pymongo import ASCENDING
 from sklearn.metrics import classification_report
 
 from analyser.documents import TextMap
+from analyser.finalizer import get_doc_by_id
 from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
 from analyser.hyperparams import work_dir as default_work_dir
@@ -196,7 +197,7 @@ class UberModelTrainsetManager:
                ('user.updateDate', ASCENDING)]
     # sorting = [
     #            ('user.updateDate', pymongo.ASCENDING)]
-    res = documents_collection.find(filter=query, sort=sorting)
+    res = documents_collection.find(filter=query, sort=sorting, projection={'_id': True})
 
     res.limit(2000)
 
@@ -249,9 +250,10 @@ class UberModelTrainsetManager:
   def import_recent_contracts(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
-    docs = self.get_updated_contracts()  # Cursor, not list
+    docs_ids = self.get_updated_contracts()  # Cursor, not list
 
-    for d in docs:
+    for did in docs_ids:
+      d = get_doc_by_id(did["_id"])
       self.save_contract_datapoint(DbJsonDoc(d))
       self._save_stats()
 
@@ -647,8 +649,6 @@ if __name__ == '__main__':
   2. Embedd them, save embeddings, save other features
   
   '''
-
-
 
   # os.environ['GPN_DB_NAME'] = 'gpn'
   # os.environ['GPN_DB_HOST'] = '192.168.10.36'
