@@ -199,7 +199,7 @@ class UberModelTrainsetManager:
     #            ('user.updateDate', pymongo.ASCENDING)]
     res = documents_collection.find(filter=query, sort=None, projection={'_id': True})
 
-    res.limit(20)
+    res.limit(30)
 
     logger.info('running DB query: DONE')
 
@@ -347,7 +347,7 @@ class UberModelTrainsetManager:
     # frozen bottom layers
     ######################
 
-    ctx.EPOCHS = 10
+    ctx.EPOCHS = 15
     ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(train_indices))
 
     test_gen = generator_factory_method(test_indices, batch_size)
