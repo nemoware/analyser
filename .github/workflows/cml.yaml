@@ -11,7 +11,7 @@ jobs:
 
       - name: cml_run
         run: |
-          echo 'Hi from CML @ nemo' >> report.md
+          echo '# Hail from CML runner @ NeMo ' >> report.md
           
           python --version >> report.md
           
@@ -19,11 +19,19 @@ jobs:
           python -c "import tensorflow as tf; print(tf.__version__)" >> report.md
           
           pip3 install -r requirements.txt
-          python check_db.py >> report.md          
+          
+          python check_db.py           
           python train.py 
           
           echo `## Subjects confusion matrix` >> report.md     
           cml-publish $GPN_WORK_DIR/subjects-confusion-matrix-uber_detection_model_005_1_1.png --md >> report.md
+          
+          echo `## Tagging binary crossentropy` >> report.md     
+          cml-publish $GPN_WORK_DIR/uber_detection_model_005_1_1-O1_tagging_binary_crossentropy.png --md >> report.md
+          
+          echo `## Tagging loss` >> report.md     
+          cml-publish $GPN_WORK_DIR/uber_detection_model_005_1_1-O1_tagging_loss.png --md >> report.md
+          
           
           cml-send-comment report.md
 
