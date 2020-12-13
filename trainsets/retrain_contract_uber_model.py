@@ -199,7 +199,7 @@ class UberModelTrainsetManager:
     #            ('user.updateDate', pymongo.ASCENDING)]
     res = documents_collection.find(filter=query, sort=None, projection={'_id': True})
 
-    res.limit(2000)
+    res.limit(10)
 
     logger.info('running DB query: DONE')
 
@@ -340,6 +340,7 @@ class UberModelTrainsetManager:
     train_indices, test_indices = split_trainset_evenly(self.stats, 'subject', seed=66)
     model, ctx = self.init_model()
     ctx.EVALUATE_ONLY = False
+    ctx.EPOCHS=2
 
     ######################
     ## Phase I retraining
