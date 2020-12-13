@@ -23,7 +23,7 @@ jobs:
           python train.py 
           
           MODEL_NAME="uber_detection_model_005_1_1"
-          QQQ ="```"
+          QQQ ="\`\`\`"
           
           
           echo '## Evaluating ' >> report.md
