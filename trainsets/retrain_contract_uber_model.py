@@ -340,14 +340,14 @@ class UberModelTrainsetManager:
     train_indices, test_indices = split_trainset_evenly(self.stats, 'subject', seed=66)
     model, ctx = self.init_model()
     ctx.EVALUATE_ONLY = False
-    ctx.EPOCHS=2
+
 
     ######################
     ## Phase I retraining
     # frozen bottom layers
     ######################
 
-    ctx.EPOCHS = 25
+    ctx.EPOCHS = 2
     ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(train_indices))
 
     test_gen = generator_factory_method(test_indices, batch_size)
