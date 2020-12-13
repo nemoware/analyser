@@ -21,5 +21,9 @@ jobs:
           pip3 install -r requirements.txt
           python check_db.py >> report.md          
           python train.py 
+          
+          echo `## Subjects confusion matrix` >> report.md     
+          cml-publish $GPN_WORK_DIR/subjects-confusion-matrix-uber_detection_model_005_1_1.png --md >> report.md
+          
           cml-send-comment report.md
 
