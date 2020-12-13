@@ -14,11 +14,10 @@ jobs:
           echo '# Hail from CML runner @ NeMo ' >> report.md
           
           python --version >> report.md
-          
+                    
+          pip3 install -r requirements.txt
           pip3 install /distr/tensorflow-2.5.0-cp36-cp36m-linux_x86_64.whl
           python -c "import tensorflow as tf; print('Tensorflow:',tf.__version__)" >> report.md
-          
-          pip3 install -r requirements.txt
           
           python check_db.py           
           python train.py 
