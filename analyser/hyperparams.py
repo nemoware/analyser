@@ -5,17 +5,17 @@ from analyser.log import logger
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 gpn_home = __location__path = Path(__location__)
-tf_cache = os.path.join(__location__path.parent.parent, 'tf_cache')
+
 
 models_path = os.path.join(__location__, 'vocab')
 
 if 'GPN_WORK_DIR' in os.environ:
-  work_dir = os.environ['GPN_WORK_DIR']
+  work_dir = os.environ.get( 'GPN_WORK_DIR')
 else:
   work_dir = os.path.join(__location__path.parent, 'work')
   warnings.warn('please set GPN_WORK_DIR environment variable')
 
-
+tf_cache = os.path.join(work_dir, 'tf_cache')
 logger.info (f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
 
 

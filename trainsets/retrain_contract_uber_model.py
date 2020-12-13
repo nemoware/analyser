@@ -553,11 +553,11 @@ def export_updated_contracts_to_json(document_ids, work_dir):
     #   print(f'error: user attributes doc {d["_id"]} is not linked to any user')
 
     if 'auditId' not in d:
-      print(f'error: doc {d["_id"]} is not linked to any audit')
+      logger.warning(f'error: doc {d["_id"]} is not linked to any audit')
 
     arr[str(d['_id'])] = d
     # arr.append(d)
-    print('exporting JSON ', k, d['_id'])
+    logger.debug(f"exporting JSON {k} {d['_id']}")
     n = k
 
   with open(os.path.join(work_dir, 'contracts_mongo.json'), 'w', encoding='utf-8') as outfile:
