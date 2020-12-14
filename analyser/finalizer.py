@@ -27,17 +27,9 @@ def add_link(audit_id, doc_id1, doc_id2):
     audit_collection.update_one({"_id": audit_id}, {"$push": {"links": {"fromId": doc_id1, "toId": doc_id2, "type": "analysis"}}})
 
 
-def change_contract_subject(contract, new_subject):
+def change_contract_primary_subject(contract, new_subject):
     db = get_mongodb_connection()
-    if contract.get("user") is not None:
-        db['documents'].update_one({"_id": contract['_id']}, {'$set': {'user.attributes.subject.value': new_subject}})
-    else:
-        db['documents'].update_one({"_id": contract['_id']}, {'$set': {'analysis.attributes.subject.value': new_subject}})
-    attrs = get_attrs(contract)
-    if attrs.get('subject') is None:
-        attrs['subject'] = {'value': new_subject}
-    else:
-        attrs['subject']['value'] = new_subject
+    db['documents'].update_one({'_id': contract['_id']}, {'$set': {'primary_subject': new_subject}})
 
 
 def get_book_value(audit, target_year: str):
@@ -300,10 +292,10 @@ def check_contract(contract, charters, protocols, audit):
             if bookValue is not None:
                 if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:
                     competences = {'BoardOfDirectors': {"min": bookValue * 0.25, "original_min": 25, "original_currency_min": "%", "max": bookValue * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
-                    change_contract_subject(contract, 'BigDeal')
+                    change_contract_primary_subject(contract, 'BigDeal')
                 elif contract_value["value"] > bookValue * 0.5:
                     competences = {'ShareholdersGeneralMeeting': {"min": bookValue * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
-                    change_contract_subject(contract, 'BigDeal')
+                    change_contract_primary_subject(contract, 'BigDeal')
 
         if competences is not None and contract_value is not None:
             eligible_protocol = None
