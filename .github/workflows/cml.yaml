@@ -34,6 +34,9 @@ jobs:
           cat $REPORTS/subjects-classification_report-$MODEL_NAME.txt >> report.md 
           echo $QQQ >> report.md   
           
+          echo '### Subjects distribution in trainset' >> report.md     
+          cml-publish $REPORTS/contracts-subjects-dist.png --md >> report.md
+          
           echo '### Subjects confusion matrix' >> report.md     
           cml-publish $REPORTS/subjects-confusion-matrix-$MODEL_NAME.png --md >> report.md
     
