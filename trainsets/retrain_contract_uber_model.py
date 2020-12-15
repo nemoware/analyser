@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
-
+import seaborn as sns
 import json
 import logging
 import os
@@ -205,7 +205,7 @@ class UberModelTrainsetManager:
     # sorting = None
     res = documents_collection.find(filter=query, sort=sorting, projection={'_id': True})
 
-    res.limit(1200)
+    res.limit(1000)
 
     logger.info('running DB query: DONE')
 
@@ -337,6 +337,18 @@ class UberModelTrainsetManager:
         meta.at[i, 'error'] = str(e)
 
     self._save_stats()
+    #TODO: report
+
+    subj_count = self.stats['subject'].value_counts()
+
+    # plot distribution---------------------
+    sns.barplot(subj_count.values, subj_count.index)
+    plt.title('Frequency Distribution of subjects')
+    plt.xlabel('Number of Occurrences')
+    # plt.show()
+    img_path = os.path.join(self.reports_dir, f'contracts-subjects-dist.png')
+    plt.savefig(img_path, bbox_inches='tight')
+
 
   def train(self, generator_factory_method):
     self.stats: DataFrame = self.load_contract_trainset_meta()
