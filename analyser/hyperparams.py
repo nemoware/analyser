@@ -1,27 +1,34 @@
 import os
+import pathlib
 import warnings
 from pathlib import Path
+
 from analyser.log import logger
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-gpn_home = __location__path = Path(__location__)
-
+__location__path = Path(__location__)
 
 models_path = os.path.join(__location__, 'vocab')
 
 if 'GPN_WORK_DIR' in os.environ:
-  work_dir = os.environ.get( 'GPN_WORK_DIR')
+  work_dir = os.environ.get('GPN_WORK_DIR')
 else:
-  work_dir = os.path.join(__location__path.parent, 'work')
+  work_dir = os.path.join(__location__path.parent.parent, 'work')
   warnings.warn('please set GPN_WORK_DIR environment variable')
 
-tf_cache = os.path.join(work_dir, 'tf_cache')
-logger.info (f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
+datasets_dir = os.path.join(work_dir, 'datasets')
+reports_dir = os.path.join(work_dir, 'reports')
+print(f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
 
+pathlib.Path(datasets_dir).mkdir(parents=True, exist_ok=True)
+pathlib.Path(reports_dir).mkdir(parents=True, exist_ok=True)
+
+
+print(f"datasets_dir: [{datasets_dir}]")
+print(f"reports_dir: [{reports_dir}]")
 
 class HyperParameters:
-
-  max_sentenses_to_embedd=60
+  max_sentenses_to_embedd = 60
 
   max_doc_size_tokens = 15000
   max_doc_size_chars = max_doc_size_tokens * 5
@@ -51,3 +58,7 @@ class HyperParameters:
   hdbscan_cluster_proximity = 0.8
 
   headers_detector_use_regressor = False  ## regressor vs classifyer
+
+
+if __name__ == '__main__':
+    print(work_dir)
