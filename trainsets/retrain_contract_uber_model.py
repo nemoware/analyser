@@ -205,7 +205,7 @@ class UberModelTrainsetManager:
     # sorting = None
     res = documents_collection.find(filter=query, sort=sorting, projection={'_id': True})
 
-    res.limit(200)
+    res.limit(1200)
 
     logger.info('running DB query: DONE')
 
