@@ -3,8 +3,6 @@ import pathlib
 import warnings
 from pathlib import Path
 
-from analyser.log import logger
-
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 __location__path = Path(__location__)
 
@@ -23,9 +21,9 @@ print(f'USING WORKDIR: [{work_dir}]\n set ENV GPN_WORK_DIR to override')
 pathlib.Path(datasets_dir).mkdir(parents=True, exist_ok=True)
 pathlib.Path(reports_dir).mkdir(parents=True, exist_ok=True)
 
-
 print(f"datasets_dir: [{datasets_dir}]")
 print(f"reports_dir: [{reports_dir}]")
+
 
 class HyperParameters:
   max_sentenses_to_embedd = 60
@@ -61,4 +59,4 @@ class HyperParameters:
 
 
 if __name__ == '__main__':
-    print(work_dir)
+  print(work_dir)
