@@ -31,7 +31,7 @@ jobs:
           echo $MODEL_NAME >> report.md
           
           echo $QQQ >> report.md
-          cat $GPN_WORK_DIR/subjects-classification_report-$MODEL_NAME.txt >> report.md 
+          cat $REPORTS/subjects-classification_report-$MODEL_NAME.txt >> report.md 
           echo $QQQ >> report.md   
           
           echo '### Subjects confusion matrix' >> report.md     
