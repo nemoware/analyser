@@ -3,18 +3,15 @@
 # coding=utf-8
 
 
-import pymongo
+from pymongo import ASCENDING
 
 from integration.db import get_mongodb_connection
 
 if __name__ == '__main__':
-
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  cursor = audits_collection.find({'status': 'Done'}).sort([("createDate", pymongo.ASCENDING)])
-  print("audits in status 'Done':")
-  for audit in cursor:
-    print(audit['_id'])
-
-
+  coll = db["documents"]
+  sorting = [('analysis.analyze_timestamp', ASCENDING), ('user.updateDate', ASCENDING)]
+  resp = coll.create_index(sorting)
+  print("index response:", resp)

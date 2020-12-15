@@ -4,7 +4,7 @@ from analyser.structures import OrgStructuralLevel, ContractSubject, contract_su
   legal_entity_types
 from gpn.gpn import subsidiaries
 from integration.db import get_mongodb_connection
-from pymongo import DESCENDING
+from pymongo import DESCENDING, ASCENDING
 
 
 def contract_subject_as_db_json():
@@ -58,6 +58,10 @@ def update_db_dictionaries():
   resp = coll.create_index([("analysis.attributes.date.value", DESCENDING)])
   print("index response:", resp)
 
+  coll = db["documents"]
+  sorting = [('analysis.analyze_timestamp', ASCENDING), ('user.updateDate', ASCENDING)]
+  resp = coll.create_index(sorting)
+  print("index response:", resp)
 
 if __name__ == '__main__':
   update_db_dictionaries()
