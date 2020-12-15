@@ -22,6 +22,7 @@ jobs:
           python check_db.py           
           python train.py 
           
+          REPORTS=$GPN_WORK_DIR/reports
           MODEL_NAME="uber_detection_model_005_1_1"
           QQQ ="\`\`\`"
           
@@ -34,13 +35,13 @@ jobs:
           echo $QQQ >> report.md   
           
           echo '### Subjects confusion matrix' >> report.md     
-          cml-publish $GPN_WORK_DIR/subjects-confusion-matrix-$MODEL_NAME.png --md >> report.md
+          cml-publish $REPORTS/subjects-confusion-matrix-$MODEL_NAME.png --md >> report.md
     
           echo '### Tagging loss' >> report.md     
-          cml-publish $GPN_WORK_DIR/$MODEL_NAME-O1_tagging_loss.png --md >> report.md
+          cml-publish $REPORTS/$MODEL_NAME-O1_tagging_loss.png --md >> report.md
           
           echo '### Subjects prediction loss' >> report.md     
-          cml-publish $GPN_WORK_DIR/$MODEL_NAME-O2_subject_loss.png --md >> report.md
+          cml-publish $REPORTS/$MODEL_NAME-O2_subject_loss.png --md >> report.md
           
           
           cml-send-comment report.md
