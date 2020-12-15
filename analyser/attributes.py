@@ -1,6 +1,7 @@
 import datetime
 import json
 from datetime import datetime, date
+from enum import Enum
 
 import jsonpickle
 import numpy as np
@@ -28,8 +29,14 @@ class NumpyFloatHandler(jsonpickle.handlers.BaseHandler):
     return round(obj, 6)
 
 
+class EnumHandler(jsonpickle.handlers.BaseHandler):
+  def flatten(self, e: Enum, data):
+    return e.name
+
+
 jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
 jsonpickle.handlers.registry.register(date, DatetimeHandler)
+jsonpickle.handlers.registry.register(Enum, EnumHandler)
 
 jsonpickle.handlers.registry.register(np.float, NumpyFloatHandler)
 jsonpickle.handlers.registry.register(np.float32, NumpyFloatHandler)
