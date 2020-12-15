@@ -144,31 +144,34 @@ class UberModelTrainsetManager:
 
   def save_contract_datapoint(self, d: DbJsonDoc):
     _id = str(d.get_id())
-
-    self.save_contract_data_arrays(d)
-
     stats = self.stats  # shortcut
 
-    stats.at[_id, 'checksum'] = d.get_tokens_for_embedding().get_checksum()
-    stats.at[_id, 'version'] = d.analysis['version']
+    try:
+      self.save_contract_data_arrays(d)
 
-    stats.at[_id, 'export_date'] = datetime.now()
-    stats.at[_id, 'analyze_date'] = d.analysis['analyze_timestamp']
 
-    subj_att = d.get_subject()
-    stats.at[_id, 'subject'] = subj_att['value']
-    _value = d.get_attribute('sign_value_currency/value')['value']
-    stats.at[_id, 'value'] = _value
-    if _value is not None:
-      stats.at[_id, 'value_log1p'] = log1p(_value)
-    stats.at[_id, 'org-1-alias'] = d.get_attribute('org-1-alias')['value']
-    stats.at[_id, 'org-2-alias'] = d.get_attribute('org-2-alias')['value']
-    stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
+      stats.at[_id, 'checksum'] = d.get_tokens_for_embedding().get_checksum()
+      stats.at[_id, 'version'] = d.analysis['version']
 
-    stats.at[_id, 'subject confidence'] = subj_att['confidence']
+      stats.at[_id, 'export_date'] = datetime.now()
+      stats.at[_id, 'analyze_date'] = d.analysis['analyze_timestamp']
 
-    if d.user is not None:
-      stats.at[_id, 'user_correction_date'] = d.user['updateDate']
+      subj_att = d.get_subject()
+      stats.at[_id, 'subject'] = subj_att['value']
+      _value = d.get_attribute('sign_value_currency/value')['value']
+      stats.at[_id, 'value'] = _value
+      if _value is not None:
+        stats.at[_id, 'value_log1p'] = log1p(_value)
+      stats.at[_id, 'org-1-alias'] = d.get_attribute('org-1-alias')['value']
+      stats.at[_id, 'org-2-alias'] = d.get_attribute('org-2-alias')['value']
+      stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
+
+      stats.at[_id, 'subject confidence'] = subj_att['confidence']
+
+      if d.user is not None:
+        stats.at[_id, 'user_correction_date'] = d.user['updateDate']
+    except KeyError:
+      stats.at[_id, 'valid']= False
 
   def get_updated_contracts(self):
     self.lastdate = datetime(1900, 1, 1)
