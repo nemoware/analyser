@@ -7,6 +7,7 @@ import unittest
 
 from jsonschema import validate, ValidationError, FormatChecker
 
+from analyser.attributes import to_json
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import CharterSchema, CharterStructuralLevel, Competence, ContractPrice, OrgItem, \
   Schema2LegacyListConverter
@@ -15,6 +16,17 @@ from analyser.structures import OrgStructuralLevel, ContractSubject
 
 
 class TestSchema(unittest.TestCase):
+
+  def test_enum_to_json(self):
+    d={
+      "some":OrgStructuralLevel.CEO
+    }
+
+    a, b = to_json(d)
+
+    print(a)
+    print(a)
+
 
   def test_convert_to_legasy_list(self):
     cs = CharterSchema()

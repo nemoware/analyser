@@ -36,7 +36,7 @@ class EnumHandler(jsonpickle.handlers.BaseHandler):
 
 jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
 jsonpickle.handlers.registry.register(date, DatetimeHandler)
-jsonpickle.handlers.registry.register(Enum, EnumHandler)
+jsonpickle.handlers.registry.register(Enum, EnumHandler, base=True )
 
 jsonpickle.handlers.registry.register(np.float, NumpyFloatHandler)
 jsonpickle.handlers.registry.register(np.float32, NumpyFloatHandler)

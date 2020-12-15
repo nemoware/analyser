@@ -74,10 +74,13 @@ class BaseProcessor:
 
         if db_document.is_user_corrected():
           logger.info(f"skipping doc {db_document.get_id()} postprocessing because it is corrected by user")
+          change_doc_state(db_document, state=DocumentState.Done.value)
         else:
+          # ANALYSING
           self.parser.find_attributes(legal_doc, context)
+          save_analysis(db_document, legal_doc, state=DocumentState.Done.value)
+          # ANALYSING
 
-        save_analysis(db_document, legal_doc, state=DocumentState.Done.value)
         logger.info(f'analysis saved, doc._id={legal_doc.get_id()}')
       else:
         logger.info(f"excluding doc {db_document.get_id()}")
@@ -87,6 +90,7 @@ class BaseProcessor:
     except Exception as err:
       traceback.print_tb(err.__traceback__)
       logger.exception(f'cant process document {db_document.get_id()}')
+      # TODO: do not save the entire doc here, data loss possible
       save_analysis(db_document, legal_doc, DocumentState.Error.value, db_document.retry_number + 1)
 
     return legal_doc
