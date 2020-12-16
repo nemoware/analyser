@@ -100,9 +100,14 @@ class Competence(SemanticTagBase):
   child of CharterStructuralLevel
   """
 
-  def __init__(self, tag: SemanticTagBase = None):
+  def __init__(self, tag: SemanticTagBase = None, value:ContractSubject=None):
     super().__init__(tag)
     self.constraints: [ContractPrice] = []
+    if value is not None:
+      if isinstance(value, ContractSubject):
+        self.value=value
+      else:
+        raise ValueError(value)
 
 
 class CharterStructuralLevel(SemanticTagBase):

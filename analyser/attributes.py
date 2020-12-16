@@ -11,13 +11,26 @@ from jsonschema import validate, FormatChecker
 
 import analyser
 from analyser.finalizer import get_doc_by_id
-from analyser.log import logger
+# from analyser.log import logger
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import document_schemas, ProtocolSchema, OrgItem, AgendaItem, AgendaItemContract, HasOrgs, \
   ContractPrice, ContractSchema, CharterSchema, CharterStructuralLevel, Competence
-from analyser.structures import OrgStructuralLevel
+from analyser.structures import OrgStructuralLevel, ContractSubject
 from integration.db import get_mongodb_connection
 
+
+
+import logging
+
+migration_logger = logging.getLogger('db_migration')
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.WARNING)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+migration_logger.setLevel(logging.DEBUG)
+
+migration_logger.addHandler(ch)
 
 class DatetimeHandler(jsonpickle.handlers.BaseHandler):
   def flatten(self, obj: datetime, data):
@@ -97,7 +110,7 @@ def copy_leaf_tag(field_name: str, src, dest, attr_name=None):
   if has_non_blanc_attr(dest, field_name):
     v = getattr(dest, field_name)
     # setattr(v, "warning", "ambiguity: multiple values, see 'alternatives' field")
-    logger.warning(f"{field_name} has multiple values")
+    migration_logger.warning(f"{field_name} has multiple values")
 
     alternatives = []
     if not hasattr(v, "alternatives"):
@@ -151,14 +164,15 @@ def _find_by_value(arr: [SemanticTagBase], value):
       return c
 
 
-def convert_competence(path_s: [str], attr, subject_node: Competence):
-  constraint = path_s[0].split('-')  # example: 'constraint-min-2'
+def convert_competence(path_s: [str], attr, competence_node: Competence):
+  #charter
+  constraint = path_s[0].split('-')  # example: 'constraint-min-2' or just `constraint`
   constraint_margin_index = 0
   if len(constraint) == 3:
     constraint_margin_index = int(constraint[2]) - 1
 
   # extending array
-  margin_node = array_set_or_get_at(subject_node.constraints, constraint_margin_index, lambda: ContractPrice())
+  margin_node = array_set_or_get_at(competence_node.constraints, constraint_margin_index, lambda: ContractPrice())
 
   if len(path_s) == 1:
     copy_attr(attr, dest=margin_node)
@@ -177,13 +191,23 @@ def handle_sign_value_currency(path: [str], v, dest: ContractPrice):
 
 
 def convert_constraints(path_s: [str], attr, structural_level_node: CharterStructuralLevel):
-  subject_node = _find_by_value(structural_level_node.competences, path_s[0])
+  subj_name_parts=path_s[0].split('-')
+  subj_name = subj_name_parts[0]
+  subj = ContractSubject[subj_name]
+  subj_index=0
+  if len(subj_name_parts)==2:
+    subj_index=int(subj_name_parts[1])
+
+  if subj_index>0:
+    migration_logger.error(f"doubled {path_s} {attr.get('kind')}")
+
+  subject_node = _find_by_value(structural_level_node.competences, subj) # "Deal", for example
   if subject_node is None:
-    subject_node = Competence()
+    subject_node = Competence(value=subj)
     structural_level_node.competences.append(subject_node)
 
   if len(path_s) == 1:
-    copy_attr(attr, dest=subject_node)
+    copy_attr(attr, dest=subject_node, skip_value=True)
   else:
     convert_competence(path_s[1:], attr, subject_node)
   # ------------
@@ -233,8 +257,11 @@ def convert_agenda_item(path, attr: {}, _item_node: AgendaItem):
   # pass
 
 
-def copy_attr(src, dest: SemanticTagBase) -> SemanticTagBase:
-  for key in ['span', 'span_map', 'confidence', "value"]:
+def copy_attr(src, dest: SemanticTagBase, skip_value=False) -> SemanticTagBase:
+  _list = ['span', 'span_map', 'confidence', "value"]
+  if skip_value:
+    _list = ['span', 'span_map', 'confidence']
+  for key in _list :
     setattr(dest, key, src.get(key))
 
   return dest
@@ -328,7 +355,6 @@ def convert_charter_db_attributes_to_tree(attrs):
     elif attr_name.startswith('org-'):
       tree.org = map_org(attr_name, v, tree.org)
 
-
     # handle constraints
     elif (key_s[0] in OrgStructuralLevel._member_names_):
       structural_level_node = _find_by_value(tree.structural_levels, key_s[0])
@@ -416,7 +442,7 @@ def get_legacy_docs_ids() -> []:
 
 
 def convert_one(db, doc: dict):
-  logger.debug(f'updating {doc["_id"]} ....')
+  migration_logger.info(f'updating {doc["_id"]} ....')
 
   kind: str = doc['parse']['documentType']
   kind = kind.lower()
@@ -443,19 +469,19 @@ def convert_one(db, doc: dict):
     a_attr_tree['creation_date'] = datetime.now()
     j, json_str = to_json(a_attr_tree)
     db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"analysis.attributes_tree": j}})
-    logger.debug(f'updated {kind} {doc["_id"]} analysis.attributes_tree')
+    migration_logger.debug(f'updated {kind} {doc["_id"]} analysis.attributes_tree')
     if u_attr_tree is not None:
       u_attr_tree['version'] = analyser.__version_ints__
       u_attr_tree['creation_date'] = datetime.now()
       j, json_str = to_json(u_attr_tree)
       db["documents"].update_one({'_id': doc["_id"]}, {"$set": {"user.attributes_tree": j}})
-      logger.debug(f'updated {kind} {doc["_id"]} user.attributes_tree')
+      migration_logger.debug(f'updated {kind} {doc["_id"]} user.attributes_tree')
 
 
 def convert_all_docs():
   ids = get_legacy_docs_ids()
   if len(ids) == 0:
-    logger.info(f"Migration: no legacy docs found in DB")
+    migration_logger.info(f"Migration: no legacy docs found in DB")
     return
 
   print('\a')
@@ -477,7 +503,7 @@ def convert_all_docs():
 
       convert_one(db, doc)
 
-    logger.info(f"converted {len(ids)} documents")
+    migration_logger.info(f"converted {len(ids)} documents")
   else:
     print('Skipping migration. Re-run when you change your mind.')
 
