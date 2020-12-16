@@ -20,6 +20,7 @@ import seaborn as sns
 from bson import json_util
 from keras import Model
 from keras.preprocessing.sequence import pad_sequences
+from packaging import version
 from pandas import DataFrame
 from pymongo import ASCENDING
 from sklearn.metrics import classification_report
@@ -32,7 +33,6 @@ from analyser.hyperparams import work_dir as default_work_dir
 from analyser.legal_docs import embedd_tokens
 from analyser.persistence import DbJsonDoc
 from analyser.structures import ContractSubject
-from analyser.text_tools import split_version
 from colab_support.renderer import plot_cm
 from integration.db import get_mongodb_connection
 from tf_support import super_contract_model
@@ -149,7 +149,6 @@ class UberModelTrainsetManager:
     try:
       self.save_contract_data_arrays(d)
 
-
       stats.at[_id, 'checksum'] = d.get_tokens_for_embedding().get_checksum()
       stats.at[_id, 'version'] = d.analysis['version']
 
@@ -171,7 +170,7 @@ class UberModelTrainsetManager:
       if d.user is not None:
         stats.at[_id, 'user_correction_date'] = d.user['updateDate']
     except KeyError:
-      stats.at[_id, 'valid']= False
+      stats.at[_id, 'valid'] = False
 
   def get_updated_contracts(self):
     self.lastdate = datetime(1900, 1, 1)
@@ -216,15 +215,16 @@ class UberModelTrainsetManager:
 
   @staticmethod
   def _remove_obsolete_datapoints(df: DataFrame):
+
     if 'valid' not in df:
       df['valid'] = True
 
+    threshold_v = version.parse("1.6.0")
     for i, row in df.iterrows():
       try:
-        int_v = split_version(row['version'])
-  
+
         if pd.isna(row['user_correction_date']):
-          if not (int_v[0] >= 1 and int_v[1] >= 6): #TODO: why 1 6 ??
+          if version.parse(row['version']) < threshold_v:
             df.at[i, 'valid'] = False
       except TypeError:
         df.at[i, 'valid'] = False
