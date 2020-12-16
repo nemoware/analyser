@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   train:
-    runs-on: [self-hosted, cml, gpu]
+    runs-on: [self-hosted, cml, cpu]
 
     steps:
       - uses: actions/checkout@v2
