@@ -5,9 +5,11 @@
 
 import unittest
 
+from bson import ObjectId
 from jsonschema import validate, ValidationError, FormatChecker
+from pymongo import MongoClient
 
-from analyser.attributes import to_json
+from analyser.attributes import to_json, convert_one
 from analyser.ml_tools import SemanticTagBase
 from analyser.schemas import CharterSchema, CharterStructuralLevel, Competence, ContractPrice, OrgItem, \
   Schema2LegacyListConverter
@@ -17,16 +19,32 @@ from analyser.structures import OrgStructuralLevel, ContractSubject
 
 class TestSchema(unittest.TestCase):
 
+  @unittest.skip
+  def test_migrate_single_charter(self):
+    _db_client = MongoClient(f'mongodb://192.168.10.36:27017/')
+    _db_client.server_info()
+
+    db = _db_client['gpn']
+
+    documents_collection = db['documents']
+
+    doc = documents_collection.find_one({"_id": ObjectId('5e4b9cd89a67394138e2089e')}, projection={
+      '_id': True,
+      'analysis.attributes': True,
+      'user.attributes': True,
+      'parse.documentType': True})
+
+    convert_one(db, doc)
+
   def test_enum_to_json(self):
-    d={
-      "some":OrgStructuralLevel.CEO
+    d = {
+      "some": OrgStructuralLevel.CEO
     }
 
     a, b = to_json(d)
 
     print(a)
     print(a)
-
 
   def test_convert_to_legasy_list(self):
     cs = CharterSchema()
