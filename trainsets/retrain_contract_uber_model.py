@@ -169,7 +169,8 @@ class UberModelTrainsetManager:
 
       if d.user is not None:
         stats.at[_id, 'user_correction_date'] = d.user['updateDate']
-    except KeyError:
+    except KeyError as e:
+      logger.error(e)
       stats.at[_id, 'valid'] = False
 
   def get_updated_contracts(self):
@@ -222,14 +223,13 @@ class UberModelTrainsetManager:
     threshold_v = version.parse("1.6.0")
     for i, row in df.iterrows():
       try:
-
         if pd.isna(row['user_correction_date']):
           if version.parse(row['version']) < threshold_v:
             df.at[i, 'valid'] = False
       except TypeError:
         df.at[i, 'valid'] = False
 
-  def load_contract_trainset_meta(self):
+  def load_contract_trainset_meta(self) -> DataFrame:
     _f = os.path.join(self.work_dir, 'contract_trainset_meta.csv')
     logger.info(f"loading trainset meta from {_f}")
     try:
@@ -240,6 +240,7 @@ class UberModelTrainsetManager:
       df.index.name = '_id'
 
       UberModelTrainsetManager._remove_obsolete_datapoints(df)
+
       logger.info("OK")
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
@@ -327,19 +328,18 @@ class UberModelTrainsetManager:
 
   def validate_trainset(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
-    meta = self.stats
 
-    meta['valid'] = True
-    meta['error'] = ''
+    self.stats['valid'] = True
+    self.stats['error'] = ''
 
-    for i in meta.index:
+    for i in self.stats.index:
       try:
         self.make_xyw(i)
 
       except Exception as e:
         logger.error(e)
-        meta.at[i, 'valid'] = False
-        meta.at[i, 'error'] = str(e)
+        self.stats.at[i, 'valid'] = False
+        self.stats.at[i, 'error'] = str(e)
 
     self._save_stats()
     # TODO: report
@@ -355,6 +355,11 @@ class UberModelTrainsetManager:
 
   def train(self, generator_factory_method):
     self.stats: DataFrame = self.load_contract_trainset_meta()
+
+    print('BEFORE', len(self.stats))
+    self.stats = self.stats[self.stats['valid'] == True]
+    print('AFTER', len(self.stats))
+
     '''
     Phase I: frozen bottom 6 common layers
     Phase 2: all unfrozen, entire trainset, low LR
