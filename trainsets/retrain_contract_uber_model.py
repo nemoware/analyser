@@ -220,12 +220,14 @@ class UberModelTrainsetManager:
       df['valid'] = True
 
     for i, row in df.iterrows():
-
-      int_v = split_version(row['version'])
-
-      if pd.isna(row['user_correction_date']):
-        if not (int_v[0] >= 1 and int_v[1] >= 6):
-          df.at[i, 'valid'] = False
+      try:
+        int_v = split_version(row['version'])
+  
+        if pd.isna(row['user_correction_date']):
+          if not (int_v[0] >= 1 and int_v[1] >= 6): #TODO: why 1 6 ??
+            df.at[i, 'valid'] = False
+      except TypeError:
+        df.at[i, 'valid'] = False
 
   def load_contract_trainset_meta(self):
     _f = os.path.join(self.work_dir, 'contract_trainset_meta.csv')
