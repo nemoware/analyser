@@ -233,11 +233,15 @@ class UberModelTrainsetManager:
     _f = os.path.join(self.work_dir, 'contract_trainset_meta.csv')
     logger.info(f"loading trainset meta from {_f}")
     try:
-
       df = pd.read_csv(_f, index_col='_id')
       df['user_correction_date'] = pd.to_datetime(df['user_correction_date'])
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
       df.index.name = '_id'
+
+      logger.info('number of samples BEFORE clean-up', len(df))
+      df = df[df['valid'] == True]
+      df = df[df['subject'] != 'BigDeal']
+      logger.info('number of samples AFTER clean-up', len(df))
 
       UberModelTrainsetManager._remove_obsolete_datapoints(df)
 
@@ -342,8 +346,10 @@ class UberModelTrainsetManager:
         self.stats.at[i, 'error'] = str(e)
 
     self._save_stats()
-    # TODO: report
 
+  def describe_trainset(self):
+    # TODO: report
+    self.stats: DataFrame = self.load_contract_trainset_meta()
     subj_count = self.stats['subject'].value_counts()
 
     # plot subj distribution---------------------
@@ -355,10 +361,6 @@ class UberModelTrainsetManager:
 
   def train(self, generator_factory_method):
     self.stats: DataFrame = self.load_contract_trainset_meta()
-
-    print('BEFORE', len(self.stats))
-    self.stats = self.stats[self.stats['valid'] == True]
-    print('AFTER', len(self.stats))
 
     '''
     Phase I: frozen bottom 6 common layers
@@ -406,8 +408,8 @@ class UberModelTrainsetManager:
       _metrics = _log.keys()
       plot_compare_models(ctx, [model.name], _metrics, self.reports_dir)
 
-    gen = self.make_generator(self.stats.index, 20)
-    plot_subject_confusion_matrix(self.reports_dir, model, steps=20, generator=gen)
+    _gen = self.make_generator(self.stats.index, 20)
+    plot_subject_confusion_matrix(self.reports_dir, model, steps=20, generator=_gen)
 
   def calculate_samples_weights(self):
 
@@ -565,14 +567,19 @@ class UberModelTrainsetManager:
              [np.array(weights), np.array(weights_subj)])
 
   def prepare_trainst(self):
+    '''
+    1. importing fresh docs
+    2. make train samples
+    3. validate & clean-up
+    :return:
+    '''
     self.import_recent_contracts()
     self.calculate_samples_weights()
     self.validate_trainset()
+    self.describe_trainset()
 
   def run(self):
-    self.import_recent_contracts()
-    self.calculate_samples_weights()
-    self.validate_trainset()
+    self.prepare_trainst()
 
     self.train(self.make_generator)
 
