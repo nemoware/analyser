@@ -316,7 +316,7 @@ def check_contract(contract, charters, protocols, audit):
             max_value = None
             if competence_constraint is not None:
                 attribute = competence_constraint.get("competence_attr_name")
-                if attribute is not None:
+                if attribute is not None and eligible_charter_attrs.get(attribute) is not None:
                     text = extract_text(eligible_charter_attrs[attribute]["span"],
                                         eligible_charter["analysis"]["tokenization_maps"]["words"],
                                         eligible_charter["analysis"]["normal_text"]) + "(" + get_nearest_header(eligible_charter["analysis"]["headers"], eligible_charter_attrs[attribute]["span"][0])["value"] + ")"
@@ -418,7 +418,7 @@ def check_contract(contract, charters, protocols, audit):
                         {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
                         {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
                         {"type": "protocol_not_found", "subject": contract_attrs["subject"]["value"],
-                         "org_structural_level": eligible_charter_attrs[eligible_charter_attrs[attribute]["parent"]]["value"],
+                         "org_structural_level": attribute.split('/')[0],
                          "min": min_value,
                          "max": max_value
                          },
