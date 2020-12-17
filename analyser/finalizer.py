@@ -287,7 +287,7 @@ def check_contract(contract, charters, protocols, audit):
         contract_value = None
         if contract_attrs.get("sign_value_currency/value") is not None and contract_attrs.get("sign_value_currency/currency") is not None:
             contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
-        if contract_value is not None:
+        if contract_value is not None and audit.get('bookValues') is not None:
             bookValue = get_book_value(audit, str(contract_attrs["date"]["value"].year - 1))
             if bookValue is not None:
                 if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:

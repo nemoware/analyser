@@ -56,7 +56,7 @@ def create_doc_by_type(t: str, doc_id, filename) -> CharterDocument or ContractD
 
   if t == 'CONTRACT':
     doc = ContractDocument('')
-  elif t == 'PROTOCOL':
+  elif t == 'PROTOCOL' or 'ANNEX' or 'SUPPLEMENTARY_AGREEMENT':
     doc = ProtocolDocument()
   elif t == 'CHARTER':
     doc = CharterDocument()

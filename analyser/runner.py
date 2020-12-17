@@ -167,7 +167,7 @@ def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False)
       {'auditId': id},
       {"parserResponseCode": 200},
       {"$or": [{"analysis.version": None},
-               {"analysis.version": {"$ne": analyser.__version__}},
+               # {"analysis.version": {"$ne": analyser.__version__}},
                {"state": None}]}
     ]
   }
