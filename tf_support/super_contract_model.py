@@ -137,7 +137,7 @@ def uber_detection_model_005_1_1(name, ctx: KerasTrainingContext = DEFAULT_TRAIN
 
   # ---------------------
 
-  _out_d = Dropout(0.15, name='alzheimer')(base_model)  # small_drops_of_poison
+  _out_d = Dropout(0.35, name='alzheimer')(base_model)  # small_drops_of_poison
   _out = Bidirectional(LSTM(FEATURES * 2, return_sequences=True, name='paranoia'), name='self_reflection_1')(_out_d)
   _out = Dropout(0.1, name='alzheimer_11')(_out)
   _out = LSTM(FEATURES, return_sequences=True, activation='sigmoid', name='O1_tagging')(_out)
