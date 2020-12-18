@@ -1,15 +1,13 @@
-import logging
+import os
 from abc import abstractmethod
 
 import numpy as np
-import os
+
 from analyser.documents import TextMap
-from analyser.hyperparams import work_dir
+from analyser.hyperparams import datasets_dir
+from analyser.log import logger as elmo_logger
 from analyser.ml_tools import Embeddings
 from analyser.text_tools import Tokens
-
-from analyser.log import logger as elmo_logger
-
 
 
 def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
@@ -35,13 +33,10 @@ def embedd_tokenized_sentences_list(embedder, tokenized_sentences_list):
   return sentences_emb, None, lens
 
 
-
-
-
 class AbstractEmbedder:
 
   def __cache_fn(self, checksum):
-    return os.path.join(work_dir, f'cache-{checksum}-embeddings-ElmoEmbedder.npy')
+    return os.path.join(datasets_dir, f'cache-{checksum}-embeddings-ElmoEmbedder.npy')
 
   def get_cached_embedding(self, checksum) -> Embeddings or None:
     fn = self.__cache_fn(checksum)

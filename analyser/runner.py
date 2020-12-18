@@ -145,8 +145,7 @@ def get_audits() -> [dict]:
   db = get_mongodb_connection()
   audits_collection = db['audits']
 
-  cursor = audits_collection.find({'status': 'InWork'}).sort(
-    [("createDate", pymongo.ASCENDING)])
+  cursor = audits_collection.find({'status': 'InWork'}).sort([("createDate", pymongo.ASCENDING)])
   res = []
   for audit in cursor:
     res.append(audit)

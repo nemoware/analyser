@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
-
 import json
 import logging
 import os
+import pathlib
 import random
 import warnings
 from datetime import datetime
@@ -16,21 +16,23 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from bson import json_util
 from keras import Model
 from keras.preprocessing.sequence import pad_sequences
+from packaging import version
 from pandas import DataFrame
 from pymongo import ASCENDING
 from sklearn.metrics import classification_report
 
 from analyser.documents import TextMap
+from analyser.finalizer import get_doc_by_id
 from analyser.headers_detector import get_tokens_features
 from analyser.hyperparams import models_path
 from analyser.hyperparams import work_dir as default_work_dir
 from analyser.legal_docs import embedd_tokens
 from analyser.persistence import DbJsonDoc
 from analyser.structures import ContractSubject
-from analyser.text_tools import split_version
 from colab_support.renderer import plot_cm
 from integration.db import get_mongodb_connection
 from tf_support import super_contract_model
@@ -101,6 +103,9 @@ class UberModelTrainsetManager:
   def __init__(self, work_dir: str, model_variant_fn=uber_detection_model_005_1_1):
     self.model_variant_fn = model_variant_fn
     self.work_dir: str = work_dir
+    self.reports_dir = os.path.join(self.work_dir, 'reports')
+    pathlib.Path(self.reports_dir).mkdir(parents=True, exist_ok=True)
+
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
   def save_contract_data_arrays(self, db_json_doc: DbJsonDoc, id_override=None):
@@ -113,13 +118,18 @@ class UberModelTrainsetManager:
     embedder = ElmoEmbedder.get_instance('elmo')  # lazy init
 
     tokens_map: TextMap = db_json_doc.get_tokens_for_embedding()
+
+    # 1) EMBEDDINGS
     embeddings = embedd_tokens(tokens_map,
                                embedder,
                                log_key=f'id={id_} chs={tokens_map.get_checksum()}')
 
+    # 2) TOKEN FEATURES
     token_features: DataFrame = get_tokens_features(db_json_doc.get_tokens_map_unchaged().tokens)
-    semantic_map: DataFrame = _get_semantic_map(db_json_doc, 1.0)
 
+    # 3) SEMANTIC MAP
+    semantic_map: DataFrame = _get_semantic_map(db_json_doc, 1.0)
+    #####
     if embeddings.shape[0] != token_features.shape[0]:
       msg = f'{id_} embeddings.shape {embeddings.shape} is incompatible with token_features.shape {token_features.shape}'
       raise AssertionError(msg)
@@ -134,31 +144,34 @@ class UberModelTrainsetManager:
 
   def save_contract_datapoint(self, d: DbJsonDoc):
     _id = str(d.get_id())
-
-    self.save_contract_data_arrays(d)
-
     stats = self.stats  # shortcut
 
-    stats.at[_id, 'checksum'] = d.get_tokens_for_embedding().get_checksum()
-    stats.at[_id, 'version'] = d.analysis['version']
+    try:
+      self.save_contract_data_arrays(d)
 
-    stats.at[_id, 'export_date'] = datetime.now()
-    stats.at[_id, 'analyze_date'] = d.analysis['analyze_timestamp']
+      stats.at[_id, 'checksum'] = d.get_tokens_for_embedding().get_checksum()
+      stats.at[_id, 'version'] = d.analysis['version']
 
-    subj_att = d.get_subject()
-    stats.at[_id, 'subject'] = subj_att['value']
-    _value = d.get_attribute('sign_value_currency/value')['value']
-    stats.at[_id, 'value'] = _value
-    if _value is not None:
-      stats.at[_id, 'value_log1p'] = log1p(_value)
-    stats.at[_id, 'org-1-alias'] = d.get_attribute('org-1-alias')['value']
-    stats.at[_id, 'org-2-alias'] = d.get_attribute('org-2-alias')['value']
-    stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
+      stats.at[_id, 'export_date'] = datetime.now()
+      stats.at[_id, 'analyze_date'] = d.analysis['analyze_timestamp']
 
-    stats.at[_id, 'subject confidence'] = subj_att['confidence']
+      subj_att = d.get_subject()
+      stats.at[_id, 'subject'] = subj_att['value']
+      _value = d.get_attribute('sign_value_currency/value')['value']
+      stats.at[_id, 'value'] = _value
+      if _value is not None:
+        stats.at[_id, 'value_log1p'] = log1p(_value)
+      stats.at[_id, 'org-1-alias'] = d.get_attribute('org-1-alias')['value']
+      stats.at[_id, 'org-2-alias'] = d.get_attribute('org-2-alias')['value']
+      stats.at[_id, 'value_span'] = d.get_attribute('sign_value_currency/value')['span'][0]
 
-    if d.user is not None:
-      stats.at[_id, 'user_correction_date'] = d.user['updateDate']
+      stats.at[_id, 'subject confidence'] = subj_att['confidence']
+
+      if d.user is not None:
+        stats.at[_id, 'user_correction_date'] = d.user['updateDate']
+    except KeyError as e:
+      logger.error(e)
+      stats.at[_id, 'valid'] = False
 
   def get_updated_contracts(self):
     self.lastdate = datetime(1900, 1, 1)
@@ -167,10 +180,8 @@ class UberModelTrainsetManager:
       self.lastdate = self.stats[["user_correction_date", 'analyze_date']].max().max()
     logger.info(f'latest export_date: [{self.lastdate}]')
 
-    logger.info('obtaining DB connection...')
+    logger.debug('obtaining DB connection...')
     db = get_mongodb_connection()
-
-    logger.info('obtaining DB connection: DONE')
     documents_collection = db['documents']
 
     # TODO: filter by version
@@ -194,11 +205,10 @@ class UberModelTrainsetManager:
     # TODO: sorting fails in MONGO
     sorting = [('analysis.analyze_timestamp', ASCENDING),
                ('user.updateDate', ASCENDING)]
-    # sorting = [
-    #            ('user.updateDate', pymongo.ASCENDING)]
-    res = documents_collection.find(filter=query, sort=sorting)
+    # sorting = None
+    res = documents_collection.find(filter=query, sort=sorting, projection={'_id': True})
 
-    res.limit(2000)
+    res.limit(300)
 
     logger.info('running DB query: DONE')
 
@@ -206,29 +216,40 @@ class UberModelTrainsetManager:
 
   @staticmethod
   def _remove_obsolete_datapoints(df: DataFrame):
+
     if 'valid' not in df:
       df['valid'] = True
 
+    threshold_v = version.parse("1.6.0")
     for i, row in df.iterrows():
+      try:
+        if pd.isna(row['user_correction_date']):
+          if version.parse(row['version']) < threshold_v:
+            df.at[i, 'valid'] = False
+      except TypeError:
+        df.at[i, 'valid'] = False
 
-      int_v = split_version(row['version'])
-
-      if pd.isna(row['user_correction_date']):
-        if not (int_v[0] >= 1 and int_v[1] >= 6):
-          df.at[i, 'valid'] = False
-
-  def load_contract_trainset_meta(self):
+  def load_contract_trainset_meta(self) -> DataFrame:
+    _f = os.path.join(self.work_dir, 'contract_trainset_meta.csv')
+    logger.info(f"loading trainset meta from {_f}")
     try:
-      df = pd.read_csv(os.path.join(self.work_dir, 'contract_trainset_meta.csv'), index_col='_id')
+      df = pd.read_csv(_f, index_col='_id')
       df['user_correction_date'] = pd.to_datetime(df['user_correction_date'])
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
       df.index.name = '_id'
 
+      logger.info('number of samples BEFORE clean-up', len(df))
+      df = df[df['valid'] == True]
+      df = df[df['subject'] != 'BigDeal']
+      logger.info('number of samples AFTER clean-up', len(df))
+
       UberModelTrainsetManager._remove_obsolete_datapoints(df)
 
+      logger.info("OK")
     except FileNotFoundError:
       df = DataFrame(columns=['export_date'])
       df.index.name = '_id'
+      logger.info(f"cannot load trainset meta from {_f}, creating blank")
 
     if 'subject' not in df:
       df['subject'] = 'Other'
@@ -249,9 +270,10 @@ class UberModelTrainsetManager:
   def import_recent_contracts(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
 
-    docs = self.get_updated_contracts()  # Cursor, not list
+    docs_ids = [i["_id"] for i in self.get_updated_contracts()]
 
-    for d in docs:
+    for oid in docs_ids:
+      d = get_doc_by_id(oid)
       self.save_contract_datapoint(DbJsonDoc(d))
       self._save_stats()
 
@@ -284,7 +306,7 @@ class UberModelTrainsetManager:
     model_name = self.model_variant_fn.__name__
 
     model = self.model_variant_fn(name=model_name, ctx=ctx, trained=True)
-    model.name = model_name
+    # model.name = model_name
 
     weights_file_old = os.path.join(models_path, model_name + ".weights")
     weights_file_new = os.path.join(self.work_dir, model_name + ".weights")
@@ -310,24 +332,36 @@ class UberModelTrainsetManager:
 
   def validate_trainset(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
-    meta = self.stats
 
-    meta['valid'] = True
-    meta['error'] = ''
+    self.stats['valid'] = True
+    self.stats['error'] = ''
 
-    for i in meta.index:
+    for i in self.stats.index:
       try:
         self.make_xyw(i)
 
       except Exception as e:
         logger.error(e)
-        meta.at[i, 'valid'] = False
-        meta.at[i, 'error'] = str(e)
+        self.stats.at[i, 'valid'] = False
+        self.stats.at[i, 'error'] = str(e)
 
     self._save_stats()
 
+  def describe_trainset(self):
+    # TODO: report
+    self.stats: DataFrame = self.load_contract_trainset_meta()
+    subj_count = self.stats['subject'].value_counts()
+
+    # plot subj distribution---------------------
+    sns.barplot(subj_count.values, subj_count.index)
+    plt.title('Frequency Distribution of subjects')
+    plt.xlabel('Number of Occurrences')
+    img_path = os.path.join(self.reports_dir, 'contracts-subjects-dist.png')
+    plt.savefig(img_path, bbox_inches='tight')
+
   def train(self, generator_factory_method):
     self.stats: DataFrame = self.load_contract_trainset_meta()
+
     '''
     Phase I: frozen bottom 6 common layers
     Phase 2: all unfrozen, entire trainset, low LR
@@ -344,7 +378,7 @@ class UberModelTrainsetManager:
     # frozen bottom layers
     ######################
 
-    ctx.EPOCHS = 25
+    ctx.EPOCHS = 30
     ctx.set_batch_size_and_trainset_size(batch_size, len(test_indices), len(train_indices))
 
     test_gen = generator_factory_method(test_indices, batch_size)
@@ -372,10 +406,10 @@ class UberModelTrainsetManager:
     _log = ctx.get_log(model.name)
     if _log is not None:
       _metrics = _log.keys()
-      plot_compare_models(ctx, [model.name], _metrics, self.work_dir)
+      plot_compare_models(ctx, [model.name], _metrics, self.reports_dir)
 
-    gen = self.make_generator(self.stats.index, 20)
-    plot_subject_confusion_matrix(self.work_dir, model, steps=20, generator=gen)
+    _gen = self.make_generator(self.stats.index, 20)
+    plot_subject_confusion_matrix(self.reports_dir, model, steps=20, generator=_gen)
 
   def calculate_samples_weights(self):
 
@@ -408,12 +442,12 @@ class UberModelTrainsetManager:
 
   def export_docs_to_json(self):
     self.stats: DataFrame = self.load_contract_trainset_meta()
-    docs = self.get_updated_contracts()  # Cursor, not list
 
-    export_updated_contracts_to_json(docs, self.work_dir)
+    docs_ids = [i["_id"] for i in self.get_updated_contracts()]  # Cursor, not list
+    export_updated_contracts_to_json(docs_ids, self.work_dir)
 
   def _dp_fn(self, doc_id, suffix):
-    return os.path.join(self.work_dir, f'{doc_id}-datapoint-{suffix}.npy')
+    return os.path.join(self.work_dir, 'datasets', f'{doc_id}-datapoint-{suffix}.npy')
 
   @lru_cache(maxsize=72)
   def make_xyw(self, doc_id):
@@ -532,30 +566,38 @@ class UberModelTrainsetManager:
              [np.array(batch_output_sm), np.array(batch_output_subj)],
              [np.array(weights), np.array(weights_subj)])
 
-  def run(self):
-    self.export_docs_to_json()
+  def prepare_trainst(self):
+    '''
+    1. importing fresh docs
+    2. make train samples
+    3. validate & clean-up
+    :return:
+    '''
     self.import_recent_contracts()
-
     self.calculate_samples_weights()
     self.validate_trainset()
+    self.describe_trainset()
+
+  def run(self):
+    self.prepare_trainst()
 
     self.train(self.make_generator)
 
 
-def export_updated_contracts_to_json(documents, work_dir):
+def export_updated_contracts_to_json(document_ids, work_dir):
   arr = {}
   n = 0
-  for k, d in enumerate(documents):
-
+  for k, doc_id in enumerate(document_ids):
+    d = get_doc_by_id(doc_id)
     # if '_id' not in d['user']['author']:
     #   print(f'error: user attributes doc {d["_id"]} is not linked to any user')
 
     if 'auditId' not in d:
-      print(f'error: doc {d["_id"]} is not linked to any audit')
+      logger.warning(f'error: doc {d["_id"]} is not linked to any audit')
 
     arr[str(d['_id'])] = d
     # arr.append(d)
-    print('exporting JSON ', k, d['_id'])
+    logger.debug(f"exporting JSON {k} {d['_id']}")
     n = k
 
   with open(os.path.join(work_dir, 'contracts_mongo.json'), 'w', encoding='utf-8') as outfile:
@@ -569,7 +611,7 @@ def onehots2labels(preds):
   return [ContractSubject(k).name for k in _x]
 
 
-def plot_subject_confusion_matrix(image_save_path, model, steps=12, generator=None):
+def plot_subject_confusion_matrix(reports_path, model, steps=12, generator=None):
   all_predictions = []
   all_originals = []
 
@@ -586,13 +628,13 @@ def plot_subject_confusion_matrix(image_save_path, model, steps=12, generator=No
 
   plot_cm(all_originals, all_predictions)
 
-  img_path = os.path.join(image_save_path, f'subjects-confusion-matrix-{model.name}.png')
+  img_path = os.path.join(reports_path, f'subjects-confusion-matrix-{model.name}.png')
   plt.savefig(img_path, bbox_inches='tight')
 
   report = classification_report(all_originals, all_predictions, digits=3)
 
   print(report)
-  with open(os.path.join(image_save_path, f'subjects-classification_report-{model.name}.txt'), "w") as text_file:
+  with open(os.path.join(reports_path, f'subjects-classification_report-{model.name}.txt'), "w") as text_file:
     text_file.write(report)
 
 
@@ -647,13 +689,6 @@ if __name__ == '__main__':
   2. Embedd them, save embeddings, save other features
   
   '''
-
-  ch = logging.StreamHandler()
-  ch.setLevel(logging.DEBUG)
-  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-  ch.setFormatter(formatter)
-  logger.addHandler(ch)
-  logger.info('logging started')
 
   # os.environ['GPN_DB_NAME'] = 'gpn'
   # os.environ['GPN_DB_HOST'] = '192.168.10.36'
