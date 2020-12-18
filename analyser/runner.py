@@ -136,7 +136,9 @@ class ContractProcessor(BaseProcessor):
     self.parser = Runner.get_instance().contract_parser
 
 
-document_processors = {CONTRACT: ContractProcessor(), CHARTER: CharterProcessor(), "PROTOCOL": ProtocolProcessor()}
+contract_processor = ContractProcessor()
+document_processors = {CONTRACT: contract_processor, CHARTER: CharterProcessor(), "PROTOCOL": ProtocolProcessor(),
+                       'ANNEX': contract_processor, 'SUPPLEMENTARY_AGREEMENT': contract_processor}
 
 
 def get_audits() -> [dict]:
@@ -165,7 +167,7 @@ def get_docs_by_audit_id(id: str or None, states=None, kind=None, id_only=False)
       {'auditId': id},
       {"parserResponseCode": 200},
       {"$or": [{"analysis.version": None},
-               {"analysis.version": {"$ne": analyser.__version__}},
+               # {"analysis.version": {"$ne": analyser.__version__}},
                {"state": None}]}
     ]
   }
