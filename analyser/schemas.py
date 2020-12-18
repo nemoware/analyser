@@ -65,7 +65,7 @@ class OrgItem():
     self.type: SemanticTagBase or None = None
     self.name: SemanticTagBase or None = None
     self.alias: SemanticTagBase or None = None  # a.k.a role in the contract
-    self.alt_name: SemanticTagBase or None = None  # a.k.a role in the contract
+    self.alt_name: SemanticTagBase or None = None
 
   def as_list(self) -> [SemanticTagBase]:
     warnings.warn("use OrgItem", DeprecationWarning)

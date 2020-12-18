@@ -11,10 +11,10 @@ from analyser.documents import TextMap
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.log import logger
-from analyser.ml_tools import SemanticTag, clean_semantic_tag_copy, SemanticTagBase
+from analyser.ml_tools import SemanticTag, SemanticTagBase, is_span_intersect
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AV_SOFT, AV_PREFIX
-from analyser.schemas import ContractSchema
+from analyser.schemas import ContractSchema, OrgItem
 from analyser.text_tools import find_top_spans
 from tf_support.tf_subject_model import load_subject_detection_trained_model, decode_subj_prediction, \
   nn_predict
@@ -103,7 +103,7 @@ class ContractParser(ParsingContext):
     semantic_map, _ = nn_predict(self.subject_prediction_model, _head)
 
     cas: [ContractAgent] = nn_find_org_names(_head.tokens_map, semantic_map,
-                                             audit_subsidiary_name=ctx.audit_subsidiary_name)
+                                             audit_ctx=ctx)
     contract.agents_tags = _unwrap_org_tags(cas)
 
     # TODO: maybe move contract.tokens_map into text map
@@ -164,7 +164,7 @@ class ContractParser(ParsingContext):
     cas: [ContractAgent] = []
     if len(contract.agents_tags) < 2:
       cas = nn_find_org_names(_contract_cut.tokens_map, semantic_map,
-                              audit_subsidiary_name=ctx.audit_subsidiary_name)
+                              audit_ctx=ctx)
       contract.agents_tags = _unwrap_org_tags(cas)
     # -------------------------------subject
     contract.subject = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
@@ -177,7 +177,6 @@ class ContractParser(ParsingContext):
 
     ##
     # migrate to attr_tree
-
 
     contract.attributes_tree.orgs = [ca.as_OrgItem() for ca in cas]
     if len(contract.contract_values) > 0:
@@ -211,8 +210,8 @@ def _sub_attention_names(subj: Enum):
 
 
 def nn_find_org_names(textmap: TextMap, semantic_map: DataFrame,
-                      audit_subsidiary_name=None) -> [ContractAgent]:
-  cas: [ContractAgent] = []
+                      audit_ctx: AuditContext) -> [ContractAgent]:
+  contract_agents: [ContractAgent] = []
   for o in [1, 2]:
     ca: ContractAgent = ContractAgent()
     for n in ['name', 'alias', 'type']:
@@ -220,20 +219,49 @@ def nn_find_org_names(textmap: TextMap, semantic_map: DataFrame,
       tag = nn_get_tag_value(tagname, textmap, semantic_map)
       setattr(ca, n, tag)
     normalize_contract_agent(ca)
-    cas.append(ca)
+    contract_agents.append(ca)
 
-  def name_val_safe(a):
+  def _name_val_safe(a):
     if a.name is not None:
       return a.name.value
     return ''
 
-  if audit_subsidiary_name:
+  if audit_ctx.audit_subsidiary_name:
     # known subsidiary goes first
-    cas = sorted(cas, key=lambda a: name_val_safe(a) != audit_subsidiary_name)
+    contract_agents = sorted(contract_agents, key=lambda a: not audit_ctx.is_same_org(_name_val_safe(a)))
   else:
-    cas = sorted(cas, key=lambda a: name_val_safe(a))
+    contract_agents = sorted(contract_agents, key=lambda a: _name_val_safe(a))
 
-  return cas  # _swap_org_tags(cas)
+  check_org_intersections(contract_agents)  # mutator
+
+  return contract_agents  # _swap_org_tags(cas)
+
+
+def check_org_intersections(contract_agents: [OrgItem]):
+  '''
+  achtung, darling! das ist mutator metoden, ja
+  :param contract_agents:
+  :return:
+  '''
+  if len(contract_agents) == 0:
+    return
+  if contract_agents[0].alias is None:
+    return
+  if contract_agents[1].alias is None:
+    return
+
+  crossing = is_span_intersect(
+    contract_agents[0].alias.span,
+    contract_agents[1].alias.span
+  )
+  if crossing:
+    # keep most confident, remove another
+    if contract_agents[0].alias.confidence < contract_agents[1].alias.confidence:
+      contract_agents[0].alias = None  # Sorry =(
+    else:
+      contract_agents[1].alias = None  # Sorry =( You must not conflict
+
+  return contract_agents
 
 
 def _unwrap_org_tags(all_: [ContractAgent]) -> [SemanticTag]:

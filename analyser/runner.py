@@ -117,7 +117,7 @@ class BaseProcessor:
 
     return (subsidiary == o1) or (o2 == subsidiary)
 
-  def is_same_org(self, legal_doc, db_doc, subsidiary):
+  def is_same_org(self, legal_doc:LegalDocument, db_doc, subsidiary:str):
     warnings.warn("use _same_org", DeprecationWarning)
     if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"][
       "attributes"].get("org-1-name") is not None:

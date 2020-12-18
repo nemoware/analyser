@@ -218,7 +218,7 @@ def normalize_contract_agent(ca: ContractAgent or OrgItem):
     ca.type.confidence *= confidence_
 
 
-def find_closest_org_name(subsidiaries_: dict, pattern: str,
+def find_closest_org_name(subsidiaries_: [dict], pattern: str,
                           threshold=HyperParameters.subsidiary_name_match_min_jaro_similarity):
   if pattern is None:
     return None, 0

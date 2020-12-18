@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # coding=utf-8
 
+# os.environ['GPN_DB_HOST']='192.168.10.36'
 
 import unittest
 
@@ -16,6 +17,29 @@ from integration.db import get_mongodb_connection
 
 
 class AnalyzerTestCase(unittest.TestCase):
+  @unittest.skip
+  def test_analyse_acontract(self):
+
+    doc = get_doc_by_id(ObjectId('5fdb213f542ce403c92b4530'))
+    # _db_client = MongoClient(f'mongodb://192.168.10.36:27017/')
+    # _db_client.server_info()
+
+    # db = _db_client['gpn']
+
+    # documents_collection = db['documents']
+
+    # doc = documents_collection.find_one({"_id": ObjectId('5fdb213f542ce403c92b4530')} )
+    # audit = db['audits'].find_one({'_id': doc['auditId']})
+    audit = get_audit_by_id(doc['auditId'])
+    jdoc = DbJsonDoc(doc)
+    logger.info(f'......pre-processing {jdoc._id}')
+    _audit_subsidiary: str = audit["subsidiary"]["name"]
+
+    ctx = AuditContext(_audit_subsidiary)
+    processor: BaseProcessor = document_processors[CONTRACT]
+    processor.preprocess(jdoc, context=ctx)
+    processor.process(jdoc, audit, ctx)
+    print(jdoc)
 
   @unittest.skipIf(get_mongodb_connection() is None, "requires mongo")
   def test_analyze_contract(self):

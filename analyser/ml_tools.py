@@ -327,7 +327,7 @@ def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> Vectors:
       yield dictionary[p]
 
 
-def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix)->FixedVector:
+def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix) -> FixedVector:
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
 
   return max_exclusive_pattern(vectors)
@@ -382,11 +382,11 @@ TAG_KEY_DELIMITER = '/'
 class SemanticTagBase:
   value: str or Enum or int or float or datetime.date or None = None
   span: (int, int)
-  confidence: float
+
 
   def __init__(self, tag=None):
     super().__init__()
-
+    self.confidence: float = 0.0
     if tag is not None:
       self.value = tag.value
       self.set_span(tag.span)
@@ -406,8 +406,6 @@ class SemanticTagBase:
       self.confidence = 0
     else:
       self.confidence = float(confidence)
-
-
 
   def as_json_attribute(self):
     raise NotImplementedError()
@@ -810,3 +808,19 @@ def softmax_rows(headers_df: DataFrame, columns):
   headers_df[columns] = _x
 
   return headers_df
+
+
+def is_in(c: int, span: [int]):
+  return c >= span[0] and c < span[1]
+
+
+def is_span_intersect(span1, span2) -> bool:
+  '''
+  ......a.....b....
+  ....c....d.......
+  :param span1:
+  :param span2:
+  :return:
+  '''
+  return is_in(span1[0], span2) or is_in(span1[1], span2) \
+         or is_in(span2[0], span1) or is_in(span2[1], span1)
