@@ -27,6 +27,18 @@ def add_link(audit_id, doc_id1, doc_id2):
     audit_collection.update_one({"_id": audit_id}, {"$push": {"links": {"fromId": doc_id1, "toId": doc_id2, "type": "analysis"}}})
 
 
+def change_contract_primary_subject(contract, new_subject):
+    db = get_mongodb_connection()
+    db['documents'].update_one({'_id': contract['_id']}, {'$set': {'primary_subject': new_subject}})
+
+
+def get_book_value(audit, target_year: str):
+    for record in audit['bookValues']:
+        if record.get(target_year) is not None:
+            return float(record[target_year])
+    return None
+
+
 def extract_text(span, words, text):
     first_idx = words[span[0]][0]
     last_idx = words[span[1]][0] - 1
@@ -133,6 +145,10 @@ def get_constraints_rub(key, attributes):
                         result["value"] = value3["value"]
                     elif key3.endswith("currency"):
                         result["currency"] = value3["value"]
+            if key2.endswith('-min'):
+                result['sign'] = 1
+            else:
+                result['sign'] = -1
             constraints.append(result)
     for constraint in constraints:
         convert_to_rub(constraint)
@@ -271,10 +287,21 @@ def check_contract(contract, charters, protocols, audit):
         contract_value = None
         if contract_attrs.get("sign_value_currency/value") is not None and contract_attrs.get("sign_value_currency/currency") is not None:
             contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
+        if contract_value is not None and audit.get('bookValues') is not None:
+            bookValue = get_book_value(audit, str(contract_attrs["date"]["value"].year - 1))
+            if bookValue is not None:
+                if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:
+                    competences = {'BoardOfDirectors': {"min": bookValue * 0.25, "original_min": 25, "original_currency_min": "%", "max": bookValue * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
+                    change_contract_primary_subject(contract, 'BigDeal')
+                elif contract_value["value"] > bookValue * 0.5:
+                    competences = {'ShareholdersGeneralMeeting': {"min": bookValue * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
+                    change_contract_primary_subject(contract, 'BigDeal')
+
         if competences is not None and contract_value is not None:
             eligible_protocol = None
             need_protocol_check = False
             competence_constraint = None
+
             for competence, constraint in competences.items():
                 if constraint["min"] <= contract_value["value"] <= constraint["max"]:
                     need_protocol_check = True
@@ -289,7 +316,7 @@ def check_contract(contract, charters, protocols, audit):
             max_value = None
             if competence_constraint is not None:
                 attribute = competence_constraint.get("competence_attr_name")
-                if attribute is not None:
+                if attribute is not None and eligible_charter_attrs.get(attribute) is not None:
                     text = extract_text(eligible_charter_attrs[attribute]["span"],
                                         eligible_charter["analysis"]["tokenization_maps"]["words"],
                                         eligible_charter["analysis"]["normal_text"]) + "(" + get_nearest_header(eligible_charter["analysis"]["headers"], eligible_charter_attrs[attribute]["span"][0])["value"] + ")"
@@ -391,7 +418,7 @@ def check_contract(contract, charters, protocols, audit):
                         {"id": eligible_charter["_id"], "date": eligible_charter_attrs["date"]["value"]},
                         {"id": eligible_charter["_id"], "attribute": attribute, "text": text},
                         {"type": "protocol_not_found", "subject": contract_attrs["subject"]["value"],
-                         "org_structural_level": eligible_charter_attrs[eligible_charter_attrs[attribute]["parent"]]["value"],
+                         "org_structural_level": attribute.split('/')[0],
                          "min": min_value,
                          "max": max_value
                          },
