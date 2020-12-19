@@ -52,7 +52,7 @@ class BaseProcessor:
       save_analysis(jdoc, legal_doc, state=DocumentState.Preprocessed.value)
       return legal_doc
 
-  def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
+  def process(self, db_document: DbJsonDoc, audit, context: AuditContext) -> LegalDocument:
     # phase II
     if db_document.retry_number is None:
       db_document.retry_number = 0
