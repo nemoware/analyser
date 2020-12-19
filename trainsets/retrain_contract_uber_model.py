@@ -238,10 +238,10 @@ class UberModelTrainsetManager:
       df['analyze_date'] = pd.to_datetime(df['analyze_date'])
       df.index.name = '_id'
 
-      logger.info('number of samples BEFORE clean-up', len(df))
+      logger.info(f'number of samples BEFORE clean-up: {len(df)}')
       df = df[df['valid'] == True]
       df = df[df['subject'] != 'BigDeal']
-      logger.info('number of samples AFTER clean-up', len(df))
+      logger.info(f'number of samples AFTER clean-up: {len(df)}')
 
       UberModelTrainsetManager._remove_obsolete_datapoints(df)
 
