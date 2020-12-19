@@ -23,7 +23,7 @@ def get_mongodb_connection():
     try:
       host = _env_var('GPN_DB_HOST', 'localhost')
       port = _env_var('GPN_DB_PORT', 27017)
-
+      print(f"DB HOST IS: {host}")
       _db_client = MongoClient(f'mongodb://{host}:{port}/')
       _db_client.server_info()
 

@@ -380,7 +380,7 @@ def create_value_patterns(f: AbstractPatternFactory, name='sum_max_p_'):
   f.create_pattern(f'{name}9', (_prefix + 'максимальная сумма', '0', suffix))
 
 
-PATTERN_DELIMITER = '/'
+PATTERN_DELIMITER = ':'
 
 
 def build_sentence_patterns(strings: Tokens, prefix: str, prefix_obj=None):

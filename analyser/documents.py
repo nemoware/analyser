@@ -13,7 +13,7 @@ from analyser.log import logger
 nltk.data.path.append(os.path.join(models_path, 'nltk'))
 import numpy as np
 
-from analyser.ml_tools import spans_to_attention
+from analyser.ml_tools import spans_to_attention, FixedVector
 from analyser.text_tools import Tokens, untokenize, replace_tokens, split_into_sentences
 
 TEXT_PADDING_SYMBOL = ' '
@@ -64,7 +64,7 @@ class TextMap:
 
     return self
 
-  def regex_attention(self, regex):
+  def regex_attention(self, regex)-> FixedVector:
     matches = list(self.finditer(regex))
     return spans_to_attention(matches, len(self))
 

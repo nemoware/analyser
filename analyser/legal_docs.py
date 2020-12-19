@@ -67,8 +67,8 @@ class LegalDocument:
   def __init__(self, original_text=None, name="legal_doc"):
 
     self._id = None  # TODO
-    self.date: SemanticTag or None = None
-    self.number: SemanticTag or None = None
+    # self.date: SemanticTag or None = None
+    # self.number: SemanticTag or None = None
 
     self.filename = None
     self._original_text = original_text
@@ -166,6 +166,7 @@ class LegalDocument:
     return self
 
   def get_tags(self) -> [SemanticTag]:
+    warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     return []
 
   def headers_as_sentences(self) -> [str]:
@@ -211,6 +212,19 @@ class LegalDocument:
   def to_json(self) -> str:
     j = DocumentJson(self)
     return json.dumps(j.__dict__, indent=4, ensure_ascii=False, default=lambda o: '<not serializable>')
+
+  def tags_to_json_attributes(self) -> dict:
+    warnings.warn("use LegalDoc.tags_to_attributes_dict", DeprecationWarning)
+    attributes = {}
+    for t in self.get_tags():
+      key, attr = t.as_json_attribute()
+
+      if key in attributes:
+        raise RuntimeError(key + ' duplicated key')
+
+      attributes[key] = attr
+
+    return attributes
 
   def get_tokens_cc(self):
     return self.tokens_map.tokens
@@ -398,28 +412,15 @@ class DocumentJson:
     self.original_text = doc.original_text
     self.normal_text = doc.normal_text
 
-    self.attributes = self.__tags_to_attributes_dict(doc.get_tags())
+    self.attributes = doc.tags_to_json_attributes()
     self.headers = self.__tags_to_attributes_list([hi.header for hi in doc.paragraphs])
 
-  def __tags_to_attributes_list(self, _tags):
+  def __tags_to_attributes_list(self, _tags) -> []:
 
     attributes = []
     for t in _tags:
       key, attr = t.as_json_attribute()
       attributes.append(attr)
-
-    return attributes
-
-  def __tags_to_attributes_dict(self, _tags: [SemanticTag]):
-
-    attributes = {}
-    for t in _tags:
-      key, attr = t.as_json_attribute()
-
-      if key in attributes:
-        raise RuntimeError(key + ' duplicated key')
-
-      attributes[key] = attr
 
     return attributes
 
@@ -477,21 +478,37 @@ def find_value_sign(txt: TextMap) -> (int, (int, int)):
 
 class ContractValue:
   def __init__(self, sign: SemanticTag, value: SemanticTag, currency: SemanticTag, parent: SemanticTag = None):
+    warnings.warn("switch to ContractPrice struktur", DeprecationWarning)
     self.value: SemanticTag = value
     self.sign: SemanticTag = sign
     self.currency: SemanticTag = currency
     self.parent: SemanticTag = parent
 
-  def as_ContractPrice(self) -> ContractPrice:
+  def is_child_of(self, p: SemanticTag) -> bool:
+    return self.parent.is_child_of(p)
+
+  def as_ContractPrice(self) -> ContractPrice or None:
+    warnings.warn("switch to attributes_tree struktur", DeprecationWarning)
+
+    if self.value is None and self.currency is None and self.sign is None:
+      return None
+
     o: ContractPrice = ContractPrice()
 
     o.amount = clean_semantic_tag_copy(self.value)
     o.currency = clean_semantic_tag_copy(self.currency)
     o.sign = clean_semantic_tag_copy(self.sign)
+    confidence = 0.0
+    if o.amount is not None:
+      confidence = o.amount.confidence
+
+    o.confidence = confidence
+    o.span = self.span()
 
     return o
 
   def as_list(self) -> [SemanticTag]:
+    warnings.warn("switch to attributes_tree struktur", DeprecationWarning)
     if self.sign.value != 0:
       return [self.value, self.sign, self.currency, self.parent]
     else:
