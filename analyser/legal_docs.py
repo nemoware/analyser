@@ -521,7 +521,7 @@ class ContractValue:
 
   def span(self):
     left = min([tag.span[0] for tag in self.as_list()])
-    right = max([tag.span[0] for tag in self.as_list()])
+    right = max([tag.span[1] for tag in self.as_list()])
     return left, right
 
   def __mul__(self, confidence_k):
