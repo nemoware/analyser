@@ -4,12 +4,14 @@ from typing import List
 
 import numpy as np
 
+from analyser.contract_agents import find_closest_org_name
 from analyser.contract_patterns import ContractPatternFactory
 from analyser.documents import TextMap
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, extract_sum_sign_currency
 from analyser.ml_tools import estimate_confidence_by_mean_top_non_zeros, FixedVector, smooth_safe, relu
 from analyser.transaction_values import complete_re as transaction_values_re
+from gpn.gpn import subsidiaries
 from tf_support.embedder_elmo import ElmoEmbedder
 
 PROF_DATA = {}
@@ -58,6 +60,15 @@ class AuditContext:
 
   def __init__(self, audit_subsidiary_name=None):
     self.audit_subsidiary_name: str = audit_subsidiary_name
+    self.fixed_audit_subsidiary_name = '__unknown___'
+
+    known_org_name, best_similarity = find_closest_org_name(subsidiaries, audit_subsidiary_name,
+                                                            HyperParameters.subsidiary_name_match_min_jaro_similarity)
+    if known_org_name is not None:
+      self.fixed_audit_subsidiary_name = known_org_name['_id']
+
+  def is_same_org(self, name: str) -> bool:
+    return self.audit_subsidiary_name == name or self.fixed_audit_subsidiary_name == name
 
 
 class ParsingContext(ParsingSimpleContext):

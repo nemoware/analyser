@@ -74,7 +74,7 @@ def _get_semantic_map(doc: DbJsonDoc, confidence_override=None) -> DataFrame:
       _conf = confidence_override
 
     av = np.zeros(_len)  # attention_vector
-    av[_span[0]:_span[1]] = _conf
+    av[_span[0]:_span[1]] = _conf #TODO: confidence might be too low, please check this is safe
     df[_kind] = av
 
   # add missing columns

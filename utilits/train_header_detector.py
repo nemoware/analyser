@@ -67,7 +67,7 @@ if __name__ == '__main__':
   for resp in res:
     for d in resp['documents']:
       doctype = d['documentType']
-      if doctype == 'CONTRACT' or doctype == 'PROTOCOL' or doctype == 'CHARTER':
+      if doctype in ('CONTRACT', 'PROTOCOL', 'CHARTER'):
         print(resp['_id'])
         legal_doc = join_paragraphs(d, resp['_id'])
         _doc_features = doc_line_features(legal_doc)
