@@ -3,7 +3,6 @@ import warnings
 
 import pymongo
 
-import analyser
 from analyser import finalizer
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractParser
@@ -115,9 +114,9 @@ class BaseProcessor:
     o1: str = db_doc.get_attribute_value("org-1-name")
     o2: str = db_doc.get_attribute_value("org-2-name")
 
-    return (subsidiary == o1) or (o2 == subsidiary)
+    return subsidiary in (o1, o2)
 
-  def is_same_org(self, legal_doc:LegalDocument, db_doc, subsidiary:str):
+  def is_same_org(self, legal_doc: LegalDocument, db_doc, subsidiary: str):
     warnings.warn("use _same_org", DeprecationWarning)
     if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"][
       "attributes"].get("org-1-name") is not None:
