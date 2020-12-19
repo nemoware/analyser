@@ -1,6 +1,14 @@
 name: train-my-model
 
-on: [push]
+on: 
+  # Trigger the workflow on push or pull request,
+  # but only for the main branch
+  push:
+    branches:
+      - model
+  pull_request:
+    branches:
+      - model
 
 jobs:
   train:
@@ -43,6 +51,10 @@ jobs:
           
           echo '### Subjects prediction loss' >> report.md     
           cml-publish $REPORTS/$MODEL_NAME-O2_subject_loss.png --md >> report.md
+          
+          echo '### Loss' >> report.md     
+          cml-publish $REPORTS/$MODEL_NAME-loss.png --md >> report.md
+          
           
           
           cml-send-comment report.md
