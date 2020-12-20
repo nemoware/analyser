@@ -131,7 +131,7 @@ def smooth(x: FixedVector, window_len=11, window='hanning'):
   if window_len < 3:
     return x
 
-  if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+  if window not in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
     raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
   s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
@@ -327,7 +327,7 @@ def filter_values_by_key_prefix(dictionary: dict, prefix: str) -> Vectors:
       yield dictionary[p]
 
 
-def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix):
+def max_exclusive_pattern_by_prefix(distances_per_pattern_dict, prefix) -> FixedVector:
   vectors = filter_values_by_key_prefix(distances_per_pattern_dict, prefix)
 
   return max_exclusive_pattern(vectors)
@@ -382,10 +382,46 @@ TAG_KEY_DELIMITER = '/'
 class SemanticTagBase:
   value: str or Enum or int or float or datetime.date or None = None
   span: (int, int)
-  confidence: float
 
-  def __init__(self):
+
+  def __init__(self, tag=None):
     super().__init__()
+    self.confidence: float = 0.0
+    if tag is not None:
+      self.value = tag.value
+      self.set_span(tag.span)
+      self.set_confidence(tag.confidence)
+
+  def get_confidence(self) -> float:
+    return self.confidence
+
+  def get_span(self) -> (int, int):
+    return self.span
+
+  def set_span(self, span: (int, int)):
+    self.span = (int(span[0]), int(span[1]))
+
+  def set_confidence(self, confidence: float):
+    if confidence is None:
+      self.confidence = 0
+    else:
+      self.confidence = float(confidence)
+
+  def as_json_attribute(self):
+    raise NotImplementedError()
+
+  def __len__(self) -> int:
+    return self.span[1] - self.span[0]
+
+  def __add__(self, addon: int):
+    return self.offset(addon)
+
+  def offset(self, addon: int):
+    self.span = self.span[0] + int(addon), self.span[1] + int(addon)
+    return self
+
+  def contains(self, child: [int]) -> bool:
+    return self.span[0] <= child[0] and child[1] <= self.span[1]
 
 
 class SemanticTag(SemanticTagBase):
@@ -395,7 +431,7 @@ class SemanticTag(SemanticTagBase):
                value: str or Enum or None = None,
                span: (int, int) = (-1, -1),
                span_map: str or None = 'words',
-               parent: 'SemanticTag' = None):
+               parent: 'SemanticTag' = None, confidence: float = 1.0):
     super().__init__()
     self.kind = kind
     self.value: str or Enum or None = value
@@ -408,7 +444,14 @@ class SemanticTag(SemanticTagBase):
     else:
       self.span = (0, 0)  # TODO: might be keep None?
     self.span_map = span_map
-    self.confidence = 1.0
+    self.confidence = confidence
+
+  def clean_copy(self) -> SemanticTagBase:
+
+    r = SemanticTagBase()
+    for a in ['value', 'span', 'confidence']:
+      setattr(r, a, getattr(self, a))
+    return r
 
   def as_json_attribute(self):
 
@@ -433,6 +476,9 @@ class SemanticTag(SemanticTagBase):
 
     return f'{base}-{number}'
 
+  def is_child_of(self, p: 'SemanticTag') -> bool:
+    return self._parent_tag == p
+
   def get_parent(self) -> str or None:
     if self._parent_tag is not None:
       return self._parent_tag.get_key()
@@ -440,17 +486,6 @@ class SemanticTag(SemanticTagBase):
       return None
 
   parent = property(get_parent)
-
-  def __len__(self) -> int:
-    return self.span[1] - self.span[0]
-
-  def __add__(self, addon: int) -> 'SemanticTag':
-    self.span = self.span[0] + addon, self.span[1] + addon
-    return self
-
-  def offset(self, span_add: int):
-    self.span = self.span[0] + span_add, self.span[1] + span_add
-    return self
 
   def get_key(self):
     key = self.kind.replace('.', '-').replace(TAG_KEY_DELIMITER, '-')
@@ -479,9 +514,6 @@ class SemanticTag(SemanticTagBase):
   def set_parent_tag(self, pt):
     self._parent_tag = pt
 
-  def contains(self, child: [int]) -> bool:
-    return self.span[0] <= child[0] and child[1] <= self.span[1]
-
   def __str__(self):
     return f'SemanticTag: {self.get_key()} {self.span} {self.value} {self.confidence}'
 
@@ -502,11 +534,16 @@ def clean_semantic_tags_copy(tags: [SemanticTag]) -> [SemanticTagBase]:
   return [clean_semantic_tag_copy(t) for t in tags]
 
 
-def max_confident_tags(vals: List[SemanticTag]) -> [SemanticTag]:
+def max_confident_tags(vals: [SemanticTagBase]) -> [SemanticTagBase]:
   if vals:
     return [max(vals, key=lambda a: a.confidence)]
   else:
     return []
+
+
+def max_confident_tag(vals: [SemanticTagBase]) -> SemanticTagBase:
+  if vals:
+    return max(vals, key=lambda a: a.confidence)
 
 
 def estimate_confidence(vector: FixedVector) -> (float, float, int, float):
@@ -755,8 +792,6 @@ def multi_attention_vector(patterns_emb: Embeddings, text_emb: Embeddings) -> Fi
   return max_exclusive_pattern(vectors)
 
 
-
-
 def get_centroids(embeddings: Embeddings, clustered: pd.DataFrame, labels_column: str) -> Embeddings:
   centroids = []
   for cn in np.unique(clustered[labels_column]):
@@ -773,3 +808,19 @@ def softmax_rows(headers_df: DataFrame, columns):
   headers_df[columns] = _x
 
   return headers_df
+
+
+def is_in(c: int, span: [int]):
+  return c >= span[0] and c < span[1]
+
+
+def is_span_intersect(span1, span2) -> bool:
+  '''
+  ......a.....b....
+  ....c....d.......
+  :param span1:
+  :param span2:
+  :return:
+  '''
+  return is_in(span1[0], span2) or is_in(span1[1], span2) \
+         or is_in(span2[0], span1) or is_in(span2[1], span1)

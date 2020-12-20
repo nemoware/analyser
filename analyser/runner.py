@@ -3,7 +3,6 @@ import warnings
 
 import pymongo
 
-import analyser
 from analyser import finalizer
 from analyser.charter_parser import CharterParser
 from analyser.contract_parser import ContractParser
@@ -17,6 +16,7 @@ from integration.db import get_mongodb_connection
 
 CHARTER = 'CHARTER'
 CONTRACT = 'CONTRACT'
+PROTOCOL = 'PROTOCOL'
 
 
 class Runner:
@@ -50,8 +50,9 @@ class BaseProcessor:
       legal_doc = jdoc.asLegalDoc()
       self.parser.find_org_date_number(legal_doc, context)
       save_analysis(jdoc, legal_doc, state=DocumentState.Preprocessed.value)
+      return legal_doc
 
-  def process(self, db_document: DbJsonDoc, audit, context: AuditContext):
+  def process(self, db_document: DbJsonDoc, audit, context: AuditContext) -> LegalDocument:
     # phase II
     if db_document.retry_number is None:
       db_document.retry_number = 0
@@ -72,10 +73,13 @@ class BaseProcessor:
 
         if db_document.is_user_corrected():
           logger.info(f"skipping doc {db_document.get_id()} postprocessing because it is corrected by user")
+          change_doc_state(db_document, state=DocumentState.Done.value)
         else:
+          # ANALYSING
           self.parser.find_attributes(legal_doc, context)
+          save_analysis(db_document, legal_doc, state=DocumentState.Done.value)
+          # ANALYSING
 
-        save_analysis(db_document, legal_doc, state=DocumentState.Done.value)
         logger.info(f'analysis saved, doc._id={legal_doc.get_id()}')
       else:
         logger.info(f"excluding doc {db_document.get_id()}")
@@ -85,6 +89,7 @@ class BaseProcessor:
     except Exception as err:
       traceback.print_tb(err.__traceback__)
       logger.exception(f'cant process document {db_document.get_id()}')
+      # TODO: do not save the entire doc here, data loss possible
       save_analysis(db_document, legal_doc, DocumentState.Error.value, db_document.retry_number + 1)
 
     return legal_doc
@@ -109,9 +114,9 @@ class BaseProcessor:
     o1: str = db_doc.get_attribute_value("org-1-name")
     o2: str = db_doc.get_attribute_value("org-2-name")
 
-    return (subsidiary == o1) or (o2 == subsidiary)
+    return subsidiary in (o1, o2)
 
-  def is_same_org(self, legal_doc, db_doc, subsidiary):
+  def is_same_org(self, legal_doc: LegalDocument, db_doc, subsidiary: str):
     warnings.warn("use _same_org", DeprecationWarning)
     if db_doc.get("user") is not None and db_doc["user"].get("attributes") is not None and db_doc["user"][
       "attributes"].get("org-1-name") is not None:

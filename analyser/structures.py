@@ -67,22 +67,45 @@ class DocumentState(Enum):
 
   Done = 15
 
-
+ORG_LEVELS_names:[str] = [
+  'общее собрание участников',
+  'единственный участник',
+  'общее собрание акционеров',
+  'единственный акционер',
+  'совет директоров',
+  'генеральный директор',
+  'правление общества']
 
 @unique
 class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
   # TODO: define per org_types
 
-  AllMembers = 4, 'Общее собрание Участников'
-  ShareholdersGeneralMeeting = 3, 'Общее собрание акционеров'
-  BoardOfDirectors = 2, 'Совет директоров'
-  CEO = 1, 'Генеральный директор'
-  BoardOfCompany = 0, 'Правление общества'
+  AllMembers = 4, ['Общее собрание участников' , 'Единственный участник']
+  ShareholdersGeneralMeeting = 3, ['Общее собрание акционеров', 'Единственный акционер']
+  BoardOfDirectors = 2, ['Совет директоров']
+  CEO = 1, ['Генеральный директор']
+  BoardOfCompany = 0, ['Правление общества']
+
+  @staticmethod
+  def get_all_display_names(nm: str) -> [str]:
+    ret=[]
+    for x in OrgStructuralLevel:
+      if isinstance(x.display_string, list):
+        for ds in x.display_string:
+          ret.append(ds)
+      else:
+        ret.append( x.display_string)
+
+    return ret
 
   @staticmethod
   def find_by_display_string(nm: str) -> str or None:
     for x in OrgStructuralLevel:
-      if x.display_string == nm:
+      if isinstance(x.display_string, list):
+        for ds in x.display_string:
+          if ds.lower() == nm.lower():
+            return x.name
+      elif x.display_string.lower()  == nm.lower():
         return x.name
     return None
 
@@ -91,7 +114,7 @@ class OrgStructuralLevel(Enum, metaclass=DisplayStringEnumMeta):
     return [{"_id": x.name, "number": x.value, "alias": x.display_string} for x in OrgStructuralLevel]
 
 
-ORG_LEVELS_names = [x.display_string for x in OrgStructuralLevel]
+
 
 
 @unique

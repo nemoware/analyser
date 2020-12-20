@@ -92,7 +92,7 @@ def get_token_features(token: str):
   features = {
     'isdigit': _onehot(token.isdigit()),
     'istitle': _onehot(token.istitle()),
-    'nl': _onehot(token == '\n' or token == '\r'),
+    'nl': _onehot(token in ('\n', '\r')),
 
     'has_underscore': _has_symbols(token, '_'),
 

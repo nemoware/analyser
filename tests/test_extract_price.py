@@ -7,9 +7,7 @@ import unittest
 from typing import List
 
 import nltk
-import numpy as np
 
-from analyser.charter_parser import split_by_number_2
 from analyser.contract_parser import ContractDocument
 from analyser.documents import TextMap
 from analyser.legal_docs import find_value_sign
@@ -291,18 +289,6 @@ class PriceExtractTestCase(unittest.TestCase):
         ff = number_re.findall(t)
         print(len(ff) > 0, ff)
         # self.assertTrue(len(ff)>0 )
-
-  def test_split_by_number(self):
-    for (_, _, _, _, text) in data:
-
-      normal_text = normalize_text(text, replacements_regex)  # TODO: fix nltk problem, use d.parse()
-      tm = TextMap(normal_text)
-
-      a, b, c = split_by_number_2(tm.tokens, np.ones(len(tm)), 0.1)
-      for t in a:
-        restored = t[0]
-        print('\t-', t)
-        self.assertTrue(restored[0].isdigit())
 
   def test_conditional_p_sum(self):
     v = [0.9, 0.9]

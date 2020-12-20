@@ -5,12 +5,107 @@
 
 import unittest
 
+from bson import ObjectId
 from jsonschema import validate, ValidationError, FormatChecker
+from pymongo import MongoClient
 
+from analyser.attributes import to_json, convert_one
+from analyser.ml_tools import SemanticTagBase
+from analyser.schemas import CharterSchema, CharterStructuralLevel, Competence, ContractPrice, OrgItem, \
+  Schema2LegacyListConverter
 from analyser.schemas import document_schemas
+from analyser.structures import OrgStructuralLevel, ContractSubject
 
 
 class TestSchema(unittest.TestCase):
+
+  @unittest.skip
+  def test_migrate_single_charter(self):
+    _db_client = MongoClient(f'mongodb://192.168.10.36:27017/')
+    _db_client.server_info()
+
+    db = _db_client['gpn']
+
+    documents_collection = db['documents']
+
+    doc = documents_collection.find_one({"_id": ObjectId('5e4b9cd89a67394138e2089e')}, projection={
+      '_id': True,
+      'analysis.attributes': True,
+      'user.attributes': True,
+      'parse.documentType': True})
+
+    convert_one(db, doc)
+
+  def test_enum_to_json(self):
+    d = {
+      "some": OrgStructuralLevel.CEO
+    }
+
+    a, b = to_json(d)
+
+    print(a)
+    print(a)
+
+  def test_convert_to_legasy_list(self):
+    cs = CharterSchema()
+
+    cs.org = OrgItem()
+    cs.org.name = SemanticTagBase()
+    cs.org.type = SemanticTagBase()
+    cs.org.alias = SemanticTagBase()
+
+    cs.date = SemanticTagBase()
+
+    structural_level = CharterStructuralLevel()
+    structural_level.value = OrgStructuralLevel.BoardOfCompany
+    structural_level.span = (1, 2)
+
+    structural_level1 = CharterStructuralLevel()
+    structural_level1.value = OrgStructuralLevel.AllMembers
+    structural_level1.span = (1, 2)
+
+    structural_level.confidence = 0.777
+    cs.structural_levels.append(structural_level)
+    cs.structural_levels.append(structural_level1)
+
+    comp = Competence()
+    comp.confidence = 0.22
+    comp.span = (2, 2)
+    comp.value = ContractSubject.Charity
+    structural_level.competences.append(comp)
+
+    cp1 = ContractPrice()
+    cp1.sign = SemanticTagBase()
+    cp1.sign.value = -1
+
+    cp2 = ContractPrice()
+    cp2.sign = SemanticTagBase()
+    cp2.sign.value = 1
+    cp2.amount = SemanticTagBase()
+    cp2.amount.value = 1
+    cp2.currency = SemanticTagBase()
+    cp2.currency.value = "USD"
+
+    cp3 = ContractPrice()
+    cp3.amount = SemanticTagBase()
+
+    comp.constraints = []
+    comp.constraints.append(cp1)
+    comp.constraints.append(cp2)
+    comp.constraints.append(cp3)
+
+    converter = Schema2LegacyListConverter()
+    dest = {}
+    converter.schema2list(dest, cs)
+    for k, v in dest.items():
+      print(f"[{k}]", v)
+
+    self.assertTrue('BoardOfCompany/Charity/constraint-max-1' in dest)
+    self.assertTrue('org-1-name' in dest)
+    self.assertTrue('org-1-type' in dest)
+    self.assertTrue('org-1-alias' in dest)
+    # print(dest)
+
   def test_date_wrong_2(self):
     tree = {
       "contract": {

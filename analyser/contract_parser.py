@@ -11,10 +11,10 @@ from analyser.documents import TextMap
 from analyser.hyperparams import HyperParameters
 from analyser.legal_docs import LegalDocument, ContractValue, ParserWarnings
 from analyser.log import logger
-from analyser.ml_tools import SemanticTag, clean_semantic_tag_copy
+from analyser.ml_tools import SemanticTag, SemanticTagBase, is_span_intersect
 from analyser.parsing import ParsingContext, AuditContext, find_value_sign_currency_attention
 from analyser.patterns import AV_SOFT, AV_PREFIX
-from analyser.schemas import ContractSchema
+from analyser.schemas import ContractSchema, OrgItem
 from analyser.text_tools import find_top_spans
 from tf_support.tf_subject_model import load_subject_detection_trained_model, decode_subj_prediction, \
   nn_predict
@@ -25,13 +25,14 @@ class ContractDocument(LegalDocument):
   def __init__(self, original_text):
     LegalDocument.__init__(self, original_text)
 
-    self.subjects: SemanticTag or None = None
+    # self.subjects: SemanticTag or None = None
     self.contract_values: [ContractValue] = []
-
     self.agents_tags: [SemanticTag] = []
+
     self.attributes_tree = ContractSchema()
 
   def get_tags(self) -> [SemanticTag]:
+    warnings.warn("please switch to attributes_tree struktur", DeprecationWarning)
     tags = []
     if self.date is not None:
       tags.append(self.date)
@@ -42,8 +43,8 @@ class ContractDocument(LegalDocument):
     if self.agents_tags:
       tags += self.agents_tags
 
-    if self.subjects:
-      tags.append(self.subjects)
+    if self.subject:
+      tags.append(self.subject)
 
     if self.contract_values:
       for contract_value in self.contract_values:
@@ -53,11 +54,32 @@ class ContractDocument(LegalDocument):
     return tags
 
   def to_json_obj(self) -> dict:
-
     j: dict = super().to_json_obj()
     _attributes_tree_dict, _ = to_json(self.attributes_tree)
     j['attributes_tree'] = {"contract": _attributes_tree_dict}
     return j
+
+  def get_number(self) -> SemanticTagBase:
+    return self.attributes_tree.number
+
+  def set_number(self, number: SemanticTagBase):
+    self.attributes_tree.number = number
+
+  def get_date(self) -> SemanticTagBase:
+    return self.attributes_tree.date
+
+  def set_date(self, date: SemanticTagBase):
+    self.attributes_tree.date = date
+
+  def get_subject(self) -> SemanticTagBase:
+    return self.attributes_tree.subject
+
+  def set_subject(self, subject: SemanticTagBase):
+    self.attributes_tree.subject = subject
+
+  subject = property(get_subject, set_subject)
+  date = property(get_date, set_date)
+  number = property(get_number, set_number)
 
 
 ContractDocument3 = ContractDocument
@@ -81,7 +103,7 @@ class ContractParser(ParsingContext):
     semantic_map, _ = nn_predict(self.subject_prediction_model, _head)
 
     cas: [ContractAgent] = nn_find_org_names(_head.tokens_map, semantic_map,
-                                             audit_subsidiary_name=ctx.audit_subsidiary_name)
+                                             audit_ctx=ctx)
     contract.agents_tags = _unwrap_org_tags(cas)
 
     # TODO: maybe move contract.tokens_map into text map
@@ -89,9 +111,6 @@ class ContractParser(ParsingContext):
     contract.date = nn_get_contract_date(_head.tokens_map, semantic_map)
 
     ## Migrazzio
-
-    contract.attributes_tree.date = clean_semantic_tag_copy(contract.date)
-    contract.attributes_tree.number = clean_semantic_tag_copy(contract.number)
     contract.attributes_tree.orgs = [ca.as_OrgItem() for ca in cas]
 
     return contract
@@ -108,7 +127,7 @@ class ContractParser(ParsingContext):
     if not document.contract_values:
       document.warn(ParserWarnings.contract_value_not_found)
 
-    if not document.subjects:
+    if not document.subject:
       document.warn(ParserWarnings.contract_subject_not_found)
 
     self.log_warnings()
@@ -145,10 +164,10 @@ class ContractParser(ParsingContext):
     cas: [ContractAgent] = []
     if len(contract.agents_tags) < 2:
       cas = nn_find_org_names(_contract_cut.tokens_map, semantic_map,
-                              audit_subsidiary_name=ctx.audit_subsidiary_name)
+                              audit_ctx=ctx)
       contract.agents_tags = _unwrap_org_tags(cas)
     # -------------------------------subject
-    contract.subjects = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
+    contract.subject = nn_get_subject(_contract_cut.tokens_map, semantic_map, subj_1hot)
 
     # -------------------------------values
     contract.contract_values = nn_find_contract_value(_contract_cut, semantic_map)
@@ -159,9 +178,6 @@ class ContractParser(ParsingContext):
     ##
     # migrate to attr_tree
 
-    contract.attributes_tree.subject = clean_semantic_tag_copy(contract.subjects)
-    contract.attributes_tree.date = clean_semantic_tag_copy(contract.date)
-    contract.attributes_tree.number = clean_semantic_tag_copy(contract.number)
     contract.attributes_tree.orgs = [ca.as_OrgItem() for ca in cas]
     if len(contract.contract_values) > 0:
       contract.attributes_tree.price = contract.contract_values[0].as_ContractPrice()
@@ -194,8 +210,8 @@ def _sub_attention_names(subj: Enum):
 
 
 def nn_find_org_names(textmap: TextMap, semantic_map: DataFrame,
-                      audit_subsidiary_name=None) -> [ContractAgent]:
-  cas: [ContractAgent] = []
+                      audit_ctx: AuditContext) -> [ContractAgent]:
+  contract_agents: [ContractAgent] = []
   for o in [1, 2]:
     ca: ContractAgent = ContractAgent()
     for n in ['name', 'alias', 'type']:
@@ -203,20 +219,49 @@ def nn_find_org_names(textmap: TextMap, semantic_map: DataFrame,
       tag = nn_get_tag_value(tagname, textmap, semantic_map)
       setattr(ca, n, tag)
     normalize_contract_agent(ca)
-    cas.append(ca)
+    contract_agents.append(ca)
 
-  def name_val_safe(a):
+  def _name_val_safe(a):
     if a.name is not None:
       return a.name.value
     return ''
 
-  if audit_subsidiary_name:
+  if audit_ctx.audit_subsidiary_name:
     # known subsidiary goes first
-    cas = sorted(cas, key=lambda a: name_val_safe(a) != audit_subsidiary_name)
+    contract_agents = sorted(contract_agents, key=lambda a: not audit_ctx.is_same_org(_name_val_safe(a)))
   else:
-    cas = sorted(cas, key=lambda a: name_val_safe(a))
+    contract_agents = sorted(contract_agents, key=lambda a: _name_val_safe(a))
 
-  return cas  # _swap_org_tags(cas)
+  check_org_intersections(contract_agents)  # mutator
+
+  return contract_agents  # _swap_org_tags(cas)
+
+
+def check_org_intersections(contract_agents: [OrgItem]):
+  '''
+  achtung, darling! das ist mutator metoden, ja
+  :param contract_agents:
+  :return:
+  '''
+  if len(contract_agents) == 0:
+    return
+  if contract_agents[0].alias is None:
+    return
+  if contract_agents[1].alias is None:
+    return
+
+  crossing = is_span_intersect(
+    contract_agents[0].alias.span,
+    contract_agents[1].alias.span
+  )
+  if crossing:
+    # keep most confident, remove another
+    if contract_agents[0].alias.confidence < contract_agents[1].alias.confidence:
+      contract_agents[0].alias = None  # Sorry =(
+    else:
+      contract_agents[1].alias = None  # Sorry =( You must not conflict
+
+  return contract_agents
 
 
 def _unwrap_org_tags(all_: [ContractAgent]) -> [SemanticTag]:
