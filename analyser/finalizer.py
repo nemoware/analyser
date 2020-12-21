@@ -228,13 +228,29 @@ def find_protocol(contract, protocols, org_level, audit):
         return result[0]
 
 
-def check_contract(contract, charters, protocols, audit):
+def find_supplementary_agreements(contract, sup_agreements, audit):
+    contract_attrs = get_attrs(contract)
+    result = []
+    if contract_attrs.get('number') is not None:
+        contract_number = contract_attrs['number']['value']
+    else:
+        return result
+    for sup_agreement in sup_agreements:
+        sup_agreement_attrs = get_attrs(sup_agreement)
+        if sup_agreement_attrs.get('number') is not None and sup_agreement_attrs['number']['value'] == contract_number:
+            result.append(sup_agreement)
+            add_link(audit['_id'], contract['_id'], sup_agreement['_id'])
+    return result
+
+
+def check_contract(contract, charters, protocols, audit, supplementary_agreements):
     violations = []
     contract_attrs = get_attrs(contract)
     contract_number = ""
     remove_old_links(audit["_id"], contract["_id"])
     if contract_attrs.get("number") is not None:
         contract_number = contract_attrs["number"]["value"]
+        find_supplementary_agreements(contract, supplementary_agreements, audit)
     eligible_charter = None
     for charter in charters:
         charter_attrs = get_attrs(charter)
@@ -480,10 +496,14 @@ def finalize():
             cleaned_charters = exclude_same_charters(charters)
             charters = sorted(cleaned_charters, key=lambda k: get_attrs(k)["date"]["value"])
         protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL", without_large_fields=True)
+        supplementary_agreements = get_docs_by_audit_id(audit["_id"], 15, "SUPPLEMENTARY_AGREEMENT", without_large_fields=True)
 
         for contract_id in contract_ids:
-            contract = get_doc_by_id(contract_id["_id"])
-            violations.extend(check_contract(contract, charters, protocols, audit))
+            try:
+                contract = get_doc_by_id(contract_id["_id"])
+                violations.extend(check_contract(contract, charters, protocols, audit, supplementary_agreements))
+            except Exception as err:
+                logger.exception(f'cant finalize contract ' + contract_id['_id'])
 
         save_violations(audit, violations)
         print(f'.....audit {audit["_id"]} is waiting for approval')
