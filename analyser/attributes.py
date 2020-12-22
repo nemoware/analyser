@@ -1,5 +1,7 @@
 import datetime
 import json
+import logging
+import sys
 from datetime import datetime, date
 from enum import Enum
 
@@ -18,10 +20,6 @@ from analyser.schemas import document_schemas, ProtocolSchema, OrgItem, AgendaIt
 from analyser.structures import OrgStructuralLevel, ContractSubject
 from integration.db import get_mongodb_connection
 
-
-
-import logging
-
 migration_logger = logging.getLogger('db_migration')
 
 ch = logging.StreamHandler()
@@ -31,6 +29,7 @@ ch.setFormatter(formatter)
 migration_logger.setLevel(logging.DEBUG)
 
 migration_logger.addHandler(ch)
+
 
 class DatetimeHandler(jsonpickle.handlers.BaseHandler):
   def flatten(self, obj: datetime, data):
@@ -49,7 +48,7 @@ class EnumHandler(jsonpickle.handlers.BaseHandler):
 
 jsonpickle.handlers.registry.register(datetime, DatetimeHandler)
 jsonpickle.handlers.registry.register(date, DatetimeHandler)
-jsonpickle.handlers.registry.register(Enum, EnumHandler, base=True )
+jsonpickle.handlers.registry.register(Enum, EnumHandler, base=True)
 
 jsonpickle.handlers.registry.register(np.float, NumpyFloatHandler)
 jsonpickle.handlers.registry.register(np.float32, NumpyFloatHandler)
@@ -165,7 +164,7 @@ def _find_by_value(arr: [SemanticTagBase], value):
 
 
 def convert_competence(path_s: [str], attr, competence_node: Competence):
-  #charter
+  # charter
   constraint = path_s[0].split('-')  # example: 'constraint-min-2' or just `constraint`
   constraint_margin_index = 0
   if len(constraint) == 3:
@@ -191,17 +190,17 @@ def handle_sign_value_currency(path: [str], v, dest: ContractPrice):
 
 
 def convert_constraints(path_s: [str], attr, structural_level_node: CharterStructuralLevel):
-  subj_name_parts=path_s[0].split('-')
+  subj_name_parts = path_s[0].split('-')
   subj_name = subj_name_parts[0]
   subj = ContractSubject[subj_name]
-  subj_index=0
-  if len(subj_name_parts)==2:
-    subj_index=int(subj_name_parts[1])
+  subj_index = 0
+  if len(subj_name_parts) == 2:
+    subj_index = int(subj_name_parts[1])
 
-  if subj_index>0:
+  if subj_index > 0:
     migration_logger.error(f"doubled {path_s} {attr.get('kind')}")
 
-  subject_node = _find_by_value(structural_level_node.competences, subj) # "Deal", for example
+  subject_node = _find_by_value(structural_level_node.competences, subj)  # "Deal", for example
   if subject_node is None:
     subject_node = Competence(value=subj)
     structural_level_node.competences.append(subject_node)
@@ -261,7 +260,7 @@ def copy_attr(src, dest: SemanticTagBase, skip_value=False) -> SemanticTagBase:
   _list = ['span', 'span_map', 'confidence', "value"]
   if skip_value:
     _list = ['span', 'span_map', 'confidence']
-  for key in _list :
+  for key in _list:
     setattr(dest, key, src.get(key))
 
   return dest
@@ -478,18 +477,37 @@ def convert_one(db, doc: dict):
       migration_logger.debug(f'updated {kind} {doc["_id"]} user.attributes_tree')
 
 
-def convert_all_docs():
-  ids = get_legacy_docs_ids()
+def should_i_migrate(ids) -> bool:
   if len(ids) == 0:
     migration_logger.info(f"Migration: no legacy docs found in DB")
-    return
+    return False
 
-  print('\a')
-  print(
-    f"{len(ids)} legacy doc(s) found in DB. If you want to convert (migrate) them, type YES (it's safe, trust me)")
-  yesno = str(input())
+  print(f">> {len(ids)} legacy doc(s) found in DB. ")
+
+  if '-skipmigration' in sys.argv:
+    print("migration skipped due to -skipmigration flag")
+    return False
+
+  if '-forcemigration' in sys.argv:
+    return True
+  else:
+
+    print("use -forcemigration cmd line arg if your answer is always yes")
+    print("use -skipmigration cmd line arg if your answer is always no")
+    print('\a')
+    print("If you want to convert (migrate) them, type YES (it's safe, trust me)")
+
+    yesno = str(input())
 
   if yesno == 'YES':
+    return True
+
+  return False
+
+
+def convert_all_docs():
+  ids = get_legacy_docs_ids()
+  if should_i_migrate(ids):
 
     db = get_mongodb_connection()
     documents_collection = db['documents']
