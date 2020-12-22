@@ -490,14 +490,13 @@ def should_i_migrate(ids) -> bool:
 
   if '-forcemigration' in sys.argv:
     return True
-  else:
+  
+  print("use -forcemigration cmd line arg if your answer is always yes")
+  print("use -skipmigration cmd line arg if your answer is always no")
+  print('\a')
+  print("If you want to convert (migrate) them, type YES (it's safe, trust me)")
 
-    print("use -forcemigration cmd line arg if your answer is always yes")
-    print("use -skipmigration cmd line arg if your answer is always no")
-    print('\a')
-    print("If you want to convert (migrate) them, type YES (it's safe, trust me)")
-
-    yesno = str(input())
+  yesno = str(input())
 
   if yesno == 'YES':
     return True
