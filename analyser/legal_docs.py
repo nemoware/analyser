@@ -540,7 +540,10 @@ def extract_sum_sign_currency(doc: LegalDocument, region: (int, int)) -> Contrac
   _sign, _sign_span = find_value_sign(subdoc.tokens_map)
 
   # ======================================
-  results = ValueSpansFinder(subdoc.text)
+  try:
+    results = ValueSpansFinder(subdoc.text)
+  except TypeError:
+    results = None
   # ======================================
 
   if results:
