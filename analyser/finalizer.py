@@ -263,7 +263,6 @@ def check_contract(contract, charters, protocols, audit, supplementary_agreement
             msg = f'audit {audit["_id"]} charter {charter["_id"]} contract{contract["_id"]}'
             print('ERROR: ', e, msg )
 
-
     if eligible_charter is None:
         json_charters = []
         for charter in charters:
@@ -278,7 +277,7 @@ def check_contract(contract, charters, protocols, audit, supplementary_agreement
                             "charters": json_charters
                             }
         if 'date' in contract_attrs:
-          violation_reason["contract"]["date"] = contract_attrs["date"]["value"]
+            violation_reason["contract"]["date"] = contract_attrs["date"]["value"]
 
         violations.append(create_violation(
           document_id={
@@ -305,23 +304,39 @@ def check_contract(contract, charters, protocols, audit, supplementary_agreement
             contract_value = convert_to_rub({"value": contract_attrs["sign_value_currency/value"]["value"], "currency": contract_attrs["sign_value_currency/currency"]["value"]})
 
             if contract_value is not None and audit.get('bookValues') is not None:
-                bookValue = get_book_value(audit, str(contract_attrs["date"]["value"].year - 1))
-                if bookValue is not None:
+                book_value = get_book_value(audit, str(contract_attrs["date"]["value"].year - 1))
+                if book_value is not None:
                     if eligible_charter_attrs.get('org-1-type') is not None and 'акционерное общество' in eligible_charter_attrs['org-1-type']['value'].lower():
-                        if bookValue * 0.25 < contract_value["value"] <= bookValue * 0.5:
-                            competences = {'BoardOfDirectors': {"min": bookValue * 0.25, "original_min": 25, "original_currency_min": "%", "max": bookValue * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
+                        if book_value * 0.25 < contract_value["value"] <= book_value * 0.5:
+                            competences = {'BoardOfDirectors': {"min": book_value * 0.25, "original_min": 25, "original_currency_min": "%", "max": book_value * 0.5, "original_max": 50, "original_currency_max": "%", "competence_attr_name": 'BoardOfDirectors/BigDeal'}}
                             change_contract_primary_subject(contract, 'BigDeal')
-                        elif contract_value["value"] > bookValue * 0.5:
-                            competences = {'ShareholdersGeneralMeeting': {"min": bookValue * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
+                        elif contract_value["value"] > book_value * 0.5:
+                            competences = {'ShareholdersGeneralMeeting': {"min": book_value * 0.5, "original_min": 50, "original_currency_min": "%", "max": np.inf, "competence_attr_name": 'ShareholdersGeneralMeeting/BigDeal'}}
                             change_contract_primary_subject(contract, 'BigDeal')
                     else:
-                        if charter_subject_map.get('BigDeal') is not None and charter_subject_map['BigDeal'].get('AllMembers') is not None:
-                            limit = charter_subject_map['BigDeal']['AllMembers']['min']
-                            if charter_subject_map['BigDeal']['AllMembers']['original_currency_min'] == 'Percent':
-                                limit = charter_subject_map['BigDeal']['AllMembers']['min'] * bookValue / 100
-                            if contract_value['value'] > limit:
-                                competences = {'AllMembers': charter_subject_map['BigDeal']['AllMembers']}
-                                change_contract_primary_subject(contract, 'BigDeal')
+                        if charter_subject_map.get('BigDeal') is not None:
+                            if charter_subject_map['BigDeal'].get('BoardOfDirectors') is not None:
+                                big_deal_subject_charter_competence = charter_subject_map['BigDeal'].get('BoardOfDirectors')
+                                if big_deal_subject_charter_competence.get('min') is not None \
+                                        and big_deal_subject_charter_competence.get('original_currency_min') is not None:
+                                    limit = big_deal_subject_charter_competence['min']
+                                    if big_deal_subject_charter_competence['original_currency_min'] == 'Percent':
+                                        limit = big_deal_subject_charter_competence['min'] * book_value / 100
+                                        big_deal_subject_charter_competence['original_currency_min'] = '%'
+                                    if contract_value['value'] > limit:
+                                        change_contract_primary_subject(contract, 'BigDeal')
+                                        competences = {'BoardOfDirectors': big_deal_subject_charter_competence}
+                            if charter_subject_map['BigDeal'].get('AllMembers') is not None:
+                                big_deal_subject_charter_competence = charter_subject_map['BigDeal'].get('AllMembers')
+                                if big_deal_subject_charter_competence.get('min') is not None \
+                                        and big_deal_subject_charter_competence.get('original_currency_min') is not None:
+                                    limit = big_deal_subject_charter_competence['min']
+                                    if big_deal_subject_charter_competence['original_currency_min'] == 'Percent':
+                                        limit = big_deal_subject_charter_competence['min'] * book_value / 100
+                                        big_deal_subject_charter_competence['original_currency_min'] = '%'
+                                    if contract_value['value'] > limit:
+                                        change_contract_primary_subject(contract, 'BigDeal')
+                                        competences = {'AllMembers': big_deal_subject_charter_competence}
 
         if competences is not None and contract_value is not None:
             eligible_protocol = None
@@ -513,7 +528,7 @@ def finalize():
                 contract = get_doc_by_id(contract_id["_id"])
                 violations.extend(check_contract(contract, charters, protocols, audit, supplementary_agreements))
             except Exception as err:
-                logger.exception(f'cant finalize contract ' + contract_id['_id'])
+                logger.exception(f'cant finalize contract {contract_id["_id"]}')
 
         save_violations(audit, violations)
         print(f'.....audit {audit["_id"]} is waiting for approval')
