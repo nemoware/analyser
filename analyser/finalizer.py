@@ -21,6 +21,21 @@ def remove_old_links(audit_id, contract_id):
     audit_collection.update_one({"_id": audit_id}, {"$pull": {"links": {"type": "analysis", "$or": [{"toId": contract_id}, {"fromId": contract_id}]}}})
 
 
+def get_linked_docs(audit_id, contract_id):
+    db = get_mongodb_connection()
+    audit_collection = db['audits']
+    links = audit_collection.find({"_id": audit_id, "$or": [{"links.toId": contract_id}, {"links.fromId": contract_id}]})
+    result = []
+    document_collecion = db['documents']
+    for link in links:
+        if link['fromId'] == contract_id:
+            result.append(document_collecion.find_one({'_id': link['toId']}))
+        else:
+            result.append(document_collecion.find_one({'_id': link['fromId']}))
+
+    return result
+
+
 def add_link(audit_id, doc_id1, doc_id2):
     db = get_mongodb_connection()
     audit_collection = db['audits']
@@ -228,7 +243,7 @@ def find_protocol(contract, protocols, org_level, audit):
         return result[0]
 
 
-def find_supplementary_agreements(contract, sup_agreements, audit):
+def find_supplementary_agreements(contract, sup_agreements, audit, linked_sup_agreements):
     contract_attrs = get_attrs(contract)
     result = []
     if contract_attrs.get('number') is not None:
@@ -248,8 +263,10 @@ def check_contract(contract, charters, protocols, audit, supplementary_agreement
     contract_attrs = get_attrs(contract)
     contract_number = ""
     remove_old_links(audit["_id"], contract["_id"])
+    user_linked_docs = get_linked_docs(audit["_id"], contract["_id"])
     if contract_attrs.get("number") is not None:
         contract_number = contract_attrs["number"]["value"]
+        linked_sup_agreements = list(filter(lambda doc: doc['parse']['documentType'] == 'SUPPLEMENTARY_AGREEMENT', user_linked_docs))
         find_supplementary_agreements(contract, supplementary_agreements, audit)
     eligible_charter = None
     for charter in charters:
