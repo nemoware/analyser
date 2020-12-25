@@ -188,7 +188,7 @@ def get_charter_diapasons(charter):
             if len(constraints) == 0:
                 min_constraint = 0
             for constraint in constraints:
-                if int(constraint.get("sign", 0)) > 0: #sorry, there might be no 'sign'
+                if int(constraint.get("sign", 0)) > 0:
                     if subject_map[value["parent"]]["min"] == 0:
                         subject_map[value["parent"]]["min"] = constraint["value"]
                         subject_map[value["parent"]]["original_min"] = constraint["original_value"]
@@ -243,7 +243,7 @@ def find_protocol(contract, protocols, org_level, audit):
         return result[0]
 
 
-def find_supplementary_agreements(contract, sup_agreements, audit, linked_sup_agreements):
+def find_supplementary_agreements(contract, sup_agreements, audit):
     contract_attrs = get_attrs(contract)
     result = []
     if contract_attrs.get('number') is not None:
@@ -263,10 +263,10 @@ def check_contract(contract, charters, protocols, audit, supplementary_agreement
     contract_attrs = get_attrs(contract)
     contract_number = ""
     remove_old_links(audit["_id"], contract["_id"])
-    user_linked_docs = get_linked_docs(audit["_id"], contract["_id"])
+    # user_linked_docs = get_linked_docs(audit["_id"], contract["_id"])
     if contract_attrs.get("number") is not None:
         contract_number = contract_attrs["number"]["value"]
-        linked_sup_agreements = list(filter(lambda doc: doc['parse']['documentType'] == 'SUPPLEMENTARY_AGREEMENT', user_linked_docs))
+        # linked_sup_agreements = list(filter(lambda doc: doc['parse']['documentType'] == 'SUPPLEMENTARY_AGREEMENT', user_linked_docs))
         find_supplementary_agreements(contract, supplementary_agreements, audit)
     eligible_charter = None
     for charter in charters:
@@ -536,7 +536,7 @@ def finalize():
                 if (charter.get("isActive") is None or charter["isActive"]) and charter["state"] == 15:
                     charters.append(charter)
             cleaned_charters = exclude_same_charters(charters)
-            charters = sorted(cleaned_charters, key=lambda k: get_attrs(k)["date"]["value"])
+            charters = sorted(cleaned_charters, key=lambda k: get_attrs(k)["date"]["value"], reverse=True)
         protocols = get_docs_by_audit_id(audit["_id"], 15, "PROTOCOL", without_large_fields=True)
         supplementary_agreements = get_docs_by_audit_id(audit["_id"], 15, "SUPPLEMENTARY_AGREEMENT", without_large_fields=True)
 
